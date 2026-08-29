@@ -209,18 +209,34 @@ export default function ShirtCustomizeForm({
     return opts;
   }, [decorations]);
 
-  const availableToAdd = locationOptions.filter(
-    (o) => !locations.some((l) => l.decorationId === o.decoration.id && l.zoneId === o.zone.id)
-  );
+  // A garment side (front/back) can only carry one decoration *method* at a
+  // time (you can't screen print and embroider the same panel) — so once a
+  // location exists on a side, only more zones of that same decoration type
+  // stay pickable for that side until it's removed.
+  const decorationTypeByView = useMemo(() => {
+    const map: Partial<Record<"front" | "back", string>> = {};
+    for (const l of locations) {
+      if (!map[l.view]) map[l.view] = l.decorationId;
+    }
+    return map;
+  }, [locations]);
 
-  const hasBackLocation = locations.some((l) => l.view === "back");
-  const hasFrontLocation = locations.some((l) => l.view === "front");
-  // The design canvas always renders a vector garment (see ShirtSilhouette),
-  // never a photo, so — unlike the old photo-backed preview — showing a
-  // Back view no longer depends on SanMar having a back-view photo. Only
-  // gate the toggle on whether the customer actually has locations on both
-  // sides to switch between.
-  const showViewTabs = hasBackLocation && hasFrontLocation;
+  const availableToAdd = locationOptions.filter((o) => {
+    const alreadyAdded = locations.some(
+      (l) => l.decorationId === o.decoration.id && l.zoneId === o.zone.id
+    );
+    if (alreadyAdded) return false;
+    const usedType = decorationTypeByView[o.zone.view];
+    if (usedType && usedType !== o.decoration.id) return false;
+    return true;
+  });
+
+  // Whether this product has any back-view placement zones configured at
+  // all (admin-side, see AdminItemConfigEditor) — independent of whether
+  // the customer has actually placed anything there yet, so the Back tab
+  // is reachable on mobile before a first back location exists.
+  const hasBackZone = decorations.some((d) => d.zones.some((z) => z.view === "back"));
+  const showViewTabs = hasBackZone;
 
   // ---- Location management -------------------------------------------------
   function handleAddLocation(opt: LocationOption) {
@@ -627,7 +643,7 @@ export default function ShirtCustomizeForm({
                               height: `${zone.height}%`,
                             }}
                           >
-                            <span className="absolute top-1.5 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-[#15803d] whitespace-nowrap px-1 pointer-events-none">
+                            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-[#15803d] bg-white/90 whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none">
                               {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel}
                             </span>
                           </div>
@@ -757,24 +773,26 @@ export default function ShirtCustomizeForm({
                 </div>
                 <span className="mt-1 block text-[11px] font-medium text-navy/70">Front</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setView("back")}
-                className={`w-full rounded-lg border p-1.5 transition ${
-                  view === "back" ? "border-navy ring-1 ring-navy" : "border-navy/15 hover:border-navy/30"
-                }`}
-              >
-                <div className="relative w-full aspect-square rounded overflow-hidden bg-white">
-                  <GarmentPreview
-                    url={selectedColor?.backImageUrl}
-                    view="back"
-                    colorHexes={selectedColor?.colorHexes}
-                    isOverride={selectedColor?.backImageIsOverride}
-                    className="w-full h-full object-contain p-1.5"
-                  />
-                </div>
-                <span className="mt-1 block text-[11px] font-medium text-navy/70">Back</span>
-              </button>
+              {hasBackZone && (
+                <button
+                  type="button"
+                  onClick={() => setView("back")}
+                  className={`w-full rounded-lg border p-1.5 transition ${
+                    view === "back" ? "border-navy ring-1 ring-navy" : "border-navy/15 hover:border-navy/30"
+                  }`}
+                >
+                  <div className="relative w-full aspect-square rounded overflow-hidden bg-white">
+                    <GarmentPreview
+                      url={selectedColor?.backImageUrl}
+                      view="back"
+                      colorHexes={selectedColor?.colorHexes}
+                      isOverride={selectedColor?.backImageIsOverride}
+                      className="w-full h-full object-contain p-1.5"
+                    />
+                  </div>
+                  <span className="mt-1 block text-[11px] font-medium text-navy/70">Back</span>
+                </button>
+              )}
             </div>
           </div>
 

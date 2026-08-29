@@ -78,7 +78,12 @@ export default function AdminItemConfigEditor({
 
   const validTypes = allDecorations?.map((d) => d.id) ?? [];
   const hero = product.colors[0];
-  const hasBack = Boolean(hero?.backImageUrl);
+  // Shirts always get a usable back view (a plain illustration fallback
+  // when SanMar has no back photo — see GarmentPreview), so back-zone
+  // management shouldn't be gated on a real photo existing the way it is
+  // for hats, where a back print is unusual and no illustration fallback
+  // is drawn.
+  const hasBack = Boolean(hero?.backImageUrl) || product.productType === "shirt";
 
   // --- Design canvas photo (SanMar catalog photo vs. admin-uploaded custom
   // image) -------------------------------------------------------------
