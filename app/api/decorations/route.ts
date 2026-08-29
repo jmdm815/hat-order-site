@@ -1,12 +1,15 @@
-import { NextResponse } from "next/server";
-import { getEffectiveDecorations } from "@/lib/pricing-store";
+import { NextRequest, NextResponse } from "next/server";
+import { getDecorationTypes, getDecorationTypesForProduct } from "@/lib/decoration-types-store";
+import { ProductType } from "@/lib/types";
 
-// Customer-facing decoration list — the built-in options from
-// lib/decorations.ts merged with whatever pricing the admin has configured
-// at /admin (see lib/pricing-store.ts). /customize fetches this instead of
-// importing DECORATION_OPTIONS directly so admin-set pricing takes effect
-// immediately without a redeploy.
-export async function GET() {
-  const decorations = await getEffectiveDecorations();
+// Customer-facing decoration list — the admin-editable decoration types from
+// lib/decoration-types-store.ts. Pass ?productType=hat|shirt to filter to
+// only the types offered on that product type.
+export async function GET(req: NextRequest) {
+  const productType = req.nextUrl.searchParams.get("productType") as ProductType | null;
+  const decorations =
+    productType === "hat" || productType === "shirt"
+      ? await getDecorationTypesForProduct(productType)
+      : await getDecorationTypes();
   return NextResponse.json(decorations);
 }

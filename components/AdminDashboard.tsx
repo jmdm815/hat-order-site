@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AdminCatalogManager from "@/components/AdminCatalogManager";
 import AdminPricingManager from "@/components/AdminPricingManager";
+import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
 
 const TABS = [
   { id: "catalog", label: "Catalog" },
@@ -46,11 +47,13 @@ export default function AdminDashboard() {
         {tab === "pricing" && (
           <>
             <p className="mb-4 text-navy/60 text-sm">
-              Set your setup fee and quantity price breaks for each
-              decoration type. These prices are what customers see on{" "}
+              Add, edit, or remove decoration types (UV Patch, Embroidered,
+              Screen Print, or anything new) — their labels, hat/shirt
+              availability, accepted file types, turnaround, and pricing.
+              These are what customers see on{" "}
               <code className="font-mono">/customize</code>.
             </p>
-            <AdminPricingManager />
+            <AdminDecorationTypesManager />
           </>
         )}
         {tab === "settings" && (
@@ -59,7 +62,7 @@ export default function AdminDashboard() {
               Turn the live drag/resize design canvas on or off for hats and
               for shirts, site-wide. Individual items can still override this.
             </p>
-            <AdminPricingManager section="settings" />
+            <AdminPricingManager />
           </>
         )}
       </div>

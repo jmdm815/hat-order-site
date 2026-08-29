@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import StepHeader from "@/components/StepHeader";
-import { DECORATION_OPTIONS } from "@/lib/decorations";
+import { getDecorationTypes } from "@/lib/decoration-types-store";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const decorationOptions = await getDecorationTypes();
   return (
     <>
       <StepHeader />
@@ -51,7 +52,7 @@ export default function HomePage() {
           print for t-shirts.
         </p>
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {DECORATION_OPTIONS.map((d) => (
+          {decorationOptions.map((d) => (
             <div
               key={d.id}
               className="border-t-4 border-red rounded-lg p-5 bg-white shadow-sm"

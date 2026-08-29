@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import {
   CatalogItemConfig,
-  DECORATION_TYPES_BY_PRODUCT,
+  DecorationOption,
   DecorationType,
   ItemDecorationSetting,
   ItemImageOverride,
@@ -27,12 +27,11 @@ const DEFAULT_ZONE_BY_TYPE = {
   shirt: { label: "Front Center", view: "front" as const, x: 25, y: 20, width: 50, height: 45 },
 };
 
-function emptyConfigFor(product: Product): CatalogItemConfig {
-  const types = DECORATION_TYPES_BY_PRODUCT[product.productType];
+function emptyConfigFor(product: Product, decorationTypeIds: string[]): CatalogItemConfig {
   const defaultZone = DEFAULT_ZONE_BY_TYPE[product.productType];
   return {
     styleNumber: product.styleNumber,
-    decorations: types.map((decorationType) => ({
+    decorations: decorationTypeIds.map((decorationType) => ({
       decorationType,
       enabled: true,
       zones: [{ id: uuid(), ...defaultZone }],
@@ -51,8 +50,12 @@ export default function AdminItemConfigEditor({
   onClose: () => void;
   onSaved: (config: CatalogItemConfig) => void;
 }) {
+  // Decoration types are now admin-editable (see /admin's Pricing tab and
+  // lib/decoration-types-store.ts), so this modal fetches the current list
+  // for this product type instead of importing a fixed constant.
+  const [allDecorations, setAllDecorations] = useState<DecorationOption[] | null>(null);
   const [config, setConfig] = useState<CatalogItemConfig>(
-    () => initialConfig ?? emptyConfigFor(product)
+    () => initialConfig ?? emptyConfigFor(product, [])
   );
   const [expandedType, setExpandedType] = useState<DecorationType | null>(null);
   const [view, setView] = useState<"front" | "back">("front");
@@ -61,7 +64,19 @@ export default function AdminItemConfigEditor({
   const [error, setError] = useState<string | null>(null);
   const imageRef = useRef<HTMLDivElement>(null);
 
-  const validTypes = DECORATION_TYPES_BY_PRODUCT[product.productType];
+  useEffect(() => {
+    fetch(`/api/decorations?productType=${product.productType}`)
+      .then((r) => r.json())
+      .then((data: DecorationOption[]) => {
+        setAllDecorations(data);
+        if (!initialConfig) {
+          setConfig(emptyConfigFor(product, data.map((d) => d.id)));
+        }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const validTypes = allDecorations?.map((d) => d.id) ?? [];
   const hero = product.colors[0];
   const hasBack = Boolean(hero?.backImageUrl);
 
@@ -403,7 +418,7 @@ export default function AdminItemConfigEditor({
         <div className="mt-3 space-y-3">
           {validTypes.map((type) => {
             const setting = getSetting(type);
-            const info = getDecoration(type);
+            const info = getDecoration(allDecorations ?? [], type);
             const isExpanded = expandedType === type;
             return (
               <div key={type} className="border border-navy/10 rounded-xl overflow-hidden">

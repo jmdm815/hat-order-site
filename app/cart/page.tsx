@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StepHeader from "@/components/StepHeader";
 import { useOrder } from "@/lib/order-context";
-import { Product } from "@/lib/types";
+import { DecorationOption, Product } from "@/lib/types";
 import { getDecoration } from "@/lib/decorations";
 import { formatUSD } from "@/lib/pricing";
 
@@ -14,12 +14,16 @@ export default function CartPage() {
   const { cart, removeCartLine, updateCartLineQuantity, cartSubtotal, cartSetupFees, cartTotal, totalUnits } =
     useOrder();
   const [products, setProducts] = useState<Product[]>([]);
+  const [decorations, setDecorations] = useState<DecorationOption[]>([]);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/catalog?type=hat").then((r) => r.json()),
       fetch("/api/catalog?type=shirt").then((r) => r.json()),
     ]).then(([hats, shirts]) => setProducts([...hats, ...shirts]));
+    fetch("/api/decorations")
+      .then((r) => r.json())
+      .then(setDecorations);
   }, []);
 
   return (
@@ -59,7 +63,7 @@ export default function CartPage() {
                             {line.printLocations!
                               .map(
                                 (loc) =>
-                                  `${loc.zoneLabel} (${getDecoration(loc.decorationId)?.shortLabel ?? loc.decorationId})`
+                                  `${loc.zoneLabel} (${getDecoration(decorations, loc.decorationId)?.shortLabel ?? loc.decorationId})`
                               )
                               .join(", ")}
                           </div>
@@ -92,7 +96,9 @@ export default function CartPage() {
                   );
                 }
 
-                const decoration = line.decoration ? getDecoration(line.decoration.decorationId) : undefined;
+                const decoration = line.decoration
+                  ? getDecoration(decorations, line.decoration.decorationId)
+                  : undefined;
                 return (
                   <div
                     key={line.id}

@@ -69,12 +69,12 @@ export type Product = {
   heroImageFallbackUrl?: string;
 };
 
-export type DecorationType = "uv-patch" | "engraved-patch" | "embroidered" | "screen-print";
-
-export const DECORATION_TYPES_BY_PRODUCT: Record<ProductType, DecorationType[]> = {
-  hat: ["uv-patch", "engraved-patch", "embroidered"],
-  shirt: ["screen-print", "embroidered"],
-};
+// Decoration types used to be a fixed set (UV Patch / Engraved Patch /
+// Embroidered / Screen Print). Admins can now add, edit, and delete
+// decoration types from /admin (see lib/decoration-types-store.ts), so this
+// is a plain string id (e.g. "uv-patch", or "vinyl-transfer-9f2a1c3d" for a
+// freshly admin-created one) rather than a closed union.
+export type DecorationType = string;
 
 export type PlacementZone = {
   id: string; // stable id, e.g. uuid
@@ -111,6 +111,10 @@ export type DecorationOption = {
   label: string;
   shortLabel: string;
   description: string;
+  // Which product types this decoration type can be applied to. Drives both
+  // the customer-facing catalog (only offered on matching products) and the
+  // admin "Configure decorations" checklist.
+  productTypes: ProductType[];
   minQuantity: number;
   setupFee: number; // one-time digitization / mold fee
   pricingTiers: { minQty: number; pricePerUnit: number }[];

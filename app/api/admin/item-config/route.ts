@@ -5,7 +5,7 @@ import {
   isPersistent,
 } from "@/lib/item-config-store";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { CatalogItemConfig, DecorationType, PlacementZone } from "@/lib/types";
+import { CatalogItemConfig, PlacementZone } from "@/lib/types";
 
 function isValidZone(z: unknown): z is PlacementZone {
   if (typeof z !== "object" || z === null) return false;
@@ -20,13 +20,6 @@ function isValidZone(z: unknown): z is PlacementZone {
     typeof zone.height === "number"
   );
 }
-
-const VALID_DECORATION_TYPES: DecorationType[] = [
-  "uv-patch",
-  "engraved-patch",
-  "embroidered",
-  "screen-print",
-];
 
 function isValidImageOverride(value: unknown): boolean {
   if (typeof value !== "object" || value === null) return false;
@@ -55,7 +48,7 @@ function isValidConfig(value: unknown): value is CatalogItemConfig {
   return config.decorations.every((d: unknown) => {
     if (typeof d !== "object" || d === null) return false;
     const setting = d as Record<string, unknown>;
-    if (!VALID_DECORATION_TYPES.includes(setting.decorationType as DecorationType)) return false;
+    if (typeof setting.decorationType !== "string" || !setting.decorationType) return false;
     if (typeof setting.enabled !== "boolean") return false;
     if (!Array.isArray(setting.zones)) return false;
     return setting.zones.every(isValidZone);

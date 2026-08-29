@@ -3,7 +3,8 @@ import { getProductByStyleNumber } from "@/lib/sanmar";
 import { getHiddenStyleNumbers } from "@/lib/catalog-selection";
 import { getItemConfig } from "@/lib/item-config-store";
 import { resolveImageOverride, synthesizeDefaultItemConfig } from "@/lib/default-item-config";
-import { getDesignerSettings, getEffectiveDecorations } from "@/lib/pricing-store";
+import { getDesignerSettings } from "@/lib/pricing-store";
+import { getDecorationTypes, getDecorationTypeIdsForProduct } from "@/lib/decoration-types-store";
 import { DecorationOption, PlacementZone } from "@/lib/types";
 
 // Customer-facing single-product endpoint — used by the /customize flow
@@ -26,12 +27,16 @@ export async function GET(
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-  const [savedConfig, effectiveDecorations, designerSettings] = await Promise.all([
-    getItemConfig(styleNumber),
-    getEffectiveDecorations(),
-    getDesignerSettings(),
-  ]);
-  const config = savedConfig ?? synthesizeDefaultItemConfig(styleNumber, product.productType);
+  const [savedConfig, effectiveDecorations, designerSettings, defaultDecorationIds] =
+    await Promise.all([
+      getItemConfig(styleNumber),
+      getDecorationTypes(),
+      getDesignerSettings(),
+      getDecorationTypeIdsForProduct(product.productType),
+    ]);
+  const config =
+    savedConfig ??
+    synthesizeDefaultItemConfig(styleNumber, product.productType, defaultDecorationIds);
 
   // Resolve whether the live drag/resize design canvas is offered for this
   // item: a per-item override wins if set, otherwise the site-wide Settings

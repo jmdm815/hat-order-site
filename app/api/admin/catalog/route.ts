@@ -39,4 +39,3 @@ export async function POST(req: NextRequest) {
   const result = await setHiddenStyleNumbers(hidden);
   return NextResponse.json({ ok: true, ...result });
 }
- 

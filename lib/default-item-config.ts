@@ -1,7 +1,6 @@
 import { v4 as uuid } from "uuid";
 import {
   CatalogItemConfig,
-  DECORATION_TYPES_BY_PRODUCT,
   ItemDecorationSetting,
   ItemImageOverride,
   PlacementZone,
@@ -30,9 +29,9 @@ function defaultZoneId(styleNumber: string, decorationType: string): string {
 
 export function synthesizeDefaultItemConfig(
   styleNumber: string,
-  productType: ProductType
+  productType: ProductType,
+  decorationTypes: string[]
 ): CatalogItemConfig {
-  const decorationTypes = DECORATION_TYPES_BY_PRODUCT[productType];
   const defaultZone = DEFAULT_ZONE_BY_PRODUCT[productType];
 
   const decorations: ItemDecorationSetting[] = decorationTypes.map((decorationType) => ({
