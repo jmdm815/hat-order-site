@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   title: "JM Digital Media — Custom Hat & T-Shirt Ordering",
   description:
     "Order custom hats and t-shirts from JM Digital Media with UV patch, engraved patch, embroidered, or screen print decoration.",
+  // Invisible marker used to verify the auto-deploy pipeline (Claude edit ->
+  // git push -> Vercel build) end to end. Safe to remove any time.
+  other: { "x-autodeploy-test": "2026-08-29-ok" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
