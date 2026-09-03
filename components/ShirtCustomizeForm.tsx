@@ -55,6 +55,19 @@ function fitZoneBox(zone: PlacementZone, aspect: number): Box {
   };
 }
 
+// A drawn "x" rather than the unicode "×" glyph — some browser/font
+// combinations silently drop that character (and similar punctuation like
+// the "·" separators below) instead of falling back to another font, which
+// made every remove control on this screen look like it had vanished. An
+// SVG renders identically everywhere.
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
 function RailIcon({
   kind,
 }: {
@@ -599,8 +612,9 @@ export default function ShirtCustomizeForm({
                           }}
                           className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-white/20"
                           aria-label="Remove location"
+                          title="Remove location"
                         >
-                          ×
+                          <XIcon className="w-2.5 h-2.5" />
                         </span>
                       </button>
                     ))}
@@ -688,11 +702,11 @@ export default function ShirtCustomizeForm({
                                   e.stopPropagation();
                                   handleRemoveLocation(loc.id);
                                 }}
-                                className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-white border border-navy/20 text-navy text-xs shadow flex items-center justify-center pointer-events-auto"
+                                className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-white border border-navy/20 text-navy shadow flex items-center justify-center pointer-events-auto"
                                 aria-label="Remove this print location"
                                 title="Remove this print location"
                               >
-                                ×
+                                <XIcon className="w-3 h-3" />
                               </button>
                             )}
                           </div>
@@ -733,10 +747,11 @@ export default function ShirtCustomizeForm({
                                     e.stopPropagation();
                                     handleRemoveLayer(layer.id);
                                   }}
-                                  className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-white border border-navy/20 text-navy text-xs shadow flex items-center justify-center"
+                                  className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-white border border-navy/20 text-navy shadow flex items-center justify-center"
                                   aria-label="Remove layer"
+                                  title="Remove layer"
                                 >
-                                  ×
+                                  <XIcon className="w-3 h-3" />
                                 </button>
                               </DragResizeBox>
                             ) : (
