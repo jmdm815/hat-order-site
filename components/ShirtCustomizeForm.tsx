@@ -16,6 +16,7 @@ import { formatUSD } from "@/lib/pricing";
 import { useOrder } from "@/lib/order-context";
 import DragResizeBox, { type Box } from "./DragResizeBox";
 import GarmentPreview from "./GarmentPreview";
+import ColorSelectScreen from "./ColorSelectScreen";
 
 type DecorationWithZones = DecorationOption & { zones: PlacementZone[] };
 type LocationOption = { decoration: DecorationWithZones; zone: PlacementZone; key: string };
@@ -173,6 +174,11 @@ export default function ShirtCustomizeForm({
   const [step, setStep] = useState<Step>("design");
   const [furthestStep, setFurthestStep] = useState<Step>("design");
   const [colorName, setColorName] = useState(product.colors[0]?.colorName ?? "");
+  // Shown as a dedicated color-pick screen before the designer opens — see
+  // ColorSelectScreen. Product identity doesn't change within this
+  // component's lifetime (a new product mounts a fresh instance via the
+  // `key` on styleNumber upstream), so a plain useState default is enough.
+  const [pickingColor, setPickingColor] = useState(true);
   const [locations, setLocations] = useState<EditingLocation[]>([]);
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [view, setView] = useState<"front" | "back">("front");
@@ -424,6 +430,26 @@ export default function ShirtCustomizeForm({
     { id: "review", label: "Review" },
   ];
   const stepOrder: Step[] = ["design", "quantity", "review"];
+
+  if (pickingColor) {
+    return (
+      <ColorSelectScreen
+        product={product}
+        colorName={colorName}
+        onSelectColor={setColorName}
+        onContinue={() => setPickingColor(false)}
+        renderPreview={(color) => (
+          <GarmentPreview
+            url={color.imageUrl}
+            view="front"
+            colorHexes={color.colorHexes}
+            isOverride={color.imageIsOverride}
+            className="absolute inset-0 w-full h-full object-contain p-8 pointer-events-none"
+          />
+        )}
+      />
+    );
+  }
 
   return (
     <div className="mt-6">

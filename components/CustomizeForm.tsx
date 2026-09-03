@@ -9,6 +9,7 @@ import { formatUSD } from "@/lib/pricing";
 import { useOrder } from "@/lib/order-context";
 import { productImageUrl } from "@/lib/product-image";
 import ShirtCustomizeForm from "./ShirtCustomizeForm";
+import ColorSelectScreen from "./ColorSelectScreen";
 import DragResizeBox, { type Box } from "./DragResizeBox";
 
 type DecorationWithZones = DecorationOption & { zones: PlacementZone[] };
@@ -68,6 +69,10 @@ export default function CustomizeForm() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [colorName, setColorName] = useState<string>("");
+  // Shown as a dedicated color-pick screen before the designer opens — see
+  // ColorSelectScreen. Reset to true whenever a fresh product's data loads
+  // in (below), so navigating catalog -> customize always starts there.
+  const [pickingColor, setPickingColor] = useState(true);
   const [decorationId, setDecorationId] = useState<DecorationType | "">("");
   const [placement, setPlacement] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(24);
@@ -83,8 +88,9 @@ export default function CustomizeForm() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPickingColor(true);
     if (!styleNumber) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       setNotFound(true);
       return;
@@ -170,6 +176,27 @@ export default function CustomizeForm() {
 
   if (!decoration) {
     return <p className="mt-10 text-navy/40 text-sm">Loading…</p>;
+  }
+
+  if (pickingColor) {
+    return (
+      <ColorSelectScreen
+        product={product}
+        colorName={colorName}
+        onSelectColor={setColorName}
+        onContinue={() => setPickingColor(false)}
+        renderPreview={(color) => (
+          <Image
+            src={productImageUrl(color.imageUrl, color.imageFallbackUrl)}
+            alt={product.productName}
+            fill
+            unoptimized
+            className="object-contain pointer-events-none"
+            sizes="420px"
+          />
+        )}
+      />
+    );
   }
 
   const belowMinimum = quantity < decoration.minQuantity;
