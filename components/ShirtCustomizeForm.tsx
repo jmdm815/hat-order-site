@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { v4 as uuid } from "uuid";
 import {
   DecorationOption,
@@ -169,16 +169,13 @@ export default function ShirtCustomizeForm({
   liveDesignerEnabled?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { addCartLine, sameLogoBefore, setSameLogoBefore } = useOrder();
 
   const [step, setStep] = useState<Step>("design");
   const [furthestStep, setFurthestStep] = useState<Step>("design");
   const [colorName, setColorName] = useState(product.colors[0]?.colorName ?? "");
-  // Shown as a dedicated color-pick screen before the designer opens — see
-  // ColorSelectScreen. Product identity doesn't change within this
-  // component's lifetime (a new product mounts a fresh instance via the
-  // `key` on styleNumber upstream), so a plain useState default is enough.
-  const [pickingColor, setPickingColor] = useState(true);
   const [locations, setLocations] = useState<EditingLocation[]>([]);
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [view, setView] = useState<"front" | "back">("front");
@@ -431,13 +428,25 @@ export default function ShirtCustomizeForm({
   ];
   const stepOrder: Step[] = ["design", "quantity", "review"];
 
+  // Gated by a "stage" URL param (rather than plain component state) so the
+  // browser's Back button steps from the designer to this screen instead of
+  // jumping straight past it to the catalog — pressing "Design Now" pushes
+  // a new history entry, and Back simply pops it off.
+  const pickingColor = searchParams.get("stage") !== "design";
+
+  function goToDesignStage() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("stage", "design");
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   if (pickingColor) {
     return (
       <ColorSelectScreen
         product={product}
         colorName={colorName}
         onSelectColor={setColorName}
-        onContinue={() => setPickingColor(false)}
+        onContinue={goToDesignStage}
         renderPreview={(color) => (
           <GarmentPreview
             url={color.imageUrl}
@@ -672,6 +681,20 @@ export default function ShirtCustomizeForm({
                             <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-[#15803d] bg-white/90 whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none">
                               {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel}
                             </span>
+                            {isActive && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveLocation(loc.id);
+                                }}
+                                className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-white border border-navy/20 text-navy text-xs shadow flex items-center justify-center pointer-events-auto"
+                                aria-label="Remove this print location"
+                                title="Remove this print location"
+                              >
+                                ×
+                              </button>
+                            )}
                           </div>
 
                           {loc.layers.map((layer) =>
@@ -775,6 +798,17 @@ export default function ShirtCustomizeForm({
                     artwork is centered in the zone; we&apos;ll finalize exact
                     placement with you after checkout.
                   </p>
+                )}
+                {activeLocation && (
+                  <div className="mt-1.5 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLocation(activeLocation.id)}
+                      className="text-xs font-medium text-red-600 hover:underline"
+                    >
+                      Remove this print location
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

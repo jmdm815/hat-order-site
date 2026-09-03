@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArtworkPlacement, DecorationOption, DecorationType, PlacementZone, Product } from "@/lib/types";
 import { getSetupFee, getUnitPriceForQuantity } from "@/lib/decorations";
 import { formatUSD } from "@/lib/pricing";
@@ -61,6 +61,7 @@ function swatchBackground(hexes: string[]): CSSProperties {
 
 export default function CustomizeForm() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const styleNumber = searchParams.get("style");
   const { addCartLine, sameLogoBefore, setSameLogoBefore } = useOrder();
@@ -69,10 +70,6 @@ export default function CustomizeForm() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [colorName, setColorName] = useState<string>("");
-  // Shown as a dedicated color-pick screen before the designer opens — see
-  // ColorSelectScreen. Reset to true whenever a fresh product's data loads
-  // in (below), so navigating catalog -> customize always starts there.
-  const [pickingColor, setPickingColor] = useState(true);
   const [decorationId, setDecorationId] = useState<DecorationType | "">("");
   const [placement, setPlacement] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(24);
@@ -88,9 +85,8 @@ export default function CustomizeForm() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPickingColor(true);
     if (!styleNumber) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       setNotFound(true);
       return;
@@ -178,13 +174,25 @@ export default function CustomizeForm() {
     return <p className="mt-10 text-navy/40 text-sm">Loading…</p>;
   }
 
+  // Gated by a "stage" URL param (rather than plain component state) so the
+  // browser's Back button steps from the designer to this screen instead of
+  // jumping straight past it to the catalog — pressing "Design Now" pushes
+  // a new history entry, and Back simply pops it off.
+  const pickingColor = searchParams.get("stage") !== "design";
+
+  function goToDesignStage() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("stage", "design");
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   if (pickingColor) {
     return (
       <ColorSelectScreen
         product={product}
         colorName={colorName}
         onSelectColor={setColorName}
-        onContinue={() => setPickingColor(false)}
+        onContinue={goToDesignStage}
         renderPreview={(color) => (
           <Image
             src={productImageUrl(color.imageUrl, color.imageFallbackUrl)}
