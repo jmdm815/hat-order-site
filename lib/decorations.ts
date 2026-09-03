@@ -27,12 +27,16 @@ export function getUnitPriceForQuantity(
 
 // Setup/digitization fee is waived at 48+ units, and waived entirely if the
 // customer tells us they've ordered with this same logo before (mirrors the
-// "have you ordered with us before" question on the reference site).
+// "have you ordered with us before" question on the reference site). It can
+// also be switched off altogether per decoration type from the admin
+// Pricing tab (setupFeeEnabled) — checked first since that's an
+// unconditional admin override, not a quantity/repeat-order discount.
 export function getSetupFee(
   decoration: DecorationOption,
   quantity: number,
   sameLogoBefore: boolean
 ): number {
+  if (decoration.setupFeeEnabled === false) return 0;
   if (sameLogoBefore) return 0;
   if (quantity >= 48) return 0;
   return decoration.setupFee;

@@ -39,6 +39,7 @@ function isValidDecorationFields(
   if (!isValidProductTypes(d.productTypes)) return false;
   if (typeof d.minQuantity !== "number" || d.minQuantity < 0) return false;
   if (typeof d.setupFee !== "number" || d.setupFee < 0) return false;
+  if (d.setupFeeEnabled !== undefined && typeof d.setupFeeEnabled !== "boolean") return false;
   if (!Array.isArray(d.pricingTiers) || !d.pricingTiers.length || !d.pricingTiers.every(isValidTier)) {
     return false;
   }

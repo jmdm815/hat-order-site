@@ -117,6 +117,13 @@ export type DecorationOption = {
   productTypes: ProductType[];
   minQuantity: number;
   setupFee: number; // one-time digitization / mold fee
+  // Admin on/off switch for charging the setup fee at all, independent of
+  // the dollar amount above — lets an admin run a "no setup fee" promotion
+  // (or just decide a type shouldn't charge one) without losing the amount
+  // they'd already entered. undefined/true = charge it (subject to the
+  // existing 48+ units / repeat-logo waivers in lib/decorations.ts);
+  // false = always waived for this decoration type.
+  setupFeeEnabled?: boolean;
   pricingTiers: { minQty: number; pricePerUnit: number }[];
   turnaroundDays: string;
   acceptedFileTypes: string[];

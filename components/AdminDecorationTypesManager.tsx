@@ -37,6 +37,7 @@ const BLANK_DRAFT: Draft = {
   productTypes: ["hat"],
   minQuantity: 12,
   setupFee: 0,
+  setupFeeEnabled: true,
   pricingTiers: [{ minQty: 12, pricePerUnit: 0 }],
   turnaroundDays: "",
   acceptedFileTypesText: "",
@@ -229,17 +230,34 @@ export default function AdminDecorationTypesManager() {
           </label>
         </div>
 
-        <label className="mt-3 flex items-center gap-2 text-sm text-navy/70 max-w-xs">
-          <span className="whitespace-nowrap">Setup / digitization fee ($)</span>
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={draft.setupFee}
-            onChange={(e) => apply({ setupFee: Math.max(0, Number(e.target.value) || 0) })}
-            className="w-24 border border-navy/20 rounded-lg px-2 py-1 text-sm ml-auto"
-          />
-        </label>
+        <div className="mt-3 flex flex-wrap items-center gap-4 max-w-md">
+          <label className="flex items-center gap-2 text-sm text-navy/70">
+            <span className="whitespace-nowrap">Setup / digitization fee ($)</span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={draft.setupFee}
+              disabled={draft.setupFeeEnabled === false}
+              onChange={(e) => apply({ setupFee: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-24 border border-navy/20 rounded-lg px-2 py-1 text-sm disabled:bg-navy/5 disabled:text-navy/30"
+            />
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-navy/70 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={draft.setupFeeEnabled !== false}
+              onChange={(e) => apply({ setupFeeEnabled: e.target.checked })}
+            />
+            Charge this fee
+          </label>
+        </div>
+        {draft.setupFeeEnabled === false && (
+          <p className="mt-1 text-xs text-navy/50">
+            Setup fee is off — orders for this decoration type will never be charged one,
+            regardless of quantity. The amount above is kept so you can turn it back on later.
+          </p>
+        )}
 
         {tierRows(draft, apply)}
       </>
@@ -335,6 +353,10 @@ export default function AdminDecorationTypesManager() {
                   <div className="text-xs text-navy/50 mt-0.5">
                     {d.productTypes.map((t) => (t === "hat" ? "Hats" : "Shirts")).join(" · ")} ·{" "}
                     {formatUSD(d.pricingTiers[0]?.pricePerUnit ?? 0)}/unit at {d.pricingTiers[0]?.minQty ?? 0}+
+                    {" · "}
+                    {d.setupFeeEnabled === false
+                      ? "no setup fee"
+                      : `${formatUSD(d.setupFee)} setup fee`}
                   </div>
                 </div>
                 <button
