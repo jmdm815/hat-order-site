@@ -328,7 +328,7 @@ export default function AdminDecorationTypesManager() {
 
         <div className="mt-3 flex items-center gap-4 text-sm text-navy/70">
           <span className="font-medium text-navy">Available on</span>
-          {(["hat", "shirt"] as const).map((t) => (
+          {(["hat", "shirt", "tumbler"] as const).map((t) => (
             <label key={t} className="flex items-center gap-1.5 capitalize">
               <input
                 type="checkbox"
@@ -510,7 +510,9 @@ export default function AdminDecorationTypesManager() {
                 <div className="flex-1">
                   <div className="font-semibold text-navy">{d.shortLabel}</div>
                   <div className="text-xs text-navy/50 mt-0.5">
-                    {d.productTypes.map((t) => (t === "hat" ? "Hats" : "Shirts")).join(" · ")}
+                    {d.productTypes
+                      .map((t) => (t === "hat" ? "Hats" : t === "shirt" ? "Shirts" : "Tumblers"))
+                      .join(" · ")}
                     {" · "}
                     {d.quoteRequired ? (
                       "Custom quote — no automatic price"

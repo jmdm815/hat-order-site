@@ -215,6 +215,11 @@ type CatalogCache = { catalog: Product[]; cachedAt: number };
 const catalogCache: Record<ProductType, CatalogCache | null> = {
   hat: null,
   shirt: null,
+  // Tumblers aren't sourced from the SanMar feed at all (see getCatalog
+  // below, which returns [] immediately for this type) — admin-added
+  // custom products are the only way tumblers get into the catalog. Still
+  // needs an entry here so this stays a valid Record<ProductType, ...>.
+  tumbler: null,
 };
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour — mirrors the fetch revalidate below
 
@@ -229,6 +234,12 @@ async function fetchRawCatalog(): Promise<SanmarCatalogResponse> {
 }
 
 export async function getCatalog(productType: ProductType): Promise<Product[]> {
+  // Tumblers aren't apparel and aren't in this SanMar feed's Caps/T-Shirts
+  // categories — every tumbler in the catalog comes from
+  // lib/custom-products-store.ts instead (merged in by the API routes that
+  // call this function), so there's nothing to fetch here.
+  if (productType === "tumbler") return [];
+
   const now = Date.now();
   const cached = catalogCache[productType];
   if (cached && now - cached.cachedAt < CACHE_TTL_MS) {

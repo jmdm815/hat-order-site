@@ -18,6 +18,10 @@ import {
 const DEFAULT_ZONE_BY_PRODUCT: Record<ProductType, Omit<PlacementZone, "id">> = {
   hat: { label: "Front Center", view: "front", x: 30, y: 25, width: 40, height: 30 },
   shirt: { label: "Front Center", view: "front", x: 25, y: 20, width: 50, height: 45 },
+  // Tumblers only get one photo/view (no back), so this is really "the
+  // decorable wrap area" rather than a literal front — kept on the "front"
+  // view since that's the only view a tumbler's single product photo has.
+  tumbler: { label: "Wrap", view: "front", x: 15, y: 20, width: 70, height: 60 },
 };
 
 // Deterministic ids for synthesized (unsaved) defaults — read-only, so no

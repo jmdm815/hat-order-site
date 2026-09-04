@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getProductByStyleNumber } from "@/lib/sanmar";
+import { getCustomProductByStyleNumber } from "@/lib/custom-products-store";
 import { getHiddenStyleNumbers } from "@/lib/catalog-selection";
 import { getItemConfig } from "@/lib/item-config-store";
 import { resolveImageOverride, synthesizeDefaultItemConfig } from "@/lib/default-item-config";
@@ -18,10 +19,16 @@ export async function GET(
 ) {
   const { styleNumber } = await params;
 
-  const [product, hidden] = await Promise.all([
-    getProductByStyleNumber(styleNumber),
+  // Custom (admin-added, non-SanMar) products are looked up separately —
+  // getProductByStyleNumber() only ever searches the SanMar-derived hat/shirt
+  // catalogs, so a "custom-..." id would never be found there. Check the
+  // (small, cheap) custom store first and only hit the SanMar catalog fetch
+  // when it's not a custom product.
+  const [customProduct, hidden] = await Promise.all([
+    getCustomProductByStyleNumber(styleNumber),
     getHiddenStyleNumbers(),
   ]);
+  const product = customProduct ?? (await getProductByStyleNumber(styleNumber));
 
   if (!product || hidden.has(product.styleNumber)) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
@@ -41,12 +48,15 @@ export async function GET(
   // Resolve whether the live drag/resize design canvas is offered for this
   // item: a per-item override wins if set, otherwise the site-wide Settings
   // tab default for this product type (see lib/pricing-store.ts).
+  const DESIGNER_ENABLED_BY_PRODUCT_TYPE = {
+    hat: designerSettings.hatsEnabled,
+    shirt: designerSettings.shirtsEnabled,
+    tumbler: designerSettings.tumblersEnabled,
+  };
   const liveDesignerEnabled =
     config.liveDesignerOverride !== undefined
       ? config.liveDesignerOverride
-      : product.productType === "hat"
-        ? designerSettings.hatsEnabled
-        : designerSettings.shirtsEnabled;
+      : DESIGNER_ENABLED_BY_PRODUCT_TYPE[product.productType];
 
   const decorationOptionById = new Map<string, DecorationOption>(
     effectiveDecorations.map((d) => [d.id, d])

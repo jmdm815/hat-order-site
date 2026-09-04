@@ -7,6 +7,7 @@ import { CatalogItemConfig, Product, ProductCategory, ProductType } from "@/lib/
 import { formatUSD } from "@/lib/pricing";
 import { productImageUrl } from "@/lib/product-image";
 import AdminItemConfigEditor from "./AdminItemConfigEditor";
+import AdminCustomProductForm from "./AdminCustomProductForm";
 
 const HAT_CATEGORIES: ProductCategory[] = [
   "Trucker",
@@ -17,6 +18,14 @@ const HAT_CATEGORIES: ProductCategory[] = [
   "Beanie",
 ];
 const SHIRT_CATEGORIES: ProductCategory[] = ["T-Shirt", "Long Sleeve", "Tank", "Youth Tee"];
+const TUMBLER_CATEGORIES: ProductCategory[] = ["Tumbler"];
+
+function productTypeLabel(t: ProductType | "all"): string {
+  if (t === "all") return "All";
+  if (t === "hat") return "Hats";
+  if (t === "shirt") return "Shirts";
+  return "Tumblers";
+}
 
 type ApiResponse = {
   styles: Product[];
@@ -46,8 +55,11 @@ export default function AdminCatalogManager() {
   >("all");
   const [itemConfigs, setItemConfigs] = useState<Record<string, CatalogItemConfig>>({});
   const [configTarget, setConfigTarget] = useState<Product | null>(null);
+  const [customProductForm, setCustomProductForm] = useState<
+    { mode: "add" } | { mode: "edit"; product: Product } | null
+  >(null);
 
-  useEffect(() => {
+  function load() {
     Promise.all([
       fetch("/api/admin/catalog").then((r) => {
         if (r.status === 401) throw new Error("unauthorized");
@@ -64,10 +76,29 @@ export default function AdminCatalogManager() {
       })
       .catch(() => router.refresh())
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
+  async function handleDeleteCustomProduct(product: Product) {
+    if (!confirm(`Delete "${product.productName}"? This can't be undone.`)) return;
+    const res = await fetch(`/api/admin/custom-products?id=${encodeURIComponent(product.styleNumber)}`, {
+      method: "DELETE",
+    });
+    if (res.ok) load();
+  }
+
   const categoryOptions =
-    productType === "hat" ? HAT_CATEGORIES : productType === "shirt" ? SHIRT_CATEGORIES : [...HAT_CATEGORIES, ...SHIRT_CATEGORIES];
+    productType === "hat"
+      ? HAT_CATEGORIES
+      : productType === "shirt"
+        ? SHIRT_CATEGORIES
+        : productType === "tumbler"
+          ? TUMBLER_CATEGORIES
+          : [...HAT_CATEGORIES, ...SHIRT_CATEGORIES, ...TUMBLER_CATEGORIES];
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -160,7 +191,7 @@ export default function AdminCatalogManager() {
           className="border border-navy/20 rounded-lg px-3 py-2 text-sm w-64"
         />
         <div className="flex gap-1">
-          {(["all", "hat", "shirt"] as const).map((t) => (
+          {(["all", "hat", "shirt", "tumbler"] as const).map((t) => (
             <button
               key={t}
               onClick={() => {
@@ -173,7 +204,7 @@ export default function AdminCatalogManager() {
                   : "border-navy/20 text-navy/70 hover:bg-navy/5"
               }`}
             >
-              {t === "all" ? "All" : t === "hat" ? "Hats" : "Shirts"}
+              {productTypeLabel(t)}
             </button>
           ))}
         </div>
@@ -210,6 +241,12 @@ export default function AdminCatalogManager() {
         >
           Hide all filtered
         </button>
+        <button
+          onClick={() => setCustomProductForm({ mode: "add" })}
+          className="text-sm px-3 py-2 rounded-lg border border-navy/20 hover:bg-navy/5 font-medium text-navy"
+        >
+          + Add custom product
+        </button>
         <span className="text-sm text-navy/60 ml-auto">
           {filtered.length} shown · {styles.length - hidden.size} visible of{" "}
           {styles.length} total
@@ -239,7 +276,11 @@ export default function AdminCatalogManager() {
               <label className="block cursor-pointer">
                 <div className="relative w-full aspect-square bg-white p-3">
                   <Image
-                    src={productImageUrl(s.heroImageUrl, s.heroImageFallbackUrl)}
+                    src={
+                      s.heroImageIsOverride
+                        ? s.heroImageUrl
+                        : productImageUrl(s.heroImageUrl, s.heroImageFallbackUrl)
+                    }
                     alt={s.productName}
                     fill
                     unoptimized
@@ -252,8 +293,15 @@ export default function AdminCatalogManager() {
                     onChange={() => toggle(s.styleNumber)}
                     className="absolute top-2 left-2 w-5 h-5 accent-red"
                   />
-                  <span className="absolute top-2 right-2 text-[10px] uppercase tracking-wide bg-navy/80 text-white px-1.5 py-0.5 rounded">
-                    {s.productType}
+                  <span className="absolute top-2 right-2 flex gap-1">
+                    {s.isCustom && (
+                      <span className="text-[10px] uppercase tracking-wide bg-red text-white px-1.5 py-0.5 rounded">
+                        Custom
+                      </span>
+                    )}
+                    <span className="text-[10px] uppercase tracking-wide bg-navy/80 text-white px-1.5 py-0.5 rounded">
+                      {s.productType}
+                    </span>
                   </span>
                 </div>
                 <div className="p-2.5 pb-1.5">
@@ -274,6 +322,22 @@ export default function AdminCatalogManager() {
               >
                 Configure decorations
               </button>
+              {s.isCustom && (
+                <div className="flex border-t border-navy/10">
+                  <button
+                    onClick={() => setCustomProductForm({ mode: "edit", product: s })}
+                    className="flex-1 text-[11px] font-medium text-navy/70 py-1.5 hover:bg-navy/5"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCustomProduct(s)}
+                    className="flex-1 text-[11px] font-medium text-red-600 border-l border-navy/10 py-1.5 hover:bg-red-50"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -287,6 +351,17 @@ export default function AdminCatalogManager() {
           onSaved={(config) => {
             setItemConfigs((prev) => ({ ...prev, [configTarget.styleNumber]: config }));
             setConfigTarget(null);
+          }}
+        />
+      )}
+
+      {customProductForm && (
+        <AdminCustomProductForm
+          editing={customProductForm.mode === "edit" ? customProductForm.product : null}
+          onClose={() => setCustomProductForm(null)}
+          onSaved={() => {
+            setCustomProductForm(null);
+            load();
           }}
         />
       )}

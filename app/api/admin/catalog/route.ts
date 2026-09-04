@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCatalog } from "@/lib/sanmar";
+import { getCustomProducts } from "@/lib/custom-products-store";
 import {
   getHiddenStyleNumbers,
   setHiddenStyleNumbers,
@@ -11,12 +12,15 @@ export async function GET() {
   if (!(await isAdminAuthed())) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 });
   }
-  const [hats, shirts, hidden] = await Promise.all([
+  const [hats, shirts, customProducts, hidden] = await Promise.all([
     getCatalog("hat"),
     getCatalog("shirt"),
+    getCustomProducts(),
     getHiddenStyleNumbers(),
   ]);
-  const styles = [...hats, ...shirts];
+  // Tumblers only ever come from customProducts — getCatalog("tumbler")
+  // always returns [] (see lib/sanmar.ts), so no third call is needed here.
+  const styles = [...hats, ...shirts, ...customProducts];
   return NextResponse.json({
     styles,
     hidden: Array.from(hidden),

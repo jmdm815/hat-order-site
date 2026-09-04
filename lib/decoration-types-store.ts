@@ -111,6 +111,42 @@ const SEED_DECORATION_TYPES: DecorationOption[] = [
     turnaroundDays: "7-10 business days",
     acceptedFileTypes: [".png", ".jpg", ".pdf", ".ai", ".svg"],
   },
+  {
+    id: "laser-engraved",
+    label: "Laser Engraved",
+    shortLabel: "Laser Engraved",
+    description: "Single-tone logo etched directly into the tumbler's finish. Durable, no ink to wear off.",
+    productTypes: ["tumbler"],
+    minQuantity: 12,
+    setupFee: 25,
+    pricingTiers: [
+      { minQty: 12, pricePerUnit: 4.0 },
+      { minQty: 24, pricePerUnit: 3.25 },
+      { minQty: 48, pricePerUnit: 2.75 },
+      { minQty: 96, pricePerUnit: 2.25 },
+      { minQty: 144, pricePerUnit: 1.85 },
+    ],
+    turnaroundDays: "7-10 business days",
+    acceptedFileTypes: [".png", ".jpg", ".pdf", ".ai", ".svg"],
+  },
+  {
+    id: "uv-print",
+    label: "UV Print (Full Color)",
+    shortLabel: "UV Print",
+    description: "Full-color logo printed directly onto the tumbler — best for multi-color or photo logos.",
+    productTypes: ["tumbler"],
+    minQuantity: 12,
+    setupFee: 35,
+    pricingTiers: [
+      { minQty: 12, pricePerUnit: 5.5 },
+      { minQty: 24, pricePerUnit: 4.5 },
+      { minQty: 48, pricePerUnit: 3.75 },
+      { minQty: 96, pricePerUnit: 3.0 },
+      { minQty: 144, pricePerUnit: 2.5 },
+    ],
+    turnaroundDays: "8-10 business days",
+    acceptedFileTypes: [".png", ".jpg", ".pdf", ".ai", ".svg"],
+  },
 ];
 
 let memory: DecorationOption[] | null = null;

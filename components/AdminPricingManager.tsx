@@ -81,6 +81,7 @@ export default function AdminPricingManager() {
           [
             { key: "hatsEnabled", label: "Live designer for hats" },
             { key: "shirtsEnabled", label: "Live designer for shirts" },
+            { key: "tumblersEnabled", label: "Live designer for tumblers" },
           ] as const
         ).map((row) => (
           <label

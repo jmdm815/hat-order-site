@@ -39,7 +39,7 @@ function isValidProductTypes(value: unknown): value is ProductType[] {
   return (
     Array.isArray(value) &&
     value.length > 0 &&
-    value.every((v) => v === "hat" || v === "shirt")
+    value.every((v) => v === "hat" || v === "shirt" || v === "tumbler")
   );
 }
 

@@ -198,7 +198,11 @@ export default function CustomizeForm() {
         onContinue={goToDesignStage}
         renderPreview={(color) => (
           <Image
-            src={productImageUrl(color.imageUrl, color.imageFallbackUrl)}
+            src={
+              color.imageIsOverride
+                ? color.imageUrl
+                : productImageUrl(color.imageUrl, color.imageFallbackUrl)
+            }
             alt={product.productName}
             fill
             unoptimized
@@ -262,7 +266,7 @@ export default function CustomizeForm() {
     if (belowMinimum) return;
     addCartLine({
       styleNumber: product!.styleNumber,
-      productType: "hat",
+      productType: product!.productType,
       colorName,
       quantity,
       decoration: {
@@ -291,7 +295,11 @@ export default function CustomizeForm() {
           className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white border border-navy/10 p-8"
         >
           <Image
-            src={productImageUrl(selectedColor.imageUrl, selectedColor.imageFallbackUrl)}
+            src={
+              selectedColor.imageIsOverride
+                ? selectedColor.imageUrl
+                : productImageUrl(selectedColor.imageUrl, selectedColor.imageFallbackUrl)
+            }
             alt={product.productName}
             fill
             unoptimized

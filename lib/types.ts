@@ -3,7 +3,7 @@
 // Services (SIS) API returns for a product, so lib/sanmar.ts can be swapped
 // from mock data to a live API call without touching any UI code.
 
-export type ProductType = "hat" | "shirt";
+export type ProductType = "hat" | "shirt" | "tumbler";
 
 export type ProductCategory =
   | "Trucker"
@@ -15,7 +15,8 @@ export type ProductCategory =
   | "T-Shirt"
   | "Long Sleeve"
   | "Tank"
-  | "Youth Tee";
+  | "Youth Tee"
+  | "Tumbler";
 
 export type ProductSize = { name: string; price: number; inventory: number };
 
@@ -57,7 +58,8 @@ export type ItemImageOverride = {
 };
 
 export type Product = {
-  styleNumber: string; // SanMar style number, e.g. "C112"
+  styleNumber: string; // SanMar style number, e.g. "C112" — or a generated
+  // "custom-<id>" for an admin-added product, see lib/custom-products-store.ts
   brandName: string; // e.g. "Port & Company"
   productName: string; // e.g. "Snapback Trucker Cap"
   description: string;
@@ -67,6 +69,17 @@ export type Product = {
   colors: ProductColor[];
   heroImageUrl: string;
   heroImageFallbackUrl?: string;
+  // True when heroImageUrl is already one of our own processed assets (an
+  // admin upload for a custom product) rather than a raw SanMar CDN URL —
+  // tells the UI to render it directly instead of routing it through
+  // /api/product-image, which only trusts SanMar/Unsplash hosts. Mirrors
+  // ProductColor.imageIsOverride.
+  heroImageIsOverride?: boolean;
+  // True for a product an admin added by hand from the Catalog tab (see
+  // lib/custom-products-store.ts) rather than one sourced from the SanMar
+  // feed. Drives the "Custom" badge and Edit/Delete controls in the admin
+  // catalog manager — SanMar-sourced products can only be shown/hidden.
+  isCustom?: boolean;
 };
 
 // Decoration types used to be a fixed set (UV Patch / Engraved Patch /

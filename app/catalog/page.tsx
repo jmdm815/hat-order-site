@@ -20,6 +20,20 @@ const HAT_CATEGORIES = [
 
 const SHIRT_CATEGORIES = ["All", "T-Shirt", "Long Sleeve", "Tank", "Youth Tee"] as const;
 
+const TUMBLER_CATEGORIES = ["All", "Tumbler"] as const;
+
+function categoriesFor(productType: ProductType): readonly string[] {
+  if (productType === "hat") return HAT_CATEGORIES;
+  if (productType === "shirt") return SHIRT_CATEGORIES;
+  return TUMBLER_CATEGORIES;
+}
+
+function tabLabel(productType: ProductType): string {
+  if (productType === "hat") return "Hats";
+  if (productType === "shirt") return "T-Shirts";
+  return "Tumblers";
+}
+
 export default function CatalogPage() {
   const [productType, setProductType] = useState<ProductType>("hat");
   const [products, setProducts] = useState<Product[]>([]);
@@ -35,7 +49,7 @@ export default function CatalogPage() {
       .finally(() => setLoading(false));
   }, [productType]);
 
-  const categories = productType === "hat" ? HAT_CATEGORIES : SHIRT_CATEGORIES;
+  const categories = categoriesFor(productType);
   const filtered =
     category === "All" ? products : products.filter((p) => p.category === category);
 
@@ -50,7 +64,7 @@ export default function CatalogPage() {
         </p>
 
         <div className="mt-5 flex gap-2">
-          {(["hat", "shirt"] as const).map((t) => (
+          {(["hat", "shirt", "tumbler"] as const).map((t) => (
             <button
               key={t}
               onClick={() => {
@@ -63,7 +77,7 @@ export default function CatalogPage() {
                   : "border-navy/20 text-navy/70 hover:bg-navy/5"
               }`}
             >
-              {t === "hat" ? "Hats" : "T-Shirts"}
+              {tabLabel(t)}
             </button>
           ))}
         </div>
@@ -96,7 +110,11 @@ export default function CatalogPage() {
               >
                 <div className="relative w-full aspect-square bg-white p-6">
                   <Image
-                    src={productImageUrl(product.heroImageUrl, product.heroImageFallbackUrl)}
+                    src={
+                      product.heroImageIsOverride
+                        ? product.heroImageUrl
+                        : productImageUrl(product.heroImageUrl, product.heroImageFallbackUrl)
+                    }
                     alt={product.productName}
                     fill
                     unoptimized

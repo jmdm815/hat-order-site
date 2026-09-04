@@ -38,13 +38,19 @@ export function isPersistent(): boolean {
 // addition alongside the closely-related pricing/decorations config.
 // ---------------------------------------------------------------------------
 
-export type DesignerSettings = { hatsEnabled: boolean; shirtsEnabled: boolean };
+export type DesignerSettings = {
+  hatsEnabled: boolean;
+  shirtsEnabled: boolean;
+  tumblersEnabled: boolean;
+};
 
 // Hats: off by default (brand-new capability, admin opts in). Shirts: on by
 // default, matching this site's existing behavior before this toggle existed.
+// Tumblers: off by default, same reasoning as hats — brand-new product type.
 const DEFAULT_DESIGNER_SETTINGS: DesignerSettings = {
   hatsEnabled: false,
   shirtsEnabled: true,
+  tumblersEnabled: false,
 };
 
 const DESIGNER_SETTINGS_PATHNAME = "designer-settings.json";

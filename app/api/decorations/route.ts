@@ -8,7 +8,7 @@ import { ProductType } from "@/lib/types";
 export async function GET(req: NextRequest) {
   const productType = req.nextUrl.searchParams.get("productType") as ProductType | null;
   const decorations =
-    productType === "hat" || productType === "shirt"
+    productType === "hat" || productType === "shirt" || productType === "tumbler"
       ? await getDecorationTypesForProduct(productType)
       : await getDecorationTypes();
   return NextResponse.json(decorations);

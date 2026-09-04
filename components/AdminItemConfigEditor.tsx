@@ -25,6 +25,7 @@ const PHOTO_SOURCE_LABEL: Record<GarmentPhotoSource, string> = {
 const DEFAULT_ZONE_BY_TYPE = {
   hat: { label: "Front Center", view: "front" as const, x: 30, y: 25, width: 40, height: 30 },
   shirt: { label: "Front Center", view: "front" as const, x: 25, y: 20, width: 50, height: 45 },
+  tumbler: { label: "Wrap", view: "front" as const, x: 15, y: 20, width: 70, height: 60 },
 };
 
 function emptyConfigFor(product: Product, decorationTypeIds: string[]): CatalogItemConfig {
