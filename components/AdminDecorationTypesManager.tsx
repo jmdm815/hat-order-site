@@ -39,6 +39,7 @@ const BLANK_DRAFT: Draft = {
   setupFeeEnabled: true,
   pricingTiers: [{ minQty: 12, pricePerUnit: 0 }],
   priceColumns: [],
+  quoteRequired: false,
   turnaroundDays: "",
   acceptedFileTypesText: "",
 } as Draft;
@@ -362,36 +363,62 @@ export default function AdminDecorationTypesManager() {
           </label>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-4 max-w-md">
-          <label className="flex items-center gap-2 text-sm text-navy/70">
-            <span className="whitespace-nowrap">Setup / digitization fee ($)</span>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={draft.setupFee}
-              disabled={draft.setupFeeEnabled === false}
-              onChange={(e) => apply({ setupFee: Math.max(0, Number(e.target.value) || 0) })}
-              className="w-24 border border-navy/20 rounded-lg px-2 py-1 text-sm disabled:bg-navy/5 disabled:text-navy/30"
-            />
-          </label>
+        <div className="mt-4 pt-3 border-t border-navy/10">
           <label className="flex items-center gap-1.5 text-sm text-navy/70 cursor-pointer select-none">
             <input
               type="checkbox"
-              checked={draft.setupFeeEnabled !== false}
-              onChange={(e) => apply({ setupFeeEnabled: e.target.checked })}
+              checked={draft.quoteRequired === true}
+              onChange={(e) => apply({ quoteRequired: e.target.checked })}
             />
-            Charge this fee
+            Requires a custom quote — no automatic price
           </label>
-        </div>
-        {draft.setupFeeEnabled === false && (
           <p className="mt-1 text-xs text-navy/50">
-            Setup fee is off — orders for this decoration type will never be charged one,
-            regardless of quantity. The amount above is kept so you can turn it back on later.
+            Customers can still pick this decoration and place their order, but it&apos;s
+            never priced automatically — they&apos;re told we&apos;ll follow up with a
+            quote. Use this when cost depends on something we have to look at case by
+            case (e.g. embroidery stitch count).
           </p>
-        )}
+        </div>
 
-        {tierRows(draft, apply)}
+        {draft.quoteRequired ? (
+          <p className="mt-3 text-xs text-navy/50 bg-navy/[0.03] border border-navy/10 rounded-lg px-3 py-2">
+            Setup fee and pricing tiers are hidden while &quot;Requires a custom quote&quot;
+            is on — turn it off to price this decoration automatically again.
+          </p>
+        ) : (
+          <>
+            <div className="mt-3 flex flex-wrap items-center gap-4 max-w-md">
+              <label className="flex items-center gap-2 text-sm text-navy/70">
+                <span className="whitespace-nowrap">Setup / digitization fee ($)</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={draft.setupFee}
+                  disabled={draft.setupFeeEnabled === false}
+                  onChange={(e) => apply({ setupFee: Math.max(0, Number(e.target.value) || 0) })}
+                  className="w-24 border border-navy/20 rounded-lg px-2 py-1 text-sm disabled:bg-navy/5 disabled:text-navy/30"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-sm text-navy/70 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={draft.setupFeeEnabled !== false}
+                  onChange={(e) => apply({ setupFeeEnabled: e.target.checked })}
+                />
+                Charge this fee
+              </label>
+            </div>
+            {draft.setupFeeEnabled === false && (
+              <p className="mt-1 text-xs text-navy/50">
+                Setup fee is off — orders for this decoration type will never be charged one,
+                regardless of quantity. The amount above is kept so you can turn it back on later.
+              </p>
+            )}
+
+            {tierRows(draft, apply)}
+          </>
+        )}
       </>
     );
   }
@@ -483,12 +510,19 @@ export default function AdminDecorationTypesManager() {
                 <div className="flex-1">
                   <div className="font-semibold text-navy">{d.shortLabel}</div>
                   <div className="text-xs text-navy/50 mt-0.5">
-                    {d.productTypes.map((t) => (t === "hat" ? "Hats" : "Shirts")).join(" · ")} ·{" "}
-                    {formatUSD(d.pricingTiers[0]?.pricePerUnit ?? 0)}/unit at {d.pricingTiers[0]?.minQty ?? 0}+
+                    {d.productTypes.map((t) => (t === "hat" ? "Hats" : "Shirts")).join(" · ")}
                     {" · "}
-                    {d.setupFeeEnabled === false
-                      ? "no setup fee"
-                      : `${formatUSD(d.setupFee)} setup fee`}
+                    {d.quoteRequired ? (
+                      "Custom quote — no automatic price"
+                    ) : (
+                      <>
+                        {formatUSD(d.pricingTiers[0]?.pricePerUnit ?? 0)}/unit at {d.pricingTiers[0]?.minQty ?? 0}+
+                        {" · "}
+                        {d.setupFeeEnabled === false
+                          ? "no setup fee"
+                          : `${formatUSD(d.setupFee)} setup fee`}
+                      </>
+                    )}
                   </div>
                 </div>
                 <button

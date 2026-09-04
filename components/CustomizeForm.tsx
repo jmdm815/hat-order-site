@@ -211,8 +211,10 @@ export default function CustomizeForm() {
   }
 
   const belowMinimum = quantity < decoration.minQuantity;
-  const unitDecorationPrice = getUnitPriceForQuantity(decoration, quantity, priceColumnId || undefined);
-  const setupFee = getSetupFee(decoration, quantity, sameLogoBefore);
+  const unitDecorationPrice = decoration.quoteRequired
+    ? 0
+    : getUnitPriceForQuantity(decoration, quantity, priceColumnId || undefined);
+  const setupFee = decoration.quoteRequired ? 0 : getSetupFee(decoration, quantity, sameLogoBefore);
   const unitTotal = product.basePrice + unitDecorationPrice;
   const lineTotal = quantity * unitTotal + setupFee;
   const selectedColor =
@@ -269,7 +271,8 @@ export default function CustomizeForm() {
         artworkFileName: artworkFileName || undefined,
         artworkPlacement,
         notes: notes || undefined,
-        priceColumnId: priceColumnId || undefined,
+        priceColumnId: decoration!.quoteRequired ? undefined : priceColumnId || undefined,
+        quoteRequired: decoration!.quoteRequired || undefined,
       },
       unitBasePrice: product!.basePrice,
       unitDecorationPrice,
@@ -388,7 +391,14 @@ export default function CustomizeForm() {
                     : "border-navy/10 bg-white hover:border-red/40"
                 }`}
               >
-                <div className="font-semibold text-navy">{d.shortLabel}</div>
+                <div className="flex items-center gap-2">
+                  <div className="font-semibold text-navy">{d.shortLabel}</div>
+                  {d.quoteRequired && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-red bg-red/10 px-1.5 py-0.5 rounded">
+                      Custom quote
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-xs text-navy/60 leading-relaxed">
                   {d.description}
                 </p>
@@ -396,7 +406,14 @@ export default function CustomizeForm() {
               </button>
             ))}
           </div>
-          {decoration.priceColumns && decoration.priceColumns.length > 0 && (
+          {decoration.quoteRequired && (
+            <p className="mt-3 text-sm text-navy/60 bg-navy/[0.03] border border-navy/10 rounded-lg px-3 py-2">
+              Pricing for {decoration.shortLabel} depends on your design, so there&apos;s no
+              automatic price shown below. Add your details and quantity and we&apos;ll follow
+              up with a quote before production.
+            </p>
+          )}
+          {!decoration.quoteRequired && decoration.priceColumns && decoration.priceColumns.length > 0 && (
             <div className="mt-3">
               <div className="text-sm text-navy/70">Stitch count / pricing tier</div>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -494,20 +511,22 @@ export default function CustomizeForm() {
               {decoration.shortLabel} requires at least {decoration.minQuantity} units.
             </p>
           )}
-          <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-navy/60">
-            {decoration.pricingTiers.map((t) => (
-              <span
-                key={t.minQty}
-                className={`px-2 py-1 rounded border ${
-                  quantity >= t.minQty
-                    ? "border-red text-navy font-medium"
-                    : "border-navy/10"
-                }`}
-              >
-                {t.minQty}+ · {formatUSD(t.pricePerUnit)}/ea
-              </span>
-            ))}
-          </div>
+          {!decoration.quoteRequired && (
+            <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-navy/60">
+              {decoration.pricingTiers.map((t) => (
+                <span
+                  key={t.minQty}
+                  className={`px-2 py-1 rounded border ${
+                    quantity >= t.minQty
+                      ? "border-red text-navy font-medium"
+                      : "border-navy/10"
+                  }`}
+                >
+                  {t.minQty}+ · {formatUSD(t.pricePerUnit)}/ea
+                </span>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Price summary */}
@@ -518,12 +537,23 @@ export default function CustomizeForm() {
           </div>
           <div className="flex justify-between text-sm text-navy/70 mt-1">
             <span>{decoration.shortLabel} × {quantity}</span>
-            <span>{formatUSD(unitDecorationPrice * quantity)}</span>
+            <span>
+              {decoration.quoteRequired ? "Contact us for a quote" : formatUSD(unitDecorationPrice * quantity)}
+            </span>
           </div>
           <div className="flex justify-between text-sm text-navy/70 mt-1">
             <span>Setup / digitization fee</span>
-            <span>{setupFee === 0 ? "Waived" : formatUSD(setupFee)}</span>
+            <span>
+              {decoration.quoteRequired ? "Included in quote" : setupFee === 0 ? "Waived" : formatUSD(setupFee)}
+            </span>
           </div>
+          {decoration.quoteRequired && (
+            <p className="mt-2 text-xs text-navy/50">
+              The line total below only reflects the blank {product.productName.toLowerCase()} —
+              we&apos;ll reach out with {decoration.shortLabel.toLowerCase()} pricing before we
+              charge or produce anything.
+            </p>
+          )}
           <div className="flex justify-between font-semibold text-navy mt-3 pt-3 border-t border-navy/10">
             <span>Line total</span>
             <span>{formatUSD(lineTotal)}</span>

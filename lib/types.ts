@@ -133,6 +133,14 @@ export type DecorationOption = {
   // tier missing an entry for a given column falls back to that tier's
   // plain pricePerUnit. See getUnitPriceForQuantity in lib/decorations.ts.
   priceColumns?: PriceColumn[];
+  // When true, this decoration type has no automatic price at all — the
+  // customer can still select it and place their order, but every unit
+  // price and setup fee for it is treated as 0 and the UI tells them
+  // pricing depends on something we need to work out with them directly
+  // (e.g. embroidery, where cost depends on stitch count). Admins set this
+  // from the Pricing tab; pricingTiers/priceColumns are simply unused while
+  // it's on, so nothing already entered is lost if it's turned back off.
+  quoteRequired?: boolean;
   turnaroundDays: string;
   acceptedFileTypes: string[];
 };
@@ -158,6 +166,13 @@ export type CartLineDecoration = {
   // type has priceColumns configured. Absent = decoration has no columns,
   // or the plain pricePerUnit applies.
   priceColumnId?: string;
+  // True when this decoration was quoteRequired at the time this line was
+  // added to the cart (see DecorationOption.quoteRequired) — carried onto
+  // the line itself so cart/checkout/order-history can show "custom quote"
+  // without needing to re-look-up the (possibly since-edited) decoration
+  // type. unitPrice/unitDecorationPrice and setupFee are 0 wherever this
+  // is true.
+  quoteRequired?: boolean;
 };
 
 // One artwork or text element positioned within a print location's zone.
@@ -193,6 +208,10 @@ export type PrintLocation = {
   // stitch-count band), when that decoration type has priceColumns
   // configured. Absent = no columns, or the plain pricePerUnit applies.
   priceColumnId?: string;
+  // True when this location's decoration type is quoteRequired — unitPrice
+  // and setupFee above are 0 and the customer was told we'll follow up
+  // with pricing instead of it being computed automatically.
+  quoteRequired?: boolean;
 };
 
 export type SizeQuantity = { size: string; quantity: number; unitBasePrice: number };

@@ -61,6 +61,7 @@ function isValidDecorationFields(
     return false;
   }
   if (d.priceColumns !== undefined && !isValidPriceColumns(d.priceColumns)) return false;
+  if (d.quoteRequired !== undefined && typeof d.quoteRequired !== "boolean") return false;
   if (typeof d.turnaroundDays !== "string") return false;
   if (!Array.isArray(d.acceptedFileTypes) || !d.acceptedFileTypes.every((f) => typeof f === "string")) {
     return false;

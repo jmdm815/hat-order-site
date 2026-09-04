@@ -63,10 +63,16 @@ export default function CartPage() {
                             {line.printLocations!
                               .map(
                                 (loc) =>
-                                  `${loc.zoneLabel} (${getDecoration(decorations, loc.decorationId)?.shortLabel ?? loc.decorationId})`
+                                  `${loc.zoneLabel} (${getDecoration(decorations, loc.decorationId)?.shortLabel ?? loc.decorationId}${loc.quoteRequired ? " — custom quote" : ""})`
                               )
                               .join(", ")}
                           </div>
+                          {line.printLocations!.some((l) => l.quoteRequired) && (
+                            <p className="mt-1 text-xs text-red-600">
+                              One or more print locations are priced by custom quote — we&apos;ll
+                              follow up before charging or producing those.
+                            </p>
+                          )}
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {(line.sizes ?? []).map((s) => (
                               <span
@@ -115,6 +121,12 @@ export default function CartPage() {
                           ? ` · ${line.decoration.artworkFileName}`
                           : ""}
                       </div>
+                      {line.decoration?.quoteRequired && (
+                        <p className="mt-1 text-xs text-red-600">
+                          Priced by custom quote — we&apos;ll follow up before charging or
+                          producing this.
+                        </p>
+                      )}
                       <div className="mt-2 flex items-center gap-2">
                         <label className="text-sm text-navy/60">Qty</label>
                         <input

@@ -380,12 +380,15 @@ export default function ShirtCustomizeForm({
     () =>
       locations.map((loc) => {
         const opt = decorationById.get(loc.decorationId);
+        const quoteRequired = opt?.quoteRequired === true;
         return {
           ...loc,
-          unitPrice: opt
-            ? getUnitPriceForQuantity(opt, totalQuantity || opt.minQuantity, loc.priceColumnId)
-            : 0,
-          setupFee: opt ? getSetupFee(opt, totalQuantity, sameLogoBefore) : 0,
+          unitPrice:
+            opt && !quoteRequired
+              ? getUnitPriceForQuantity(opt, totalQuantity || opt.minQuantity, loc.priceColumnId)
+              : 0,
+          setupFee: opt && !quoteRequired ? getSetupFee(opt, totalQuantity, sameLogoBefore) : 0,
+          quoteRequired: quoteRequired || undefined,
         };
       }),
     [locations, totalQuantity, sameLogoBefore, decorationById]
@@ -643,6 +646,11 @@ export default function ShirtCustomizeForm({
                               className="w-full text-left px-3 py-2 rounded-lg text-sm text-navy hover:bg-navy/5"
                             >
                               {opt.zone.label} · {opt.decoration.shortLabel}
+                              {opt.decoration.quoteRequired && (
+                                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-red bg-red/10 px-1.5 py-0.5 rounded">
+                                  Custom quote
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -824,6 +832,15 @@ export default function ShirtCustomizeForm({
                 {activeLocation &&
                   (() => {
                     const activeDecoration = decorationById.get(activeLocation.decorationId);
+                    if (activeDecoration?.quoteRequired) {
+                      return (
+                        <p className="mt-2 text-center text-xs text-navy/50 max-w-xs mx-auto">
+                          Pricing for {activeDecoration.shortLabel} depends on your design, so
+                          there&apos;s no automatic price for this location — we&apos;ll follow
+                          up with a quote before production.
+                        </p>
+                      );
+                    }
                     const cols = activeDecoration?.priceColumns;
                     if (!cols || !cols.length) return null;
                     return (
@@ -1019,6 +1036,7 @@ export default function ShirtCustomizeForm({
             <div className="mt-4 flex flex-wrap gap-1.5 text-xs text-navy/60">
               {minQuantity > 0 && <span>Minimum order: {minQuantity} units ·</span>}
               {pricedLocations[0] &&
+                !decorationById.get(pricedLocations[0].decorationId)?.quoteRequired &&
                 decorationById
                   .get(pricedLocations[0].decorationId)
                   ?.pricingTiers.map((t) => (
@@ -1032,6 +1050,12 @@ export default function ShirtCustomizeForm({
                     </span>
                   ))}
             </div>
+          )}
+          {pricedLocations.some((l) => l.quoteRequired) && (
+            <p className="mt-2 text-xs text-navy/50">
+              One or more print locations here are priced by custom quote — we&apos;ll follow
+              up after checkout instead of charging for those automatically.
+            </p>
           )}
 
           {belowMinimum && (
@@ -1115,19 +1139,30 @@ export default function ShirtCustomizeForm({
                   <span>
                     {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel} × {totalQuantity}
                   </span>
-                  <span>{formatUSD(loc.unitPrice * totalQuantity)}</span>
+                  <span>
+                    {loc.quoteRequired ? "Contact us for a quote" : formatUSD(loc.unitPrice * totalQuantity)}
+                  </span>
                 </div>
               ))}
               {pricedLocations.map((loc) => (
                 <div key={`${loc.id}-setup`} className="flex justify-between text-sm text-navy/70">
                   <span>{loc.zoneLabel} setup / digitization fee</span>
-                  <span>{loc.setupFee === 0 ? "Waived" : formatUSD(loc.setupFee)}</span>
+                  <span>
+                    {loc.quoteRequired ? "Included in quote" : loc.setupFee === 0 ? "Waived" : formatUSD(loc.setupFee)}
+                  </span>
                 </div>
               ))}
               <div className="flex justify-between font-semibold text-navy pt-2 border-t border-navy/10">
                 <span>Line total</span>
                 <span>{formatUSD(lineTotal)}</span>
               </div>
+              {pricedLocations.some((l) => l.quoteRequired) && (
+                <p className="text-xs text-navy/50">
+                  The line total above only reflects the garments and any priced locations —
+                  we&apos;ll reach out with pricing for the custom-quote location(s) before
+                  we charge or produce anything.
+                </p>
+              )}
             </div>
 
             <label className="mt-4 flex items-center gap-2 text-sm text-navy/70">
