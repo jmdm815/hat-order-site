@@ -56,7 +56,7 @@ export default function CatalogPage() {
   return (
     <>
       <StepHeader />
-      <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full">
+      <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full bg-white">
         <h1 className="text-2xl font-bold text-navy">Choose your gear</h1>
         <p className="mt-1 text-navy/60 text-sm">
           Preset blanks pulled from our wholesale catalog (SanMar). Pick a style, then
@@ -73,8 +73,8 @@ export default function CatalogPage() {
               }}
               className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
                 productType === t
-                  ? "bg-red text-white border-red"
-                  : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                  ? "bg-navy text-white border-navy"
+                  : "border-navy/20 text-navy/70 hover:bg-gray"
               }`}
             >
               {tabLabel(t)}
@@ -89,8 +89,8 @@ export default function CatalogPage() {
               onClick={() => setCategory(c)}
               className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
                 category === c
-                  ? "bg-navy text-white border-red"
-                  : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                  ? "bg-navy text-white border-navy"
+                  : "border-navy/20 text-navy/70 hover:bg-gray"
               }`}
             >
               {c}
@@ -106,9 +106,9 @@ export default function CatalogPage() {
               <Link
                 key={product.styleNumber}
                 href={`/customize?style=${product.styleNumber}&type=${product.productType}`}
-                className="group border border-navy/10 rounded-2xl bg-white overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition"
+                className="group border-2 border-navy/10 rounded-2xl bg-white overflow-hidden hover:border-red hover:shadow-md hover:-translate-y-0.5 transition"
               >
-                <div className="relative w-full aspect-square bg-white p-6">
+                <div className="relative w-full aspect-square bg-gray p-6">
                   <Image
                     src={
                       product.heroImageIsOverride
@@ -133,7 +133,7 @@ export default function CatalogPage() {
                     <span className="text-sm text-navy/60">
                       {product.colors.length} colors
                     </span>
-                    <span className="font-semibold text-navy">
+                    <span className="font-semibold text-black">
                       {formatUSD(product.basePrice)}
                     </span>
                   </div>

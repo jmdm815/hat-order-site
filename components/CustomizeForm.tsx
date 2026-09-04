@@ -155,7 +155,7 @@ export default function CustomizeForm() {
         </p>
         <button
           onClick={() => router.push("/catalog")}
-          className="mt-4 px-5 py-2.5 rounded-full bg-navy text-white font-medium"
+          className="mt-4 px-5 py-2.5 rounded-md border-2 border-navy text-navy font-heading font-semibold hover:bg-navy hover:text-white transition"
         >
           ← Back to catalog
         </button>
@@ -360,7 +360,7 @@ export default function CustomizeForm() {
         {/* Color */}
         <section>
           <div className="flex items-baseline justify-between">
-            <h2 className="font-semibold text-navy">Color</h2>
+            <h2 className="font-heading font-semibold text-navy">Color</h2>
             <span className="text-sm text-navy/60">{colorName}</span>
           </div>
           <div className="mt-2 flex flex-wrap gap-2.5">
@@ -372,7 +372,7 @@ export default function CustomizeForm() {
                   aria-label={c.colorName}
                   className={`w-7 h-7 rounded-full border transition ${
                     colorName === c.colorName
-                      ? "border-navy ring-2 ring-red ring-offset-2 ring-offset-cream"
+                      ? "border-navy ring-2 ring-red ring-offset-2 ring-offset-white"
                       : "border-black/10 hover:scale-110"
                   }`}
                   style={swatchBackground(c.colorHexes)}
@@ -387,22 +387,23 @@ export default function CustomizeForm() {
 
         {/* Decoration type */}
         <section>
-          <h2 className="font-semibold text-navy">Decoration method</h2>
+          <h2 className="font-heading font-semibold text-navy">Decoration method</h2>
           <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {decorations.map((d) => (
               <button
                 key={d.id}
                 onClick={() => setDecorationId(d.id)}
-                className={`text-left p-4 rounded-xl border transition ${
+                className={`relative overflow-hidden text-left p-4 pt-5 rounded-xl border transition ${
                   decorationId === d.id
                     ? "border-red ring-1 ring-red bg-white"
-                    : "border-navy/10 bg-white hover:border-red/40"
+                    : "border-navy/15 bg-white hover:border-navy/30 hover:bg-gray"
                 }`}
               >
+                <span className="absolute inset-x-0 top-0 h-1 bg-tan" aria-hidden="true" />
                 <div className="flex items-center gap-2">
-                  <div className="font-semibold text-navy">{d.shortLabel}</div>
+                  <div className="font-heading font-semibold text-navy">{d.shortLabel}</div>
                   {d.quoteRequired && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-red bg-red/10 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-navy bg-tan/25 border border-tan/40 px-1.5 py-0.5 rounded">
                       Custom quote
                     </span>
                   )}
@@ -415,7 +416,7 @@ export default function CustomizeForm() {
             ))}
           </div>
           {decoration.quoteRequired && (
-            <p className="mt-3 text-sm text-navy/60 bg-navy/[0.03] border border-navy/10 rounded-lg px-3 py-2">
+            <p className="mt-3 text-sm text-navy/60 bg-gray border border-navy/10 rounded-lg px-3 py-2">
               Pricing for {decoration.shortLabel} depends on your design, so there&apos;s no
               automatic price shown below. Add your details and quantity and we&apos;ll follow
               up with a quote before production.
@@ -432,8 +433,8 @@ export default function CustomizeForm() {
                     onClick={() => setPriceColumnId(col.id)}
                     className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
                       priceColumnId === col.id
-                        ? "bg-navy text-white border-red"
-                        : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                        ? "bg-red text-white border-red"
+                        : "bg-white border-navy text-navy hover:bg-gray"
                     }`}
                   >
                     {col.label}
@@ -446,7 +447,7 @@ export default function CustomizeForm() {
 
         {/* Placement */}
         <section>
-          <h2 className="font-semibold text-navy">Placement</h2>
+          <h2 className="font-heading font-semibold text-navy">Placement</h2>
           <div className="mt-2 flex flex-wrap gap-2">
             {decoration.zones.map((z) => (
               <button
@@ -454,8 +455,8 @@ export default function CustomizeForm() {
                 onClick={() => setPlacement(z.label)}
                 className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
                   placement === z.label
-                    ? "bg-navy text-white border-red"
-                    : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                    ? "bg-red text-white border-red"
+                    : "bg-white border-navy text-navy hover:bg-gray"
                 }`}
               >
                 {z.label}
@@ -466,7 +467,7 @@ export default function CustomizeForm() {
 
         {/* Artwork */}
         <section>
-          <h2 className="font-semibold text-navy">Your logo / artwork</h2>
+          <h2 className="font-heading font-semibold text-navy">Your logo / artwork</h2>
           <p className="mt-1 text-xs text-navy/60">
             Accepted: {decoration.acceptedFileTypes.join(", ")}
           </p>
@@ -478,7 +479,7 @@ export default function CustomizeForm() {
               if (liveDesignerEnabled) handleArtworkFile(file);
               else setArtworkFileName(file?.name ?? "");
             }}
-            className="mt-2 text-sm"
+            className="mt-2 text-sm text-navy/80"
           />
           {artworkFileName && (
             <p className="mt-1 text-sm text-navy/70">Selected: {artworkFileName}</p>
@@ -487,13 +488,14 @@ export default function CustomizeForm() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Notes for our design team (colors, sizing, placement details)…"
-            className="mt-3 w-full border border-navy/20 rounded-lg p-3 text-sm resize-none h-20"
+            className="mt-3 w-full bg-white border border-navy/30 rounded-lg p-3 text-sm resize-none h-20 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
           />
           <label className="mt-3 flex items-center gap-2 text-sm text-navy/70">
             <input
               type="checkbox"
               checked={sameLogoBefore}
               onChange={(e) => setSameLogoBefore(e.target.checked)}
+              className="accent-red"
             />
             I&apos;ve ordered with this exact logo before (waives the setup fee)
           </label>
@@ -501,21 +503,21 @@ export default function CustomizeForm() {
 
         {/* Quantity */}
         <section>
-          <h2 className="font-semibold text-navy">Quantity</h2>
+          <h2 className="font-heading font-semibold text-navy">Quantity</h2>
           <div className="mt-2 flex items-center gap-3">
             <input
               type="number"
               min={1}
               value={quantity}
               onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-              className="w-28 border border-navy/20 rounded-lg px-3 py-2 text-sm"
+              className="w-28 bg-white border border-navy/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
             />
             <span className="text-sm text-navy/60">
               units · minimum {decoration.minQuantity} for {decoration.shortLabel}
             </span>
           </div>
           {belowMinimum && (
-            <p className="mt-2 text-sm text-red-600">
+            <p className="mt-2 text-sm text-red font-medium">
               {decoration.shortLabel} requires at least {decoration.minQuantity} units.
             </p>
           )}
@@ -526,8 +528,8 @@ export default function CustomizeForm() {
                   key={t.minQty}
                   className={`px-2 py-1 rounded border ${
                     quantity >= t.minQty
-                      ? "border-red text-navy font-medium"
-                      : "border-navy/10"
+                      ? "border-red bg-red/5 text-red font-semibold"
+                      : "border-navy/15 text-navy/50"
                   }`}
                 >
                   {t.minQty}+ · {formatUSD(t.pricePerUnit)}/ea
@@ -541,17 +543,17 @@ export default function CustomizeForm() {
         <section className="border border-navy/10 rounded-xl bg-white p-5">
           <div className="flex justify-between text-sm text-navy/70">
             <span>{product.productName} ({product.styleNumber}) × {quantity}</span>
-            <span>{formatUSD(product.basePrice * quantity)}</span>
+            <span className="text-black">{formatUSD(product.basePrice * quantity)}</span>
           </div>
           <div className="flex justify-between text-sm text-navy/70 mt-1">
             <span>{decoration.shortLabel} × {quantity}</span>
-            <span>
+            <span className="text-black">
               {decoration.quoteRequired ? "Contact us for a quote" : formatUSD(unitDecorationPrice * quantity)}
             </span>
           </div>
           <div className="flex justify-between text-sm text-navy/70 mt-1">
             <span>Setup / digitization fee</span>
-            <span>
+            <span className="text-black">
               {decoration.quoteRequired ? "Included in quote" : setupFee === 0 ? "Waived" : formatUSD(setupFee)}
             </span>
           </div>
@@ -562,7 +564,7 @@ export default function CustomizeForm() {
               charge or produce anything.
             </p>
           )}
-          <div className="flex justify-between font-semibold text-navy mt-3 pt-3 border-t border-navy/10">
+          <div className="flex justify-between font-semibold text-black mt-3 pt-3 border-t border-navy/10">
             <span>Line total</span>
             <span>{formatUSD(lineTotal)}</span>
           </div>
@@ -570,7 +572,7 @@ export default function CustomizeForm() {
           <button
             onClick={handleAddToCart}
             disabled={belowMinimum}
-            className="mt-4 w-full py-3 rounded-full bg-navy text-white font-semibold hover:bg-red transition disabled:bg-navy/20 disabled:cursor-not-allowed"
+            className="mt-4 w-full py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
           >
             Add to Cart →
           </button>

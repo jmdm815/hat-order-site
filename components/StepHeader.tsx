@@ -24,7 +24,7 @@ export default function StepHeader() {
   const current = stepIndexForPath(pathname);
 
   return (
-    <header className="border-b-2 border-navy bg-white sticky top-0 z-10">
+    <header className="bg-navy sticky top-0 z-10 shadow-sm">
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           <Image
@@ -35,9 +35,7 @@ export default function StepHeader() {
             className="rounded-md"
             priority
           />
-          <span
-            className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-navy uppercase"
-          >
+          <span className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-tan uppercase">
             Custom Tees and Hats
           </span>
         </Link>
@@ -47,26 +45,26 @@ export default function StepHeader() {
               <span
                 className={`flex items-center gap-1.5 ${
                   i === current
-                    ? "font-semibold text-navy"
+                    ? "font-semibold text-white"
                     : i < current
-                    ? "text-navy/60"
-                    : "text-navy/30"
+                    ? "text-white/70"
+                    : "text-white/40"
                 }`}
               >
                 <span
-                  className={`flex items-center justify-center w-5 h-5 rounded-full text-xs ${
+                  className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold ${
                     i === current
                       ? "bg-red text-white"
                       : i < current
-                      ? "bg-navy/15 text-navy/80"
-                      : "bg-navy/5 text-navy/40"
+                      ? "bg-white text-navy"
+                      : "bg-gray/20 text-white/60"
                   }`}
                 >
                   {i + 1}
                 </span>
                 {step.label}
               </span>
-              {i < STEPS.length - 1 && <span className="text-navy/15">—</span>}
+              {i < STEPS.length - 1 && <span className="w-4 h-px bg-white/25" />}
             </li>
           ))}
         </ol>

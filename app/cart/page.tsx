@@ -68,7 +68,7 @@ export default function CartPage() {
                               .join(", ")}
                           </div>
                           {line.printLocations!.some((l) => l.quoteRequired) && (
-                            <p className="mt-1 text-xs text-red-600">
+                            <p className="mt-1 text-xs text-red font-medium">
                               One or more print locations are priced by custom quote — we&apos;ll
                               follow up before charging or producing those.
                             </p>
@@ -88,11 +88,11 @@ export default function CartPage() {
                           )}
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="font-semibold text-navy">{formatUSD(line.lineTotal)}</div>
+                          <div className="font-semibold text-black">{formatUSD(line.lineTotal)}</div>
                           <div className="text-xs text-navy/40 mt-0.5">{line.quantity} items</div>
                           <button
                             onClick={() => removeCartLine(line.id)}
-                            className="mt-1 text-xs text-red-600 hover:underline"
+                            className="mt-1 text-xs text-red hover:underline"
                           >
                             Remove
                           </button>
@@ -122,7 +122,7 @@ export default function CartPage() {
                           : ""}
                       </div>
                       {line.decoration?.quoteRequired && (
-                        <p className="mt-1 text-xs text-red-600">
+                        <p className="mt-1 text-xs text-red font-medium">
                           Priced by custom quote — we&apos;ll follow up before charging or
                           producing this.
                         </p>
@@ -144,12 +144,12 @@ export default function CartPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold text-navy">
+                      <div className="font-semibold text-black">
                         {formatUSD(line.lineTotal)}
                       </div>
                       <button
                         onClick={() => removeCartLine(line.id)}
-                        className="mt-1 text-xs text-red-600 hover:underline"
+                        className="mt-1 text-xs text-red hover:underline"
                       >
                         Remove
                       </button>
@@ -166,26 +166,31 @@ export default function CartPage() {
               + Add another item
             </Link>
 
-            <div className="mt-8 border border-navy/10 rounded-xl bg-white p-5">
-              <div className="flex justify-between text-sm text-navy/70">
-                <span>{totalUnits} items — subtotal</span>
-                <span>{formatUSD(cartSubtotal)}</span>
+            <div className="mt-8 rounded-xl bg-gray overflow-hidden border border-navy/10">
+              <div className="bg-navy text-white px-5 py-2.5 text-sm font-semibold">
+                Order Summary
               </div>
-              <div className="flex justify-between text-sm text-navy/70 mt-1">
-                <span>Setup fees</span>
-                <span>{formatUSD(cartSetupFees)}</span>
-              </div>
-              <div className="flex justify-between font-semibold text-lg text-navy mt-3 pt-3 border-t border-navy/10">
-                <span>Order total</span>
-                <span>{formatUSD(cartTotal)}</span>
-              </div>
+              <div className="p-5">
+                <div className="flex justify-between text-sm text-black/80">
+                  <span>{totalUnits} items — subtotal</span>
+                  <span>{formatUSD(cartSubtotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-black/80 mt-1">
+                  <span>Setup fees</span>
+                  <span>{formatUSD(cartSetupFees)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-xl text-red mt-3 pt-3 border-t border-navy/10">
+                  <span>Order total</span>
+                  <span>{formatUSD(cartTotal)}</span>
+                </div>
 
-              <button
-                onClick={() => router.push("/checkout")}
-                className="mt-5 w-full py-3 rounded-full bg-navy text-white font-semibold hover:bg-red transition"
-              >
-                Continue to Checkout →
-              </button>
+                <button
+                  onClick={() => router.push("/checkout")}
+                  className="mt-5 w-full py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition"
+                >
+                  Continue to Checkout →
+                </button>
+              </div>
             </div>
           </>
         )}

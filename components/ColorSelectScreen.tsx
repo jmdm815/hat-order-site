@@ -101,7 +101,7 @@ export default function ColorSelectScreen({
 
           <button
             onClick={onContinue}
-            className="mt-6 w-full sm:w-auto px-8 py-3 rounded-full bg-navy text-white font-semibold hover:bg-red transition"
+            className="mt-6 w-full sm:w-auto px-8 py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition"
           >
             Design Now →
           </button>

@@ -135,10 +135,10 @@ function RailButton({
 }) {
   const classes = `flex lg:flex-col items-center gap-1 lg:gap-1.5 px-3 py-2 lg:py-3 rounded-xl text-xs font-medium transition ${
     active
-      ? "bg-navy text-white"
+      ? "bg-red text-white"
       : disabled
       ? "text-navy/25 cursor-not-allowed"
-      : "text-navy/70 hover:bg-navy/5 cursor-pointer"
+      : "text-navy/70 hover:bg-gray cursor-pointer"
   }`;
   const content = (
     <>
@@ -518,11 +518,11 @@ export default function ShirtCustomizeForm({
       {step === "design" && (
         <div className="mt-6 border border-navy/10 rounded-2xl overflow-hidden bg-white">
           {/* Top toolbar */}
-          <div className="flex items-center justify-between border-b border-navy/10 px-4 py-2.5 bg-cream/40">
+          <div className="flex items-center justify-between border-b border-navy/10 px-4 py-2.5 bg-gray">
             <button
               type="button"
               onClick={handleStartOver}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-navy/20 text-navy hover:bg-navy/5"
+              className="px-3 py-1.5 text-xs font-heading font-semibold rounded-md border border-navy text-navy hover:bg-navy hover:text-white transition"
             >
               ↺ Start Over
             </button>
@@ -533,7 +533,7 @@ export default function ShirtCustomizeForm({
 
           <div className="flex flex-col lg:flex-row">
             {/* Left icon rail */}
-            <div className="flex lg:flex-col items-stretch justify-center gap-1 border-b lg:border-b-0 lg:border-r border-navy/10 px-2 py-2 lg:w-20 lg:py-4 shrink-0 bg-cream/20">
+            <div className="flex lg:flex-col items-stretch justify-center gap-1 border-b lg:border-b-0 lg:border-r border-navy/10 px-2 py-2 lg:w-20 lg:py-4 shrink-0 bg-gray/60">
               <RailButton
                 icon="colors"
                 label="Color"
@@ -562,7 +562,7 @@ export default function ShirtCustomizeForm({
               {activePanel === "colors" ? (
                 <>
                   <div className="flex items-baseline justify-between">
-                    <h2 className="font-semibold text-navy">Color</h2>
+                    <h2 className="font-heading font-semibold text-navy">Color</h2>
                     <span className="text-sm text-navy/60">{colorName}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2.5">
@@ -574,7 +574,7 @@ export default function ShirtCustomizeForm({
                           aria-label={c.colorName}
                           className={`w-8 h-8 rounded-full border transition ${
                             colorName === c.colorName
-                              ? "border-navy ring-2 ring-red ring-offset-2 ring-offset-cream"
+                              ? "border-navy ring-2 ring-red ring-offset-2 ring-offset-white"
                               : "border-black/10 hover:scale-110"
                           }`}
                           style={swatchBackground(c.colorHexes)}
@@ -592,7 +592,7 @@ export default function ShirtCustomizeForm({
                 </>
               ) : (
                 <>
-                  <h2 className="font-semibold text-navy">Print locations</h2>
+                  <h2 className="font-heading font-semibold text-navy">Print locations</h2>
                   <p className="mt-1 text-xs text-navy/60">
                     Add every spot you want decorated — front, back, sleeve. Each location is priced
                     separately. Upload artwork now for a live mockup, or skip it and just pick
@@ -609,8 +609,8 @@ export default function ShirtCustomizeForm({
                         }}
                         className={`flex items-center gap-2 pl-3.5 pr-2 py-1.5 rounded-full text-sm border transition ${
                           activeLocationId === loc.id
-                            ? "bg-navy text-white border-red"
-                            : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                            ? "bg-red text-white border-red"
+                            : "bg-white border-navy text-navy hover:bg-gray"
                         }`}
                       >
                         {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel}
@@ -620,7 +620,9 @@ export default function ShirtCustomizeForm({
                             e.stopPropagation();
                             handleRemoveLocation(loc.id);
                           }}
-                          className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-white/20"
+                          className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                            activeLocationId === loc.id ? "hover:bg-white/20" : "hover:bg-navy/10"
+                          }`}
                           aria-label="Remove location"
                           title="Remove location"
                         >
@@ -633,7 +635,7 @@ export default function ShirtCustomizeForm({
                       <button
                         onClick={() => setShowAddPicker((v) => !v)}
                         disabled={availableToAdd.length === 0}
-                        className="px-3.5 py-1.5 rounded-full text-sm border border-dashed border-navy/30 text-navy/70 hover:bg-navy/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="px-3.5 py-1.5 rounded-full text-sm border border-dashed border-navy/40 text-navy/70 hover:bg-gray disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         + Add print location
                       </button>
@@ -643,11 +645,11 @@ export default function ShirtCustomizeForm({
                             <button
                               key={opt.key}
                               onClick={() => handleAddLocation(opt)}
-                              className="w-full text-left px-3 py-2 rounded-lg text-sm text-navy hover:bg-navy/5"
+                              className="w-full text-left px-3 py-2 rounded-lg text-sm text-navy hover:bg-gray"
                             >
                               {opt.zone.label} · {opt.decoration.shortLabel}
                               {opt.decoration.quoteRequired && (
-                                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-red bg-red/10 px-1.5 py-0.5 rounded">
+                                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-navy bg-tan/25 border border-tan/40 px-1.5 py-0.5 rounded">
                                   Custom quote
                                 </span>
                               )}
@@ -665,7 +667,7 @@ export default function ShirtCustomizeForm({
             </div>
 
             {/* Canvas */}
-            <div className="flex-1 p-3 lg:p-4 flex items-start justify-center bg-cream/10 min-w-0">
+            <div className="flex-1 p-3 lg:p-4 flex items-start justify-center bg-gray/40 min-w-0">
               <div className="w-full">
                 <div
                   ref={imageRef}
@@ -816,7 +818,7 @@ export default function ShirtCustomizeForm({
                         type="checkbox"
                         checked={snapEnabled}
                         onChange={(e) => setSnapEnabled(e.target.checked)}
-                        className="rounded border-navy/30"
+                        className="rounded border-navy/30 accent-red"
                       />
                       Snap to center while dragging
                     </label>
@@ -854,8 +856,8 @@ export default function ShirtCustomizeForm({
                               onClick={() => handleSetLocationPriceColumn(activeLocation.id, col.id)}
                               className={`px-3 py-1 rounded-full text-xs border transition ${
                                 activeLocation.priceColumnId === col.id
-                                  ? "bg-navy text-white border-red"
-                                  : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                                  ? "bg-red text-white border-red"
+                                  : "bg-white border-navy text-navy hover:bg-gray"
                               }`}
                             >
                               {col.label}
@@ -870,7 +872,7 @@ export default function ShirtCustomizeForm({
                     <button
                       type="button"
                       onClick={() => handleRemoveLocation(activeLocation.id)}
-                      className="text-xs font-medium text-red-600 hover:underline"
+                      className="text-xs font-medium text-red hover:underline"
                     >
                       Remove this print location
                     </button>
@@ -942,7 +944,7 @@ export default function ShirtCustomizeForm({
           {/* Artwork layers + notes for the active location */}
           {activeLocation && (
             <div className="border-t border-navy/10 p-4">
-              <h2 className="font-semibold text-navy text-sm">
+              <h2 className="font-heading font-semibold text-navy text-sm">
                 Layers — {activeLocation.zoneLabel} · {decorationById.get(activeLocation.decorationId)?.shortLabel}
               </h2>
               {activeLocation.layers.length > 0 ? (
@@ -959,20 +961,20 @@ export default function ShirtCustomizeForm({
                           <input
                             value={layer.text}
                             onChange={(e) => handleLayerTextChange(layer.id, e.target.value)}
-                            className="flex-1 text-sm border border-navy/15 rounded px-2 py-1"
+                            className="flex-1 text-sm bg-white border border-navy/30 rounded px-2 py-1 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
                           />
                           <input
                             type="color"
                             value={layer.color}
                             onChange={(e) => handleLayerColorChange(layer.id, e.target.value)}
-                            className="w-7 h-7 rounded border border-navy/15 shrink-0"
+                            className="w-7 h-7 rounded border border-navy/30 shrink-0"
                             aria-label="Text color"
                           />
                         </>
                       )}
                       <button
                         onClick={() => handleRemoveLayer(layer.id)}
-                        className="text-xs text-red-600 hover:underline shrink-0"
+                        className="text-xs text-red hover:underline shrink-0"
                       >
                         Remove
                       </button>
@@ -988,17 +990,17 @@ export default function ShirtCustomizeForm({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notes for our design team (colors, sizing, placement details)…"
-                className="mt-3 w-full max-w-xl border border-navy/20 rounded-lg p-3 text-sm resize-none h-20"
+                className="mt-3 w-full max-w-xl bg-white border border-navy/30 rounded-lg p-3 text-sm resize-none h-20 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
               />
             </div>
           )}
 
           {/* Bottom action bar */}
-          <div className="flex items-center justify-end gap-3 border-t border-navy/10 px-4 py-3 bg-cream/40">
+          <div className="flex items-center justify-end gap-3 border-t border-navy/10 px-4 py-3 bg-gray">
             <button
               onClick={() => goToStep("quantity")}
               disabled={!canProceedToQuantity}
-              className="px-6 py-2.5 rounded-full bg-navy text-white font-semibold hover:bg-red transition disabled:bg-navy/20 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
             >
               Next Step →
             </button>
@@ -1008,7 +1010,7 @@ export default function ShirtCustomizeForm({
 
       {step === "quantity" && (
         <div className="mt-6 max-w-xl">
-          <h2 className="font-semibold text-navy">How many do you need?</h2>
+          <h2 className="font-heading font-semibold text-navy">How many do you need?</h2>
           <p className="mt-1 text-sm text-navy/60">
             Enter quantities per size. Pricing updates in real time as you go.
           </p>
@@ -1026,7 +1028,7 @@ export default function ShirtCustomizeForm({
                     setSizeQty((q) => ({ ...q, [s.name]: Math.max(0, Number(e.target.value) || 0) }))
                   }
                   placeholder="0"
-                  className="border border-navy/20 rounded-lg px-2.5 py-2 text-sm"
+                  className="bg-white border border-navy/30 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
                 />
               </label>
             ))}
@@ -1043,7 +1045,7 @@ export default function ShirtCustomizeForm({
                     <span
                       key={t.minQty}
                       className={`px-2 py-1 rounded border ${
-                        totalQuantity >= t.minQty ? "border-red text-navy font-medium" : "border-navy/10"
+                        totalQuantity >= t.minQty ? "border-red bg-red/5 text-red font-semibold" : "border-navy/15 text-navy/50"
                       }`}
                     >
                       {t.minQty}+ · {formatUSD(t.pricePerUnit)}/ea
@@ -1059,7 +1061,7 @@ export default function ShirtCustomizeForm({
           )}
 
           {belowMinimum && (
-            <p className="mt-2 text-sm text-red-600">
+            <p className="mt-2 text-sm text-red font-medium">
               This order needs at least {minQuantity} units total ({totalQuantity} entered so far).
             </p>
           )}
@@ -1067,21 +1069,21 @@ export default function ShirtCustomizeForm({
           <div className="mt-6 border border-navy/10 rounded-xl bg-white p-4 text-sm text-navy/70">
             <div className="flex justify-between">
               <span>{totalQuantity} items · garment subtotal</span>
-              <span>{formatUSD(sizeBaseTotal)}</span>
+              <span className="text-black">{formatUSD(sizeBaseTotal)}</span>
             </div>
           </div>
 
           <div className="mt-6 flex gap-3">
             <button
               onClick={() => goToStep("design")}
-              className="px-5 py-3 rounded-full border border-navy/20 text-navy font-semibold hover:bg-navy/5"
+              className="px-5 py-3 rounded-md border border-navy text-navy font-heading font-semibold hover:bg-navy hover:text-white transition"
             >
               ← Back to Design
             </button>
             <button
               onClick={() => goToStep("review")}
               disabled={!canProceedToReview}
-              className="flex-1 py-3 rounded-full bg-navy text-white font-semibold hover:bg-red transition disabled:bg-navy/20 disabled:cursor-not-allowed"
+              className="flex-1 py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
             >
               Calculate Pricing →
             </button>
@@ -1092,20 +1094,20 @@ export default function ShirtCustomizeForm({
       {step === "review" && (
         <div className="mt-6 max-w-2xl">
           <div className="flex flex-wrap gap-2">
-            <span className="px-3 py-1.5 rounded-full bg-navy/5 text-navy text-sm font-medium">
+            <span className="px-3 py-1.5 rounded-full bg-gray text-navy text-sm font-medium">
               {totalQuantity} items
             </span>
-            <span className="px-3 py-1.5 rounded-full bg-navy/5 text-navy text-sm font-medium">
+            <span className="px-3 py-1.5 rounded-full bg-gray text-navy text-sm font-medium">
               {locations.length} print {locations.length === 1 ? "area" : "areas"}
             </span>
-            <span className="px-3 py-1.5 rounded-full bg-navy/5 text-navy text-sm font-medium">
+            <span className="px-3 py-1.5 rounded-full bg-gray text-navy text-sm font-medium">
               {colorName}
             </span>
           </div>
 
           <div className="mt-5 border border-navy/10 rounded-xl bg-white p-5">
             <div className="flex gap-4">
-              <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-cream shrink-0">
+              <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray shrink-0">
                 <GarmentPreview
                   url={selectedColor?.imageUrl}
                   view="front"
@@ -1121,7 +1123,7 @@ export default function ShirtCustomizeForm({
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {sizeEntries.map((e) => (
-                    <span key={e.size} className="text-xs px-2 py-0.5 rounded bg-navy/5 text-navy/70">
+                    <span key={e.size} className="text-xs px-2 py-0.5 rounded bg-gray text-navy/70">
                       {e.size}-{e.quantity}
                     </span>
                   ))}
@@ -1132,14 +1134,14 @@ export default function ShirtCustomizeForm({
             <div className="mt-4 pt-4 border-t border-navy/10 space-y-2">
               <div className="flex justify-between text-sm text-navy/70">
                 <span>Garments × {totalQuantity}</span>
-                <span>{formatUSD(sizeBaseTotal)}</span>
+                <span className="text-black">{formatUSD(sizeBaseTotal)}</span>
               </div>
               {pricedLocations.map((loc) => (
                 <div key={loc.id} className="flex justify-between text-sm text-navy/70">
                   <span>
                     {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel} × {totalQuantity}
                   </span>
-                  <span>
+                  <span className="text-black">
                     {loc.quoteRequired ? "Contact us for a quote" : formatUSD(loc.unitPrice * totalQuantity)}
                   </span>
                 </div>
@@ -1147,12 +1149,12 @@ export default function ShirtCustomizeForm({
               {pricedLocations.map((loc) => (
                 <div key={`${loc.id}-setup`} className="flex justify-between text-sm text-navy/70">
                   <span>{loc.zoneLabel} setup / digitization fee</span>
-                  <span>
+                  <span className="text-black">
                     {loc.quoteRequired ? "Included in quote" : loc.setupFee === 0 ? "Waived" : formatUSD(loc.setupFee)}
                   </span>
                 </div>
               ))}
-              <div className="flex justify-between font-semibold text-navy pt-2 border-t border-navy/10">
+              <div className="flex justify-between font-semibold text-black pt-2 border-t border-navy/10">
                 <span>Line total</span>
                 <span>{formatUSD(lineTotal)}</span>
               </div>
@@ -1170,6 +1172,7 @@ export default function ShirtCustomizeForm({
                 type="checkbox"
                 checked={sameLogoBefore}
                 onChange={(e) => setSameLogoBefore(e.target.checked)}
+                className="accent-red"
               />
               I&apos;ve ordered with this exact logo before (waives setup fees)
             </label>
@@ -1177,7 +1180,7 @@ export default function ShirtCustomizeForm({
             <button
               onClick={handleAddToCart}
               disabled={!canAddToCart}
-              className="mt-5 w-full py-3 rounded-full bg-navy text-white font-semibold hover:bg-red transition disabled:bg-navy/20 disabled:cursor-not-allowed"
+              className="mt-5 w-full py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
             >
               Add to Cart →
             </button>
@@ -1185,7 +1188,7 @@ export default function ShirtCustomizeForm({
 
           <button
             onClick={() => goToStep("quantity")}
-            className="mt-4 px-5 py-2.5 rounded-full border border-navy/20 text-navy font-semibold hover:bg-navy/5"
+            className="mt-4 px-5 py-2.5 rounded-md border border-navy text-navy font-heading font-semibold hover:bg-navy hover:text-white transition"
           >
             ← Back to Quantity
           </button>
