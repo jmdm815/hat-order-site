@@ -263,6 +263,7 @@ export default function ShirtCustomizeForm({
       view: opt.zone.view,
       decorationId: opt.decoration.id,
       layers: [],
+      priceColumnId: opt.decoration.priceColumns?.[0]?.id,
     };
     setLocations((ls) => [...ls, loc]);
     setActiveLocationId(loc.id);
@@ -299,6 +300,10 @@ export default function ShirtCustomizeForm({
 
   function updateLayers(locationId: string, updater: (layers: DesignLayer[]) => DesignLayer[]) {
     setLocations((ls) => ls.map((l) => (l.id === locationId ? { ...l, layers: updater(l.layers) } : l)));
+  }
+
+  function handleSetLocationPriceColumn(locationId: string, columnId: string) {
+    setLocations((ls) => ls.map((l) => (l.id === locationId ? { ...l, priceColumnId: columnId } : l)));
   }
 
   // ---- Layer management (scoped to the active location) --------------------
@@ -377,7 +382,9 @@ export default function ShirtCustomizeForm({
         const opt = decorationById.get(loc.decorationId);
         return {
           ...loc,
-          unitPrice: opt ? getUnitPriceForQuantity(opt, totalQuantity || opt.minQuantity) : 0,
+          unitPrice: opt
+            ? getUnitPriceForQuantity(opt, totalQuantity || opt.minQuantity, loc.priceColumnId)
+            : 0,
           setupFee: opt ? getSetupFee(opt, totalQuantity, sameLogoBefore) : 0,
         };
       }),
@@ -814,6 +821,33 @@ export default function ShirtCustomizeForm({
                     placement with you after checkout.
                   </p>
                 )}
+                {activeLocation &&
+                  (() => {
+                    const activeDecoration = decorationById.get(activeLocation.decorationId);
+                    const cols = activeDecoration?.priceColumns;
+                    if (!cols || !cols.length) return null;
+                    return (
+                      <div className="mt-2 flex flex-col items-center gap-1.5">
+                        <p className="text-xs text-navy/50">Stitch count / pricing tier</p>
+                        <div className="flex flex-wrap justify-center gap-1.5">
+                          {cols.map((col) => (
+                            <button
+                              key={col.id}
+                              type="button"
+                              onClick={() => handleSetLocationPriceColumn(activeLocation.id, col.id)}
+                              className={`px-3 py-1 rounded-full text-xs border transition ${
+                                activeLocation.priceColumnId === col.id
+                                  ? "bg-navy text-white border-red"
+                                  : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                              }`}
+                            >
+                              {col.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 {activeLocation && (
                   <div className="mt-1.5 flex justify-center">
                     <button

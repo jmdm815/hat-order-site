@@ -9,12 +9,29 @@ import {
 import { isPersistent } from "@/lib/pricing-store";
 import { DecorationOption, ProductType } from "@/lib/types";
 
-function isValidTier(t: unknown): t is { minQty: number; pricePerUnit: number } {
+function isValidTier(
+  t: unknown
+): t is { minQty: number; pricePerUnit: number; pricesByColumn?: Record<string, number> } {
+  if (typeof t !== "object" || t === null) return false;
+  const tier = t as { minQty?: unknown; pricePerUnit?: unknown; pricesByColumn?: unknown };
+  if (typeof tier.minQty !== "number" || typeof tier.pricePerUnit !== "number") return false;
+  if (tier.pricesByColumn !== undefined) {
+    if (typeof tier.pricesByColumn !== "object" || tier.pricesByColumn === null) return false;
+    if (!Object.values(tier.pricesByColumn).every((v) => typeof v === "number")) return false;
+  }
+  return true;
+}
+
+function isValidPriceColumns(value: unknown): value is { id: string; label: string }[] {
   return (
-    typeof t === "object" &&
-    t !== null &&
-    typeof (t as { minQty?: unknown }).minQty === "number" &&
-    typeof (t as { pricePerUnit?: unknown }).pricePerUnit === "number"
+    Array.isArray(value) &&
+    value.every(
+      (c) =>
+        typeof c === "object" &&
+        c !== null &&
+        typeof (c as { id?: unknown }).id === "string" &&
+        typeof (c as { label?: unknown }).label === "string"
+    )
   );
 }
 
@@ -43,6 +60,7 @@ function isValidDecorationFields(
   if (!Array.isArray(d.pricingTiers) || !d.pricingTiers.length || !d.pricingTiers.every(isValidTier)) {
     return false;
   }
+  if (d.priceColumns !== undefined && !isValidPriceColumns(d.priceColumns)) return false;
   if (typeof d.turnaroundDays !== "string") return false;
   if (!Array.isArray(d.acceptedFileTypes) || !d.acceptedFileTypes.every((f) => typeof f === "string")) {
     return false;

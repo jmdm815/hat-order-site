@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DecorationOption, ProductType } from "@/lib/types";
+import { v4 as uuid } from "uuid";
+import { DecorationOption, PriceColumn, ProductType } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
-
-type PriceTier = { minQty: number; pricePerUnit: number };
 
 // Editable draft form for one decoration type — pricingTiers/acceptedFileTypes
 // are kept in their natural array shapes; acceptedFileTypes is edited as a
@@ -14,7 +13,7 @@ type PriceTier = { minQty: number; pricePerUnit: number };
 type Draft = Omit<DecorationOption, "acceptedFileTypes"> & { acceptedFileTypesText: string };
 
 function toDraft(d: DecorationOption): Draft {
-  return { ...d, acceptedFileTypesText: d.acceptedFileTypes.join(", ") };
+  return { ...d, priceColumns: d.priceColumns ?? [], acceptedFileTypesText: d.acceptedFileTypes.join(", ") };
 }
 
 function fromDraft(d: Draft): Omit<DecorationOption, "id"> {
@@ -39,6 +38,7 @@ const BLANK_DRAFT: Draft = {
   setupFee: 0,
   setupFeeEnabled: true,
   pricingTiers: [{ minQty: 12, pricePerUnit: 0 }],
+  priceColumns: [],
   turnaroundDays: "",
   acceptedFileTypesText: "",
 } as Draft;
@@ -92,69 +92,201 @@ export default function AdminDecorationTypesManager() {
   }
 
   function tierRows(draft: Draft, apply: (patch: Partial<Draft>) => void) {
-    function updateTier(i: number, field: keyof PriceTier, value: number) {
+    const columns: PriceColumn[] = draft.priceColumns ?? [];
+    const hasColumns = columns.length > 0;
+
+    function updateTier(i: number, field: "minQty" | "pricePerUnit", value: number) {
       apply({ pricingTiers: draft.pricingTiers.map((t, idx) => (idx === i ? { ...t, [field]: value } : t)) });
+    }
+    function updateCellPrice(i: number, columnId: string, value: number) {
+      apply({
+        pricingTiers: draft.pricingTiers.map((t, idx) =>
+          idx === i ? { ...t, pricesByColumn: { ...t.pricesByColumn, [columnId]: value } } : t
+        ),
+      });
     }
     function addTier() {
       const last = draft.pricingTiers[draft.pricingTiers.length - 1];
       apply({
         pricingTiers: [
           ...draft.pricingTiers,
-          { minQty: last ? last.minQty + 12 : 1, pricePerUnit: last?.pricePerUnit ?? 0 },
+          {
+            minQty: last ? last.minQty + 12 : 1,
+            pricePerUnit: last?.pricePerUnit ?? 0,
+            pricesByColumn: last?.pricesByColumn,
+          },
         ],
       });
     }
     function removeTier(i: number) {
       apply({ pricingTiers: draft.pricingTiers.filter((_, idx) => idx !== i) });
     }
+    function addColumn() {
+      const label = prompt("Column label (e.g. \"Up to 5,000 stitches\")");
+      if (!label || !label.trim()) return;
+      const column: PriceColumn = { id: uuid(), label: label.trim() };
+      apply({ priceColumns: [...columns, column] });
+    }
+    function renameColumn(id: string) {
+      const current = columns.find((c) => c.id === id);
+      const label = prompt("Column label", current?.label ?? "");
+      if (!label || !label.trim()) return;
+      apply({ priceColumns: columns.map((c) => (c.id === id ? { ...c, label: label.trim() } : c)) });
+    }
+    function removeColumn(id: string) {
+      apply({
+        priceColumns: columns.filter((c) => c.id !== id),
+        pricingTiers: draft.pricingTiers.map((t) => {
+          if (!t.pricesByColumn) return t;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [id]: _removed, ...rest } = t.pricesByColumn;
+          return { ...t, pricesByColumn: rest };
+        }),
+      });
+    }
+
     return (
       <div className="mt-3">
-        <div className="text-xs font-medium text-navy/60 uppercase tracking-wide">
-          Quantity price breaks
+        <div className="flex items-baseline justify-between">
+          <div className="text-xs font-medium text-navy/60 uppercase tracking-wide">
+            Quantity price breaks
+          </div>
+          {hasColumns && (
+            <div className="text-xs text-navy/40">Priced per {columns.length > 1 ? "column" : "the column"} below</div>
+          )}
         </div>
-        <div className="mt-2 space-y-2">
-          {draft.pricingTiers.map((tier, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs text-navy/60">
-                Qty ≥
-                <input
-                  type="number"
-                  min={1}
-                  value={tier.minQty}
-                  onChange={(e) => updateTier(i, "minQty", Math.max(1, Number(e.target.value) || 1))}
-                  className="w-20 border border-navy/20 rounded-lg px-2 py-1 text-sm"
-                />
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-navy/60">
-                $/unit
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={tier.pricePerUnit}
-                  onChange={(e) => updateTier(i, "pricePerUnit", Math.max(0, Number(e.target.value) || 0))}
-                  className="w-24 border border-navy/20 rounded-lg px-2 py-1 text-sm"
-                />
-              </label>
-              <span className="text-xs text-navy/40">
-                {formatUSD(tier.pricePerUnit)}/unit at {tier.minQty}+
-              </span>
-              <button
-                onClick={() => removeTier(i)}
-                disabled={draft.pricingTiers.length <= 1}
-                className="ml-auto text-xs text-red-600 hover:underline disabled:text-navy/20 disabled:no-underline"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
+
+        {!hasColumns ? (
+          <div className="mt-2 space-y-2">
+            {draft.pricingTiers.map((tier, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-navy/60">
+                  Qty ≥
+                  <input
+                    type="number"
+                    min={1}
+                    value={tier.minQty}
+                    onChange={(e) => updateTier(i, "minQty", Math.max(1, Number(e.target.value) || 1))}
+                    className="w-20 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                  />
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-navy/60">
+                  $/unit
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={tier.pricePerUnit}
+                    onChange={(e) => updateTier(i, "pricePerUnit", Math.max(0, Number(e.target.value) || 0))}
+                    className="w-24 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                  />
+                </label>
+                <span className="text-xs text-navy/40">
+                  {formatUSD(tier.pricePerUnit)}/unit at {tier.minQty}+
+                </span>
+                <button
+                  onClick={() => removeTier(i)}
+                  disabled={draft.pricingTiers.length <= 1}
+                  className="ml-auto text-xs text-red-600 hover:underline disabled:text-navy/20 disabled:no-underline"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 overflow-x-auto">
+            <table className="text-sm border-collapse">
+              <thead>
+                <tr>
+                  <th className="text-left text-xs font-medium text-navy/60 pr-3 pb-2">Qty ≥</th>
+                  {columns.map((col) => (
+                    <th key={col.id} className="text-left text-xs font-medium text-navy/60 px-2 pb-2">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => renameColumn(col.id)}
+                          className="hover:underline text-left"
+                          title="Rename column"
+                        >
+                          {col.label}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeColumn(col.id)}
+                          className="text-red-600 hover:underline text-[11px]"
+                          title="Remove column"
+                        >
+                          (remove)
+                        </button>
+                      </div>
+                    </th>
+                  ))}
+                  <th className="pb-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {draft.pricingTiers.map((tier, i) => (
+                  <tr key={i}>
+                    <td className="pr-3 pb-2 align-top">
+                      <input
+                        type="number"
+                        min={1}
+                        value={tier.minQty}
+                        onChange={(e) => updateTier(i, "minQty", Math.max(1, Number(e.target.value) || 1))}
+                        className="w-20 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                      />
+                    </td>
+                    {columns.map((col) => (
+                      <td key={col.id} className="px-2 pb-2 align-top">
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={tier.pricesByColumn?.[col.id] ?? tier.pricePerUnit}
+                          onChange={(e) => updateCellPrice(i, col.id, Math.max(0, Number(e.target.value) || 0))}
+                          className="w-24 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                        />
+                      </td>
+                    ))}
+                    <td className="pb-2 align-top">
+                      <button
+                        onClick={() => removeTier(i)}
+                        disabled={draft.pricingTiers.length <= 1}
+                        className="text-xs text-red-600 hover:underline disabled:text-navy/20 disabled:no-underline"
+                      >
+                        Remove row
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-1 text-xs text-navy/40">
+              A blank cell falls back to that row&apos;s base $/unit until you set one.
+            </p>
+          </div>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            onClick={addTier}
+            className="text-sm px-3 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5"
+          >
+            + Add {hasColumns ? "row" : "tier"}
+          </button>
+          <button
+            onClick={addColumn}
+            className="text-sm px-3 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5"
+          >
+            + Add column
+          </button>
+          {!hasColumns && (
+            <span className="text-xs text-navy/40">
+              Add a column to price this decoration differently by, e.g., embroidery stitch count.
+            </span>
+          )}
         </div>
-        <button
-          onClick={addTier}
-          className="mt-3 text-sm px-3 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5"
-        >
-          + Add tier
-        </button>
       </div>
     );
   }

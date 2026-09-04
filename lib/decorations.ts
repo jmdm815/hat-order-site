@@ -13,16 +13,27 @@ export function getDecoration(
   return decorations.find((d) => d.id === id);
 }
 
+// `columnId` selects a price from that tier's pricesByColumn (e.g. an
+// embroidery stitch-count band) when the decoration type has priceColumns
+// configured. If the tier has no entry for that column — or the decoration
+// has no columns at all, or no columnId is passed — this falls back to the
+// tier's plain pricePerUnit, so callers that don't know about columns keep
+// working exactly as before.
 export function getUnitPriceForQuantity(
   decoration: DecorationOption,
-  quantity: number
+  quantity: number,
+  columnId?: string
 ): number {
   const applicable = [...decoration.pricingTiers]
     .sort((a, b) => a.minQty - b.minQty)
     .filter((t) => quantity >= t.minQty);
-  return applicable.length
-    ? applicable[applicable.length - 1].pricePerUnit
-    : decoration.pricingTiers[0].pricePerUnit;
+  const tier = applicable.length
+    ? applicable[applicable.length - 1]
+    : decoration.pricingTiers[0];
+  if (columnId && tier.pricesByColumn && tier.pricesByColumn[columnId] !== undefined) {
+    return tier.pricesByColumn[columnId];
+  }
+  return tier.pricePerUnit;
 }
 
 // Setup/digitization fee is waived at 48+ units, and waived entirely if the

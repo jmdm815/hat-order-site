@@ -71,6 +71,7 @@ export default function CustomizeForm() {
   const [notFound, setNotFound] = useState(false);
   const [colorName, setColorName] = useState<string>("");
   const [decorationId, setDecorationId] = useState<DecorationType | "">("");
+  const [priceColumnId, setPriceColumnId] = useState<string>("");
   const [placement, setPlacement] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(24);
   const [artworkFileName, setArtworkFileName] = useState<string>("");
@@ -120,11 +121,13 @@ export default function CustomizeForm() {
 
   const decoration = decorations.find((d) => d.id === decorationId);
 
-  // Reset the placement choice whenever the decoration method changes.
+  // Reset the placement choice (and price-column pick, e.g. stitch count)
+  // whenever the decoration method changes.
   useEffect(() => {
     if (!decoration) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPlacement(decoration.zones[0]?.label ?? "");
+    setPriceColumnId(decoration.priceColumns?.[0]?.id ?? "");
   }, [decorationId, decoration]);
 
   const selectedZone = decoration?.zones.find((z) => z.label === placement);
@@ -208,7 +211,7 @@ export default function CustomizeForm() {
   }
 
   const belowMinimum = quantity < decoration.minQuantity;
-  const unitDecorationPrice = getUnitPriceForQuantity(decoration, quantity);
+  const unitDecorationPrice = getUnitPriceForQuantity(decoration, quantity, priceColumnId || undefined);
   const setupFee = getSetupFee(decoration, quantity, sameLogoBefore);
   const unitTotal = product.basePrice + unitDecorationPrice;
   const lineTotal = quantity * unitTotal + setupFee;
@@ -266,6 +269,7 @@ export default function CustomizeForm() {
         artworkFileName: artworkFileName || undefined,
         artworkPlacement,
         notes: notes || undefined,
+        priceColumnId: priceColumnId || undefined,
       },
       unitBasePrice: product!.basePrice,
       unitDecorationPrice,
@@ -392,6 +396,27 @@ export default function CustomizeForm() {
               </button>
             ))}
           </div>
+          {decoration.priceColumns && decoration.priceColumns.length > 0 && (
+            <div className="mt-3">
+              <div className="text-sm text-navy/70">Stitch count / pricing tier</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {decoration.priceColumns.map((col) => (
+                  <button
+                    key={col.id}
+                    type="button"
+                    onClick={() => setPriceColumnId(col.id)}
+                    className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
+                      priceColumnId === col.id
+                        ? "bg-navy text-white border-red"
+                        : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                    }`}
+                  >
+                    {col.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Placement */}

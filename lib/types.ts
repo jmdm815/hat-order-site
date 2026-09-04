@@ -124,10 +124,20 @@ export type DecorationOption = {
   // existing 48+ units / repeat-logo waivers in lib/decorations.ts);
   // false = always waived for this decoration type.
   setupFeeEnabled?: boolean;
-  pricingTiers: { minQty: number; pricePerUnit: number }[];
+  pricingTiers: { minQty: number; pricePerUnit: number; pricesByColumn?: Record<string, number> }[];
+  // Optional second pricing dimension (e.g. embroidery stitch-count bands:
+  // "Up to 5,000", "5,001-10,000", ...). When empty/absent, pricing is just
+  // the single pricePerUnit per tier, same as before. When an admin adds
+  // columns from the Pricing tab, each tier can carry a price for each
+  // column in pricingTiers[].pricesByColumn (keyed by PriceColumn.id); a
+  // tier missing an entry for a given column falls back to that tier's
+  // plain pricePerUnit. See getUnitPriceForQuantity in lib/decorations.ts.
+  priceColumns?: PriceColumn[];
   turnaroundDays: string;
   acceptedFileTypes: string[];
 };
+
+export type PriceColumn = { id: string; label: string };
 
 export type ArtworkPlacement = {
   zoneId: string;
@@ -144,6 +154,10 @@ export type CartLineDecoration = {
   artworkFileName?: string;
   artworkPlacement?: ArtworkPlacement; // set only for shirt lines with live-preview positioning
   notes?: string;
+  // Selected PriceColumn id (e.g. a stitch-count band), when the decoration
+  // type has priceColumns configured. Absent = decoration has no columns,
+  // or the plain pricePerUnit applies.
+  priceColumnId?: string;
 };
 
 // One artwork or text element positioned within a print location's zone.
@@ -175,6 +189,10 @@ export type PrintLocation = {
   layers: DesignLayer[]; // may be empty — a location can be ordered as a quote-only placeholder with no artwork yet
   unitPrice: number; // this location's per-unit decoration price at the order's total quantity
   setupFee: number; // this location's one-time setup/digitization fee
+  // Selected PriceColumn id for this location's decoration type (e.g. a
+  // stitch-count band), when that decoration type has priceColumns
+  // configured. Absent = no columns, or the plain pricePerUnit applies.
+  priceColumnId?: string;
 };
 
 export type SizeQuantity = { size: string; quantity: number; unitBasePrice: number };
