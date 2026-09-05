@@ -178,10 +178,17 @@ function colorNameToHexes(name: string): string[] {
 }
 
 function cheapestPrice(style: SanmarStyle): number {
+  // SanMar's feed occasionally lists $0 as a placeholder price on a single
+  // discontinued/out-of-stock color-size variant (e.g. one leftover size of
+  // one color) even though the style itself is very much for sale — a
+  // literal min() over every size let one bad $0 drag the whole style's
+  // basePrice to 0, which getCatalog() then filtered out entirely, silently
+  // disappearing an otherwise-orderable product from the catalog. Ignore
+  // non-positive prices when finding the cheapest real one.
   let min = Infinity;
   for (const color of style.colors) {
     for (const size of color.sizes) {
-      if (size.price < min) min = size.price;
+      if (size.price > 0 && size.price < min) min = size.price;
     }
   }
   return Number.isFinite(min) ? min : 0;
