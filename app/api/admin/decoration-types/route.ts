@@ -39,7 +39,7 @@ function isValidProductTypes(value: unknown): value is ProductType[] {
   return (
     Array.isArray(value) &&
     value.length > 0 &&
-    value.every((v) => v === "hat" || v === "shirt" || v === "tumbler")
+    value.every((v) => v === "hat" || v === "shirt" || v === "tumbler" || v === "polo")
   );
 }
 
@@ -62,6 +62,9 @@ function isValidDecorationFields(
   }
   if (d.priceColumns !== undefined && !isValidPriceColumns(d.priceColumns)) return false;
   if (d.quoteRequired !== undefined && typeof d.quoteRequired !== "boolean") return false;
+  if (d.allowUnknownStitchCount !== undefined && typeof d.allowUnknownStitchCount !== "boolean") {
+    return false;
+  }
   if (typeof d.turnaroundDays !== "string") return false;
   if (!Array.isArray(d.acceptedFileTypes) || !d.acceptedFileTypes.every((f) => typeof f === "string")) {
     return false;

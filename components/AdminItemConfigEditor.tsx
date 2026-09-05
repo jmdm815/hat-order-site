@@ -26,6 +26,7 @@ const DEFAULT_ZONE_BY_TYPE = {
   hat: { label: "Front Center", view: "front" as const, x: 30, y: 25, width: 40, height: 30 },
   shirt: { label: "Front Center", view: "front" as const, x: 25, y: 20, width: 50, height: 45 },
   tumbler: { label: "Wrap", view: "front" as const, x: 15, y: 20, width: 70, height: 60 },
+  polo: { label: "Left Chest", view: "front" as const, x: 58, y: 22, width: 22, height: 18 },
 };
 
 function emptyConfigFor(product: Product, decorationTypeIds: string[]): CatalogItemConfig {
@@ -84,7 +85,8 @@ export default function AdminItemConfigEditor({
   // management shouldn't be gated on a real photo existing the way it is
   // for hats, where a back print is unusual and no illustration fallback
   // is drawn.
-  const hasBack = Boolean(hero?.backImageUrl) || product.productType === "shirt";
+  const hasBack =
+    Boolean(hero?.backImageUrl) || product.productType === "shirt" || product.productType === "polo";
 
   // --- Design canvas photo (SanMar catalog photo vs. admin-uploaded custom
   // image) -------------------------------------------------------------

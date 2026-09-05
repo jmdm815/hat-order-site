@@ -42,15 +42,19 @@ export type DesignerSettings = {
   hatsEnabled: boolean;
   shirtsEnabled: boolean;
   tumblersEnabled: boolean;
+  polosEnabled: boolean;
 };
 
 // Hats: off by default (brand-new capability, admin opts in). Shirts: on by
 // default, matching this site's existing behavior before this toggle existed.
-// Tumblers: off by default, same reasoning as hats — brand-new product type.
+// Tumblers and Polos: off by default, same reasoning as hats — brand-new
+// product types that ship with the simple order-form flow until an admin
+// opts them into the live designer.
 const DEFAULT_DESIGNER_SETTINGS: DesignerSettings = {
   hatsEnabled: false,
   shirtsEnabled: true,
   tumblersEnabled: false,
+  polosEnabled: false,
 };
 
 const DESIGNER_SETTINGS_PATHNAME = "designer-settings.json";

@@ -29,6 +29,7 @@ const CATEGORY_SUGGESTIONS: Record<ProductType, string[]> = {
   hat: ["Trucker", "Structured", "Unstructured", "Dad Hat", "Visor", "Beanie"],
   shirt: ["T-Shirt", "Long Sleeve", "Tank", "Youth Tee"],
   tumbler: ["Tumbler"],
+  polo: ["Polo", "Performance Polo", "Ladies Polo", "Youth Polo"],
 };
 
 function blankColor(): ColorDraft {
@@ -256,6 +257,7 @@ export default function AdminCustomProductForm({
             >
               <option value="hat">Hat</option>
               <option value="shirt">Shirt</option>
+              <option value="polo">Polo</option>
               <option value="tumbler">Tumbler</option>
             </select>
           </label>

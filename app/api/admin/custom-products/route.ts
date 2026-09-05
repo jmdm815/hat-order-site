@@ -10,7 +10,7 @@ import { isPersistent } from "@/lib/pricing-store";
 import { Product, ProductSize, ProductType } from "@/lib/types";
 
 function isValidProductType(value: unknown): value is ProductType {
-  return value === "hat" || value === "shirt" || value === "tumbler";
+  return value === "hat" || value === "shirt" || value === "tumbler" || value === "polo";
 }
 
 function isValidSize(v: unknown): v is ProductSize {

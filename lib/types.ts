@@ -3,7 +3,7 @@
 // Services (SIS) API returns for a product, so lib/sanmar.ts can be swapped
 // from mock data to a live API call without touching any UI code.
 
-export type ProductType = "hat" | "shirt" | "tumbler";
+export type ProductType = "hat" | "shirt" | "tumbler" | "polo";
 
 export type ProductCategory =
   | "Trucker"
@@ -16,7 +16,11 @@ export type ProductCategory =
   | "Long Sleeve"
   | "Tank"
   | "Youth Tee"
-  | "Tumbler";
+  | "Tumbler"
+  | "Polo"
+  | "Performance Polo"
+  | "Ladies Polo"
+  | "Youth Polo";
 
 export type ProductSize = { name: string; price: number; inventory: number };
 
@@ -154,6 +158,15 @@ export type DecorationOption = {
   // from the Pricing tab; pricingTiers/priceColumns are simply unused while
   // it's on, so nothing already entered is lost if it's turned back off.
   quoteRequired?: boolean;
+  // When true, the customer sees a checkbox during customization: "I don't
+  // know how many stitches my design has." Only meaningful for a decoration
+  // type that has priceColumns (stitch-count bands) — checking it skips the
+  // column picker, prices that decoration at 0 (same as quoteRequired), and
+  // tells the customer we'll follow up with an accurate quote once we've
+  // seen their design. Distinct from quoteRequired: that flag applies to
+  // every order of this decoration type, this one is a per-order opt-in for
+  // customers who genuinely don't know their stitch count yet.
+  allowUnknownStitchCount?: boolean;
   turnaroundDays: string;
   acceptedFileTypes: string[];
 };
@@ -186,6 +199,11 @@ export type CartLineDecoration = {
   // type. unitPrice/unitDecorationPrice and setupFee are 0 wherever this
   // is true.
   quoteRequired?: boolean;
+  // True when the customer checked "I don't know how many stitches my
+  // design has" for this decoration (see DecorationOption.allowUnknownStitchCount).
+  // Like quoteRequired, this forces unitPrice/setupFee to 0 and shows
+  // "we'll follow up with a quote" messaging instead of an automatic price.
+  unknownStitchCount?: boolean;
 };
 
 // One artwork or text element positioned within a print location's zone.
@@ -225,6 +243,9 @@ export type PrintLocation = {
   // and setupFee above are 0 and the customer was told we'll follow up
   // with pricing instead of it being computed automatically.
   quoteRequired?: boolean;
+  // True when the customer checked "I don't know how many stitches my
+  // design has" for this location (see DecorationOption.allowUnknownStitchCount).
+  unknownStitchCount?: boolean;
 };
 
 export type SizeQuantity = { size: string; quantity: number; unitBasePrice: number };

@@ -40,6 +40,7 @@ const BLANK_DRAFT: Draft = {
   pricingTiers: [{ minQty: 12, pricePerUnit: 0 }],
   priceColumns: [],
   quoteRequired: false,
+  allowUnknownStitchCount: false,
   turnaroundDays: "",
   acceptedFileTypesText: "",
 } as Draft;
@@ -328,7 +329,7 @@ export default function AdminDecorationTypesManager() {
 
         <div className="mt-3 flex items-center gap-4 text-sm text-navy/70">
           <span className="font-medium text-navy">Available on</span>
-          {(["hat", "shirt", "tumbler"] as const).map((t) => (
+          {(["hat", "shirt", "polo", "tumbler"] as const).map((t) => (
             <label key={t} className="flex items-center gap-1.5 capitalize">
               <input
                 type="checkbox"
@@ -417,6 +418,25 @@ export default function AdminDecorationTypesManager() {
             )}
 
             {tierRows(draft, apply)}
+
+            {(draft.priceColumns?.length ?? 0) > 0 && (
+              <div className="mt-4 pt-3 border-t border-navy/10">
+                <label className="flex items-center gap-1.5 text-sm text-navy/70 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={draft.allowUnknownStitchCount === true}
+                    onChange={(e) => apply({ allowUnknownStitchCount: e.target.checked })}
+                  />
+                  Let customers say they don&apos;t know their stitch count
+                </label>
+                <p className="mt-1 text-xs text-navy/50">
+                  Adds a checkbox on the customer side — &quot;I don&apos;t know how many
+                  stitches my design has.&quot; If they check it, this decoration is priced
+                  at $0 for their order (like a custom quote) and we follow up with them
+                  directly once we&apos;ve seen the design.
+                </p>
+              </div>
+            )}
           </>
         )}
       </>
@@ -511,7 +531,9 @@ export default function AdminDecorationTypesManager() {
                   <div className="font-semibold text-navy">{d.shortLabel}</div>
                   <div className="text-xs text-navy/50 mt-0.5">
                     {d.productTypes
-                      .map((t) => (t === "hat" ? "Hats" : t === "shirt" ? "Shirts" : "Tumblers"))
+                      .map((t) =>
+                        t === "hat" ? "Hats" : t === "shirt" ? "Shirts" : t === "polo" ? "Polos" : "Tumblers"
+                      )
                       .join(" · ")}
                     {" · "}
                     {d.quoteRequired ? (

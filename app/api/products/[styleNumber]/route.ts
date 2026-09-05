@@ -52,6 +52,7 @@ export async function GET(
     hat: designerSettings.hatsEnabled,
     shirt: designerSettings.shirtsEnabled,
     tumbler: designerSettings.tumblersEnabled,
+    polo: designerSettings.polosEnabled,
   };
   const liveDesignerEnabled =
     config.liveDesignerOverride !== undefined

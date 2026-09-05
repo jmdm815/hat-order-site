@@ -20,17 +20,21 @@ const HAT_CATEGORIES = [
 
 const SHIRT_CATEGORIES = ["All", "T-Shirt", "Long Sleeve", "Tank", "Youth Tee"] as const;
 
+const POLO_CATEGORIES = ["All", "Polo", "Performance Polo", "Ladies Polo", "Youth Polo"] as const;
+
 const TUMBLER_CATEGORIES = ["All", "Tumbler"] as const;
 
 function categoriesFor(productType: ProductType): readonly string[] {
   if (productType === "hat") return HAT_CATEGORIES;
   if (productType === "shirt") return SHIRT_CATEGORIES;
+  if (productType === "polo") return POLO_CATEGORIES;
   return TUMBLER_CATEGORIES;
 }
 
 function tabLabel(productType: ProductType): string {
   if (productType === "hat") return "Hats";
   if (productType === "shirt") return "T-Shirts";
+  if (productType === "polo") return "Polos";
   return "Tumblers";
 }
 
@@ -64,7 +68,7 @@ export default function CatalogPage() {
         </p>
 
         <div className="mt-5 flex gap-2">
-          {(["hat", "shirt", "tumbler"] as const).map((t) => (
+          {(["hat", "shirt", "polo", "tumbler"] as const).map((t) => (
             <button
               key={t}
               onClick={() => {

@@ -72,6 +72,7 @@ export default function CustomizeForm() {
   const [colorName, setColorName] = useState<string>("");
   const [decorationId, setDecorationId] = useState<DecorationType | "">("");
   const [priceColumnId, setPriceColumnId] = useState<string>("");
+  const [unknownStitchCount, setUnknownStitchCount] = useState<boolean>(false);
   const [placement, setPlacement] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(24);
   const [artworkFileName, setArtworkFileName] = useState<string>("");
@@ -128,6 +129,7 @@ export default function CustomizeForm() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPlacement(decoration.zones[0]?.label ?? "");
     setPriceColumnId(decoration.priceColumns?.[0]?.id ?? "");
+    setUnknownStitchCount(false);
   }, [decorationId, decoration]);
 
   const selectedZone = decoration?.zones.find((z) => z.label === placement);
@@ -163,7 +165,11 @@ export default function CustomizeForm() {
     );
   }
 
-  if (product.productType === "shirt") {
+  // Polos are sized, multi-color garments with a front + back photo just
+  // like shirts, so they share ShirtCustomizeForm (which is fully generic
+  // on productType) rather than this component's single-decoration,
+  // one-size hat/tumbler flow.
+  if (product.productType === "shirt" || product.productType === "polo") {
     return (
       <ShirtCustomizeForm
         product={product}
@@ -215,10 +221,12 @@ export default function CustomizeForm() {
   }
 
   const belowMinimum = quantity < decoration.minQuantity;
-  const unitDecorationPrice = decoration.quoteRequired
+  const isUnknownStitchCount = decoration.allowUnknownStitchCount === true && unknownStitchCount;
+  const isQuoteOnly = decoration.quoteRequired === true || isUnknownStitchCount;
+  const unitDecorationPrice = isQuoteOnly
     ? 0
     : getUnitPriceForQuantity(decoration, quantity, priceColumnId || undefined);
-  const setupFee = decoration.quoteRequired ? 0 : getSetupFee(decoration, quantity, sameLogoBefore);
+  const setupFee = isQuoteOnly ? 0 : getSetupFee(decoration, quantity, sameLogoBefore);
   const unitTotal = product.basePrice + unitDecorationPrice;
   const lineTotal = quantity * unitTotal + setupFee;
   const selectedColor =
@@ -275,8 +283,9 @@ export default function CustomizeForm() {
         artworkFileName: artworkFileName || undefined,
         artworkPlacement,
         notes: notes || undefined,
-        priceColumnId: decoration!.quoteRequired ? undefined : priceColumnId || undefined,
+        priceColumnId: isQuoteOnly ? undefined : priceColumnId || undefined,
         quoteRequired: decoration!.quoteRequired || undefined,
+        unknownStitchCount: isUnknownStitchCount || undefined,
       },
       unitBasePrice: product!.basePrice,
       unitDecorationPrice,
@@ -425,22 +434,40 @@ export default function CustomizeForm() {
           {!decoration.quoteRequired && decoration.priceColumns && decoration.priceColumns.length > 0 && (
             <div className="mt-3">
               <div className="text-sm text-navy/70">Stitch count / pricing tier</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {decoration.priceColumns.map((col) => (
-                  <button
-                    key={col.id}
-                    type="button"
-                    onClick={() => setPriceColumnId(col.id)}
-                    className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
-                      priceColumnId === col.id
-                        ? "bg-red text-white border-red"
-                        : "bg-white border-navy text-navy hover:bg-gray"
-                    }`}
-                  >
-                    {col.label}
-                  </button>
-                ))}
-              </div>
+              {isUnknownStitchCount ? (
+                <p className="mt-2 text-sm text-navy/60 bg-gray border border-navy/10 rounded-lg px-3 py-2">
+                  No problem — we&apos;ll follow up with an accurate quote once we&apos;ve seen
+                  your design&apos;s stitch count.
+                </p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {decoration.priceColumns.map((col) => (
+                    <button
+                      key={col.id}
+                      type="button"
+                      onClick={() => setPriceColumnId(col.id)}
+                      className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
+                        priceColumnId === col.id
+                          ? "bg-red text-white border-red"
+                          : "bg-white border-navy text-navy hover:bg-gray"
+                      }`}
+                    >
+                      {col.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {decoration.allowUnknownStitchCount && (
+                <label className="mt-2 flex items-center gap-2 text-sm text-navy/70">
+                  <input
+                    type="checkbox"
+                    checked={unknownStitchCount}
+                    onChange={(e) => setUnknownStitchCount(e.target.checked)}
+                    className="accent-red"
+                  />
+                  I don&apos;t know how many stitches my design has.
+                </label>
+              )}
             </div>
           )}
         </section>
@@ -521,7 +548,7 @@ export default function CustomizeForm() {
               {decoration.shortLabel} requires at least {decoration.minQuantity} units.
             </p>
           )}
-          {!decoration.quoteRequired && (
+          {!isQuoteOnly && (
             <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-navy/60">
               {decoration.pricingTiers.map((t) => (
                 <span
@@ -548,16 +575,16 @@ export default function CustomizeForm() {
           <div className="flex justify-between text-sm text-navy/70 mt-1">
             <span>{decoration.shortLabel} × {quantity}</span>
             <span className="text-black">
-              {decoration.quoteRequired ? "Contact us for a quote" : formatUSD(unitDecorationPrice * quantity)}
+              {isQuoteOnly ? "Contact us for a quote" : formatUSD(unitDecorationPrice * quantity)}
             </span>
           </div>
           <div className="flex justify-between text-sm text-navy/70 mt-1">
             <span>Setup / digitization fee</span>
             <span className="text-black">
-              {decoration.quoteRequired ? "Included in quote" : setupFee === 0 ? "Waived" : formatUSD(setupFee)}
+              {isQuoteOnly ? "Included in quote" : setupFee === 0 ? "Waived" : formatUSD(setupFee)}
             </span>
           </div>
-          {decoration.quoteRequired && (
+          {isQuoteOnly && (
             <p className="mt-2 text-xs text-navy/50">
               The line total below only reflects the blank {product.productName.toLowerCase()} —
               we&apos;ll reach out with {decoration.shortLabel.toLowerCase()} pricing before we

@@ -14,11 +14,17 @@ import { isAdminAuthed } from "@/lib/admin-auth";
 // of a decoration type now, not a separate override layer.
 function isValidDesignerSettings(value: unknown): value is DesignerSettings {
   if (typeof value !== "object" || value === null) return false;
-  const v = value as { hatsEnabled?: unknown; shirtsEnabled?: unknown; tumblersEnabled?: unknown };
+  const v = value as {
+    hatsEnabled?: unknown;
+    shirtsEnabled?: unknown;
+    tumblersEnabled?: unknown;
+    polosEnabled?: unknown;
+  };
   return (
     typeof v.hatsEnabled === "boolean" &&
     typeof v.shirtsEnabled === "boolean" &&
-    typeof v.tumblersEnabled === "boolean"
+    typeof v.tumblersEnabled === "boolean" &&
+    typeof v.polosEnabled === "boolean"
   );
 }
 
@@ -41,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Expected { designerSettings: { hatsEnabled: boolean, shirtsEnabled: boolean, tumblersEnabled: boolean } }",
+          "Expected { designerSettings: { hatsEnabled: boolean, shirtsEnabled: boolean, tumblersEnabled: boolean, polosEnabled: boolean } }",
       },
       { status: 400 }
     );

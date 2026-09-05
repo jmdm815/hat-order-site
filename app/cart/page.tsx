@@ -63,11 +63,11 @@ export default function CartPage() {
                             {line.printLocations!
                               .map(
                                 (loc) =>
-                                  `${loc.zoneLabel} (${getDecoration(decorations, loc.decorationId)?.shortLabel ?? loc.decorationId}${loc.quoteRequired ? " — custom quote" : ""})`
+                                  `${loc.zoneLabel} (${getDecoration(decorations, loc.decorationId)?.shortLabel ?? loc.decorationId}${loc.quoteRequired || loc.unknownStitchCount ? " — custom quote" : ""})`
                               )
                               .join(", ")}
                           </div>
-                          {line.printLocations!.some((l) => l.quoteRequired) && (
+                          {line.printLocations!.some((l) => l.quoteRequired || l.unknownStitchCount) && (
                             <p className="mt-1 text-xs text-red font-medium">
                               One or more print locations are priced by custom quote — we&apos;ll
                               follow up before charging or producing those.
@@ -121,7 +121,7 @@ export default function CartPage() {
                           ? ` · ${line.decoration.artworkFileName}`
                           : ""}
                       </div>
-                      {line.decoration?.quoteRequired && (
+                      {(line.decoration?.quoteRequired || line.decoration?.unknownStitchCount) && (
                         <p className="mt-1 text-xs text-red font-medium">
                           Priced by custom quote — we&apos;ll follow up before charging or
                           producing this.

@@ -19,11 +19,13 @@ const HAT_CATEGORIES: ProductCategory[] = [
 ];
 const SHIRT_CATEGORIES: ProductCategory[] = ["T-Shirt", "Long Sleeve", "Tank", "Youth Tee"];
 const TUMBLER_CATEGORIES: ProductCategory[] = ["Tumbler"];
+const POLO_CATEGORIES: ProductCategory[] = ["Polo", "Performance Polo", "Ladies Polo", "Youth Polo"];
 
 function productTypeLabel(t: ProductType | "all"): string {
   if (t === "all") return "All";
   if (t === "hat") return "Hats";
   if (t === "shirt") return "Shirts";
+  if (t === "polo") return "Polos";
   return "Tumblers";
 }
 
@@ -96,9 +98,11 @@ export default function AdminCatalogManager() {
       ? HAT_CATEGORIES
       : productType === "shirt"
         ? SHIRT_CATEGORIES
-        : productType === "tumbler"
-          ? TUMBLER_CATEGORIES
-          : [...HAT_CATEGORIES, ...SHIRT_CATEGORIES, ...TUMBLER_CATEGORIES];
+        : productType === "polo"
+          ? POLO_CATEGORIES
+          : productType === "tumbler"
+            ? TUMBLER_CATEGORIES
+            : [...HAT_CATEGORIES, ...SHIRT_CATEGORIES, ...POLO_CATEGORIES, ...TUMBLER_CATEGORIES];
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -191,7 +195,7 @@ export default function AdminCatalogManager() {
           className="border border-navy/20 rounded-lg px-3 py-2 text-sm w-64"
         />
         <div className="flex gap-1">
-          {(["all", "hat", "shirt", "tumbler"] as const).map((t) => (
+          {(["all", "hat", "shirt", "polo", "tumbler"] as const).map((t) => (
             <button
               key={t}
               onClick={() => {

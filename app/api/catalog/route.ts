@@ -7,6 +7,7 @@ import { ProductType } from "@/lib/types";
 function parseProductType(raw: string | null): ProductType {
   if (raw === "shirt") return "shirt";
   if (raw === "tumbler") return "tumbler";
+  if (raw === "polo") return "polo";
   return "hat";
 }
 

@@ -303,7 +303,26 @@ export default function ShirtCustomizeForm({
   }
 
   function handleSetLocationPriceColumn(locationId: string, columnId: string) {
-    setLocations((ls) => ls.map((l) => (l.id === locationId ? { ...l, priceColumnId: columnId } : l)));
+    setLocations((ls) =>
+      ls.map((l) =>
+        l.id === locationId ? { ...l, priceColumnId: columnId, unknownStitchCount: false } : l
+      )
+    );
+  }
+
+  // "I don't know how many stitches my design has" — only offered when the
+  // decoration type has allowUnknownStitchCount on (see AdminDecorationTypesManager).
+  // Checking it clears any picked column and prices the location at $0, same
+  // as quoteRequired, so it flows through the existing quote-messaging paths
+  // below without a second set of UI.
+  function handleSetUnknownStitchCount(locationId: string, unknown: boolean) {
+    setLocations((ls) =>
+      ls.map((l) =>
+        l.id === locationId
+          ? { ...l, unknownStitchCount: unknown, priceColumnId: unknown ? undefined : l.priceColumnId }
+          : l
+      )
+    );
   }
 
   // ---- Layer management (scoped to the active location) --------------------
@@ -381,14 +400,17 @@ export default function ShirtCustomizeForm({
       locations.map((loc) => {
         const opt = decorationById.get(loc.decorationId);
         const quoteRequired = opt?.quoteRequired === true;
+        const unknownStitchCount = Boolean(opt?.allowUnknownStitchCount && loc.unknownStitchCount);
+        const isQuoteOnly = quoteRequired || unknownStitchCount;
         return {
           ...loc,
           unitPrice:
-            opt && !quoteRequired
+            opt && !isQuoteOnly
               ? getUnitPriceForQuantity(opt, totalQuantity || opt.minQuantity, loc.priceColumnId)
               : 0,
-          setupFee: opt && !quoteRequired ? getSetupFee(opt, totalQuantity, sameLogoBefore) : 0,
+          setupFee: opt && !isQuoteOnly ? getSetupFee(opt, totalQuantity, sameLogoBefore) : 0,
           quoteRequired: quoteRequired || undefined,
+          unknownStitchCount: unknownStitchCount || undefined,
         };
       }),
     [locations, totalQuantity, sameLogoBefore, decorationById]
@@ -430,7 +452,7 @@ export default function ShirtCustomizeForm({
     if (!canAddToCart) return;
     addCartLine({
       styleNumber: product.styleNumber,
-      productType: "shirt",
+      productType: product.productType,
       colorName,
       sizes: sizeEntries,
       quantity: totalQuantity,
@@ -845,25 +867,47 @@ export default function ShirtCustomizeForm({
                     }
                     const cols = activeDecoration?.priceColumns;
                     if (!cols || !cols.length) return null;
+                    const unknownAllowed = activeDecoration?.allowUnknownStitchCount === true;
+                    const unknownChecked = activeLocation.unknownStitchCount === true;
                     return (
                       <div className="mt-2 flex flex-col items-center gap-1.5">
                         <p className="text-xs text-navy/50">Stitch count / pricing tier</p>
-                        <div className="flex flex-wrap justify-center gap-1.5">
-                          {cols.map((col) => (
-                            <button
-                              key={col.id}
-                              type="button"
-                              onClick={() => handleSetLocationPriceColumn(activeLocation.id, col.id)}
-                              className={`px-3 py-1 rounded-full text-xs border transition ${
-                                activeLocation.priceColumnId === col.id
-                                  ? "bg-red text-white border-red"
-                                  : "bg-white border-navy text-navy hover:bg-gray"
-                              }`}
-                            >
-                              {col.label}
-                            </button>
-                          ))}
-                        </div>
+                        {unknownChecked ? (
+                          <p className="text-xs text-navy/50 max-w-xs mx-auto text-center">
+                            No problem — we&apos;ll follow up with an accurate quote once we&apos;ve
+                            seen your design&apos;s stitch count.
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap justify-center gap-1.5">
+                            {cols.map((col) => (
+                              <button
+                                key={col.id}
+                                type="button"
+                                onClick={() => handleSetLocationPriceColumn(activeLocation.id, col.id)}
+                                className={`px-3 py-1 rounded-full text-xs border transition ${
+                                  activeLocation.priceColumnId === col.id
+                                    ? "bg-red text-white border-red"
+                                    : "bg-white border-navy text-navy hover:bg-gray"
+                                }`}
+                              >
+                                {col.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {unknownAllowed && (
+                          <label className="mt-1 flex items-center gap-1.5 text-xs text-navy/60 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={unknownChecked}
+                              onChange={(e) =>
+                                handleSetUnknownStitchCount(activeLocation.id, e.target.checked)
+                              }
+                              className="rounded border-navy/30 accent-red"
+                            />
+                            I don&apos;t know how many stitches my design has.
+                          </label>
+                        )}
                       </div>
                     );
                   })()}
@@ -1038,7 +1082,8 @@ export default function ShirtCustomizeForm({
             <div className="mt-4 flex flex-wrap gap-1.5 text-xs text-navy/60">
               {minQuantity > 0 && <span>Minimum order: {minQuantity} units ·</span>}
               {pricedLocations[0] &&
-                !decorationById.get(pricedLocations[0].decorationId)?.quoteRequired &&
+                !pricedLocations[0].quoteRequired &&
+                !pricedLocations[0].unknownStitchCount &&
                 decorationById
                   .get(pricedLocations[0].decorationId)
                   ?.pricingTiers.map((t) => (
@@ -1053,7 +1098,7 @@ export default function ShirtCustomizeForm({
                   ))}
             </div>
           )}
-          {pricedLocations.some((l) => l.quoteRequired) && (
+          {pricedLocations.some((l) => l.quoteRequired || l.unknownStitchCount) && (
             <p className="mt-2 text-xs text-navy/50">
               One or more print locations here are priced by custom quote — we&apos;ll follow
               up after checkout instead of charging for those automatically.
@@ -1142,7 +1187,9 @@ export default function ShirtCustomizeForm({
                     {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel} × {totalQuantity}
                   </span>
                   <span className="text-black">
-                    {loc.quoteRequired ? "Contact us for a quote" : formatUSD(loc.unitPrice * totalQuantity)}
+                    {loc.quoteRequired || loc.unknownStitchCount
+                      ? "Contact us for a quote"
+                      : formatUSD(loc.unitPrice * totalQuantity)}
                   </span>
                 </div>
               ))}
@@ -1150,7 +1197,11 @@ export default function ShirtCustomizeForm({
                 <div key={`${loc.id}-setup`} className="flex justify-between text-sm text-navy/70">
                   <span>{loc.zoneLabel} setup / digitization fee</span>
                   <span className="text-black">
-                    {loc.quoteRequired ? "Included in quote" : loc.setupFee === 0 ? "Waived" : formatUSD(loc.setupFee)}
+                    {loc.quoteRequired || loc.unknownStitchCount
+                      ? "Included in quote"
+                      : loc.setupFee === 0
+                        ? "Waived"
+                        : formatUSD(loc.setupFee)}
                   </span>
                 </div>
               ))}
@@ -1158,7 +1209,7 @@ export default function ShirtCustomizeForm({
                 <span>Line total</span>
                 <span>{formatUSD(lineTotal)}</span>
               </div>
-              {pricedLocations.some((l) => l.quoteRequired) && (
+              {pricedLocations.some((l) => l.quoteRequired || l.unknownStitchCount) && (
                 <p className="text-xs text-navy/50">
                   The line total above only reflects the garments and any priced locations —
                   we&apos;ll reach out with pricing for the custom-quote location(s) before

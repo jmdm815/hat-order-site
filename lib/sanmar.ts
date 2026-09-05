@@ -65,15 +65,22 @@ type SanmarCatalogResponse = {
 const EXCLUDE_NAME_PATTERN =
   /\b(mask|headband|scarf|glove|gaiter|buff|balaclava|earmuff|wristband)\b/i;
 
+// SanMar's "Polos/Knits" category also holds cardigans, sweaters, blazers,
+// henleys, turtlenecks, and dress shirts — none of them a polo. Require the
+// name to actually say so rather than trusting the category alone.
+const POLO_NAME_PATTERN = /\b(polo|pique|sport shirt|golf shirt)\b/i;
+
 function isSellable(style: SanmarStyle, productType: ProductType): boolean {
   // SanMar's raw feed has a trailing space on "T-Shirts " — trim before
   // comparing.
   const category = style.category.trim();
   if (productType === "hat" && category !== "Caps") return false;
   if (productType === "shirt" && category !== "T-Shirts") return false;
+  if (productType === "polo" && category !== "Polos/Knits") return false;
   if (style.status === "Discontinued") return false;
   if (style.name.toUpperCase().includes("DISCONTINUED")) return false;
   if (productType === "hat" && EXCLUDE_NAME_PATTERN.test(style.name)) return false;
+  if (productType === "polo" && !POLO_NAME_PATTERN.test(style.name)) return false;
   if (!style.colors?.length) return false;
   return true;
 }
@@ -93,6 +100,14 @@ function inferShirtCategory(style: SanmarStyle): Product["category"] {
   if (/tank/.test(text)) return "Tank";
   if (/long sleeve/.test(text)) return "Long Sleeve";
   return "T-Shirt";
+}
+
+function inferPoloCategory(style: SanmarStyle): Product["category"] {
+  const text = `${style.name} ${style.description ?? ""}`.toLowerCase();
+  if (/youth/.test(text)) return "Youth Polo";
+  if (/women['’]?s|ladies/.test(text)) return "Ladies Polo";
+  if (/dri-?fit|performance|moisture.wicking|micropique|tech\b/.test(text)) return "Performance Polo";
+  return "Polo";
 }
 
 // SanMar CDN image URLs look like `.../5000_natural_model_front.jpg`. The
@@ -173,27 +188,36 @@ function cheapestPrice(style: SanmarStyle): number {
 }
 
 function toProductStyle(style: SanmarStyle, productType: ProductType): Product {
-  const isShirt = productType === "shirt";
+  // Shirts and polos are both sized, multi-color garments with a real front
+  // + back photo pair on SanMar's CDN — hats are one-size with a single
+  // product shot. Tumblers never reach this function (see getCatalog).
+  const isApparel = productType === "shirt" || productType === "polo";
   const colors: ProductColor[] = style.colors
     .filter((c) => c.image)
     .map((c) => {
       const modelUrl = c.image;
-      const front = isShirt ? toFlatImageUrl(modelUrl) : modelUrl;
-      const sizes = isShirt
+      const front = isApparel ? toFlatImageUrl(modelUrl) : modelUrl;
+      const sizes = isApparel
         ? c.sizes.map((s) => ({ name: s.name, price: s.price, inventory: s.inventory ?? 0 }))
         : undefined;
       return {
         colorName: c.name.trim(),
         colorHexes: colorNameToHexes(c.name),
         imageUrl: front,
-        imageFallbackUrl: isShirt ? modelUrl : undefined,
-        backImageUrl: isShirt ? toBackImageUrl(front) : undefined,
-        backImageFallbackUrl: isShirt ? toBackImageUrl(modelUrl) : undefined,
+        imageFallbackUrl: isApparel ? modelUrl : undefined,
+        backImageUrl: isApparel ? toBackImageUrl(front) : undefined,
+        backImageFallbackUrl: isApparel ? toBackImageUrl(modelUrl) : undefined,
         sizes,
       };
     });
 
   const hero = colors[0];
+
+  function categoryFor(): Product["category"] {
+    if (productType === "hat") return inferHatCategory(style);
+    if (productType === "polo") return inferPoloCategory(style);
+    return inferShirtCategory(style);
+  }
 
   return {
     styleNumber: style.styleId,
@@ -201,7 +225,7 @@ function toProductStyle(style: SanmarStyle, productType: ProductType): Product {
     productName: style.name.trim(),
     description: (style.description ?? "").trim(),
     productType,
-    category: productType === "hat" ? inferHatCategory(style) : inferShirtCategory(style),
+    category: categoryFor(),
     basePrice: cheapestPrice(style),
     colors: colors.length
       ? colors
@@ -215,6 +239,7 @@ type CatalogCache = { catalog: Product[]; cachedAt: number };
 const catalogCache: Record<ProductType, CatalogCache | null> = {
   hat: null,
   shirt: null,
+  polo: null,
   // Tumblers aren't sourced from the SanMar feed at all (see getCatalog
   // below, which returns [] immediately for this type) — admin-added
   // custom products are the only way tumblers get into the catalog. Still
@@ -272,9 +297,14 @@ export async function getProductByStyleNumber(
     const catalog = await getCatalog(productType);
     return catalog.find((p) => p.styleNumber === styleNumber);
   }
-  const [hats, shirts] = await Promise.all([getCatalog("hat"), getCatalog("shirt")]);
+  const [hats, shirts, polos] = await Promise.all([
+    getCatalog("hat"),
+    getCatalog("shirt"),
+    getCatalog("polo"),
+  ]);
   return (
     hats.find((p) => p.styleNumber === styleNumber) ??
-    shirts.find((p) => p.styleNumber === styleNumber)
+    shirts.find((p) => p.styleNumber === styleNumber) ??
+    polos.find((p) => p.styleNumber === styleNumber)
   );
 }

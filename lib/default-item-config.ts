@@ -22,6 +22,7 @@ const DEFAULT_ZONE_BY_PRODUCT: Record<ProductType, Omit<PlacementZone, "id">> = 
   // decorable wrap area" rather than a literal front — kept on the "front"
   // view since that's the only view a tumbler's single product photo has.
   tumbler: { label: "Wrap", view: "front", x: 15, y: 20, width: 70, height: 60 },
+  polo: { label: "Left Chest", view: "front", x: 58, y: 22, width: 22, height: 18 },
 };
 
 // Deterministic ids for synthesized (unsaved) defaults — read-only, so no

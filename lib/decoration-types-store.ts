@@ -79,16 +79,34 @@ const SEED_DECORATION_TYPES: DecorationOption[] = [
     label: "Embroidered Design / Patch",
     shortLabel: "Embroidered",
     description: "Classic stitched logo, flat or with 3D puff.",
-    productTypes: ["hat", "shirt"],
-    minQuantity: 12,
+    productTypes: ["hat", "shirt", "polo"],
+    minQuantity: 1,
     setupFee: 45,
+    // Embroidery pricing chart: 9 quantity tiers x 4 stitch-count bands
+    // (see EMBROIDERY_STITCH_COLUMNS below). pricePerUnit is the 0-12,000
+    // stitch price, used as the fallback if a column ever goes missing.
     pricingTiers: [
-      { minQty: 12, pricePerUnit: 7.0 },
-      { minQty: 24, pricePerUnit: 6.25 },
-      { minQty: 48, pricePerUnit: 5.5 },
-      { minQty: 96, pricePerUnit: 4.75 },
-      { minQty: 144, pricePerUnit: 4.1 },
+      { minQty: 1, pricePerUnit: 15.0, pricesByColumn: { "stitch-0-12000": 15.0, "stitch-12001-15000": 17.0, "stitch-15001-18000": 19.0, "stitch-18001-21000": 21.0 } },
+      { minQty: 12, pricePerUnit: 10.0, pricesByColumn: { "stitch-0-12000": 10.0, "stitch-12001-15000": 12.0, "stitch-15001-18000": 14.0, "stitch-18001-21000": 16.0 } },
+      { minQty: 24, pricePerUnit: 9.0, pricesByColumn: { "stitch-0-12000": 9.0, "stitch-12001-15000": 10.5, "stitch-15001-18000": 12.5, "stitch-18001-21000": 14.5 } },
+      { minQty: 48, pricePerUnit: 8.0, pricesByColumn: { "stitch-0-12000": 8.0, "stitch-12001-15000": 9.5, "stitch-15001-18000": 11.5, "stitch-18001-21000": 13.5 } },
+      { minQty: 72, pricePerUnit: 7.0, pricesByColumn: { "stitch-0-12000": 7.0, "stitch-12001-15000": 8.5, "stitch-15001-18000": 10.0, "stitch-18001-21000": 12.0 } },
+      { minQty: 96, pricePerUnit: 6.0, pricesByColumn: { "stitch-0-12000": 6.0, "stitch-12001-15000": 7.5, "stitch-15001-18000": 9.5, "stitch-18001-21000": 11.5 } },
+      { minQty: 144, pricePerUnit: 5.25, pricesByColumn: { "stitch-0-12000": 5.25, "stitch-12001-15000": 7.25, "stitch-15001-18000": 9.25, "stitch-18001-21000": 11.25 } },
+      { minQty: 250, pricePerUnit: 5.0, pricesByColumn: { "stitch-0-12000": 5.0, "stitch-12001-15000": 7.0, "stitch-15001-18000": 9.0, "stitch-18001-21000": 11.0 } },
+      { minQty: 500, pricePerUnit: 4.75, pricesByColumn: { "stitch-0-12000": 4.75, "stitch-12001-15000": 6.75, "stitch-15001-18000": 8.75, "stitch-18001-21000": 10.75 } },
     ],
+    priceColumns: [
+      { id: "stitch-0-12000", label: "0 - 12,000 Stitches" },
+      { id: "stitch-12001-15000", label: "12,001 - 15,000 Stitches" },
+      { id: "stitch-15001-18000", label: "15,001 - 18,000 Stitches" },
+      { id: "stitch-18001-21000", label: "18,001 - 21,000 Stitches" },
+    ],
+    quoteRequired: false,
+    // Lets a customer who genuinely doesn't know their design's stitch
+    // count skip the column picker and get a follow-up quote instead of a
+    // guess — see DecorationOption.allowUnknownStitchCount.
+    allowUnknownStitchCount: true,
     turnaroundDays: "10-14 business days",
     acceptedFileTypes: [".png", ".jpg", ".pdf", ".ai", ".dst"],
   },

@@ -12,15 +12,16 @@ export async function GET() {
   if (!(await isAdminAuthed())) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 });
   }
-  const [hats, shirts, customProducts, hidden] = await Promise.all([
+  const [hats, shirts, polos, customProducts, hidden] = await Promise.all([
     getCatalog("hat"),
     getCatalog("shirt"),
+    getCatalog("polo"),
     getCustomProducts(),
     getHiddenStyleNumbers(),
   ]);
   // Tumblers only ever come from customProducts — getCatalog("tumbler")
-  // always returns [] (see lib/sanmar.ts), so no third call is needed here.
-  const styles = [...hats, ...shirts, ...customProducts];
+  // always returns [] (see lib/sanmar.ts), so no separate call is needed here.
+  const styles = [...hats, ...shirts, ...polos, ...customProducts];
   return NextResponse.json({
     styles,
     hidden: Array.from(hidden),
