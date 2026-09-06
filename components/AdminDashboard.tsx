@@ -4,11 +4,13 @@ import { useState } from "react";
 import AdminCatalogManager from "@/components/AdminCatalogManager";
 import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
+import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManager";
 
 const TABS = [
   { id: "catalog", label: "Catalog" },
   { id: "pricing", label: "Pricing" },
   { id: "settings", label: "Settings" },
+  { id: "mockup-generator", label: "Mockup Generator" },
 ] as const;
 
 export default function AdminDashboard() {
@@ -63,6 +65,18 @@ export default function AdminDashboard() {
               for shirts, site-wide. Individual items can still override this.
             </p>
             <AdminPricingManager />
+          </>
+        )}
+        {tab === "mockup-generator" && (
+          <>
+            <p className="mb-4 text-navy/60 text-sm">
+              Standalone custom hat mockup generator (separate from the
+              regular order flow). Manage patch materials, shapes, sizes, and
+              decoration-method / mockup rendering settings here. The
+              customer-facing configurator and rendering engine come in a
+              later phase.
+            </p>
+            <AdminMockupGeneratorManager />
           </>
         )}
       </div>
