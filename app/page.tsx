@@ -29,6 +29,12 @@ export default async function HomePage() {
             Browse our curated gear below. Pick a product, then Design Now to
             build it yourself or Get Quote to see pricing instantly.
           </p>
+          <Link
+            href="/quote-builder"
+            className="mt-5 inline-block px-6 py-2.5 rounded-full border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition"
+          >
+            Or build a quote by decoration type →
+          </Link>
         </div>
       </section>
 
