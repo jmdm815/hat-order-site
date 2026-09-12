@@ -17,3 +17,34 @@ export function productImageUrl(originalUrl: string, fallbackUrl?: string): stri
   if (fallbackUrl) params.set("fallback", fallbackUrl);
   return `/api/product-image?${params.toString()}`;
 }
+
+/**
+ * Every browsing/preview thumbnail (catalog grid, curated homepage cards,
+ * the quote tools, the plain color picker in the non-live-designer
+ * customize flow, the admin catalog manager) used to call productImageUrl()
+ * with the derived flat/no-model photo as primary and the on-model photo as
+ * fallback — meaning some items showed a flat lay and others fell back to a
+ * person wearing it, inconsistently, purely depending on whether SanMar
+ * happens to have shot a flat photo for that particular style/color (many
+ * don't). The on-model photo is the one photo SanMar's feed guarantees for
+ * every item, so these preview surfaces show it first instead, giving a
+ * uniform look across every tile; the derived flat photo is now only a
+ * fallback for the rare case there's no model photo either.
+ *
+ * `imageUrl` is the item's primary photo as stored on Product/ProductColor
+ * (the derived flat photo for shirts/polos, or the item's one real photo
+ * for hats, which have no flat/model split at all — see lib/sanmar.ts).
+ * `modelFallbackUrl` is that item's on-model photo when one exists
+ * (ProductColor.imageFallbackUrl / Product.heroImageFallbackUrl); pass
+ * whatever the call site already has for that field.
+ *
+ * This is deliberately NOT used by the interactive design/placement canvas
+ * (components/GarmentPreview.tsx) — that always wants the flat/no-model
+ * photo so artwork placement isn't obscured by a person's body, and falls
+ * back to a generated vector illustration rather than a model photo when
+ * SanMar has no flat photo. See that component's own strict-mode fetch.
+ */
+export function productPreviewImageUrl(imageUrl: string, modelFallbackUrl?: string): string {
+  if (!modelFallbackUrl) return productImageUrl(imageUrl);
+  return productImageUrl(modelFallbackUrl, imageUrl);
+}

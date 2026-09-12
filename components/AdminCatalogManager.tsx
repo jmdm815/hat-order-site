@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { CatalogItemConfig, Product, ProductCategory, ProductType } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
-import { productImageUrl } from "@/lib/product-image";
+import { productPreviewImageUrl } from "@/lib/product-image";
 import AdminItemConfigEditor from "./AdminItemConfigEditor";
 import AdminCustomProductForm from "./AdminCustomProductForm";
 
@@ -324,7 +324,7 @@ export default function AdminCatalogManager() {
                     src={
                       s.heroImageIsOverride
                         ? s.heroImageUrl
-                        : productImageUrl(s.heroImageUrl, s.heroImageFallbackUrl)
+                        : productPreviewImageUrl(s.heroImageUrl, s.heroImageFallbackUrl)
                     }
                     alt={s.productName}
                     fill

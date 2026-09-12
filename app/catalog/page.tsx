@@ -6,7 +6,7 @@ import Link from "next/link";
 import StepHeader from "@/components/StepHeader";
 import { Product, ProductType } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
-import { productImageUrl } from "@/lib/product-image";
+import { productPreviewImageUrl } from "@/lib/product-image";
 
 const HAT_CATEGORIES = [
   "All",
@@ -117,7 +117,7 @@ export default function CatalogPage() {
                     src={
                       product.heroImageIsOverride
                         ? product.heroImageUrl
-                        : productImageUrl(product.heroImageUrl, product.heroImageFallbackUrl)
+                        : productPreviewImageUrl(product.heroImageUrl, product.heroImageFallbackUrl)
                     }
                     alt={product.productName}
                     fill

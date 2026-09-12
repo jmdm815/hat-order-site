@@ -7,7 +7,7 @@ import { ArtworkPlacement, DecorationOption, DecorationType, PlacementZone, Prod
 import { getSetupFee, getUnitPriceForQuantity } from "@/lib/decorations";
 import { formatUSD } from "@/lib/pricing";
 import { useOrder } from "@/lib/order-context";
-import { productImageUrl } from "@/lib/product-image";
+import { productImageUrl, productPreviewImageUrl } from "@/lib/product-image";
 import ShirtCustomizeForm from "./ShirtCustomizeForm";
 import ColorSelectScreen from "./ColorSelectScreen";
 import DragResizeBox, { type Box } from "./DragResizeBox";
@@ -207,7 +207,7 @@ export default function CustomizeForm() {
             src={
               color.imageIsOverride
                 ? color.imageUrl
-                : productImageUrl(color.imageUrl, color.imageFallbackUrl)
+                : productPreviewImageUrl(color.imageUrl, color.imageFallbackUrl)
             }
             alt={product.productName}
             fill
@@ -297,7 +297,13 @@ export default function CustomizeForm() {
 
   return (
     <div className="mt-6 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8">
-      {/* Preview */}
+      {/* Preview — deliberately still flat-first (productImageUrl, not
+          productPreviewImageUrl) unlike the plain color-picker screen
+          above: when the live designer is on, this canvas overlays the
+          placement zone box (and lets the customer drag artwork onto it)
+          right below, so it needs the flat/no-model photo whenever one
+          exists — a person's body in the shot would make the zone overlay
+          make no sense. Same reasoning as components/GarmentPreview.tsx. */}
       <div>
         <div
           ref={canvasRef}

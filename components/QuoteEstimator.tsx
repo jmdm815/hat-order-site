@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { DecorationOption, PlacementZone, Product } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
-import { productImageUrl } from "@/lib/product-image";
+import { productPreviewImageUrl } from "@/lib/product-image";
 import { computeEstimate } from "@/lib/quote-estimate";
 
 type ApiResponse = {
@@ -96,7 +96,7 @@ export default function QuoteEstimator() {
             src={
               product.heroImageIsOverride
                 ? product.heroImageUrl
-                : productImageUrl(
+                : productPreviewImageUrl(
                     color?.imageUrl ?? product.heroImageUrl,
                     color?.imageFallbackUrl ?? product.heroImageFallbackUrl
                   )

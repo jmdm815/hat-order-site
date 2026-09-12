@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CuratedProduct } from "@/lib/curated-catalog";
 import { formatUSD } from "@/lib/pricing";
-import { productImageUrl } from "@/lib/product-image";
+import { productPreviewImageUrl } from "@/lib/product-image";
 
 // One tile in the curated homepage catalog: photo, name, a starting price so
 // customers can see the cost without opening the designer, and up to two
@@ -19,7 +19,7 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
           src={
             product.heroImageIsOverride
               ? product.heroImageUrl
-              : productImageUrl(product.heroImageUrl, product.heroImageFallbackUrl)
+              : productPreviewImageUrl(product.heroImageUrl, product.heroImageFallbackUrl)
           }
           alt={product.productName}
           fill

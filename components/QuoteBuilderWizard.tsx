@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { DecorationOption, Product, ProductType } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
-import { productImageUrl } from "@/lib/product-image";
+import { productPreviewImageUrl } from "@/lib/product-image";
 import { computeEstimate } from "@/lib/quote-estimate";
 
 const PRODUCT_TYPE_LABEL: Record<ProductType, string> = {
@@ -269,7 +269,7 @@ export default function QuoteBuilderWizard() {
                       src={
                         g.heroImageIsOverride
                           ? g.heroImageUrl
-                          : productImageUrl(g.heroImageUrl, g.heroImageFallbackUrl)
+                          : productPreviewImageUrl(g.heroImageUrl, g.heroImageFallbackUrl)
                       }
                       alt={g.productName}
                       fill
@@ -311,7 +311,7 @@ export default function QuoteBuilderWizard() {
                     src={
                       product.heroImageIsOverride
                         ? product.heroImageUrl
-                        : productImageUrl(
+                        : productPreviewImageUrl(
                             color?.imageUrl ?? product.heroImageUrl,
                             color?.imageFallbackUrl ?? product.heroImageFallbackUrl
                           )
