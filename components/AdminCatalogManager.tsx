@@ -136,6 +136,22 @@ export default function AdminCatalogManager() {
   }
 
   function setAllFiltered(visible: boolean) {
+    // These buttons apply to every currently-filtered item at once — easy to
+    // fire by accident (e.g. a stray click right after searching) and, with
+    // a broad filter like "All", capable of wiping out a lot of carefully
+    // curated show/hide choices in one go. Require an explicit confirmation
+    // that states exactly how many items and which filter are affected, so
+    // an accidental click can't silently overwrite prior curation.
+    const changing = filtered.filter((s) => hidden.has(s.styleNumber) === visible);
+    if (changing.length === 0) return;
+    const filterDesc =
+      productType === "all" && category === "All" && !search.trim()
+        ? "the entire catalog"
+        : `the ${filtered.length} items matching your current search/filter`;
+    const confirmed = confirm(
+      `${visible ? "Show" : "Hide"} ${changing.length} item${changing.length === 1 ? "" : "s"} in ${filterDesc}?\n\nThis won't be permanent until you click "Save changes" below — you can still back out before then.`
+    );
+    if (!confirmed) return;
     setHidden((prev) => {
       const next = new Set(prev);
       for (const s of filtered) {
@@ -144,6 +160,10 @@ export default function AdminCatalogManager() {
       }
       return next;
     });
+  }
+
+  function discardUnsavedChanges() {
+    setHidden(new Set(savedHidden));
   }
 
   async function handleSave() {
@@ -234,18 +254,6 @@ export default function AdminCatalogManager() {
           <option value="hidden">Hidden only</option>
         </select>
         <button
-          onClick={() => setAllFiltered(true)}
-          className="text-sm px-3 py-2 rounded-lg border border-navy/20 hover:bg-navy/5"
-        >
-          Show all filtered
-        </button>
-        <button
-          onClick={() => setAllFiltered(false)}
-          className="text-sm px-3 py-2 rounded-lg border border-navy/20 hover:bg-navy/5"
-        >
-          Hide all filtered
-        </button>
-        <button
           onClick={() => setCustomProductForm({ mode: "add" })}
           className="text-sm px-3 py-2 rounded-lg border border-navy/20 hover:bg-navy/5 font-medium text-navy"
         >
@@ -255,6 +263,15 @@ export default function AdminCatalogManager() {
           {filtered.length} shown · {styles.length - hidden.size} visible of{" "}
           {styles.length} total
         </span>
+        {dirty && (
+          <button
+            onClick={discardUnsavedChanges}
+            disabled={saving}
+            className="text-sm px-3 py-2 rounded-lg border border-navy/20 text-navy/60 hover:bg-navy/5"
+          >
+            Discard unsaved changes
+          </button>
+        )}
         <button
           onClick={handleSave}
           disabled={!dirty || saving}
@@ -266,6 +283,30 @@ export default function AdminCatalogManager() {
       {saveMessage && (
         <p className="mt-2 text-sm text-navy/70">{saveMessage}</p>
       )}
+
+      {/* Bulk show/hide — deliberately set apart from the search/filter
+          toolbar above (which gets clicked constantly) and gated by a
+          confirmation dialog in setAllFiltered(), so a stray click can't
+          silently blow away curation someone already saved. */}
+      <details className="mt-3 group">
+        <summary className="text-xs text-navy/40 cursor-pointer select-none hover:text-navy/60 w-fit">
+          Bulk show/hide for the current filter…
+        </summary>
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={() => setAllFiltered(true)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+          >
+            Show all {filtered.length} filtered
+          </button>
+          <button
+            onClick={() => setAllFiltered(false)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+          >
+            Hide all {filtered.length} filtered
+          </button>
+        </div>
+      </details>
 
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {filtered.map((s) => {
