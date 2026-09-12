@@ -109,3 +109,4 @@ larger invoiced/wholesale orders instead.
 - Add real order-confirmation emails (e.g. via Resend or SendGrid).
 # trigger redeploy: SanMar env vars added 2026-09-12T17:51:53Z
 # trigger redeploy: updated SanMar Web Services credentials 2026-09-12T18:49:03Z
+# trigger redeploy: updated SanMar password 2026-09-12T18:51:34Z
