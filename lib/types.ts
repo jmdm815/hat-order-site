@@ -121,6 +121,29 @@ export type CatalogItemConfig = {
   // default for this product type (hats/shirts); true/false forces it on or
   // off for this item specifically, regardless of the global setting.
   liveDesignerOverride?: boolean;
+  // Which admin-curated Categories (see lib/categories-store.ts) this item
+  // is shown under on the customer-facing curated homepage. Empty/undefined
+  // means "not curated yet" — the item stays reachable from /catalog (the
+  // full uncurated browse-by-type page) but won't appear on the homepage
+  // until an admin assigns it to at least one category.
+  categoryIds?: string[];
+  // Per-item toggle for which action button(s) the curated catalog card
+  // shows. undefined defaults to true for both, so a newly-curated item
+  // gets both "Design Now" and "Get Quote" unless an admin turns one off.
+  designEnabled?: boolean;
+  quoteEnabled?: boolean;
+};
+
+// A customer-facing grouping an admin creates to curate the homepage catalog
+// (e.g. "Hats", "Polos", "Tumblers", "Holiday Specials"). Deliberately
+// decoupled from ProductType/ProductCategory above, which are internal
+// plumbing for fetching from SanMar and matching decoration compatibility —
+// a Category can mix products of any underlying ProductType, and an admin
+// can create as many as they like, in any order. See lib/categories-store.ts.
+export type Category = {
+  id: string;
+  name: string;
+  sortOrder: number;
 };
 
 export type DecorationOption = {

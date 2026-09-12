@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import {
   CatalogItemConfig,
+  Category,
   DecorationOption,
   DecorationType,
   ItemDecorationSetting,
@@ -56,6 +57,7 @@ export default function AdminItemConfigEditor({
   // lib/decoration-types-store.ts), so this modal fetches the current list
   // for this product type instead of importing a fixed constant.
   const [allDecorations, setAllDecorations] = useState<DecorationOption[] | null>(null);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [config, setConfig] = useState<CatalogItemConfig>(
     () => initialConfig ?? emptyConfigFor(product, [])
   );
@@ -75,8 +77,21 @@ export default function AdminItemConfigEditor({
           setConfig(emptyConfigFor(product, data.map((d) => d.id)));
         }
       });
+    fetch("/api/admin/categories")
+      .then((r) => (r.ok ? r.json() : { categories: [] }))
+      .then((data: { categories: Category[] }) => setAllCategories(data.categories ?? []));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function toggleCategory(categoryId: string, checked: boolean) {
+    setConfig((c) => {
+      const current = c.categoryIds ?? [];
+      const categoryIds = checked
+        ? [...current, categoryId]
+        : current.filter((id) => id !== categoryId);
+      return { ...c, categoryIds };
+    });
+  }
 
   const validTypes = allDecorations?.map((d) => d.id) ?? [];
   const hero = product.colors[0];
@@ -326,6 +341,63 @@ export default function AdminItemConfigEditor({
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-4 border border-navy/10 rounded-xl p-4">
+          <h3 className="font-medium text-navy">Homepage catalog</h3>
+          <p className="text-xs text-navy/60 mt-0.5">
+            Choose which category sections show this item on the homepage, and which action
+            button(s) its card offers.
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {allCategories.length === 0 ? (
+              <p className="text-xs text-navy/40">
+                No categories yet — create one from the Categories tab first.
+              </p>
+            ) : (
+              allCategories.map((cat) => {
+                const checked = (config.categoryIds ?? []).includes(cat.id);
+                return (
+                  <label
+                    key={cat.id}
+                    className={`px-3 py-1.5 rounded-full text-xs border cursor-pointer transition ${
+                      checked
+                        ? "bg-navy text-white border-navy"
+                        : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => toggleCategory(cat.id, e.target.checked)}
+                      className="hidden"
+                    />
+                    {cat.name}
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={config.designEnabled !== false}
+                onChange={(e) => setConfig((c) => ({ ...c, designEnabled: e.target.checked }))}
+              />
+              Show &quot;Design Now&quot;
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={config.quoteEnabled !== false}
+                onChange={(e) => setConfig((c) => ({ ...c, quoteEnabled: e.target.checked }))}
+              />
+              Show &quot;Get Quote&quot;
+            </label>
+          </div>
         </div>
 
         <div className="mt-4 border border-navy/10 rounded-xl p-4">

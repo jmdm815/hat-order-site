@@ -45,6 +45,16 @@ function isValidConfig(value: unknown): value is CatalogItemConfig {
   ) {
     return false;
   }
+  if (config.categoryIds !== undefined) {
+    if (!Array.isArray(config.categoryIds)) return false;
+    if (!config.categoryIds.every((c) => typeof c === "string")) return false;
+  }
+  if (config.designEnabled !== undefined && typeof config.designEnabled !== "boolean") {
+    return false;
+  }
+  if (config.quoteEnabled !== undefined && typeof config.quoteEnabled !== "boolean") {
+    return false;
+  }
   return config.decorations.every((d: unknown) => {
     if (typeof d !== "object" || d === null) return false;
     const setting = d as Record<string, unknown>;

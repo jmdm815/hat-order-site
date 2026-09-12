@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AdminCatalogManager from "@/components/AdminCatalogManager";
+import AdminCategoriesManager from "@/components/AdminCategoriesManager";
 import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
 import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManager";
@@ -10,6 +11,7 @@ import AdminSetupChargesManager from "@/components/AdminSetupChargesManager";
 import AdminGarmentMarkupManager from "@/components/AdminGarmentMarkupManager";
 
 const TABS = [
+  { id: "categories", label: "Categories" },
   { id: "catalog", label: "Catalog" },
   { id: "pricing", label: "Pricing" },
   { id: "settings", label: "Settings" },
@@ -20,7 +22,7 @@ const TABS = [
 ] as const;
 
 export default function AdminDashboard() {
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("catalog");
+  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("categories");
 
   return (
     <div>
@@ -41,13 +43,26 @@ export default function AdminDashboard() {
       </div>
 
       <div className="mt-6">
+        {tab === "categories" && (
+          <>
+            <p className="mb-4 text-navy/60 text-sm">
+              Create and reorder the sections shown on the homepage catalog (Hats, Polos,
+              Tumblers, or anything else) — more can be added any time. Assign products to a
+              category from the Catalog tab&apos;s &quot;Configure decorations&quot; editor;
+              only items assigned to at least one category show up on the homepage.
+            </p>
+            <AdminCategoriesManager />
+          </>
+        )}
         {tab === "catalog" && (
           <>
             <p className="mb-4 text-navy/60 text-sm">
               Check or uncheck styles to control what shows up in the
               customer-facing catalog. Everything is visible by default. Use
               &quot;Configure decorations&quot; on any item to choose which
-              decoration types it offers and draw its placement zones.
+              decoration types it offers and draw its placement zones, assign
+              it to homepage categories, and turn Design Now / Get Quote on
+              or off for it.
             </p>
             <AdminCatalogManager />
           </>

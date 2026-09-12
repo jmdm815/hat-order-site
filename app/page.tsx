@@ -1,83 +1,87 @@
 import Image from "next/image";
 import Link from "next/link";
 import StepHeader from "@/components/StepHeader";
-import { getDecorationTypes } from "@/lib/decoration-types-store";
+import CuratedProductCard from "@/components/CuratedProductCard";
+import { getCuratedCatalog } from "@/lib/curated-catalog";
 
 export default async function HomePage() {
-  const decorationOptions = await getDecorationTypes();
+  const categories = await getCuratedCatalog();
+
   return (
     <>
       <StepHeader />
 
-      {/* Hero */}
+      {/* Short hero */}
       <section className="bg-navy text-white">
-        <div className="max-w-5xl mx-auto px-4 py-16 sm:py-24 text-center">
+        <div className="max-w-6xl mx-auto px-4 py-10 sm:py-14 text-center">
           <Image
             src="/brand/jm-logo.png"
             alt="JM Digital Media"
-            width={120}
-            height={120}
-            className="mx-auto mb-6"
+            width={72}
+            height={72}
+            className="mx-auto mb-4"
             priority
           />
-          <p className="font-heading uppercase tracking-[0.2em] text-red text-sm font-semibold">
-            JM Digital Media
-          </p>
-          <h1 className="mt-3 font-heading text-4xl sm:text-6xl font-bold uppercase tracking-tight">
-            Look the Part.
-            <br />
-            <span className="text-red">Mean Business.</span>
+          <h1 className="font-heading text-3xl sm:text-4xl font-bold uppercase tracking-tight">
+            Look the Part. <span className="text-red">Mean Business.</span>
           </h1>
-          <p className="mt-5 text-tan text-lg max-w-xl mx-auto">
-            Custom hats and t-shirts, decorated your way — UV patch, engraved
-            patch, embroidery, or screen print. Real pricing in minutes, no
-            back-and-forth emails.
+          <p className="mt-3 text-tan text-base max-w-xl mx-auto">
+            Browse our curated gear below. Pick a product, then Design Now to
+            build it yourself or Get Quote to see pricing instantly.
           </p>
-          <Link
-            href="/catalog"
-            className="mt-8 inline-block px-8 py-3 rounded-md bg-red text-white font-heading font-semibold uppercase tracking-wide hover:bg-red-dark transition"
-          >
-            Start Your Order →
-          </Link>
         </div>
       </section>
 
-      {/* Decoration options */}
       <main className="flex-1 bg-gray w-full">
-        <div className="max-w-5xl mx-auto px-4 py-14">
-          <h2 className="font-heading text-2xl font-semibold uppercase text-navy text-center tracking-wide">
-            Hats and tees, decorated your way
-          </h2>
-          <p className="mt-2 text-center text-sm text-navy/60 max-w-xl mx-auto">
-            UV patch, engraved patch, and embroidery for hats — embroidery and screen
-            print for t-shirts.
-          </p>
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {decorationOptions.map((d) => (
-              <div
-                key={d.id}
-                className="border-t-4 border-tan rounded-lg p-5 bg-white shadow-sm hover:-translate-y-0.5 hover:shadow-md transition"
-              >
-                <div className="font-heading font-semibold uppercase text-navy tracking-wide">
-                  {d.shortLabel}
-                </div>
-                <p className="mt-2 text-sm text-navy/70">{d.description}</p>
-              </div>
-            ))}
+        <div className="max-w-6xl mx-auto px-4 py-10">
+          {categories.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-navy/60">
+                The catalog is being set up — check back soon, or{" "}
+                <Link href="/catalog" className="text-red font-semibold hover:underline">
+                  browse the full catalog
+                </Link>
+                .
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-12">
+              {categories.map((cat) => (
+                <section key={cat.id}>
+                  <div className="flex items-baseline justify-between">
+                    <h2 className="font-heading text-2xl font-semibold uppercase text-navy tracking-wide">
+                      {cat.name}
+                    </h2>
+                    <span className="text-sm text-navy/50">
+                      {cat.products.length} item{cat.products.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {cat.products.map((p) => (
+                      <CuratedProductCard key={p.styleNumber} product={p} />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-14 text-center text-sm text-navy/50">
+            Looking for something specific?{" "}
+            <Link href="/catalog" className="text-red font-semibold hover:underline">
+              Browse the full catalog
+            </Link>
           </div>
         </div>
       </main>
 
       <footer className="bg-navy text-white/60 text-xs">
-        <div className="max-w-5xl mx-auto px-4 pt-6 pb-5">
+        <div className="max-w-6xl mx-auto px-4 pt-6 pb-5">
           <div className="h-px bg-tan/30" />
           <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-center sm:text-left">
               JM Digital Media · Rosenberg, TX ·{" "}
-              <a
-                href="https://www.buyjmmedia.com"
-                className="hover:text-white transition"
-              >
+              <a href="https://www.buyjmmedia.com" className="hover:text-white transition">
                 buyjmmedia.com
               </a>
             </p>
