@@ -70,17 +70,46 @@ const EXCLUDE_NAME_PATTERN =
 // name to actually say so rather than trusting the category alone.
 const POLO_NAME_PATTERN = /\b(polo|pique|sport shirt|golf shirt)\b/i;
 
+// SanMar files a tee/polo's youth, ladies', or tall version under a
+// demographic category instead of "T-Shirts"/"Polos/Knits" — e.g. 29B
+// (the youth version of 29M) is filed under "Youth", not "T-Shirts", so a
+// strict category === "T-Shirts" check silently drops it (and every other
+// kids'/women's/tall tee or polo) from the catalog even though the site's
+// own category inference (inferShirtCategory/inferPoloCategory below)
+// already expects and labels "Youth Tee"/"Youth Polo"/"Ladies Polo" items.
+// These demographic categories are grab-bags of every garment type for
+// that group though (hoodies, joggers, jackets, leggings, cardigans — even
+// a youth cap), so unlike the primary categories (which SanMar has already
+// narrowed to just tees/polos) an item from one of these additionally has
+// to look like a real tee or polo by name — see TEE_NAME_PATTERN/
+// NON_TEE_NAME_PATTERN and the existing POLO_NAME_PATTERN below.
+const CROSS_LISTED_CATEGORIES = new Set(["Youth", "Women's", "Tall", "Juniors & Young Men"]);
+const TEE_NAME_PATTERN = /\b(tee|t-shirt|v-neck|crew|raglan)\b/i;
+const NON_TEE_NAME_PATTERN =
+  /\b(hoodie|hooded|sweatshirt|sweatpant|jogger|jacket|short|pant|legging|vest|cardigan|shrug|coat|dress|skirt|onesie|pinnie|beanie|cap|fleece|sweater)\b/i;
+
 function isSellable(style: SanmarStyle, productType: ProductType): boolean {
   // SanMar's raw feed has a trailing space on "T-Shirts " — trim before
   // comparing.
   const category = style.category.trim();
-  if (productType === "hat" && category !== "Caps") return false;
-  if (productType === "shirt" && category !== "T-Shirts") return false;
-  if (productType === "polo" && category !== "Polos/Knits") return false;
+  const isPrimaryCategory =
+    (productType === "hat" && category === "Caps") ||
+    (productType === "shirt" && category === "T-Shirts") ||
+    (productType === "polo" && category === "Polos/Knits");
+  const isCrossListed =
+    (productType === "shirt" || productType === "polo") && CROSS_LISTED_CATEGORIES.has(category);
+  if (!isPrimaryCategory && !isCrossListed) return false;
   if (style.status === "Discontinued") return false;
   if (style.name.toUpperCase().includes("DISCONTINUED")) return false;
   if (productType === "hat" && EXCLUDE_NAME_PATTERN.test(style.name)) return false;
   if (productType === "polo" && !POLO_NAME_PATTERN.test(style.name)) return false;
+  if (
+    productType === "shirt" &&
+    isCrossListed &&
+    (!TEE_NAME_PATTERN.test(style.name) || NON_TEE_NAME_PATTERN.test(style.name))
+  ) {
+    return false;
+  }
   if (!style.colors?.length) return false;
   return true;
 }
