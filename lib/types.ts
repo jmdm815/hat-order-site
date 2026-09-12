@@ -173,6 +173,31 @@ export type DecorationOption = {
 
 export type PriceColumn = { id: string; label: string };
 
+// A named, flat one-time charge an admin can attach to a quote — e.g.
+// "Digitizing for embroidery" ($35) or "Logo vectorization" ($20). Unlike a
+// decoration's own setupFee, these are NOT tied to any decoration type:
+// they're picked individually per quote in the admin quote builder (see
+// lib/setup-charges-store.ts, lib/quote.ts).
+export type SetupChargeType = { id: string; label: string; price: number };
+
+// One row of the garment markup matrix (see lib/garment-markup-store.ts,
+// lib/garment-markup.ts): garments whose vendor cost falls in [from, to]
+// get marked up by markupPercent before decoration cost is added. Used only
+// by the admin quote builder — never touches customer-site cart pricing.
+export type GarmentMarkupBreakpoint = {
+  id: string;
+  from: number;
+  to: number;
+  markupPercent: number;
+};
+
+export type GarmentMarkupLookupMode = "total-quantity" | "per-style-quantity";
+
+export type GarmentMarkupSettings = {
+  breakpoints: GarmentMarkupBreakpoint[];
+  lookupMode: GarmentMarkupLookupMode;
+};
+
 export type ArtworkPlacement = {
   zoneId: string;
   zoneLabel: string;

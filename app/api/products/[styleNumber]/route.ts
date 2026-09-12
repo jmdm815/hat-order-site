@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getProductByStyleNumber } from "@/lib/sanmar";
+import { getLiveSanmarPricing, toPriceLookup } from "@/lib/sanmar-pricing";
 import { getCustomProductByStyleNumber } from "@/lib/custom-products-store";
 import { getHiddenStyleNumbers } from "@/lib/catalog-selection";
 import { getItemConfig } from "@/lib/item-config-store";
@@ -28,10 +29,47 @@ export async function GET(
     getCustomProductByStyleNumber(styleNumber),
     getHiddenStyleNumbers(),
   ]);
-  const product = customProduct ?? (await getProductByStyleNumber(styleNumber));
+  let product = customProduct ?? (await getProductByStyleNumber(styleNumber));
 
   if (!product || hidden.has(product.styleNumber)) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  // Overlay SanMar's real, account-specific pricing (lib/sanmar-pricing.ts)
+  // on top of the bulk catalog feed's standard/list price for this one
+  // style, since that feed doesn't reflect this account's negotiated
+  // pricing (confirmed by comparing it directly against a logged-in SanMar
+  // session). Only applies to actual SanMar-sourced products — custom
+  // (admin-added) products have no SanMar style to price-check. Silently
+  // keeps the catalog price if the live call fails for any reason (missing
+  // credentials, network error, unrecognized response) — see that module's
+  // getLiveSanmarPricing() for why this never throws.
+  let livePricingApplied = false;
+  if (!customProduct) {
+    const liveRows = await getLiveSanmarPricing(product.styleNumber);
+    if (liveRows) {
+      const priceByColorSize = toPriceLookup(liveRows);
+      const pricedColors = product.colors.map((c) => {
+        if (!c.sizes) return c;
+        const sizes = c.sizes.map((s) => {
+          const live = priceByColorSize.get(`${c.colorName.toLowerCase()}::${s.name.toLowerCase()}`);
+          return live ? { ...s, price: live } : s;
+        });
+        return { ...c, sizes };
+      });
+      const cheapest = pricedColors.reduce((min, c) => {
+        for (const s of c.sizes ?? []) {
+          if (s.price > 0 && s.price < min) min = s.price;
+        }
+        return min;
+      }, Infinity);
+      product = {
+        ...product,
+        colors: pricedColors,
+        basePrice: Number.isFinite(cheapest) ? cheapest : product.basePrice,
+      };
+      livePricingApplied = true;
+    }
   }
 
   const [savedConfig, effectiveDecorations, designerSettings, defaultDecorationIds] =
@@ -94,5 +132,10 @@ export async function GET(
         }),
       };
 
-  return NextResponse.json({ product: productForClient, decorations, liveDesignerEnabled });
+  return NextResponse.json({
+    product: productForClient,
+    decorations,
+    liveDesignerEnabled,
+    livePricingApplied,
+  });
 }
