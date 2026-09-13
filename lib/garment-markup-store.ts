@@ -8,12 +8,19 @@ import { isPersistent } from "./pricing-store";
 // ---------------------------------------------------------------------------
 // Admin-editable matrix of cost-based markup breakpoints applied to garment
 // (blank) cost in the admin quote builder (lib/quote.ts,
-// components/AdminQuoteBuilder.tsx, components/AdminGarmentMarkupManager.tsx).
-// A garment whose vendor cost falls in a breakpoint's [from, to] range is
-// marked up by that breakpoint's percentage before decoration cost is added
-// — e.g. cost $2.00 at a 100% breakpoint sells for $2.00 + (100% * $2.00) =
-// $4.00. This never touches the customer-facing catalog/cart, which prices
-// garments directly from the live SanMar cost with no markup layer.
+// components/AdminQuoteBuilder.tsx, components/AdminGarmentMarkupManager.tsx)
+// — and, as of the fix that added lib/garment-markup.ts's
+// applyGarmentMarkupToProduct(), every customer-facing surface too
+// (app/api/products/[styleNumber]/route.ts, app/api/catalog/route.ts,
+// lib/curated-catalog.ts): the catalog listing, the homepage "Starting at"
+// price, the live designer/cart, and the customer quote tools. A garment
+// whose vendor cost falls in a breakpoint's [from, to] range is marked up by
+// that breakpoint's percentage before decoration cost is added — e.g. cost
+// $2.00 at a 100% breakpoint sells for $2.00 + (100% * $2.00) = $4.00.
+// Before that fix, every customer-facing surface priced garments straight
+// from raw SanMar cost with no markup at all — only the admin quote builder
+// applied it, which is what caused a real customer quote generated outside
+// this site to disagree with a manually-computed one.
 //
 // Persistence follows the same pattern as lib/setup-charges-store.ts: a
 // single JSON blob in Vercel Blob storage, with an in-memory fallback so the

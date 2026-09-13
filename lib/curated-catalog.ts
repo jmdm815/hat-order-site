@@ -3,6 +3,8 @@ import { getCustomProducts } from "./custom-products-store";
 import { getHiddenStyleNumbers } from "./catalog-selection";
 import { getAllItemConfigs } from "./item-config-store";
 import { getCategories } from "./categories-store";
+import { getGarmentMarkupSettings } from "./garment-markup-store";
+import { applyGarmentMarkupToProduct } from "./garment-markup";
 import { Product, ProductType } from "./types";
 
 const ALL_TYPES: ProductType[] = ["hat", "shirt", "polo", "tumbler"];
@@ -26,15 +28,24 @@ export type CuratedCategory = {
 // directly) and app/api/catalog/curated/route.ts (kept for any client-side
 // consumer that needs it over HTTP, e.g. an admin preview).
 export async function getCuratedCatalog(): Promise<CuratedCategory[]> {
-  const [catalogsByType, customProducts, hidden, configs, categories] = await Promise.all([
-    Promise.all(ALL_TYPES.map((t) => getCatalog(t))),
-    getCustomProducts(),
-    getHiddenStyleNumbers(),
-    getAllItemConfigs(),
-    getCategories(),
-  ]);
+  const [catalogsByType, customProducts, hidden, configs, categories, garmentMarkup] =
+    await Promise.all([
+      Promise.all(ALL_TYPES.map((t) => getCatalog(t))),
+      getCustomProducts(),
+      getHiddenStyleNumbers(),
+      getAllItemConfigs(),
+      getCategories(),
+      getGarmentMarkupSettings(),
+    ]);
 
-  const allProducts: Product[] = [...catalogsByType.flat(), ...customProducts].filter(
+  // Only SanMar-sourced catalog entries carry raw vendor cost — custom
+  // (admin-added) products are already priced at their intended sell price
+  // and must not be marked up again (see lib/garment-markup.ts).
+  const markedSanmarProducts = catalogsByType
+    .flat()
+    .map((p) => applyGarmentMarkupToProduct(p, garmentMarkup.breakpoints));
+
+  const allProducts: Product[] = [...markedSanmarProducts, ...customProducts].filter(
     (p) => !hidden.has(p.styleNumber)
   );
 

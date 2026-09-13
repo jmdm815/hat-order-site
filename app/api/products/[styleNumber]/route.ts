@@ -3,6 +3,8 @@ import { getProductByStyleNumber } from "@/lib/sanmar";
 import { getLiveSanmarPricing, toPriceLookup } from "@/lib/sanmar-pricing";
 import { getCustomProductByStyleNumber } from "@/lib/custom-products-store";
 import { getHiddenStyleNumbers } from "@/lib/catalog-selection";
+import { getGarmentMarkupSettings } from "@/lib/garment-markup-store";
+import { applyGarmentMarkupToProduct } from "@/lib/garment-markup";
 import { getItemConfig } from "@/lib/item-config-store";
 import { resolveImageOverride, synthesizeDefaultItemConfig } from "@/lib/default-item-config";
 import { getDesignerSettings } from "@/lib/pricing-store";
@@ -70,6 +72,11 @@ export async function GET(
       };
       livePricingApplied = true;
     }
+    // Mark the (now live-priced, if available) vendor cost up to the
+    // admin's real sell price — see lib/garment-markup.ts for why this only
+    // ever runs for SanMar-sourced products, never custom ones.
+    const garmentMarkup = await getGarmentMarkupSettings();
+    product = applyGarmentMarkupToProduct(product, garmentMarkup.breakpoints);
   }
 
   const [savedConfig, effectiveDecorations, designerSettings, defaultDecorationIds] =
