@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ComputedQuote, QuoteLineInput } from "@/lib/quote";
 import { QuoteRecord } from "@/lib/quotes-store";
-import { DecorationOption, Product, SetupChargeType } from "@/lib/types";
+import { DecorationOption, SetupChargeType } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
+import { ManualQuoteProduct, ManualQuoteSizeRow } from "@/app/api/admin/quote/manual-product/route";
+import { ManualQuoteSearchResult } from "@/app/api/admin/quote/search-products/route";
+
+type CatalogSource = "sanmar" | "custom" | "ss";
+const CATALOG_OPTIONS: { id: CatalogSource; label: string; disabled?: boolean }[] = [
+  { id: "sanmar", label: "SanMar" },
+  { id: "ss", label: "S&S Activewear", disabled: true },
+  { id: "custom", label: "Custom" },
+];
 
 type PendingLine = QuoteLineInput & {
   key: string;
@@ -63,15 +72,27 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
   const [quoteDate, setQuoteDate] = useState(() => initialRecord?.input.quoteDate ?? todayIso());
   const [notes, setNotes] = useState(() => initialRecord?.input.notes ?? "");
 
-  // "Add garment" lookup state.
-  const [styleInput, setStyleInput] = useState("");
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupError, setLookupError] = useState<string | null>(null);
-  const [foundProduct, setFoundProduct] = useState<Product | null>(null);
-  const [selectedColor, setSelectedColor] = useState("");
-  const [sizeQty, setSizeQty] = useState<Record<string, number>>({});
+  // "Add a garment" — guided flow: decoration -> catalog -> product (live
+  // search-as-you-type) -> color -> sizes -> locations, mirroring the shop's
+  // other quoting tool. Decoration is picked first (as in that tool) since
+  // it decides whether the last step is "Locations" (Digital Print) or
+  // "Stitch count" (Embroidered) or nothing at all (UV/Engraved Patch).
   const [selectedDecorationId, setSelectedDecorationId] = useState("");
   const [selectedColumnId, setSelectedColumnId] = useState("");
+  const [catalogSource, setCatalogSource] = useState<CatalogSource>("sanmar");
+
+  const [productQuery, setProductQuery] = useState("");
+  const [productSuggestions, setProductSuggestions] = useState<ManualQuoteSearchResult[]>([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [foundProduct, setFoundProduct] = useState<ManualQuoteProduct | null>(null);
+  const [foundProductLive, setFoundProductLive] = useState(false);
+  const [selectedColor, setSelectedColor] = useState("");
+  const [sizeQty, setSizeQty] = useState<Record<string, number>>({});
 
   const [lines, setLines] = useState<PendingLine[]>(() =>
     initialRecord ? linesFromRecord(initialRecord) : []
@@ -123,48 +144,96 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
   }
 
   const selectedDecoration = decorations.find((d) => d.id === selectedDecorationId);
+  const columnLabel =
+    selectedDecoration?.priceColumns?.some((c) => c.label.toLowerCase().includes("stitch"))
+      ? "Stitch count"
+      : "Locations";
 
-  async function runLookup() {
-    const style = styleInput.trim();
-    if (!style) return;
+  function resetProductPicker() {
+    setProductQuery("");
+    setProductSuggestions([]);
+    setSuggestionsOpen(false);
+    setFoundProduct(null);
+    setFoundProductLive(false);
+    setSelectedColor("");
+    setSizeQty({});
+    setLookupError(null);
+  }
+
+  function onCatalogChange(next: CatalogSource) {
+    setCatalogSource(next);
+    resetProductPicker();
+  }
+
+  function onProductQueryChange(value: string) {
+    setProductQuery(value);
+    setFoundProduct(null);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    const q = value.trim();
+    if (q.length < 2) {
+      setProductSuggestions([]);
+      setSuggestionsOpen(false);
+      return;
+    }
+    searchDebounce.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(
+          `/api/admin/quote/search-products?catalog=${catalogSource}&q=${encodeURIComponent(q)}`
+        );
+        const data = await res.json();
+        setProductSuggestions(data.results ?? []);
+        setSuggestionsOpen(true);
+      } catch {
+        setProductSuggestions([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 250);
+  }
+
+  async function selectProduct(result: ManualQuoteSearchResult) {
+    setSuggestionsOpen(false);
+    setProductQuery(`${result.styleNumber} — ${result.name}`);
     setLookupLoading(true);
     setLookupError(null);
     setFoundProduct(null);
     try {
-      const res = await fetch(`/api/admin/quote/lookup?style=${encodeURIComponent(style)}`);
+      const res = await fetch(
+        `/api/admin/quote/manual-product?catalog=${catalogSource}&style=${encodeURIComponent(result.styleNumber)}`
+      );
       const data = await res.json();
       if (!res.ok) {
-        setLookupError(data.error || "Lookup failed");
+        setLookupError(data.error || "Failed to load that product");
         return;
       }
-      const product = data.product as Product;
+      const product = data.product as ManualQuoteProduct;
       setFoundProduct(product);
+      setFoundProductLive(Boolean(data.livePricingApplied));
       setSelectedColor(product.colors[0]?.colorName ?? "");
       const initialQty: Record<string, number> = {};
       for (const sz of product.colors[0]?.sizes ?? []) initialQty[sz.name] = 0;
       setSizeQty(initialQty);
-      setSelectedDecorationId("");
-      setSelectedColumnId("");
     } catch {
-      setLookupError("Lookup failed — check the style number and try again.");
+      setLookupError("Failed to load that product — check your connection and try again.");
     } finally {
       setLookupLoading(false);
     }
   }
 
+  const selectedColorRow = foundProduct?.colors.find((c) => c.colorName === selectedColor);
+
   function fillOneEach() {
-    const color = foundProduct?.colors.find((c) => c.colorName === selectedColor);
-    if (!color?.sizes) return;
+    if (!selectedColorRow) return;
     const next: Record<string, number> = {};
-    for (const sz of color.sizes) next[sz.name] = 1;
+    for (const sz of selectedColorRow.sizes) next[sz.name] = 1;
     setSizeQty(next);
   }
 
   function clearQuantities() {
-    const color = foundProduct?.colors.find((c) => c.colorName === selectedColor);
-    if (!color?.sizes) return;
+    if (!selectedColorRow) return;
     const next: Record<string, number> = {};
-    for (const sz of color.sizes) next[sz.name] = 0;
+    for (const sz of selectedColorRow.sizes) next[sz.name] = 0;
     setSizeQty(next);
   }
 
@@ -188,10 +257,10 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
       priceColumnId: selectedColumnId || undefined,
     };
     setLines((prev) => [...prev, line]);
-    // Reset the lookup panel for the next garment.
-    setFoundProduct(null);
-    setStyleInput("");
-    setLookupError(null);
+    // Reset the product picker for the next garment, but keep the chosen
+    // decoration/catalog/locations — a real order is usually several
+    // styles/colors under the same decoration and location count.
+    resetProductPicker();
     setQuote(null);
   }
 
@@ -335,9 +404,6 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
     }
   }
 
-  const selectedColorSizes =
-    foundProduct?.colors.find((c) => c.colorName === selectedColor)?.sizes ?? [];
-
   return (
     <div className="space-y-8">
       {activeRecord && (
@@ -445,28 +511,96 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
         )}
       </section>
 
-      {/* Add a garment */}
+      {/* Add a garment — guided flow: decoration, catalog, product, color,
+          sizes, locations, in that order, matching the shop's other
+          quoting tool. */}
       <section className="bg-white border border-navy/10 rounded-xl p-4">
         <h3 className="text-sm font-semibold text-navy mb-3">Add a garment</h3>
-        <div className="flex items-end gap-2">
-          <label className="text-xs text-navy/60 flex-1 max-w-xs">
-            SanMar style number
-            <input
-              value={styleInput}
-              onChange={(e) => setStyleInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && runLookup()}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
+          <label className="text-xs text-navy/60">
+            Decoration type
+            <select
+              value={selectedDecorationId}
+              onChange={(e) => {
+                setSelectedDecorationId(e.target.value);
+                setSelectedColumnId("");
+              }}
               className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
-              placeholder="ST640"
+            >
+              <option value="">None — garment only</option>
+              {decorations.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+            {decorationsLoaded && decorations.length === 0 && (
+              <span className="text-[11px] text-navy/40">No decoration types configured yet.</span>
+            )}
+          </label>
+
+          <label className="text-xs text-navy/60">
+            Catalog
+            <select
+              value={catalogSource}
+              onChange={(e) => onCatalogChange(e.target.value as CatalogSource)}
+              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            >
+              {CATALOG_OPTIONS.map((c) => (
+                <option key={c.id} value={c.id} disabled={c.disabled}>
+                  {c.label}
+                  {c.disabled ? " (not connected)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="relative mt-3 max-w-xl">
+          <label className="text-xs text-navy/60">
+            Product
+            <input
+              value={productQuery}
+              onChange={(e) => onProductQueryChange(e.target.value)}
+              onFocus={() => productSuggestions.length > 0 && setSuggestionsOpen(true)}
+              onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
+              disabled={catalogSource === "ss"}
+              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-navy/5"
+              placeholder={
+                catalogSource === "ss"
+                  ? "S&S Activewear isn't connected yet"
+                  : "Start typing a style number or name — e.g. st640"
+              }
             />
           </label>
-          <button
-            onClick={runLookup}
-            disabled={lookupLoading || !styleInput.trim()}
-            className="text-sm px-3 py-1.5 rounded-lg bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
-          >
-            {lookupLoading ? "Looking up…" : "Look up"}
-          </button>
+          {searchLoading && (
+            <span className="absolute right-2 top-8 text-[11px] text-navy/30">searching…</span>
+          )}
+          {suggestionsOpen && productSuggestions.length > 0 && (
+            <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto bg-white border border-navy/20 rounded-lg shadow-lg text-sm">
+              {productSuggestions.map((r) => (
+                <li key={r.styleNumber}>
+                  <button
+                    type="button"
+                    // onMouseDown (not onClick) fires before the input's onBlur closes the list.
+                    onMouseDown={() => selectProduct(r)}
+                    className="block w-full text-left px-3 py-2 hover:bg-navy/5"
+                  >
+                    <span className="font-medium text-navy">{r.name}</span>{" "}
+                    <span className="text-navy/40">
+                      {r.brand} · {r.styleNumber}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {suggestionsOpen && !searchLoading && productSuggestions.length === 0 && productQuery.trim().length >= 2 && (
+            <p className="mt-1 text-xs text-navy/40">No matches for &quot;{productQuery}&quot;.</p>
+          )}
         </div>
+        {lookupLoading && <p className="mt-2 text-xs text-navy/40">Loading product…</p>}
         {lookupError && <p className="mt-2 text-xs text-red-600">{lookupError}</p>}
 
         {foundProduct && (
@@ -474,6 +608,11 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
             <p className="text-sm font-medium text-navy">
               {foundProduct.brandName} {foundProduct.productName}{" "}
               <span className="text-navy/40 font-normal">({foundProduct.styleNumber})</span>
+              {catalogSource === "sanmar" && (
+                <span className="ml-2 text-[11px] text-navy/40">
+                  {foundProductLive ? "live SanMar pricing" : "catalog list price (live pricing unavailable)"}
+                </span>
+              )}
             </p>
 
             <label className="block text-xs text-navy/60 mt-3 max-w-xs">
@@ -497,12 +636,10 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
               </select>
             </label>
 
-            {selectedColorSizes.length > 0 ? (
+            {selectedColorRow && selectedColorRow.sizes.length > 0 ? (
               <div className="mt-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-navy/60 uppercase tracking-wide">
-                    Quantity per size
-                  </span>
+                  <span className="text-xs font-medium text-navy/60 uppercase tracking-wide">Sizes</span>
                   <div className="flex gap-2">
                     <button
                       onClick={fillOneEach}
@@ -518,72 +655,29 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
                     </button>
                   </div>
                 </div>
-                <div className="mt-2 grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-2">
-                  {selectedColorSizes.map((sz) => (
-                    <label key={sz.name} className="text-xs text-navy/60">
-                      {sz.name}{" "}
-                      <span className="text-navy/30">(${sz.price.toFixed(2)})</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={sizeQty[sz.name] ?? 0}
-                        onChange={(e) =>
-                          setSizeQty((prev) => ({
-                            ...prev,
-                            [sz.name]: Math.max(0, Number(e.target.value) || 0),
-                          }))
-                        }
-                        className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1 text-sm"
-                      />
-                    </label>
-                  ))}
-                </div>
+                <SizeGrid sizes={selectedColorRow.sizes} sizeQty={sizeQty} setSizeQty={setSizeQty} />
               </div>
             ) : (
               <p className="mt-3 text-xs text-navy/40">This item has no size-based pricing (one-size item).</p>
             )}
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
-              <label className="text-xs text-navy/60">
-                Decoration (optional)
+            {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
+              <label className="block text-xs text-navy/60 mt-4 max-w-xs">
+                {columnLabel}
                 <select
-                  value={selectedDecorationId}
-                  onChange={(e) => {
-                    setSelectedDecorationId(e.target.value);
-                    setSelectedColumnId("");
-                  }}
+                  value={selectedColumnId}
+                  onChange={(e) => setSelectedColumnId(e.target.value)}
                   className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
                 >
-                  <option value="">None — garment only</option>
-                  {decorations.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.label}
+                  <option value="">Select…</option>
+                  {selectedDecoration.priceColumns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
                     </option>
                   ))}
                 </select>
-                {decorationsLoaded && decorations.length === 0 && (
-                  <span className="text-[11px] text-navy/40">No decoration types configured yet.</span>
-                )}
               </label>
-
-              {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
-                <label className="text-xs text-navy/60">
-                  Stitch count / pricing column
-                  <select
-                    value={selectedColumnId}
-                    onChange={(e) => setSelectedColumnId(e.target.value)}
-                    className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
-                  >
-                    <option value="">Select…</option>
-                    {selectedDecoration.priceColumns.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
+            )}
 
             {selectedDecoration?.quoteRequired && (
               <p className="mt-2 text-xs text-amber-700">
@@ -779,6 +873,94 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+// One size per column, matching the reference quoting tool's layout
+// exactly: Quantity (editable), Item Cost, Item Markup (%), Item Price
+// (cost with that markup applied — this is what actually feeds
+// garmentUnitPrice once "Add to quote" runs it through /api/admin/quote),
+// and a running per-size line total. Decoration cost isn't shown here since
+// it's priced across the whole quote's combined quantity, not per garment
+// line — see the Preview section below once "Preview quote" is run.
+function SizeGrid({
+  sizes,
+  sizeQty,
+  setSizeQty,
+}: {
+  sizes: ManualQuoteSizeRow[];
+  sizeQty: Record<string, number>;
+  setSizeQty: (updater: (prev: Record<string, number>) => Record<string, number>) => void;
+}) {
+  return (
+    <div className="mt-2 overflow-x-auto">
+      <table className="text-xs border-collapse w-full min-w-[480px]">
+        <thead>
+          <tr>
+            <th className="text-left pr-3 py-1 text-navy/50 font-medium">Size</th>
+            {sizes.map((sz) => (
+              <th key={sz.name} className="text-center px-2 py-1 text-navy font-semibold">
+                {sz.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="border-t border-navy/10">
+            <td className="pr-3 py-1.5 text-navy/50">Quantity</td>
+            {sizes.map((sz) => (
+              <td key={sz.name} className="px-1 py-1.5">
+                <input
+                  type="number"
+                  min={0}
+                  value={sizeQty[sz.name] ?? 0}
+                  onChange={(e) => {
+                    const v = Math.max(0, Number(e.target.value) || 0);
+                    setSizeQty((prev) => ({ ...prev, [sz.name]: v }));
+                  }}
+                  className="w-16 border border-navy/20 rounded-lg px-1.5 py-1 text-center text-sm"
+                />
+              </td>
+            ))}
+          </tr>
+          <tr className="border-t border-navy/5">
+            <td className="pr-3 py-1 text-navy/50">Item Cost</td>
+            {sizes.map((sz) => (
+              <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
+                ${sz.cost.toFixed(2)}
+              </td>
+            ))}
+          </tr>
+          <tr className="border-t border-navy/5">
+            <td className="pr-3 py-1 text-navy/50">Item Markup (%)</td>
+            {sizes.map((sz) => (
+              <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
+                {sz.markupPercent}
+              </td>
+            ))}
+          </tr>
+          <tr className="border-t border-navy/5">
+            <td className="pr-3 py-1 text-navy/50">Item Price</td>
+            {sizes.map((sz) => (
+              <td key={sz.name} className="px-2 py-1 text-center font-medium text-navy">
+                ${sz.price.toFixed(2)}
+              </td>
+            ))}
+          </tr>
+          <tr className="border-t border-navy/10">
+            <td className="pr-3 py-1 text-navy/50">Line total</td>
+            {sizes.map((sz) => {
+              const qty = sizeQty[sz.name] ?? 0;
+              return (
+                <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
+                  {qty > 0 ? `$${(qty * sz.price).toFixed(2)}` : "—"}
+                </td>
+              );
+            })}
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }

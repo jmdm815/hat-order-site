@@ -113,10 +113,10 @@ export default function AdminDashboard() {
         {tab === "garment-markup" && (
           <>
             <p className="mb-4 text-navy/60 text-sm">
-              Set cost-based markup breakpoints for blank garments used in the Quote Builder — a
-              garment&apos;s vendor cost determines which breakpoint&apos;s percentage gets added
-              on top before decoration cost. Doesn&apos;t affect the customer-facing catalog or
-              cart, which always sells garments at raw vendor cost.
+              Set cost-based markup breakpoints for blank garments — a garment&apos;s vendor cost
+              determines which breakpoint&apos;s percentage gets added before decoration cost.
+              Used everywhere a customer or the Quote Builder sees a garment price: the catalog,
+              the homepage, the live designer/cart, the quote tools, and quotes built here.
             </p>
             <AdminGarmentMarkupManager />
           </>

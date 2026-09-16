@@ -294,6 +294,81 @@ async function fetchRawCatalog(): Promise<SanmarCatalogResponse> {
   return res.json();
 }
 
+// ---------------------------------------------------------------------------
+// Unrestricted whole-feed search — for the admin's manual quote builder
+// (components/AdminQuoteBuilder.tsx), which needs to quote literally any
+// SanMar style, not just the ones curated for the customer-facing site
+// (getCatalog() above only returns Caps/T-Shirts/Polos-ish items that pass
+// isSellable(), and the customer catalog additionally hides most of those —
+// see lib/catalog-selection.ts). A one-off customer order can call for a
+// blank the storefront doesn't sell at all (see NL6210/NL6211/NL3312, none
+// of which are Caps/T-Shirts/Polos/Knits primary-category oddities, but
+// plenty of real SanMar styles fall further outside even that: shorts,
+// jackets, bags). This searches every style in the feed regardless of
+// category, and getAnySanmarStyleAsProduct() below converts a match to the
+// same Product shape the quote engine already knows how to price — with no
+// isSellable gate, no hidden-style-number filtering, and no basePrice/photo
+// requirement.
+// ---------------------------------------------------------------------------
+
+export type SanmarSearchResult = {
+  styleNumber: string;
+  name: string;
+  brand: string;
+  category: string;
+};
+
+export async function searchAnySanmarStyle(
+  query: string,
+  limit = 20
+): Promise<SanmarSearchResult[]> {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const data = await fetchRawCatalog();
+  const results: SanmarSearchResult[] = [];
+  // Style-number-prefix matches first (typing "st640" should surface ST640
+  // itself before any style whose name happens to contain "st640"), then
+  // any remaining name/brand substring matches, same ordering the reference
+  // screenshots showed (exact style typed -> that style's siblings first).
+  const byStylePrefix: SanmarSearchResult[] = [];
+  const byNameOrBrand: SanmarSearchResult[] = [];
+  for (const s of data.styles) {
+    const styleId = s.styleId.trim();
+    const entry: SanmarSearchResult = {
+      styleNumber: styleId,
+      name: s.name.trim(),
+      brand: s.brand,
+      category: s.category.trim(),
+    };
+    if (styleId.toLowerCase().startsWith(q)) {
+      byStylePrefix.push(entry);
+    } else if (
+      s.name.toLowerCase().includes(q) ||
+      s.brand.toLowerCase().includes(q) ||
+      styleId.toLowerCase().includes(q)
+    ) {
+      byNameOrBrand.push(entry);
+    }
+    if (byStylePrefix.length + byNameOrBrand.length >= limit * 4) break; // cap scan cost
+  }
+  results.push(...byStylePrefix, ...byNameOrBrand);
+  return results.slice(0, limit);
+}
+
+export async function getAnySanmarStyleAsProduct(styleNumber: string): Promise<Product | undefined> {
+  const data = await fetchRawCatalog();
+  const target = styleNumber.trim().toUpperCase();
+  const style = data.styles.find((s) => s.styleId.trim().toUpperCase() === target);
+  if (!style) return undefined;
+  // toProductStyle() only uses productType to pick a category-inference
+  // function and decide whether shirt-style flat/model photo pairs apply —
+  // neither matters for a quote (lib/quote.ts never reads .category, and
+  // lib/quote-pdf.ts never touches images) — so "hat" for actual headwear
+  // and "shirt" for everything else is a safe, good-enough choice here.
+  const productType: ProductType = style.category.trim() === "Caps" ? "hat" : "shirt";
+  return toProductStyle(style, productType);
+}
+
 export async function getCatalog(productType: ProductType): Promise<Product[]> {
   // Tumblers aren't apparel and aren't in this SanMar feed's Caps/T-Shirts
   // categories — every tumbler in the catalog comes from
