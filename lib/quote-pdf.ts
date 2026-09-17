@@ -7,10 +7,10 @@
 //   - "customer": the document meant to go out to the customer. Shows only
 //     the final per-unit sell price and line totals — never the underlying
 //     garment cost, so margin isn't exposed.
-//   - "internal": the company-side copy. Same numbers, plus a GARMENT and
-//     DECORATION cost column so staff can see the cost breakdown behind the
-//     sell price. Clearly labeled so it's never mistaken for the customer
-//     copy.
+//   - "internal": the company-side copy. Same numbers, plus raw garment
+//     COST, garment MARKUP, and DECORATION columns so staff can see the
+//     complete breakdown behind the sell price. Clearly labeled so it's
+//     never mistaken for the customer copy.
 //   - "work-order": for production staff. No pricing anywhere — just which
 //     garments, sizes, quantities, and decoration methods are needed, so it
 //     can be handed to the floor without exposing any dollar figures.
@@ -187,7 +187,7 @@ export function renderQuotePdf(
     const GRID_ROW_H = 15;
 
     function estimateCardHeight(): number {
-      const rows = 2 + (showCostColumns ? 2 : 0) + 1; // size + qty [+ garment + decoration] + price/pulled
+      const rows = 2 + (showCostColumns ? 3 : 0) + 1; // size + qty [+ cost + markup + decoration] + price/pulled
       return Math.max(rows * GRID_ROW_H, 40) + 14;
     }
 
@@ -280,13 +280,26 @@ export function renderQuotePdf(
       y += GRID_ROW_H;
 
       if (showCostColumns) {
-        gridRow(y, "Garment", (i, cx, cy, w) =>
+        gridRow(y, "Garment Cost", (i, cx, cy, w) => {
+          // Backward-compatible fallback for saved quotes created before
+          // raw cost and markup were stored separately.
+          const cost = line.sizes[i].garmentCost ?? line.sizes[i].garmentUnitPrice;
           doc
             .fillColor(NAVY)
             .font("Helvetica")
             .fontSize(8)
-            .text(money(line.sizes[i].garmentUnitPrice), cx, cy + 4, { width: w, align: "center" })
-        );
+            .text(money(cost), cx, cy + 4, { width: w, align: "center" });
+        });
+        y += GRID_ROW_H;
+
+        gridRow(y, "Markup", (i, cx, cy, w) => {
+          const markup = line.sizes[i].garmentMarkupAmount ?? 0;
+          doc
+            .fillColor(NAVY)
+            .font("Helvetica")
+            .fontSize(8)
+            .text(markup > 0 ? `+${money(markup)}` : "—", cx, cy + 4, { width: w, align: "center" });
+        });
         y += GRID_ROW_H;
 
         gridRow(y, "Decoration", (i, cx, cy, w) => {
