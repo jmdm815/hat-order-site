@@ -462,15 +462,17 @@ export default function QuoteBuilderWizard() {
                     </p>
                   ) : (
                     <div className="mt-3 space-y-1.5 text-sm">
-                      <div className="flex justify-between text-navy/70">
-                        <span>Garment ({totalQuantity} units)</span>
-                        <span>{formatUSD(estimate.garmentTotal)}</span>
-                      </div>
-                      <div className="flex justify-between text-navy/70">
+                      <div className="flex justify-between text-navy/70 gap-4">
                         <span>
-                          {decoration.shortLabel} ({formatUSD(estimate.decorationUnitPrice)}/unit)
+                          Garment + {decoration.shortLabel} (
+                          {formatUSD(
+                            (estimate.garmentTotal + estimate.decorationTotal) / totalQuantity
+                          )}
+                          /unit)
                         </span>
-                        <span>{formatUSD(estimate.decorationTotal)}</span>
+                        <span className="shrink-0">
+                          {formatUSD(estimate.garmentTotal + estimate.decorationTotal)}
+                        </span>
                       </div>
                       {estimate.setupFee > 0 && (
                         <div className="flex justify-between text-navy/70">
