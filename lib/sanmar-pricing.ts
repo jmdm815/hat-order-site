@@ -141,13 +141,15 @@ export function parseGetPricingResponse(xml: string): {
 }
 
 // Picks the actual "what this account pays" number off a pricing row.
-// myPrice (customer-specific net pricing) wins whenever SanMar returns one;
-// a current sale price is the next best signal; piecePrice (SanMar's
-// standard single-unit list price) is the last resort. Never returns 0 if
-// any field has a real value, so a garment never accidentally becomes free.
+// SanMar displays an active sale price in red in the signed-in account and
+// that is the shop's real purchase cost, so it must win over myPrice. The
+// latter can continue to contain the normal account price while a promotion
+// is active. piecePrice and casePrice remain last-resort fallbacks. Never
+// returns 0 if any field has a real value, so a garment never accidentally
+// becomes free.
 export function effectivePriceFromRow(row: SanmarLivePriceRow): number {
-  if (row.myPrice > 0) return row.myPrice;
   if (row.salePrice > 0) return row.salePrice;
+  if (row.myPrice > 0) return row.myPrice;
   if (row.piecePrice > 0) return row.piecePrice;
   if (row.casePrice > 0) return row.casePrice;
   return 0;
