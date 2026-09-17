@@ -824,7 +824,9 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
                     <tr className="text-xs text-navy/60">
                       <th className="text-left pr-3 pb-1">Size</th>
                       <th className="text-left pr-3 pb-1">Qty</th>
-                      <th className="text-left pr-3 pb-1">Garment</th>
+                      <th className="text-left pr-3 pb-1">Cost</th>
+                      <th className="text-left pr-3 pb-1">Markup</th>
+                      <th className="text-left pr-3 pb-1">Garment price</th>
                       <th className="text-left pr-3 pb-1">Decoration</th>
                       <th className="text-left pr-3 pb-1">Unit</th>
                       <th className="text-right pb-1">Total</th>
@@ -835,6 +837,14 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
                       <tr key={s.size} className="border-t border-navy/5">
                         <td className="pr-3 py-1">{s.size}</td>
                         <td className="pr-3 py-1">{s.quantity}</td>
+                        <td className="pr-3 py-1">
+                          ${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}
+                        </td>
+                        <td className="pr-3 py-1">
+                          {(s.garmentMarkupAmount ?? 0) > 0
+                            ? `+$${(s.garmentMarkupAmount ?? 0).toFixed(2)}`
+                            : "—"}
+                        </td>
                         <td className="pr-3 py-1">${s.garmentUnitPrice.toFixed(2)}</td>
                         <td className="pr-3 py-1">
                           {s.decorationUnitPrice > 0 ? `+$${s.decorationUnitPrice.toFixed(2)}` : "—"}
