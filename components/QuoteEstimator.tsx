@@ -226,18 +226,40 @@ export default function QuoteEstimator() {
             </p>
           ) : (
             <div className="mt-3 space-y-1.5 text-sm">
-              <div className="flex justify-between text-navy/70 gap-4">
-                <span>
-                  {decoration ? `Garment + ${decoration.shortLabel}` : "Garment"} (
-                  {formatUSD(
-                    (estimate.garmentTotal + estimate.decorationTotal) / totalQuantity
-                  )}
-                  /unit)
-                </span>
-                <span className="shrink-0">
-                  {formatUSD(estimate.garmentTotal + estimate.decorationTotal)}
-                </span>
-              </div>
+              {hasSizes ? (
+                (color?.sizes ?? [])
+                  .filter((size) => (sizeQuantities[size.name] || 0) > 0)
+                  .map((size) => {
+                    const sizeQuantity = sizeQuantities[size.name] || 0;
+                    const decoratedUnitPrice = size.price + estimate.decorationUnitPrice;
+                    return (
+                      <div
+                        key={size.name}
+                        className="flex justify-between text-navy/70 gap-4"
+                      >
+                        <span>
+                          {size.name} ({sizeQuantity} × {formatUSD(decoratedUnitPrice)}/unit)
+                        </span>
+                        <span className="shrink-0">
+                          {formatUSD(sizeQuantity * decoratedUnitPrice)}
+                        </span>
+                      </div>
+                    );
+                  })
+              ) : (
+                <div className="flex justify-between text-navy/70 gap-4">
+                  <span>
+                    {decoration ? `Garment + ${decoration.shortLabel}` : "Garment"} (
+                    {formatUSD(
+                      (estimate.garmentTotal + estimate.decorationTotal) / totalQuantity
+                    )}
+                    /unit)
+                  </span>
+                  <span className="shrink-0">
+                    {formatUSD(estimate.garmentTotal + estimate.decorationTotal)}
+                  </span>
+                </div>
+              )}
               {estimate.setupFee > 0 && (
                 <div className="flex justify-between text-navy/70">
                   <span>Setup fee</span>
