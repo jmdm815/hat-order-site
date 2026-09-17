@@ -48,7 +48,9 @@ export type QuoteInput = {
 export type QuoteSizeResult = {
   size: string;
   quantity: number;
-  garmentUnitPrice: number;
+  garmentCost: number; // raw vendor cost before the configured garment markup
+  garmentMarkupAmount: number;
+  garmentUnitPrice: number; // garment selling price after markup
   decorationUnitPrice: number;
   unitPrice: number; // garment + decoration
   lineTotal: number; // unitPrice * quantity
@@ -198,11 +200,14 @@ export function computeQuote(
       const sizeInfo = color.sizes?.find((sz) => sz.name === s.size);
       const garmentCost = sizeInfo?.price ?? product.basePrice;
       const garmentUnitPrice = money(applyGarmentMarkup(garmentCost, garmentMarkupBreakpoints));
+      const garmentMarkupAmount = money(garmentUnitPrice - garmentCost);
       const roundedDecorationUnitPrice = money(decorationUnitPrice);
       const unitPrice = money(garmentUnitPrice + roundedDecorationUnitPrice);
       return {
         size: s.size,
         quantity: s.quantity,
+        garmentCost: money(garmentCost),
+        garmentMarkupAmount,
         garmentUnitPrice,
         decorationUnitPrice: roundedDecorationUnitPrice,
         unitPrice,
