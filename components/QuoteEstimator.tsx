@@ -226,18 +226,18 @@ export default function QuoteEstimator() {
             </p>
           ) : (
             <div className="mt-3 space-y-1.5 text-sm">
-              <div className="flex justify-between text-navy/70">
-                <span>Garment ({totalQuantity} units)</span>
-                <span>{formatUSD(estimate.garmentTotal)}</span>
+              <div className="flex justify-between text-navy/70 gap-4">
+                <span>
+                  {decoration ? `Garment + ${decoration.shortLabel}` : "Garment"} (
+                  {formatUSD(
+                    (estimate.garmentTotal + estimate.decorationTotal) / totalQuantity
+                  )}
+                  /unit)
+                </span>
+                <span className="shrink-0">
+                  {formatUSD(estimate.garmentTotal + estimate.decorationTotal)}
+                </span>
               </div>
-              {decoration && (
-                <div className="flex justify-between text-navy/70">
-                  <span>
-                    {decoration.shortLabel} ({formatUSD(estimate.decorationUnitPrice)}/unit)
-                  </span>
-                  <span>{formatUSD(estimate.decorationTotal)}</span>
-                </div>
-              )}
               {estimate.setupFee > 0 && (
                 <div className="flex justify-between text-navy/70">
                   <span>Setup fee</span>
