@@ -9,6 +9,7 @@ import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManage
 import AdminQuotesTab from "@/components/AdminQuotesTab";
 import AdminSetupChargesManager from "@/components/AdminSetupChargesManager";
 import AdminGarmentMarkupManager from "@/components/AdminGarmentMarkupManager";
+import AdminCustomersManager from "@/components/AdminCustomersManager";
 
 const TABS = [
   { id: "categories", label: "Categories" },
@@ -16,6 +17,7 @@ const TABS = [
   { id: "pricing", label: "Pricing" },
   { id: "settings", label: "Settings" },
   { id: "quotes", label: "Quotes" },
+  { id: "customers", label: "Customers" },
   { id: "setup-charges", label: "Setup Charges" },
   { id: "garment-markup", label: "Garment Markup" },
   { id: "mockup-generator", label: "Mockup Generator" },
@@ -97,6 +99,16 @@ export default function AdminDashboard() {
               here touches the customer-facing catalog or cart.
             </p>
             <AdminQuotesTab />
+          </>
+        )}
+        {tab === "customers" && (
+          <>
+            <p className="mb-4 text-navy/60 text-sm">
+              A simple contact list — add a customer&apos;s name, company, email, phone, and notes
+              once, then look them up here later. Not tied to checkout accounts or any specific
+              order.
+            </p>
+            <AdminCustomersManager />
           </>
         )}
         {tab === "setup-charges" && (

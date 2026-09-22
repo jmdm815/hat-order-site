@@ -7,6 +7,7 @@ import { DecorationOption, SetupChargeType } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
 import { ManualQuoteProduct, ManualQuoteSizeRow } from "@/app/api/admin/quote/manual-product/route";
 import { ManualQuoteSearchResult } from "@/app/api/admin/quote/search-products/route";
+import { Customer } from "@/lib/types";
 
 type CatalogSource = "sanmar" | "custom" | "ss";
 const CATALOG_OPTIONS: { id: CatalogSource; label: string; disabled?: boolean }[] = [
@@ -72,6 +73,16 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
   const [quoteDate, setQuoteDate] = useState(() => initialRecord?.input.quoteDate ?? todayIso());
   const [notes, setNotes] = useState(() => initialRecord?.input.notes ?? "");
 
+  // Saved customer picker — loads the whole list once (see Customers tab)
+  // and filters client-side, since this is expected to stay a small
+  // address book, not a full CRM. Picking one just fills the three fields
+  // above; it doesn't link the quote to the customer record in any
+  // durable way (QuoteInput has no customerId), so editing/deleting a
+  // customer later never affects a quote already saved.
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerSuggestionsOpen, setCustomerSuggestionsOpen] = useState(false);
+
   // "Add a garment" — guided flow: decoration -> catalog -> product (live
   // search-as-you-type) -> color -> sizes -> locations, mirroring the shop's
   // other quoting tool. Decoration is picked first (as in that tool) since
@@ -121,7 +132,30 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
       .then((r) => r.json())
       .then((d: { setupCharges: SetupChargeType[] }) => setSetupCharges(d.setupCharges ?? []))
       .catch(() => setSetupCharges([]));
+    fetch("/api/admin/customers")
+      .then((r) => r.json())
+      .then((d: { customers: Customer[] }) => setCustomers(d.customers ?? []))
+      .catch(() => setCustomers([]));
   }, []);
+
+  const customerSuggestions =
+    customerQuery.trim().length < 1
+      ? []
+      : customers
+          .filter((c) =>
+            [c.name, c.company, c.email].some((f) =>
+              f?.toLowerCase().includes(customerQuery.trim().toLowerCase())
+            )
+          )
+          .slice(0, 8);
+
+  function selectCustomer(c: Customer) {
+    setCustomerName(c.name);
+    setCustomerCompany(c.company ?? "");
+    setCustomerEmail(c.email ?? "");
+    setCustomerQuery("");
+    setCustomerSuggestionsOpen(false);
+  }
 
   function startNewQuote() {
     setActiveRecord(null);
@@ -439,6 +473,44 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
       {/* Customer / quote header */}
       <section className="bg-white border border-navy/10 rounded-xl p-4">
         <h3 className="text-sm font-semibold text-navy mb-3">Quote details</h3>
+
+        {customers.length > 0 && (
+          <div className="relative max-w-sm mb-3">
+            <label className="text-xs text-navy/60">
+              Load a saved customer (optional)
+              <input
+                value={customerQuery}
+                onChange={(e) => {
+                  setCustomerQuery(e.target.value);
+                  setCustomerSuggestionsOpen(true);
+                }}
+                onFocus={() => setCustomerSuggestionsOpen(true)}
+                onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 150)}
+                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                placeholder="Search by name, company, or email…"
+              />
+            </label>
+            {customerSuggestionsOpen && customerSuggestions.length > 0 && (
+              <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-navy/20 rounded-lg shadow-lg text-sm">
+                {customerSuggestions.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onMouseDown={() => selectCustomer(c)}
+                      className="block w-full text-left px-3 py-2 hover:bg-navy/5"
+                    >
+                      <span className="font-medium text-navy">{c.name}</span>{" "}
+                      <span className="text-navy/40">
+                        {[c.company, c.email].filter(Boolean).join(" · ")}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <label className="text-xs text-navy/60">
             Customer name

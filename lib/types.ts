@@ -146,6 +146,22 @@ export type Category = {
   sortOrder: number;
 };
 
+// A manually-entered customer record (see lib/customers-store.ts) — not
+// tied to any order/checkout account system, just a name/contact-info card
+// an admin can look up and pick from when starting a quote in the Quote
+// Builder (components/AdminQuoteBuilder.tsx), instead of retyping the same
+// customer's info every time they come back for another order.
+export type Customer = {
+  id: string;
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type DecorationOption = {
   id: DecorationType;
   label: string;
