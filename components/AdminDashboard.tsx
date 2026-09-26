@@ -28,20 +28,26 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div className="flex gap-1 border-b border-navy/10">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
-              tab === t.id
-                ? "border-red text-navy"
-                : "border-transparent text-navy/50 hover:text-navy"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="relative -mx-4 sm:mx-0">
+        <div className="flex overflow-x-auto no-scrollbar border-b-2 border-navy/15 px-4 sm:px-0">
+          {TABS.map((t, i) => (
+            <div key={t.id} className="flex items-center shrink-0">
+              {i > 0 && <span className="h-4 w-px bg-navy/15 shrink-0" aria-hidden />}
+              <button
+                onClick={() => setTab(t.id)}
+                className={`shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-[3px] -mb-0.5 transition ${
+                  tab === t.id
+                    ? "border-red text-navy bg-navy/[0.04] rounded-t-lg"
+                    : "border-transparent text-navy/50 hover:text-navy hover:bg-navy/[0.02] rounded-t-lg"
+                }`}
+              >
+                {t.label}
+              </button>
+            </div>
+          ))}
+        </div>
+        {/* fade hint that there's more tabs to scroll to on mobile */}
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0.5 w-8 bg-gradient-to-l from-cream to-transparent sm:hidden" />
       </div>
 
       <div className="mt-6">
