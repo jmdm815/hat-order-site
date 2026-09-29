@@ -13,6 +13,7 @@ export default function AdminCustomersManager() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -46,6 +47,14 @@ export default function AdminCustomersManager() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setError(null);
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setError(null);
   }
 
   function startEdit(c: Customer) {
@@ -58,6 +67,7 @@ export default function AdminCustomersManager() {
       notes: c.notes ?? "",
     });
     setError(null);
+    setShowForm(true);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -83,7 +93,7 @@ export default function AdminCustomersManager() {
       } else {
         setCustomers((prev) => [...prev, data.customer]);
       }
-      startAdd();
+      closeForm();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -98,7 +108,7 @@ export default function AdminCustomersManager() {
     const res = await fetch(`/api/admin/customers/${id}`, { method: "DELETE" });
     if (res.ok) {
       setCustomers((prev) => prev.filter((c) => c.id !== id));
-      if (editingId === id) startAdd();
+      if (editingId === id) closeForm();
     }
   }
 
@@ -113,87 +123,104 @@ export default function AdminCustomersManager() {
         </p>
       )}
 
-      <section className="bg-white border border-navy/10 rounded-xl p-4 max-w-2xl">
-        <h3 className="text-sm font-semibold text-navy mb-3">
-          {editingId ? "Edit customer" : "Add a customer"}
+      {/* Header bar: count + search + the "+" button that reveals the form, instead of the form always being open */}
+      <div className="flex flex-wrap items-center gap-3 justify-between">
+        <h3 className="text-sm font-semibold text-navy">
+          Customers <span className="text-navy/40 font-normal">({customers.length})</span>
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="text-xs text-navy/60">
-            Name *
-            <input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
-              placeholder="Jane Smith"
-            />
-          </label>
-          <label className="text-xs text-navy/60">
-            Company (optional)
-            <input
-              value={form.company}
-              onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
-            />
-          </label>
-          <label className="text-xs text-navy/60">
-            Email (optional)
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
-            />
-          </label>
-          <label className="text-xs text-navy/60">
-            Phone (optional)
-            <input
-              value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
-            />
-          </label>
-        </div>
-        <label className="block text-xs text-navy/60 mt-3">
-          Notes (optional)
-          <textarea
-            value={form.notes}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
-            rows={2}
+        <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-xl ml-auto">
+          <input
+            type="text"
+            placeholder="Search customers by name, company, email, or phone…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 border border-navy/20 rounded-lg px-3 py-2 text-sm"
           />
-        </label>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-        <div className="mt-3 flex gap-2">
           <button
-            onClick={handleSave}
-            disabled={saving || !form.name.trim()}
-            className="px-4 py-1.5 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+            onClick={() => (showForm && !editingId ? closeForm() : startAdd())}
+            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-red text-white text-lg font-semibold leading-none hover:bg-navy transition"
+            title="Add a customer"
+            aria-label="Add a customer"
           >
-            {saving ? "Saving…" : editingId ? "Save changes" : "+ Add customer"}
+            +
           </button>
-          {editingId && (
+        </div>
+      </div>
+
+      {showForm && (
+        <section className="mt-4 bg-white border border-navy/10 rounded-xl p-4 max-w-2xl">
+          <h3 className="text-sm font-semibold text-navy mb-3">
+            {editingId ? "Edit customer" : "Add a customer"}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="text-xs text-navy/60">
+              Name *
+              <input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                placeholder="Jane Smith"
+                autoFocus
+              />
+            </label>
+            <label className="text-xs text-navy/60">
+              Company (optional)
+              <input
+                value={form.company}
+                onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="text-xs text-navy/60">
+              Email (optional)
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="text-xs text-navy/60">
+              Phone (optional)
+              <input
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              />
+            </label>
+          </div>
+          <label className="block text-xs text-navy/60 mt-3">
+            Notes (optional)
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              rows={2}
+            />
+          </label>
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          <div className="mt-3 flex gap-2">
             <button
-              onClick={startAdd}
+              onClick={handleSave}
+              disabled={saving || !form.name.trim()}
+              className="px-4 py-1.5 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+            >
+              {saving ? "Saving…" : editingId ? "Save changes" : "+ Add customer"}
+            </button>
+            <button
+              onClick={closeForm}
               className="px-4 py-1.5 rounded-full border border-navy/20 text-sm text-navy/70 hover:bg-navy/5"
             >
               Cancel
             </button>
-          )}
-        </div>
-      </section>
-
-      <div className="mt-6 max-w-2xl">
-        <input
-          type="text"
-          placeholder="Search customers by name, company, email, or phone…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full border border-navy/20 rounded-lg px-3 py-2 text-sm"
-        />
-      </div>
+          </div>
+        </section>
+      )}
 
       {customers.length === 0 ? (
-        <p className="mt-4 text-sm text-navy/50">No customers yet — add one above.</p>
+        <p className="mt-4 text-sm text-navy/50">
+          No customers yet — tap <span className="font-semibold text-navy">+</span> above to add one.
+        </p>
       ) : filtered.length === 0 ? (
         <p className="mt-4 text-sm text-navy/50">No customers match &quot;{search}&quot;.</p>
       ) : (
