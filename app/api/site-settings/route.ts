@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_LOGO_URL, getBrandSettings } from "@/lib/pricing-store";
+import { getBrandSettings, publicLogoUrl } from "@/lib/pricing-store";
 
 // Public (no admin auth) — the customer-facing site needs to know which logo
 // to display (StepHeader.tsx, the homepage hero) without exposing anything
@@ -7,5 +7,5 @@ import { DEFAULT_LOGO_URL, getBrandSettings } from "@/lib/pricing-store";
 // uploaded via the admin Settings tab.
 export async function GET() {
   const brand = await getBrandSettings();
-  return NextResponse.json({ logoUrl: brand.logoUrl ?? DEFAULT_LOGO_URL });
+  return NextResponse.json({ logoUrl: publicLogoUrl(brand) });
 }

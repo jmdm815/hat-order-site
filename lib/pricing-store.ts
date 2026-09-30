@@ -126,12 +126,26 @@ export async function setDesignerSettings(
 // ---------------------------------------------------------------------------
 
 export type BrandSettings = {
+  // The actual (private) Vercel Blob URL — never expose this to the browser
+  // directly (see publicLogoUrl() below); it requires the Blob read/write
+  // token to fetch, same as every other blob this project stores.
   logoUrl?: string;
 };
 
 const DEFAULT_BRAND_SETTINGS: BrandSettings = {};
 
 export const DEFAULT_LOGO_URL = "/brand/jm-logo.png";
+
+// The stable, publicly-fetchable URL the customer site and admin preview
+// should actually use in an <img src>. This project's Blob store is
+// configured for private access (same as every other blob it writes —
+// customers.json, designer-settings.json, etc.), so a browser can't load
+// brand.logoUrl directly; /api/logo (see that route) fetches it server-side
+// with the Blob token and streams the bytes back. No uploaded logo yet (or
+// reverted to default) just serves the bundled static file directly.
+export function publicLogoUrl(brand: BrandSettings): string {
+  return brand.logoUrl ? "/api/logo" : DEFAULT_LOGO_URL;
+}
 
 const BRAND_SETTINGS_PATHNAME = "brand-settings.json";
 

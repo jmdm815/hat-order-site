@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import {
-  DEFAULT_LOGO_URL,
   getBrandSettings,
   isPersistent,
+  publicLogoUrl,
   setBrandSettings,
 } from "@/lib/pricing-store";
 
@@ -27,7 +27,7 @@ export async function GET() {
   }
   const brand = await getBrandSettings();
   return NextResponse.json({
-    logoUrl: brand.logoUrl ?? DEFAULT_LOGO_URL,
+    logoUrl: publicLogoUrl(brand),
     isCustom: Boolean(brand.logoUrl),
     persistent: isPersistent(),
   });
@@ -69,12 +69,12 @@ export async function POST(req: NextRequest) {
     // addRandomSuffix so each new upload gets a fresh URL — avoids stale
     // browser/CDN caching serving the old logo after a replace.
     const blob = await put(`brand/logo.${ext}`, file, {
-      access: "public",
+      access: "private",
       addRandomSuffix: true,
       contentType: file.type,
     });
     const { persisted } = await setBrandSettings({ logoUrl: blob.url });
-    return NextResponse.json({ ok: true, logoUrl: blob.url, persisted });
+    return NextResponse.json({ ok: true, logoUrl: publicLogoUrl({ logoUrl: blob.url }), persisted });
   } catch (err) {
     console.error("POST /api/admin/logo failed", err);
     return NextResponse.json({ error: "Failed to upload logo" }, { status: 500 });
@@ -86,5 +86,5 @@ export async function DELETE() {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 });
   }
   const { persisted } = await setBrandSettings({});
-  return NextResponse.json({ ok: true, logoUrl: DEFAULT_LOGO_URL, persisted });
+  return NextResponse.json({ ok: true, logoUrl: publicLogoUrl({}), persisted });
 }

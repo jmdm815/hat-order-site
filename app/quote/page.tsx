@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import StepHeader from "@/components/StepHeader";
 import QuoteEstimator from "@/components/QuoteEstimator";
-import { DEFAULT_LOGO_URL, getBrandSettings } from "@/lib/pricing-store";
+import { getBrandSettings, publicLogoUrl } from "@/lib/pricing-store";
 
 export default async function QuotePage() {
   const brand = await getBrandSettings();
   return (
     <>
-      <StepHeader logoUrl={brand.logoUrl ?? DEFAULT_LOGO_URL} />
+      <StepHeader logoUrl={publicLogoUrl(brand)} />
       <main className="flex-1 max-w-5xl mx-auto px-4 py-10 w-full">
         <h1 className="text-2xl font-bold text-navy">Get a quote</h1>
         <p className="mt-1 text-navy/60 text-sm">

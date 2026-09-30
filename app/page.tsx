@@ -2,11 +2,11 @@ import Link from "next/link";
 import StepHeader from "@/components/StepHeader";
 import CuratedProductCard from "@/components/CuratedProductCard";
 import { getCuratedCatalog } from "@/lib/curated-catalog";
-import { DEFAULT_LOGO_URL, getBrandSettings } from "@/lib/pricing-store";
+import { getBrandSettings, publicLogoUrl } from "@/lib/pricing-store";
 
 export default async function HomePage() {
   const [categories, brand] = await Promise.all([getCuratedCatalog(), getBrandSettings()]);
-  const logoUrl = brand.logoUrl ?? DEFAULT_LOGO_URL;
+  const logoUrl = publicLogoUrl(brand);
 
   return (
     <>
