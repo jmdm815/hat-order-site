@@ -25,7 +25,7 @@ export default async function HomePage() {
             height={72}
             className="mx-auto mb-4 object-contain"
           />
-          <h1 className="font-heading text-3xl sm:text-4xl font-bold uppercase tracking-tight">
+          <h1 className="font-heading text-3xl sm:text-4xl font-extrabold uppercase">
             Look the Part. <span className="text-red">Mean Business.</span>
           </h1>
           <p className="mt-3 text-tan text-base max-w-xl mx-auto">
@@ -34,7 +34,7 @@ export default async function HomePage() {
           </p>
           <Link
             href="/quote-builder"
-            className="mt-5 inline-block px-6 py-2.5 rounded-full border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition"
+            className="mt-5 inline-block px-6 py-2.5 rounded-none border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition"
           >
             Or build a quote by decoration type →
           </Link>

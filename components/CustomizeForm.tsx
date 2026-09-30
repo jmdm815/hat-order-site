@@ -157,7 +157,7 @@ export default function CustomizeForm() {
         </p>
         <button
           onClick={() => router.push("/catalog")}
-          className="mt-4 px-5 py-2.5 rounded-md border-2 border-navy text-navy font-heading font-semibold hover:bg-navy hover:text-white transition"
+          className="mt-4 px-5 py-2.5 rounded-none border-2 border-navy text-navy font-heading font-semibold hover:bg-navy hover:text-white transition"
         >
           ← Back to catalog
         </button>
@@ -307,7 +307,7 @@ export default function CustomizeForm() {
       <div>
         <div
           ref={canvasRef}
-          className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white border border-navy/10 p-8"
+          className="relative w-full aspect-square rounded-none overflow-hidden bg-white border border-navy/10 p-8"
         >
           <Image
             src={
@@ -323,7 +323,7 @@ export default function CustomizeForm() {
           />
           {liveDesignerEnabled && selectedZone && (
             <div
-              className="absolute rounded-sm border border-[#22c55e]/55 pointer-events-none"
+              className="absolute rounded-none border border-[#22c55e]/55 pointer-events-none"
               style={{
                 left: `${selectedZone.x}%`,
                 top: `${selectedZone.y}%`,
@@ -408,7 +408,7 @@ export default function CustomizeForm() {
               <button
                 key={d.id}
                 onClick={() => setDecorationId(d.id)}
-                className={`relative overflow-hidden text-left p-4 pt-5 rounded-xl border transition ${
+                className={`relative overflow-hidden text-left p-4 pt-5 rounded-none border transition ${
                   decorationId === d.id
                     ? "border-red ring-1 ring-red bg-white"
                     : "border-navy/15 bg-white hover:border-navy/30 hover:bg-gray"
@@ -431,7 +431,7 @@ export default function CustomizeForm() {
             ))}
           </div>
           {decoration.quoteRequired && (
-            <p className="mt-3 text-sm text-navy/60 bg-gray border border-navy/10 rounded-lg px-3 py-2">
+            <p className="mt-3 text-sm text-navy/60 bg-gray border border-navy/10 rounded-none px-3 py-2">
               Pricing for {decoration.shortLabel} depends on your design, so there&apos;s no
               automatic price shown below. Add your details and quantity and we&apos;ll follow
               up with a quote before production.
@@ -441,7 +441,7 @@ export default function CustomizeForm() {
             <div className="mt-3">
               <div className="text-sm text-navy/70">Stitch count / pricing tier</div>
               {isUnknownStitchCount ? (
-                <p className="mt-2 text-sm text-navy/60 bg-gray border border-navy/10 rounded-lg px-3 py-2">
+                <p className="mt-2 text-sm text-navy/60 bg-gray border border-navy/10 rounded-none px-3 py-2">
                   No problem — we&apos;ll follow up with an accurate quote once we&apos;ve seen
                   your design&apos;s stitch count.
                 </p>
@@ -521,7 +521,7 @@ export default function CustomizeForm() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Notes for our design team (colors, sizing, placement details)…"
-            className="mt-3 w-full bg-white border border-navy/30 rounded-lg p-3 text-sm resize-none h-20 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+            className="mt-3 w-full bg-white border border-navy/30 rounded-none p-3 text-sm resize-none h-20 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
           />
           <label className="mt-3 flex items-center gap-2 text-sm text-navy/70">
             <input
@@ -543,7 +543,7 @@ export default function CustomizeForm() {
               min={1}
               value={quantity}
               onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-              className="w-28 bg-white border border-navy/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+              className="w-28 bg-white border border-navy/30 rounded-none px-3 py-2 text-sm focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
             />
             <span className="text-sm text-navy/60">
               units · minimum {decoration.minQuantity} for {decoration.shortLabel}
@@ -573,7 +573,7 @@ export default function CustomizeForm() {
         </section>
 
         {/* Price summary */}
-        <section className="border border-navy/10 rounded-xl bg-white p-5">
+        <section className="border border-navy/10 rounded-none bg-white p-5">
           <div className="flex justify-between text-sm text-navy/70">
             <span>{product.productName} ({product.styleNumber}) × {quantity}</span>
             <span className="text-black">{formatUSD(product.basePrice * quantity)}</span>
@@ -605,7 +605,7 @@ export default function CustomizeForm() {
           <button
             onClick={handleAddToCart}
             disabled={belowMinimum}
-            className="mt-4 w-full py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
+            className="mt-4 w-full py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
           >
             Add to Cart →
           </button>

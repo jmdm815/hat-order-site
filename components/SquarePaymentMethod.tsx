@@ -123,7 +123,7 @@ export default function SquarePaymentMethod({ method, amount, onTokenized, disab
       <button
         onClick={handleRealSubmit}
         disabled={!ready || disabled}
-        className="mt-4 w-full py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
+        className="mt-4 w-full py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
       >
         {method === "card" ? "Pay with Card" : "Pay with Afterpay"}
       </button>
@@ -143,7 +143,7 @@ function DemoPaymentForm({
   const [card, setCard] = useState("4111 1111 1111 1111");
   return (
     <div>
-      <div className="text-xs font-medium text-navy bg-tan/30 border border-tan rounded-lg px-3 py-2">
+      <div className="text-xs font-medium text-navy bg-tan/30 border border-tan rounded-none px-3 py-2">
         Demo mode — Square keys aren&apos;t configured yet, so this simulates a{" "}
         {method === "card" ? "card" : "Afterpay"} charge instead of processing a real one. Add
         NEXT_PUBLIC_SQUARE_APP_ID / SQUARE_ACCESS_TOKEN to go live.
@@ -152,14 +152,14 @@ function DemoPaymentForm({
         <input
           value={card}
           onChange={(e) => setCard(e.target.value)}
-          className="mt-3 w-full bg-white border border-navy/30 rounded-lg px-3 py-2 text-sm font-mono outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+          className="mt-3 w-full bg-white border border-navy/30 rounded-none px-3 py-2 text-sm font-mono outline-none focus:border-red focus:ring-2 focus:ring-red/20"
           placeholder="Card number"
         />
       )}
       <button
         onClick={() => onSubmit(`demo-${method}-source`)}
         disabled={disabled}
-        className="mt-4 w-full py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
+        className="mt-4 w-full py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
       >
         {method === "card" ? "Pay with Card (Demo)" : "Pay with Afterpay (Demo)"}
       </button>

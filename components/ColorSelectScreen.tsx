@@ -55,7 +55,7 @@ export default function ColorSelectScreen({
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-8">
         {/* Preview */}
         <div>
-          <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white border border-navy/10 p-8">
+          <div className="relative w-full aspect-square rounded-none overflow-hidden bg-white border border-navy/10 p-8">
             {selectedColor && renderPreview(selectedColor)}
           </div>
           <div className="mt-3">
@@ -84,7 +84,7 @@ export default function ColorSelectScreen({
                 key={c.colorName}
                 type="button"
                 onClick={() => onSelectColor(c.colorName)}
-                className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition ${
+                className={`flex items-center gap-2.5 p-2.5 rounded-none border text-left transition ${
                   colorName === c.colorName
                     ? "border-red ring-1 ring-red bg-white"
                     : "border-navy/10 bg-white hover:border-navy/30"
@@ -101,7 +101,7 @@ export default function ColorSelectScreen({
 
           <button
             onClick={onContinue}
-            className="mt-6 w-full sm:w-auto px-8 py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition"
+            className="mt-6 w-full sm:w-auto px-8 py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition"
           >
             Design Now →
           </button>

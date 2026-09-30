@@ -13,7 +13,7 @@ import { productPreviewImageUrl } from "@/lib/product-image";
 export default function CuratedProductCard({ product }: { product: CuratedProduct }) {
   const query = `?style=${encodeURIComponent(product.styleNumber)}&type=${product.productType}`;
   return (
-    <div className="group border-2 border-navy/10 rounded-2xl bg-white overflow-hidden hover:border-red hover:shadow-md transition flex flex-col">
+    <div className="group border-2 border-navy/10 rounded-none bg-white overflow-hidden hover:border-red hover:shadow-md transition flex flex-col">
       <div className="relative w-full aspect-square bg-gray p-6">
         <Image
           src={
@@ -40,7 +40,7 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
           {product.designEnabled && (
             <Link
               href={`/customize${query}`}
-              className="flex-1 text-center px-3 py-2 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition"
+              className="flex-1 text-center px-3 py-2 rounded-none bg-red text-white text-sm font-semibold hover:bg-navy transition"
             >
               Design Now
             </Link>
@@ -48,7 +48,7 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
           {product.quoteEnabled && (
             <Link
               href={`/quote${query}`}
-              className={`flex-1 text-center px-3 py-2 rounded-full text-sm font-semibold border transition ${
+              className={`flex-1 text-center px-3 py-2 rounded-none text-sm font-semibold border transition ${
                 product.designEnabled
                   ? "border-navy/20 text-navy hover:bg-navy/5"
                   : "bg-navy text-white hover:bg-navy/90"

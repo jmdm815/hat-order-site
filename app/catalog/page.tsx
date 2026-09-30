@@ -110,7 +110,7 @@ export default function CatalogPage() {
               <Link
                 key={product.styleNumber}
                 href={`/customize?style=${product.styleNumber}&type=${product.productType}`}
-                className="group border-2 border-navy/10 rounded-2xl bg-white overflow-hidden hover:border-red hover:shadow-md hover:-translate-y-0.5 transition"
+                className="group border-2 border-navy/10 rounded-none bg-white overflow-hidden hover:border-red hover:shadow-md hover:-translate-y-0.5 transition"
               >
                 <div className="relative w-full aspect-square bg-gray p-6">
                   <Image

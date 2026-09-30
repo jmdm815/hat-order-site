@@ -57,7 +57,7 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo can be an
               admin-uploaded Vercel Blob URL (see AdminLogoManager.tsx), so next/image's
               remotePatterns allowlist doesn't apply; this is a small fixed-size icon. */}
-          <img src={logoUrl} alt="JM Digital Media" width={40} height={40} className="rounded-md w-10 h-10 object-contain" />
+          <img src={logoUrl} alt="JM Digital Media" width={40} height={40} className="rounded-none w-10 h-10 object-contain" />
           <span className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-tan uppercase">
             Custom Tees and Hats
           </span>

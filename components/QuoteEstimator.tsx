@@ -91,7 +91,7 @@ export default function QuoteEstimator() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-8">
       <div>
-        <div className="relative w-full aspect-square bg-gray rounded-2xl p-6">
+        <div className="relative w-full aspect-square bg-gray rounded-none p-6">
           <Image
             src={
               product.heroImageIsOverride
@@ -161,7 +161,7 @@ export default function QuoteEstimator() {
                   <select
                     value={columnId}
                     onChange={(e) => setColumnId(e.target.value)}
-                    className="border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                    className="border border-navy/20 rounded-none px-2 py-1.5 text-sm"
                   >
                     {decoration.priceColumns.map((col) => (
                       <option key={col.id} value={col.id}>
@@ -191,7 +191,7 @@ export default function QuoteEstimator() {
                           [s.name]: Math.max(0, Number(e.target.value) || 0),
                         }))
                       }
-                      className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                      className="mt-1 w-full border border-navy/20 rounded-none px-2 py-1.5 text-sm"
                       placeholder="0"
                     />
                   </label>
@@ -206,13 +206,13 @@ export default function QuoteEstimator() {
                 min={1}
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-                className="mt-2 w-32 border border-navy/20 rounded-lg px-3 py-2 text-sm"
+                className="mt-2 w-32 border border-navy/20 rounded-none px-3 py-2 text-sm"
               />
             </div>
           )}
         </div>
 
-        <div className="mt-8 border border-navy/10 rounded-2xl p-5 bg-white max-w-sm">
+        <div className="mt-8 border border-navy/10 rounded-none p-5 bg-white max-w-sm">
           <h3 className="font-heading font-semibold uppercase text-navy tracking-wide text-sm">
             Estimated price
           </h3>
@@ -277,7 +277,7 @@ export default function QuoteEstimator() {
           </p>
           <Link
             href={`/customize?style=${encodeURIComponent(product.styleNumber)}&type=${product.productType}`}
-            className="mt-4 block text-center px-4 py-2.5 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition"
+            className="mt-4 block text-center px-4 py-2.5 rounded-none bg-red text-white text-sm font-semibold hover:bg-navy transition"
           >
             Ready to order? Design Now →
           </Link>

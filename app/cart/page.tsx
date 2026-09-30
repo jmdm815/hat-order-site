@@ -33,11 +33,11 @@ export default function CartPage() {
         <h1 className="text-2xl font-bold text-navy">Review your order</h1>
 
         {cart.length === 0 ? (
-          <div className="mt-10 text-center border border-dashed border-navy/20 rounded-2xl py-16">
+          <div className="mt-10 text-center border border-dashed border-navy/20 rounded-none py-16">
             <p className="text-navy/60">Your cart is empty.</p>
             <Link
               href="/catalog"
-              className="mt-4 inline-block px-6 py-2.5 rounded-full bg-navy text-white font-medium"
+              className="mt-4 inline-block px-6 py-2.5 rounded-none bg-navy text-white font-medium"
             >
               Browse the catalog
             </Link>
@@ -51,7 +51,7 @@ export default function CartPage() {
 
                 if (isShirtLine) {
                   return (
-                    <div key={line.id} className="border border-navy/10 rounded-xl bg-white p-4">
+                    <div key={line.id} className="border border-navy/10 rounded-none bg-white p-4">
                       <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                         <div className="flex-1">
                           <div className="font-semibold text-navy">
@@ -108,7 +108,7 @@ export default function CartPage() {
                 return (
                   <div
                     key={line.id}
-                    className="border border-navy/10 rounded-xl bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-4"
+                    className="border border-navy/10 rounded-none bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-4"
                   >
                     <div className="flex-1">
                       <div className="font-semibold text-navy">
@@ -139,7 +139,7 @@ export default function CartPage() {
                               Math.max(1, Number(e.target.value) || 1)
                             )
                           }
-                          className="w-20 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                          className="w-20 border border-navy/20 rounded-none px-2 py-1 text-sm"
                         />
                       </div>
                     </div>
@@ -166,7 +166,7 @@ export default function CartPage() {
               + Add another item
             </Link>
 
-            <div className="mt-8 rounded-xl bg-gray overflow-hidden border border-navy/10">
+            <div className="mt-8 rounded-none bg-gray overflow-hidden border border-navy/10">
               <div className="bg-navy text-white px-5 py-2.5 text-sm font-semibold">
                 Order Summary
               </div>
@@ -186,7 +186,7 @@ export default function CartPage() {
 
                 <button
                   onClick={() => router.push("/checkout")}
-                  className="mt-5 w-full py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition"
+                  className="mt-5 w-full py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition"
                 >
                   Continue to Checkout →
                 </button>

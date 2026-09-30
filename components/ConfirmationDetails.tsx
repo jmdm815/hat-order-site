@@ -98,7 +98,7 @@ export default function ConfirmationDetails() {
 
   return (
     <div className="mt-6">
-      <div className="rounded-2xl bg-gray overflow-hidden border border-navy/10">
+      <div className="rounded-none bg-gray overflow-hidden border border-navy/10">
         <div className="bg-navy text-white px-6 sm:px-8 py-3 flex items-center gap-2">
           <span className="text-2xl leading-none">🎉</span>
           <span className="font-heading font-semibold">{copy.title}</span>
@@ -122,7 +122,7 @@ export default function ConfirmationDetails() {
           </div>
 
           {order.status === "awaiting_zelle_confirmation" && (
-            <div className="mt-5 p-4 rounded-lg bg-tan/30 border border-tan text-sm text-navy">
+            <div className="mt-5 p-4 rounded-none bg-tan/30 border border-tan text-sm text-navy">
               <div className="font-semibold">Zelle payment instructions</div>
               <p className="mt-1">
                 Send {formatUSD(order.total)} to <strong>payments@yourhatshop.com</strong> via
@@ -140,7 +140,7 @@ export default function ConfirmationDetails() {
 
       <Link
         href="/catalog"
-        className="mt-6 inline-block px-6 py-2.5 rounded-md border border-navy text-navy font-medium hover:bg-navy hover:text-white transition"
+        className="mt-6 inline-block px-6 py-2.5 rounded-none border border-navy text-navy font-medium hover:bg-navy hover:text-white transition"
       >
         Start another order
       </Link>

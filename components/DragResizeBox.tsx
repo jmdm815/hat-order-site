@@ -197,7 +197,7 @@ export default function DragResizeBox({
           onPointerDown={(e) => handlePointerDown(e, "resize")}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          className="absolute -right-1.5 -bottom-1.5 w-3.5 h-3.5 rounded-sm bg-red border border-white cursor-nwse-resize touch-none"
+          className="absolute -right-1.5 -bottom-1.5 w-3.5 h-3.5 rounded-none bg-red border border-white cursor-nwse-resize touch-none"
         />
       )}
       {selected !== false && onRotate && (

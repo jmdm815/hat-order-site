@@ -96,7 +96,7 @@ export default function CheckoutForm() {
     <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8">
       <div className="space-y-8">
         {/* Customer info */}
-        <section className="border border-navy/10 rounded-xl bg-white p-5">
+        <section className="border border-navy/10 rounded-none bg-white p-5">
           <h2 className="font-semibold text-navy">Contact & shipping</h2>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Full name" value={form.name} onChange={(v) => updateField("name", v)} />
@@ -124,14 +124,14 @@ export default function CheckoutForm() {
         </section>
 
         {/* Payment method */}
-        <section className="border border-navy/10 rounded-xl bg-white p-5">
+        <section className="border border-navy/10 rounded-none bg-white p-5">
           <h2 className="font-semibold text-navy">Payment method</h2>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {PAYMENT_METHODS.map((m) => (
               <button
                 key={m.id}
                 onClick={() => setMethod(m.id)}
-                className={`text-left p-3 rounded-lg border transition ${
+                className={`text-left p-3 rounded-none border transition ${
                   method === m.id
                     ? "border-navy ring-1 ring-navy"
                     : "border-navy/10 hover:border-navy/40"
@@ -147,7 +147,7 @@ export default function CheckoutForm() {
             <button
               disabled={!infoComplete}
               onClick={() => setInfoConfirmed(true)}
-              className="mt-5 w-full py-3 rounded-md bg-navy text-white font-heading font-semibold hover:bg-navy/90 transition disabled:bg-navy/20 disabled:cursor-not-allowed"
+              className="mt-5 w-full py-3 rounded-none bg-navy text-white font-heading font-semibold hover:bg-navy/90 transition disabled:bg-navy/20 disabled:cursor-not-allowed"
             >
               Continue to Payment →
             </button>
@@ -171,7 +171,7 @@ export default function CheckoutForm() {
               )}
               {(method === "klarna" || method === "affirm") && (
                 <div>
-                  <div className="text-xs font-medium text-navy bg-tan/30 border border-tan rounded-lg px-3 py-2">
+                  <div className="text-xs font-medium text-navy bg-tan/30 border border-tan rounded-none px-3 py-2">
                     {method === "klarna" ? "Klarna" : "Affirm"} isn&apos;t wired to live credentials
                     in this prototype — clicking below simulates their hosted-checkout redirect and
                     approval so you can see the full flow. Real financing requires a{" "}
@@ -180,7 +180,7 @@ export default function CheckoutForm() {
                   <button
                     onClick={() => submitOrder()}
                     disabled={submitting}
-                    className="mt-4 w-full py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
+                    className="mt-4 w-full py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
                   >
                     {submitting
                       ? "Processing…"
@@ -190,7 +190,7 @@ export default function CheckoutForm() {
               )}
               {method === "zelle" && (
                 <div>
-                  <div className="text-xs font-medium text-navy bg-gray border border-navy/20 rounded-lg px-3 py-2">
+                  <div className="text-xs font-medium text-navy bg-gray border border-navy/20 rounded-none px-3 py-2">
                     Zelle can&apos;t be charged automatically from any website — it&apos;s
                     bank-to-bank only. Placing this order reserves it; you&apos;ll get Zelle
                     payment instructions on the confirmation page and we confirm manually once
@@ -199,7 +199,7 @@ export default function CheckoutForm() {
                   <button
                     onClick={() => submitOrder()}
                     disabled={submitting}
-                    className="mt-4 w-full py-3 rounded-md bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
+                    className="mt-4 w-full py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
                   >
                     {submitting ? "Placing order…" : "Place Order — Pay via Zelle"}
                   </button>
@@ -212,7 +212,7 @@ export default function CheckoutForm() {
       </div>
 
       {/* Order summary */}
-      <aside className="rounded-xl bg-gray overflow-hidden border border-navy/10 h-fit sticky top-24">
+      <aside className="rounded-none bg-gray overflow-hidden border border-navy/10 h-fit sticky top-24">
         <div className="bg-navy text-white px-5 py-2.5 text-sm font-semibold">Order summary</div>
         <div className="p-5">
           <div className="space-y-2 text-sm text-black/80">
@@ -256,7 +256,7 @@ function Field({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full bg-white border border-navy/30 rounded-lg px-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+        className="mt-1 w-full bg-white border border-navy/30 rounded-none px-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
       />
     </label>
   );

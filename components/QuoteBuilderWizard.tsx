@@ -189,7 +189,7 @@ export default function QuoteBuilderWizard() {
                 <button
                   key={d.id}
                   onClick={() => chooseDecoration(d.id)}
-                  className="text-left border-2 border-navy/10 rounded-2xl p-5 bg-white hover:border-red hover:shadow-md transition"
+                  className="text-left border-2 border-navy/10 rounded-none p-5 bg-white hover:border-red hover:shadow-md transition"
                 >
                   <div className="font-heading font-semibold uppercase text-navy tracking-wide">
                     {d.shortLabel}
@@ -220,13 +220,13 @@ export default function QuoteBuilderWizard() {
               placeholder="Search brand, name, or style #…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border border-navy/20 rounded-lg px-3 py-2 text-sm w-64"
+              className="border border-navy/20 rounded-none px-3 py-2 text-sm w-64"
             />
             {availableProductTypes.length > 1 && (
               <div className="flex gap-1">
                 <button
                   onClick={() => setProductTypeFilter("all")}
-                  className={`px-3 py-2 text-sm rounded-lg border ${
+                  className={`px-3 py-2 text-sm rounded-none border ${
                     productTypeFilter === "all"
                       ? "bg-navy text-white border-navy"
                       : "border-navy/20 text-navy/70 hover:bg-navy/5"
@@ -238,7 +238,7 @@ export default function QuoteBuilderWizard() {
                   <button
                     key={t}
                     onClick={() => setProductTypeFilter(t)}
-                    className={`px-3 py-2 text-sm rounded-lg border ${
+                    className={`px-3 py-2 text-sm rounded-none border ${
                       productTypeFilter === t
                         ? "bg-navy text-white border-navy"
                         : "border-navy/20 text-navy/70 hover:bg-navy/5"
@@ -262,7 +262,7 @@ export default function QuoteBuilderWizard() {
                 <button
                   key={g.styleNumber}
                   onClick={() => chooseGarment(g.styleNumber)}
-                  className="text-left border-2 border-navy/10 rounded-2xl bg-white overflow-hidden hover:border-red hover:shadow-md transition"
+                  className="text-left border-2 border-navy/10 rounded-none bg-white overflow-hidden hover:border-red hover:shadow-md transition"
                 >
                   <div className="relative w-full aspect-square bg-gray p-4">
                     <Image
@@ -303,10 +303,10 @@ export default function QuoteBuilderWizard() {
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-8">
           <div>
             {productLoading || !product ? (
-              <div className="w-full aspect-square bg-gray rounded-2xl animate-pulse" />
+              <div className="w-full aspect-square bg-gray rounded-none animate-pulse" />
             ) : (
               <>
-                <div className="relative w-full aspect-square bg-gray rounded-2xl p-6">
+                <div className="relative w-full aspect-square bg-gray rounded-none p-6">
                   <Image
                     src={
                       product.heroImageIsOverride
@@ -379,7 +379,7 @@ export default function QuoteBuilderWizard() {
                                   [s.name]: Math.max(0, Number(e.target.value) || 0),
                                 }))
                               }
-                              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                              className="mt-1 w-full border border-navy/20 rounded-none px-2 py-1.5 text-sm"
                               placeholder="0"
                             />
                           </label>
@@ -394,7 +394,7 @@ export default function QuoteBuilderWizard() {
                         min={1}
                         value={quantity}
                         onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-                        className="mt-2 w-32 border border-navy/20 rounded-lg px-3 py-2 text-sm"
+                        className="mt-2 w-32 border border-navy/20 rounded-none px-3 py-2 text-sm"
                       />
                     </div>
                   )}
@@ -447,7 +447,7 @@ export default function QuoteBuilderWizard() {
                   </label>
                 </div>
 
-                <div className="mt-8 border border-navy/10 rounded-2xl p-5 bg-white max-w-sm">
+                <div className="mt-8 border border-navy/10 rounded-none p-5 bg-white max-w-sm">
                   <h3 className="font-heading font-semibold uppercase text-navy tracking-wide text-sm">
                     Live price
                   </h3>
@@ -516,7 +516,7 @@ export default function QuoteBuilderWizard() {
                   </p>
                   <Link
                     href={`/customize?style=${encodeURIComponent(product.styleNumber)}&type=${product.productType}`}
-                    className="mt-4 block text-center px-4 py-2.5 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition"
+                    className="mt-4 block text-center px-4 py-2.5 rounded-none bg-red text-white text-sm font-semibold hover:bg-navy transition"
                   >
                     Ready to order? Design Now →
                   </Link>
