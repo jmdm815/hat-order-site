@@ -10,6 +10,7 @@ import AdminQuotesTab from "@/components/AdminQuotesTab";
 import AdminSetupChargesManager from "@/components/AdminSetupChargesManager";
 import AdminGarmentMarkupManager from "@/components/AdminGarmentMarkupManager";
 import AdminCustomersManager from "@/components/AdminCustomersManager";
+import AdminLogoManager from "@/components/AdminLogoManager";
 
 const TABS = [
   { id: "categories", label: "Categories" },
@@ -89,7 +90,8 @@ export default function AdminDashboard() {
         )}
         {tab === "settings" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <AdminLogoManager />
+            <p className="mt-8 mb-4 text-navy/60 text-sm">
               Turn the live drag/resize design canvas on or off for hats and
               for shirts, site-wide. Individual items can still override this.
             </p>

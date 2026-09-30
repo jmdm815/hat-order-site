@@ -1,26 +1,29 @@
-import Image from "next/image";
 import Link from "next/link";
 import StepHeader from "@/components/StepHeader";
 import CuratedProductCard from "@/components/CuratedProductCard";
 import { getCuratedCatalog } from "@/lib/curated-catalog";
+import { DEFAULT_LOGO_URL, getBrandSettings } from "@/lib/pricing-store";
 
 export default async function HomePage() {
-  const categories = await getCuratedCatalog();
+  const [categories, brand] = await Promise.all([getCuratedCatalog(), getBrandSettings()]);
+  const logoUrl = brand.logoUrl ?? DEFAULT_LOGO_URL;
 
   return (
     <>
-      <StepHeader />
+      <StepHeader logoUrl={logoUrl} />
 
       {/* Short hero */}
       <section className="bg-navy text-white">
         <div className="max-w-6xl mx-auto px-4 py-10 sm:py-14 text-center">
-          <Image
-            src="/brand/jm-logo.png"
+          {/* eslint-disable-next-line @next/next/no-img-element -- can be an
+              admin-uploaded Vercel Blob URL; see StepHeader.tsx for why plain
+              img is used instead of next/image here. */}
+          <img
+            src={logoUrl}
             alt="JM Digital Media"
             width={72}
             height={72}
-            className="mx-auto mb-4"
-            priority
+            className="mx-auto mb-4 object-contain"
           />
           <h1 className="font-heading text-3xl sm:text-4xl font-bold uppercase tracking-tight">
             Look the Part. <span className="text-red">Mean Business.</span>

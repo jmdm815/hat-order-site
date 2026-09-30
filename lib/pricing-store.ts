@@ -109,3 +109,79 @@ export async function setDesignerSettings(
     return { persisted: false };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Site branding (logo) settings
+// ---------------------------------------------------------------------------
+// The shipped default (public/brand/jm-logo.png) is a tiny 48x48 placeholder
+// — fine as a stand-in, but visibly blurry once it's displayed at any real
+// size on the customer-facing site (the homepage hero, the order-flow header
+// in StepHeader.tsx). This lets an admin upload a proper high-res logo from
+// the Settings tab (see components/AdminLogoManager.tsx /
+// app/api/admin/logo/route.ts) without a code change or redeploy. The
+// uploaded image itself is stored as its own public Vercel Blob (so it can
+// be served directly as an <img src>); this settings blob just remembers
+// which URL is "current". No logoUrl (nothing uploaded yet, or reverted to
+// default) means: fall back to the static /brand/jm-logo.png file.
+// ---------------------------------------------------------------------------
+
+export type BrandSettings = {
+  logoUrl?: string;
+};
+
+const DEFAULT_BRAND_SETTINGS: BrandSettings = {};
+
+export const DEFAULT_LOGO_URL = "/brand/jm-logo.png";
+
+const BRAND_SETTINGS_PATHNAME = "brand-settings.json";
+
+let memoryBrandSettings: BrandSettings | null = null;
+
+async function loadBrandSettingsFromBlob(): Promise<BrandSettings | null> {
+  if (!isPersistent()) return null;
+  try {
+    const { blobs } = await list({ prefix: BRAND_SETTINGS_PATHNAME, limit: 1 });
+    const match = blobs.find((b) => b.pathname === BRAND_SETTINGS_PATHNAME);
+    if (!match) return null;
+    const res = await fetch(match.url, {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as Partial<BrandSettings>;
+    return { ...DEFAULT_BRAND_SETTINGS, ...data };
+  } catch (err) {
+    console.error("pricing-store: brand-settings blob read failed", err);
+    return null;
+  }
+}
+
+export async function getBrandSettings(): Promise<BrandSettings> {
+  if (memoryBrandSettings) return memoryBrandSettings;
+  const fromBlob = await loadBrandSettingsFromBlob();
+  memoryBrandSettings = fromBlob ?? DEFAULT_BRAND_SETTINGS;
+  return memoryBrandSettings;
+}
+
+export async function setBrandSettings(
+  settings: BrandSettings
+): Promise<{ persisted: boolean }> {
+  memoryBrandSettings = settings;
+
+  if (!isPersistent()) {
+    return { persisted: false };
+  }
+
+  try {
+    await put(BRAND_SETTINGS_PATHNAME, JSON.stringify(settings), {
+      access: "private",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: "application/json",
+    });
+    return { persisted: true };
+  } catch (err) {
+    console.error("pricing-store: brand-settings blob write failed", err);
+    return { persisted: false };
+  }
+}
