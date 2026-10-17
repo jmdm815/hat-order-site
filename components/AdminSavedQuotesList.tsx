@@ -50,6 +50,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [linkMessage, setLinkMessage] = useState<string | null>(null);
 
   function load() {
     fetch("/api/admin/quotes")
@@ -100,6 +101,33 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
     }
   }
 
+  // Creates (or refreshes) a Square-hosted "Pay online" link for this
+  // invoice's current total, then copies it to the clipboard so the admin
+  // can drop it straight into an email/text — the link is also saved onto
+  // the record (lib/quotes-store.ts) and appears on the invoice PDF itself.
+  async function handlePaymentLink(id: string) {
+    setBusyId(id);
+    setError(null);
+    setLinkMessage(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}/payment-link`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to create payment link");
+      const url: string | undefined = data.record?.paymentLinkUrl;
+      if (url && navigator.clipboard) {
+        await navigator.clipboard.writeText(url).catch(() => {});
+        setLinkMessage("Payment link copied to clipboard.");
+      } else {
+        setLinkMessage(url ?? "Payment link created.");
+      }
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Delete this saved quote/invoice? This can't be undone.")) return;
     setBusyId(id);
@@ -130,6 +158,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
         </p>
       )}
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {linkMessage && <p className="mb-3 text-sm text-green-700">{linkMessage}</p>}
 
       {records.length === 0 ? (
         <p className="text-sm text-navy/40">No saved quotes yet — build one above and hit &quot;Save quote.&quot;</p>
@@ -206,6 +235,20 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                       >
                         Invoice
                       </button>
+                      {r.invoiceStatus !== "paid" && (
+                        <button
+                          onClick={() => handlePaymentLink(r.id)}
+                          disabled={isBusy}
+                          title={
+                            r.paymentLinkUrl
+                              ? "Refresh and copy the Square payment link"
+                              : "Create a Square payment link for the customer"
+                          }
+                          className="text-xs px-2.5 py-1 rounded-lg border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                        >
+                          {isBusy ? "…" : r.paymentLinkUrl ? "Copy payment link" : "Create payment link"}
+                        </button>
+                      )}
                       {r.invoiceStatus !== "paid" && (
                         <button
                           onClick={() => handlePaymentStatus(r.id, "paid")}

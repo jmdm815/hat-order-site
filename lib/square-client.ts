@@ -27,6 +27,16 @@ export function isSquareConfigured(): boolean {
   return Boolean(process.env.SQUARE_ACCESS_TOKEN && process.env.SQUARE_LOCATION_ID);
 }
 
+// Separate from isSquareConfigured() above: a site can take Square payments
+// (payment links, card checkout) without the webhook signature key set, it
+// just means app/api/webhooks/square/route.ts will refuse incoming events
+// (501) instead of silently trusting unsigned data — invoices created
+// without this set still work, they just need an admin to click "Mark paid"
+// manually once the customer pays, exactly like today.
+export function isSquareWebhookConfigured(): boolean {
+  return Boolean(process.env.SQUARE_WEBHOOK_SIGNATURE_KEY);
+}
+
 export function getSquareClient(): SquareClient {
   const environment =
     process.env.SQUARE_ENVIRONMENT === "production"

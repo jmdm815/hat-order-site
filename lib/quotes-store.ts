@@ -52,6 +52,17 @@ export type QuoteRecord = {
   invoiceStatus?: InvoicePaymentStatus;
   convertedAt?: string;
   paidAt?: string;
+  // Square "Pay online" link for this invoice (see lib/square-payment-links.ts
+  // and app/api/admin/quotes/[id]/payment-link/route.ts). paymentLinkUrl is
+  // what gets handed to the customer; paymentLinkId and squareOrderId are
+  // kept so a later Square webhook event (app/api/webhooks/square/route.ts)
+  // can be matched back to this record and flip invoiceStatus to "paid"
+  // automatically once Square confirms the charge. squarePaymentId is filled
+  // in once that happens (or once an admin manually enters/confirms one).
+  paymentLinkUrl?: string;
+  paymentLinkId?: string;
+  squareOrderId?: string;
+  squarePaymentId?: string;
 };
 
 const PREFIX = "quotes/";
@@ -292,6 +303,63 @@ export async function setInvoicePaymentStatus(
     ...existing,
     invoiceStatus,
     paidAt: invoiceStatus === "paid" ? now : undefined,
+    updatedAt: now,
+  };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+// Stores a freshly-created Square "Pay online" payment link on an invoice
+// record. Only valid for records already converted to an invoice — a plain
+// quote has no total that's final enough to send a customer a payment link
+// for yet. paymentLinkId/orderId are kept (not just the url) so a later
+// Square webhook event can be matched back to this exact record.
+export async function setInvoicePaymentLink(
+  id: string,
+  link: { url: string; paymentLinkId: string; orderId?: string }
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing || existing.status !== "invoice") return { record: null, persisted: true };
+  const updated: QuoteRecord = {
+    ...existing,
+    paymentLinkUrl: link.url,
+    paymentLinkId: link.paymentLinkId,
+    squareOrderId: link.orderId ?? existing.squareOrderId,
+    updatedAt: new Date().toISOString(),
+  };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+// Used by the Square webhook handler to map an incoming payment/order event
+// back to the invoice it belongs to. Scans getQuotes() rather than keeping a
+// separate index — invoice volume here is small and this keeps the store's
+// one-blob-per-record design simple; revisit if that stops being true.
+export async function findQuoteBySquareOrderId(orderId: string): Promise<QuoteRecord | undefined> {
+  const all = await getQuotes();
+  return all.find((r) => r.squareOrderId === orderId);
+}
+
+// Marks an invoice paid as a result of a confirmed Square webhook event
+// (payment.updated with status COMPLETED), as opposed to setInvoicePaymentStatus
+// which is the admin's own manual "Mark paid" action. Idempotent: if the
+// record is already marked paid with this same payment id, it's a no-op so
+// Square's at-least-once webhook delivery can safely retry.
+export async function markInvoicePaidFromSquare(
+  id: string,
+  squarePaymentId: string
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing || existing.status !== "invoice") return { record: null, persisted: true };
+  if (existing.invoiceStatus === "paid" && existing.squarePaymentId === squarePaymentId) {
+    return { record: existing, persisted: true };
+  }
+  const now = new Date().toISOString();
+  const updated: QuoteRecord = {
+    ...existing,
+    invoiceStatus: "paid",
+    squarePaymentId,
+    paidAt: now,
     updatedAt: now,
   };
   const { persisted } = await writeRecord(updated);

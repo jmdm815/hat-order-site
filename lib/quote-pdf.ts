@@ -37,6 +37,10 @@ export type QuotePdfMode = "customer" | "internal" | "work-order" | "invoice";
 export type InvoiceMeta = {
   invoiceNumber?: string;
   invoiceStatus?: InvoicePaymentStatus;
+  // Square-hosted "Pay online" checkout link (lib/square-payment-links.ts).
+  // Rendered as a clickable line on the invoice PDF when present and the
+  // invoice isn't already paid in full.
+  paymentLinkUrl?: string;
 };
 
 function money(n: number): string {
@@ -151,6 +155,18 @@ export function renderQuotePdf(
       });
       doc.y = bannerY + 20;
       doc.moveDown(0.6);
+
+      if (invoiceMeta?.paymentLinkUrl && !paid) {
+        doc
+          .fillColor(NAVY)
+          .font("Helvetica-Bold")
+          .fontSize(10)
+          .text("Pay online: ", left, doc.y, { continued: true })
+          .font("Helvetica")
+          .fillColor("#1a56cd")
+          .text(invoiceMeta.paymentLinkUrl, { link: invoiceMeta.paymentLinkUrl, underline: true });
+        doc.moveDown(0.6);
+      }
     }
 
     doc

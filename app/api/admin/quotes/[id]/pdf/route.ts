@@ -35,6 +35,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const pdfBuffer = await renderQuotePdf(record.computed, mode, {
       invoiceNumber: record.invoiceNumber,
       invoiceStatus: record.invoiceStatus,
+      paymentLinkUrl: record.paymentLinkUrl,
     });
     const fileNameSafe = (record.computed.customerName || "quote")
       .replace(/[^a-z0-9]+/gi, "-")
