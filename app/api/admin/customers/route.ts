@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { getCustomers, createCustomer, CustomerInput } from "@/lib/customers-store";
+import { getCustomers, createCustomer, deleteCustomers, CustomerInput } from "@/lib/customers-store";
 import { isPersistent } from "@/lib/pricing-store";
 
 function parseInput(body: unknown): CustomerInput | null {
@@ -37,4 +37,21 @@ export async function POST(req: NextRequest) {
   }
   const { customer, persisted } = await createCustomer(input);
   return NextResponse.json({ ok: true, customer, persisted });
+}
+
+// Bulk delete — the "select several, then delete" flow in
+// components/AdminCustomersManager.tsx (which also covers "select all" +
+// delete, i.e. delete every customer). Body: { ids: string[] }. Deleting a
+// single customer still goes through DELETE /api/admin/customers/[id].
+export async function DELETE(req: NextRequest) {
+  if (!(await isAdminAuthed())) {
+    return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+  }
+  const body = await req.json().catch(() => null);
+  const ids = Array.isArray(body?.ids) ? body.ids.filter((id: unknown) => typeof id === "string") : null;
+  if (!ids || ids.length === 0) {
+    return NextResponse.json({ error: "No customer ids provided" }, { status: 400 });
+  }
+  const { deletedCount, persisted } = await deleteCustomers(ids);
+  return NextResponse.json({ ok: true, deletedCount, persisted });
 }

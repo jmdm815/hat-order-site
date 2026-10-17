@@ -47,6 +47,10 @@ export default function AdminCustomersManager() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
 
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   function load() {
     setLoading(true);
     fetch("/api/admin/customers")
@@ -175,6 +179,69 @@ export default function AdminCustomersManager() {
     }
   }
 
+  function toggleSelectMode() {
+    setSelectMode((on) => {
+      if (on) setSelectedIds(new Set()); // turning off — clear selection
+      return !on;
+    });
+  }
+
+  function toggleSelectOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      if (allFilteredSelected) {
+        // Deselect just what's visible, keep any selection outside the current search.
+        const next = new Set(prev);
+        filtered.forEach((c) => next.delete(c.id));
+        return next;
+      }
+      const next = new Set(prev);
+      filtered.forEach((c) => next.add(c.id));
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    const count = selectedIds.size;
+    if (count === 0) return;
+    const allSelected = count === customers.length;
+    const confirmed = confirm(
+      allSelected
+        ? `Delete all ${count} customers? This only removes the contact cards — any quotes already saved for them are unaffected. This can't be undone.`
+        : `Delete ${count} selected customer${count === 1 ? "" : "s"}? This only removes the contact card${
+            count === 1 ? "" : "s"
+          } — any quotes already saved for them are unaffected.`
+    );
+    if (!confirmed) return;
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (res.ok) {
+        setCustomers((prev) => prev.filter((c) => !selectedIds.has(c.id)));
+        setSelectedIds(new Set());
+        setSelectMode(false);
+        if (editingId && selectedIds.has(editingId)) closeForm();
+      }
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
   if (loading) return <p className="text-navy/40 text-sm">Loading customers…</p>;
 
   return (
@@ -200,6 +267,17 @@ export default function AdminCustomersManager() {
             className="flex-1 border border-navy/20 rounded-lg px-3 py-2 text-sm"
           />
           <button
+            onClick={toggleSelectMode}
+            className={`shrink-0 px-3 h-9 flex items-center justify-center rounded-full border text-sm font-medium transition ${
+              selectMode
+                ? "border-navy bg-navy text-white"
+                : "border-navy/20 text-navy/70 hover:bg-navy/5"
+            }`}
+            title="Select customers to delete"
+          >
+            {selectMode ? "Cancel" : "Select"}
+          </button>
+          <button
             onClick={() => (showImport ? closeImport() : openImport())}
             className="shrink-0 px-3 h-9 flex items-center justify-center rounded-full border border-navy/20 text-navy/70 text-sm font-medium hover:bg-navy/5 transition"
             title="Import customers from a CSV or Excel file"
@@ -216,6 +294,34 @@ export default function AdminCustomersManager() {
           </button>
         </div>
       </div>
+
+      {selectMode && customers.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 bg-navy/5 border border-navy/10 rounded-xl px-3 py-2 max-w-2xl">
+          <label className="flex items-center gap-2 text-sm text-navy/70 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              onChange={toggleSelectAll}
+              className="w-4 h-4"
+            />
+            Select all {search.trim() ? `(${filtered.length} shown)` : `(${filtered.length})`}
+          </label>
+          <span className="text-sm text-navy/50">
+            {selectedIds.size} selected
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            disabled={selectedIds.size === 0 || bulkDeleting}
+            className="ml-auto px-4 py-1.5 rounded-full bg-red text-white text-sm font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
+          >
+            {bulkDeleting
+              ? "Deleting…"
+              : selectedIds.size === customers.length && selectedIds.size > 0
+              ? `Delete all (${selectedIds.size})`
+              : `Delete selected (${selectedIds.size})`}
+          </button>
+        </div>
+      )}
 
       {showImport && (
         <section className="mt-4 bg-white border border-navy/10 rounded-xl p-4 max-w-2xl">
@@ -373,33 +479,52 @@ export default function AdminCustomersManager() {
       ) : (
         <div className="mt-4 divide-y divide-navy/10 border border-navy/10 rounded-xl max-w-2xl overflow-hidden">
           {filtered.map((c) => (
-            <div key={c.id} className="flex items-start justify-between gap-3 p-3 bg-white">
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-navy">
-                  {c.name}
-                  {c.company && <span className="text-navy/40 font-normal"> · {c.company}</span>}
+            <div
+              key={c.id}
+              className={`flex items-start justify-between gap-3 p-3 bg-white ${
+                selectMode ? "cursor-pointer hover:bg-navy/5" : ""
+              }`}
+              onClick={selectMode ? () => toggleSelectOne(c.id) : undefined}
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(c.id)}
+                    onChange={() => toggleSelectOne(c.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-0.5 w-4 h-4 shrink-0"
+                  />
+                )}
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-navy">
+                    {c.name}
+                    {c.company && <span className="text-navy/40 font-normal"> · {c.company}</span>}
+                  </div>
+                  <div className="text-xs text-navy/60 mt-0.5">
+                    {[c.email, c.phone].filter(Boolean).join(" · ") || (
+                      <span className="text-navy/30">No email or phone on file</span>
+                    )}
+                  </div>
+                  {c.notes && <div className="text-xs text-navy/40 mt-1 whitespace-pre-wrap">{c.notes}</div>}
                 </div>
-                <div className="text-xs text-navy/60 mt-0.5">
-                  {[c.email, c.phone].filter(Boolean).join(" · ") || (
-                    <span className="text-navy/30">No email or phone on file</span>
-                  )}
+              </div>
+              {!selectMode && (
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => startEdit(c)}
+                    className="text-xs text-navy/60 px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(c.id)}
+                    className="text-xs text-red-600 px-2 py-1 hover:bg-red-50 rounded-lg"
+                  >
+                    Delete
+                  </button>
                 </div>
-                {c.notes && <div className="text-xs text-navy/40 mt-1 whitespace-pre-wrap">{c.notes}</div>}
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => startEdit(c)}
-                  className="text-xs text-navy/60 px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(c.id)}
-                  className="text-xs text-red-600 px-2 py-1 hover:bg-red-50 rounded-lg"
-                >
-                  Delete
-                </button>
-              </div>
+              )}
             </div>
           ))}
         </div>

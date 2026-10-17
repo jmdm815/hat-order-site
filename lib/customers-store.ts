@@ -187,3 +187,17 @@ export async function deleteCustomer(id: string): Promise<{ deleted: boolean; pe
   const { persisted } = await setCustomers(all.filter((c) => c.id !== id));
   return { deleted: true, persisted };
 }
+
+// Bulk delete (see the "select" mode in components/AdminCustomersManager.tsx
+// — selecting several customers, or "select all", and deleting them in one
+// action). One single setCustomers() write for the whole batch, same as
+// importCustomers() above, rather than one write per id.
+export async function deleteCustomers(ids: string[]): Promise<{ deletedCount: number; persisted: boolean }> {
+  const idSet = new Set(ids);
+  const all = await getCustomers();
+  const remaining = all.filter((c) => !idSet.has(c.id));
+  const deletedCount = all.length - remaining.length;
+  if (deletedCount === 0) return { deletedCount: 0, persisted: true };
+  const { persisted } = await setCustomers(remaining);
+  return { deletedCount, persisted };
+}
