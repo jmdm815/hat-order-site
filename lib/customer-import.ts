@@ -25,8 +25,19 @@ const MAX_ROWS = 5000;
 const HEADER_ALIASES: Record<keyof CustomerInput, string[]> = {
   name: ["name", "customername", "fullname", "contactname", "customer"],
   company: ["company", "companyname", "business", "businessname", "organization", "org"],
-  email: ["email", "emailaddress", "e-mail", "emailaddr"],
-  phone: ["phone", "phonenumber", "telephone", "tel", "mobile", "cell", "cellphone"],
+  email: ["email", "emailaddress", "e-mail", "emailaddr", "primarycontactemail", "primaryemail", "contactemail"],
+  phone: [
+    "phone",
+    "phonenumber",
+    "telephone",
+    "tel",
+    "mobile",
+    "cell",
+    "cellphone",
+    "primarycontactphone",
+    "primaryphone",
+    "contactphone",
+  ],
   notes: ["notes", "note", "comments", "comment", "description"],
 };
 
