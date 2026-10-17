@@ -413,6 +413,23 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
     }
   }
 
+  // Keep the Preview section's total always in sync with the current lines
+  // and setup charges, instead of only computing it once and then going
+  // stale until the admin remembers to click "Preview quote" again — a
+  // short debounce (rather than firing on every keystroke of a quantity
+  // input) coalesces rapid edits into one recompute.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (lines.length === 0) {
+        setQuote(null);
+        return;
+      }
+      generateQuote();
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines, selectedSetupChargeIds]);
+
   async function downloadPdf(mode: PdfMode) {
     if (lines.length === 0) return;
     setPdfLoading(mode);

@@ -66,9 +66,30 @@ async function loadFromBlob(): Promise<QuoteRecord[] | null> {
   return fetchBlobJson<QuoteRecord[]>(BLOB_PATHNAME);
 }
 
+// Always re-reads from Blob when persistence is on, rather than trusting
+// whatever this serverless instance has cached in `memory` — unlike most
+// other admin stores in this codebase (which cache indefinitely once
+// loaded), quotes are routinely created/saved and then immediately looked
+// up again (e.g. "Save quote" -> "Download PDF") within seconds, by
+// requests that can land on a *different* warm Lambda instance. That other
+// instance's `memory` can predate the write it never saw, so trusting it
+// here caused real "Quote not found" errors on a quote that had, in fact,
+// just been saved successfully. `memory` is still kept as the fallback
+// store when Blob isn't connected at all, and as a last resort if a blob
+// read transiently fails (better than erroring the whole request).
 async function getAll(): Promise<QuoteRecord[]> {
+  if (isPersistent()) {
+    const fromBlob = await loadFromBlob();
+    if (fromBlob !== null) {
+      memory = fromBlob;
+      return memory;
+    }
+    if (memory) return memory;
+    memory = [];
+    return memory;
+  }
   if (memory) return memory;
-  memory = (await loadFromBlob()) ?? [];
+  memory = [];
   return memory;
 }
 
