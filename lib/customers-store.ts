@@ -121,6 +121,66 @@ export async function updateCustomer(
   return { customer: updated, persisted };
 }
 
+export type CustomerImportResult = {
+  created: number;
+  updated: number;
+  persisted: boolean;
+};
+
+// Bulk import (see app/api/admin/customers/import/route.ts, which parses the
+// uploaded CSV/XLS(X) file and hands this the plain rows). A row whose email
+// matches an existing customer (case-insensitive) updates that record in
+// place instead of creating a duplicate — the common case for re-importing
+// an updated export of the same list — everything else becomes a new
+// customer. One single setCustomers() write for the whole batch, same as
+// every other write in this store.
+export async function importCustomers(inputs: CustomerInput[]): Promise<CustomerImportResult> {
+  const all = await getCustomers();
+  const now = new Date().toISOString();
+  const next = [...all];
+  const byEmail = new Map<string, number>(); // email -> index in `next`
+  next.forEach((c, i) => {
+    if (c.email) byEmail.set(c.email.toLowerCase(), i);
+  });
+
+  let created = 0;
+  let updated = 0;
+
+  for (const input of inputs) {
+    const emailKey = input.email?.toLowerCase();
+    const existingIndex = emailKey ? byEmail.get(emailKey) : undefined;
+    if (existingIndex !== undefined) {
+      const existing = next[existingIndex];
+      next[existingIndex] = {
+        ...existing,
+        name: input.name,
+        company: input.company || existing.company,
+        phone: input.phone || existing.phone,
+        notes: input.notes || existing.notes,
+        updatedAt: now,
+      };
+      updated++;
+    } else {
+      const customer: Customer = {
+        id: uuid(),
+        name: input.name,
+        company: input.company || undefined,
+        email: input.email || undefined,
+        phone: input.phone || undefined,
+        notes: input.notes || undefined,
+        createdAt: now,
+        updatedAt: now,
+      };
+      next.push(customer);
+      if (emailKey) byEmail.set(emailKey, next.length - 1);
+      created++;
+    }
+  }
+
+  const { persisted } = await setCustomers(next);
+  return { created, updated, persisted };
+}
+
 export async function deleteCustomer(id: string): Promise<{ deleted: boolean; persisted: boolean }> {
   const all = await getCustomers();
   if (!all.some((c) => c.id === id)) return { deleted: false, persisted: true };

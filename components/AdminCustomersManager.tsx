@@ -1,11 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Customer } from "@/lib/types";
 
 type ApiResponse = { customers: Customer[]; persistent: boolean };
 
+type ImportResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+  skippedRows: { row: number; reason: string }[];
+  totalRows: number;
+  persisted: boolean;
+};
+
 const EMPTY_FORM = { name: "", company: "", email: "", phone: "", notes: "" };
+
+const IMPORT_TEMPLATE_CSV =
+  "Name,Company,Email,Phone,Notes\nJane Smith,Smith Construction,jane@smithconstruction.com,555-123-4567,Prefers embroidered logos\n";
+
+function downloadImportTemplate() {
+  const blob = new Blob([IMPORT_TEMPLATE_CSV], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "customer-import-template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function AdminCustomersManager() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -18,6 +40,12 @@ export default function AdminCustomersManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [showImport, setShowImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   function load() {
     setLoading(true);
@@ -47,6 +75,7 @@ export default function AdminCustomersManager() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setError(null);
+    setShowImport(false);
     setShowForm(true);
   }
 
@@ -55,6 +84,40 @@ export default function AdminCustomersManager() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setError(null);
+  }
+
+  function openImport() {
+    setShowForm(false);
+    setImportError(null);
+    setImportResult(null);
+    setShowImport(true);
+  }
+
+  function closeImport() {
+    setShowImport(false);
+    setImportError(null);
+    setImportResult(null);
+    if (importFileRef.current) importFileRef.current.value = "";
+  }
+
+  async function handleImportFile(file: File) {
+    setImporting(true);
+    setImportError(null);
+    setImportResult(null);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const res = await fetch("/api/admin/customers/import", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Import failed");
+      setImportResult(data);
+      load(); // refresh the list/count with the newly imported customers
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setImporting(false);
+      if (importFileRef.current) importFileRef.current.value = "";
+    }
   }
 
   function startEdit(c: Customer) {
@@ -137,6 +200,13 @@ export default function AdminCustomersManager() {
             className="flex-1 border border-navy/20 rounded-lg px-3 py-2 text-sm"
           />
           <button
+            onClick={() => (showImport ? closeImport() : openImport())}
+            className="shrink-0 px-3 h-9 flex items-center justify-center rounded-full border border-navy/20 text-navy/70 text-sm font-medium hover:bg-navy/5 transition"
+            title="Import customers from a CSV or Excel file"
+          >
+            Import
+          </button>
+          <button
             onClick={() => (showForm && !editingId ? closeForm() : startAdd())}
             className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-red text-white text-lg font-semibold leading-none hover:bg-navy transition"
             title="Add a customer"
@@ -146,6 +216,81 @@ export default function AdminCustomersManager() {
           </button>
         </div>
       </div>
+
+      {showImport && (
+        <section className="mt-4 bg-white border border-navy/10 rounded-xl p-4 max-w-2xl">
+          <h3 className="text-sm font-semibold text-navy mb-1">Import customers</h3>
+          <p className="text-xs text-navy/50">
+            Upload a CSV or Excel (.xls/.xlsx) file with a header row. A <span className="font-medium">Name</span>{" "}
+            column is required — Company, Email, Phone, and Notes columns are optional and can be in any order.
+            Rows whose email matches an existing customer update that customer instead of creating a duplicate.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImportFile(file);
+              }}
+              disabled={importing}
+              className="text-xs text-navy/70"
+            />
+            <button
+              onClick={downloadImportTemplate}
+              className="text-xs text-navy/60 px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+            >
+              Download template
+            </button>
+            {importing && <span className="text-xs text-navy/50">Importing…</span>}
+          </div>
+
+          {importError && <p className="mt-3 text-sm text-red-600">{importError}</p>}
+
+          {importResult && (
+            <div className="mt-3 text-sm text-navy bg-tan/20 border border-tan/40 rounded-lg px-3 py-2">
+              <p>
+                Imported {importResult.totalRows} row{importResult.totalRows === 1 ? "" : "s"}:{" "}
+                <span className="font-semibold">{importResult.created} added</span>,{" "}
+                <span className="font-semibold">{importResult.updated} updated</span>
+                {importResult.skipped > 0 && (
+                  <>
+                    , <span className="font-semibold">{importResult.skipped} skipped</span>
+                  </>
+                )}
+                .
+              </p>
+              {!importResult.persisted && (
+                <p className="mt-1 text-xs text-amber-700">
+                  No durable storage is connected yet, so this import won&apos;t survive a redeploy.
+                </p>
+              )}
+              {importResult.skippedRows.length > 0 && (
+                <ul className="mt-2 text-xs text-navy/60 list-disc list-inside space-y-0.5">
+                  {importResult.skippedRows.map((r) => (
+                    <li key={r.row}>
+                      Row {r.row}: {r.reason}
+                    </li>
+                  ))}
+                  {importResult.skipped > importResult.skippedRows.length && (
+                    <li>…and {importResult.skipped - importResult.skippedRows.length} more</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <div className="mt-3">
+            <button
+              onClick={closeImport}
+              className="px-4 py-1.5 rounded-full border border-navy/20 text-sm text-navy/70 hover:bg-navy/5"
+            >
+              Close
+            </button>
+          </div>
+        </section>
+      )}
 
       {showForm && (
         <section className="mt-4 bg-white border border-navy/10 rounded-xl p-4 max-w-2xl">
