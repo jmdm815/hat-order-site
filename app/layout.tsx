@@ -7,10 +7,21 @@ import { OrderProvider } from "@/lib/order-context";
 // see --font-body-family / --font-heading-family in its Shopify theme). Used
 // here for both, same as the real site, in place of the previous
 // Geist/Oswald pairing.
+//
+// weight: "variable" (one variable-font file covering the whole 200-800
+// axis) rather than an explicit array of static weights — Vercel's
+// production build pipeline has a font-loader bug where a multi-weight
+// Google Fonts request for this font fails with "Module not found:
+// Can't resolve '@vercel/turbopack-next/internal/font/google/font'" /
+// "next/font/google queries have exactly one entry", even though the
+// identical config builds fine locally. The single variable-font request
+// sidesteps that bug entirely and still supports every font-weight
+// utility class used across the site (font-semibold, font-extrabold, etc.)
+// since the variable font covers the full weight range.
 const assistant = Assistant({
   variable: "--font-assistant",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: "variable",
 });
 
 const geistMono = Geist_Mono({
