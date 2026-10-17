@@ -222,8 +222,10 @@ export default function AdminCustomersManager() {
           <h3 className="text-sm font-semibold text-navy mb-1">Import customers</h3>
           <p className="text-xs text-navy/50">
             Upload a CSV or Excel (.xls/.xlsx) file with a header row. A <span className="font-medium">Name</span>{" "}
-            column is required — Company, Email, Phone, and Notes columns are optional and can be in any order.
-            Rows whose email matches an existing customer update that customer instead of creating a duplicate.
+            column is required — Company, Email, Phone, and Notes columns are optional and can be in any order. If
+            your list only has a Company Name column and no separate Name column, that&apos;s fine too — it&apos;ll
+            be used as the name. Rows whose email matches an existing customer update that customer instead of
+            creating a duplicate.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <input

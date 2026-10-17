@@ -35,19 +35,35 @@ function normalizeHeader(h: string): string {
 }
 
 // Maps each recognized column index to the CustomerInput field it feeds.
+//
+// Some customer lists (a business-to-business contact list, say) only have
+// a "Company Name" column and nothing separately labeled "Name" — for that
+// kind of list, the company name IS the record's name. So when no column
+// matches a "name" alias but one matches a "company" alias, that column is
+// re-purposed as the name column instead of being dropped as unmatched —
+// the row still needs *a* name, and "Company Name" is the closest thing
+// this file has to one. A file that has both a real Name column and a
+// separate Company column is unaffected, since hasName is already true by
+// the time this fallback runs.
 function matchHeaders(headerRow: string[]): { columns: Partial<Record<number, keyof CustomerInput>>; hasName: boolean } {
   const columns: Partial<Record<number, keyof CustomerInput>> = {};
   let hasName = false;
+  let firstCompanyIndex: number | undefined;
   headerRow.forEach((raw, i) => {
     const normalized = normalizeHeader(raw);
     for (const [field, aliases] of Object.entries(HEADER_ALIASES) as [keyof CustomerInput, string[]][]) {
       if (aliases.includes(normalized)) {
         columns[i] = field;
         if (field === "name") hasName = true;
+        if (field === "company" && firstCompanyIndex === undefined) firstCompanyIndex = i;
         break;
       }
     }
   });
+  if (!hasName && firstCompanyIndex !== undefined) {
+    columns[firstCompanyIndex] = "name";
+    hasName = true;
+  }
   return { columns, hasName };
 }
 
