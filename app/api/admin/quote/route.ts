@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     // fails.
     await applyLiveSanmarPricingToProducts(
       productsByStyle,
-      body.lines.map((l) => l.styleNumber)
+      body.lines.map((l) => l.styleNumber).filter((s): s is string => Boolean(s))
     );
 
     const quote = computeQuote(body, productsByStyle, decorations, setupCharges, garmentMarkup.breakpoints);

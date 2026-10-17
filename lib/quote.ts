@@ -23,12 +23,22 @@ export type QuoteSizeInput = { size: string; quantity: number };
 
 // One row the admin builds in the UI: a specific style + color, a set of
 // sizes/quantities, and the decoration applied to all of them.
+//
+// A line can instead be "customer-supplied" (customerSupplied: true) — the
+// customer brought the item(s) in themselves, so there's no catalog garment
+// to look up, no vendor cost, and no garment markup; only decoration pricing
+// (if any) applies, pooled into the usual quantity price-break groups right
+// alongside every other line via groupKey() below. itemDescription (e.g.
+// "Hat", "Shirt", "Bag", "Custom item") replaces styleNumber/colorName as
+// the line's label in that case, and styleNumber/colorName are omitted.
 export type QuoteLineInput = {
-  styleNumber: string;
-  colorName: string;
+  styleNumber?: string;
+  colorName?: string;
   sizes: QuoteSizeInput[]; // quantity 0 entries are dropped before computing
   decorationId?: string; // absent/"" = no decoration, garment only
   priceColumnId?: string; // e.g. a stitch-count band, when the decoration has priceColumns
+  customerSupplied?: boolean;
+  itemDescription?: string; // required when customerSupplied is true
 };
 
 export type QuoteInput = {
@@ -68,6 +78,11 @@ export type QuoteLineResult = {
   sizes: QuoteSizeResult[];
   quantity: number; // sum of this line's size quantities
   subtotal: number; // sum of sizes[].lineTotal
+  // See QuoteLineInput — when true, this line has no real catalog garment;
+  // styleNumber/colorName above are empty placeholders and itemDescription
+  // is what should actually be shown for this line.
+  customerSupplied?: boolean;
+  itemDescription?: string;
 };
 
 // A quote-level setup/digitization charge resolved from lib/setup-charges-store.ts.
@@ -108,7 +123,11 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
   return b.lines.every((line) => {
     if (typeof line !== "object" || line === null) return false;
     const l = line as Record<string, unknown>;
-    if (typeof l.styleNumber !== "string" || typeof l.colorName !== "string") return false;
+    if (l.customerSupplied === true) {
+      if (typeof l.itemDescription !== "string" || !l.itemDescription.trim()) return false;
+    } else if (typeof l.styleNumber !== "string" || typeof l.colorName !== "string") {
+      return false;
+    }
     if (!Array.isArray(l.sizes)) return false;
     return l.sizes.every(
       (s) =>
@@ -176,11 +195,6 @@ export function computeQuote(
   }
 
   const lines: QuoteLineResult[] = cleanedLines.map((line) => {
-    const product = productsByStyle.get(line.styleNumber);
-    if (!product) {
-      throw new QuoteInputError(`Unknown style number "${line.styleNumber}"`);
-    }
-    const color = findProductColor(product, line.colorName);
     const decoration = line.decorationId
       ? decorations.find((d) => d.id === line.decorationId)
       : undefined;
@@ -195,6 +209,54 @@ export function computeQuote(
         ? 0
         : getUnitPriceForQuantity(decoration, groupQty, line.priceColumnId)
       : 0;
+
+    const priceColumnLabel = line.priceColumnId
+      ? decoration?.priceColumns?.find((c) => c.id === line.priceColumnId)?.label
+      : undefined;
+
+    // Customer-supplied item: no catalog garment, no vendor cost, no
+    // garment markup — only the decoration's per-unit price (if any, pooled
+    // into the same groupQty tier as every other line above) applies.
+    if (line.customerSupplied) {
+      const sizes: QuoteSizeResult[] = line.sizes.map((s) => {
+        const roundedDecorationUnitPrice = money(decorationUnitPrice);
+        return {
+          size: s.size,
+          quantity: s.quantity,
+          garmentCost: 0,
+          garmentMarkupAmount: 0,
+          garmentUnitPrice: 0,
+          decorationUnitPrice: roundedDecorationUnitPrice,
+          unitPrice: roundedDecorationUnitPrice,
+          lineTotal: money(roundedDecorationUnitPrice * s.quantity),
+        };
+      });
+
+      const quantity = sizes.reduce((sum, s) => sum + s.quantity, 0);
+      const subtotal = money(sizes.reduce((sum, s) => sum + s.lineTotal, 0));
+
+      return {
+        styleNumber: "",
+        brandName: "Customer-supplied item",
+        productName: line.itemDescription ?? "Item",
+        colorName: "",
+        customerSupplied: true,
+        itemDescription: line.itemDescription,
+        decorationId: line.decorationId,
+        decorationLabel: decoration?.label,
+        priceColumnId: line.priceColumnId,
+        priceColumnLabel,
+        sizes,
+        quantity,
+        subtotal,
+      };
+    }
+
+    const product = productsByStyle.get(line.styleNumber!);
+    if (!product) {
+      throw new QuoteInputError(`Unknown style number "${line.styleNumber}"`);
+    }
+    const color = findProductColor(product, line.colorName!);
 
     const sizes: QuoteSizeResult[] = line.sizes.map((s) => {
       const sizeInfo = color.sizes?.find((sz) => sz.name === s.size);
@@ -214,10 +276,6 @@ export function computeQuote(
         lineTotal: money(unitPrice * s.quantity),
       };
     });
-
-    const priceColumnLabel = line.priceColumnId
-      ? decoration?.priceColumns?.find((c) => c.id === line.priceColumnId)?.label
-      : undefined;
 
     const quantity = sizes.reduce((sum, s) => sum + s.quantity, 0);
     const subtotal = money(sizes.reduce((sum, s) => sum + s.lineTotal, 0));

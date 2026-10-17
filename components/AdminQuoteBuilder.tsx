@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ComputedQuote, QuoteLineInput } from "@/lib/quote";
+import { ComputedQuote, QuoteLineInput, QuoteSizeInput } from "@/lib/quote";
 import { QuoteRecord } from "@/lib/quotes-store";
 import { DecorationOption, SetupChargeType } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
@@ -9,11 +9,12 @@ import { ManualQuoteProduct, ManualQuoteSizeRow } from "@/app/api/admin/quote/ma
 import { ManualQuoteSearchResult } from "@/app/api/admin/quote/search-products/route";
 import { Customer } from "@/lib/types";
 
-type CatalogSource = "sanmar" | "custom" | "ss";
+type CatalogSource = "sanmar" | "custom" | "ss" | "customer-supplied";
 const CATALOG_OPTIONS: { id: CatalogSource; label: string; disabled?: boolean }[] = [
   { id: "sanmar", label: "SanMar" },
   { id: "ss", label: "S&S Activewear", disabled: true },
   { id: "custom", label: "Custom" },
+  { id: "customer-supplied", label: "Customer-Supplied Item" },
 ];
 
 type PendingLine = QuoteLineInput & {
@@ -44,12 +45,14 @@ function linesFromRecord(record: QuoteRecord): PendingLine[] {
   return record.input.lines.map((l, i) => {
     const computedLine = record.computed.lines[i];
     return {
-      key: `${l.styleNumber}-${l.colorName}-${i}-${Date.now()}`,
+      key: `${l.customerSupplied ? "cs" : l.styleNumber}-${l.colorName ?? ""}-${i}-${Date.now()}`,
       styleNumber: l.styleNumber,
       colorName: l.colorName,
       sizes: l.sizes,
       decorationId: l.decorationId,
       priceColumnId: l.priceColumnId,
+      customerSupplied: l.customerSupplied,
+      itemDescription: l.itemDescription,
       brandName: computedLine?.brandName ?? "",
       productName: computedLine?.productName ?? "",
     };
@@ -104,6 +107,18 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
   const [foundProductLive, setFoundProductLive] = useState(false);
   const [selectedColor, setSelectedColor] = useState("");
   const [sizeQty, setSizeQty] = useState<Record<string, number>>({});
+
+  // "Customer-Supplied Item" — catalogSource === "customer-supplied": the
+  // customer brought the item(s) in themselves, so there's no product to
+  // search for. Just a free-text description plus either a flat total
+  // quantity or a size-by-size breakdown (the admin picks which).
+  const [csDescription, setCsDescription] = useState("");
+  const [csQuantityMode, setCsQuantityMode] = useState<"flat" | "sizes">("flat");
+  const [csFlatQuantity, setCsFlatQuantity] = useState(0);
+  const [csSizeRows, setCsSizeRows] = useState<{ size: string; quantity: number }[]>([
+    { size: "", quantity: 0 },
+  ]);
+  const [csError, setCsError] = useState<string | null>(null);
 
   const [lines, setLines] = useState<PendingLine[]>(() =>
     initialRecord ? linesFromRecord(initialRecord) : []
@@ -194,9 +209,18 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
     setLookupError(null);
   }
 
+  function resetCustomerSuppliedForm() {
+    setCsDescription("");
+    setCsQuantityMode("flat");
+    setCsFlatQuantity(0);
+    setCsSizeRows([{ size: "", quantity: 0 }]);
+    setCsError(null);
+  }
+
   function onCatalogChange(next: CatalogSource) {
     setCatalogSource(next);
     resetProductPicker();
+    resetCustomerSuppliedForm();
   }
 
   function onProductQueryChange(value: string) {
@@ -298,6 +322,48 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
     setQuote(null);
   }
 
+  // "Add to quote" for a customer-supplied item (see CatalogSource ===
+  // "customer-supplied" above) — no product/color lookup, just a
+  // description plus either a flat quantity or a size-by-size breakdown.
+  function addCustomerSuppliedLine() {
+    const description = csDescription.trim();
+    if (!description) {
+      setCsError("Enter an item description before adding.");
+      return;
+    }
+
+    let sizes: QuoteSizeInput[];
+    if (csQuantityMode === "flat") {
+      if (csFlatQuantity <= 0) {
+        setCsError("Enter a quantity greater than 0 before adding.");
+        return;
+      }
+      sizes = [{ size: "Items", quantity: csFlatQuantity }];
+    } else {
+      sizes = csSizeRows
+        .filter((r) => r.size.trim() && r.quantity > 0)
+        .map((r) => ({ size: r.size.trim(), quantity: r.quantity }));
+      if (sizes.length === 0) {
+        setCsError("Add at least one size with a quantity greater than 0.");
+        return;
+      }
+    }
+
+    const line: PendingLine = {
+      key: `customer-supplied-${Date.now()}`,
+      customerSupplied: true,
+      itemDescription: description,
+      sizes,
+      decorationId: selectedDecorationId || undefined,
+      priceColumnId: selectedColumnId || undefined,
+      brandName: "Customer-supplied item",
+      productName: description,
+    };
+    setLines((prev) => [...prev, line]);
+    resetCustomerSuppliedForm();
+    setQuote(null);
+  }
+
   function removeLine(key: string) {
     setLines((prev) => prev.filter((l) => l.key !== key));
     setQuote(null);
@@ -316,6 +382,8 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
         sizes: l.sizes,
         decorationId: l.decorationId,
         priceColumnId: l.priceColumnId,
+        customerSupplied: l.customerSupplied,
+        itemDescription: l.itemDescription,
       })),
       setupChargeIds: selectedSetupChargeIds,
     };
@@ -629,108 +697,98 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
           </label>
         </div>
 
-        <div className="relative mt-3 max-w-xl">
-          <label className="text-xs text-navy/60">
-            Product
-            <input
-              value={productQuery}
-              onChange={(e) => onProductQueryChange(e.target.value)}
-              onFocus={() => productSuggestions.length > 0 && setSuggestionsOpen(true)}
-              onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
-              disabled={catalogSource === "ss"}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-navy/5"
-              placeholder={
-                catalogSource === "ss"
-                  ? "S&S Activewear isn't connected yet"
-                  : "Start typing a style number or name — e.g. st640"
-              }
-            />
-          </label>
-          {searchLoading && (
-            <span className="absolute right-2 top-8 text-[11px] text-navy/30">searching…</span>
-          )}
-          {suggestionsOpen && productSuggestions.length > 0 && (
-            <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto bg-white border border-navy/20 rounded-lg shadow-lg text-sm">
-              {productSuggestions.map((r) => (
-                <li key={r.styleNumber}>
-                  <button
-                    type="button"
-                    // onMouseDown (not onClick) fires before the input's onBlur closes the list.
-                    onMouseDown={() => selectProduct(r)}
-                    className="block w-full text-left px-3 py-2 hover:bg-navy/5"
-                  >
-                    <span className="font-medium text-navy">{r.name}</span>{" "}
-                    <span className="text-navy/40">
-                      {r.brand} · {r.styleNumber}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {suggestionsOpen && !searchLoading && productSuggestions.length === 0 && productQuery.trim().length >= 2 && (
-            <p className="mt-1 text-xs text-navy/40">No matches for &quot;{productQuery}&quot;.</p>
-          )}
-        </div>
-        {lookupLoading && <p className="mt-2 text-xs text-navy/40">Loading product…</p>}
-        {lookupError && <p className="mt-2 text-xs text-red-600">{lookupError}</p>}
-
-        {foundProduct && (
-          <div className="mt-4 border-t border-navy/10 pt-4">
-            <p className="text-sm font-medium text-navy">
-              {foundProduct.brandName} {foundProduct.productName}{" "}
-              <span className="text-navy/40 font-normal">({foundProduct.styleNumber})</span>
-              {catalogSource === "sanmar" && (
-                <span className="ml-2 text-[11px] text-navy/40">
-                  {foundProductLive ? "live SanMar pricing" : "catalog list price (live pricing unavailable)"}
-                </span>
-              )}
-            </p>
-
-            <label className="block text-xs text-navy/60 mt-3 max-w-xs">
-              Color
-              <select
-                value={selectedColor}
-                onChange={(e) => {
-                  setSelectedColor(e.target.value);
-                  const color = foundProduct.colors.find((c) => c.colorName === e.target.value);
-                  const next: Record<string, number> = {};
-                  for (const sz of color?.sizes ?? []) next[sz.name] = 0;
-                  setSizeQty(next);
-                }}
+        {catalogSource === "customer-supplied" ? (
+          <div className="mt-4 border-t border-navy/10 pt-4 max-w-xl">
+            <label className="block text-xs text-navy/60">
+              Item description
+              <input
+                value={csDescription}
+                onChange={(e) => setCsDescription(e.target.value)}
                 className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
-              >
-                {foundProduct.colors.map((c) => (
-                  <option key={c.colorName} value={c.colorName}>
-                    {c.colorName}
-                  </option>
-                ))}
-              </select>
+                placeholder="e.g. Hat, Shirt, Bag, Custom item"
+              />
             </label>
 
-            {selectedColorRow && selectedColorRow.sizes.length > 0 ? (
-              <div className="mt-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-navy/60 uppercase tracking-wide">Sizes</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={fillOneEach}
-                      className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
-                    >
-                      Fill 1 of each
-                    </button>
-                    <button
-                      onClick={clearQuantities}
-                      className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-                <SizeGrid sizes={selectedColorRow.sizes} sizeQty={sizeQty} setSizeQty={setSizeQty} />
-              </div>
+            <div className="mt-3 flex flex-wrap gap-4 text-sm text-navy/70">
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="csQuantityMode"
+                  checked={csQuantityMode === "flat"}
+                  onChange={() => setCsQuantityMode("flat")}
+                />
+                Just a total quantity
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="csQuantityMode"
+                  checked={csQuantityMode === "sizes"}
+                  onChange={() => setCsQuantityMode("sizes")}
+                />
+                Break down by size
+              </label>
+            </div>
+
+            {csQuantityMode === "flat" ? (
+              <label className="block text-xs text-navy/60 mt-3 max-w-[160px]">
+                Number of items
+                <input
+                  type="number"
+                  min={0}
+                  value={csFlatQuantity}
+                  onChange={(e) => setCsFlatQuantity(Math.max(0, Number(e.target.value) || 0))}
+                  className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                />
+              </label>
             ) : (
-              <p className="mt-3 text-xs text-navy/40">This item has no size-based pricing (one-size item).</p>
+              <div className="mt-3">
+                <span className="text-xs font-medium text-navy/60 uppercase tracking-wide">
+                  Sizes &amp; quantities
+                </span>
+                <div className="mt-1.5 space-y-1.5">
+                  {csSizeRows.map((row, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        value={row.size}
+                        onChange={(e) => {
+                          const next = [...csSizeRows];
+                          next[i] = { ...next[i], size: e.target.value };
+                          setCsSizeRows(next);
+                        }}
+                        placeholder="Size (e.g. M, OSFA)"
+                        className="w-32 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.quantity}
+                        onChange={(e) => {
+                          const next = [...csSizeRows];
+                          next[i] = { ...next[i], quantity: Math.max(0, Number(e.target.value) || 0) };
+                          setCsSizeRows(next);
+                        }}
+                        placeholder="Qty"
+                        className="w-20 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCsSizeRows((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCsSizeRows((prev) => [...prev, { size: "", quantity: 0 }])}
+                  className="mt-2 text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                >
+                  + Add size row
+                </button>
+              </div>
             )}
 
             {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
@@ -759,13 +817,164 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
               </p>
             )}
 
+            <p className="mt-2 text-xs text-navy/40">
+              No garment cost is charged for a customer-supplied item — only decoration pricing (if a
+              decoration type is selected above) applies.
+            </p>
+
+            {csError && <p className="mt-2 text-xs text-red-600">{csError}</p>}
+
             <button
-              onClick={addLine}
+              onClick={addCustomerSuppliedLine}
               className="mt-4 text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90"
             >
               Add to quote
             </button>
           </div>
+        ) : (
+          <>
+            <div className="relative mt-3 max-w-xl">
+              <label className="text-xs text-navy/60">
+                Product
+                <input
+                  value={productQuery}
+                  onChange={(e) => onProductQueryChange(e.target.value)}
+                  onFocus={() => productSuggestions.length > 0 && setSuggestionsOpen(true)}
+                  onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
+                  disabled={catalogSource === "ss"}
+                  className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-navy/5"
+                  placeholder={
+                    catalogSource === "ss"
+                      ? "S&S Activewear isn't connected yet"
+                      : "Start typing a style number or name — e.g. st640"
+                  }
+                />
+              </label>
+              {searchLoading && (
+                <span className="absolute right-2 top-8 text-[11px] text-navy/30">searching…</span>
+              )}
+              {suggestionsOpen && productSuggestions.length > 0 && (
+                <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto bg-white border border-navy/20 rounded-lg shadow-lg text-sm">
+                  {productSuggestions.map((r) => (
+                    <li key={r.styleNumber}>
+                      <button
+                        type="button"
+                        // onMouseDown (not onClick) fires before the input's onBlur closes the list.
+                        onMouseDown={() => selectProduct(r)}
+                        className="block w-full text-left px-3 py-2 hover:bg-navy/5"
+                      >
+                        <span className="font-medium text-navy">{r.name}</span>{" "}
+                        <span className="text-navy/40">
+                          {r.brand} · {r.styleNumber}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {suggestionsOpen &&
+                !searchLoading &&
+                productSuggestions.length === 0 &&
+                productQuery.trim().length >= 2 && (
+                  <p className="mt-1 text-xs text-navy/40">No matches for &quot;{productQuery}&quot;.</p>
+                )}
+            </div>
+            {lookupLoading && <p className="mt-2 text-xs text-navy/40">Loading product…</p>}
+            {lookupError && <p className="mt-2 text-xs text-red-600">{lookupError}</p>}
+
+            {foundProduct && (
+              <div className="mt-4 border-t border-navy/10 pt-4">
+                <p className="text-sm font-medium text-navy">
+                  {foundProduct.brandName} {foundProduct.productName}{" "}
+                  <span className="text-navy/40 font-normal">({foundProduct.styleNumber})</span>
+                  {catalogSource === "sanmar" && (
+                    <span className="ml-2 text-[11px] text-navy/40">
+                      {foundProductLive ? "live SanMar pricing" : "catalog list price (live pricing unavailable)"}
+                    </span>
+                  )}
+                </p>
+
+                <label className="block text-xs text-navy/60 mt-3 max-w-xs">
+                  Color
+                  <select
+                    value={selectedColor}
+                    onChange={(e) => {
+                      setSelectedColor(e.target.value);
+                      const color = foundProduct.colors.find((c) => c.colorName === e.target.value);
+                      const next: Record<string, number> = {};
+                      for (const sz of color?.sizes ?? []) next[sz.name] = 0;
+                      setSizeQty(next);
+                    }}
+                    className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                  >
+                    {foundProduct.colors.map((c) => (
+                      <option key={c.colorName} value={c.colorName}>
+                        {c.colorName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {selectedColorRow && selectedColorRow.sizes.length > 0 ? (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-navy/60 uppercase tracking-wide">Sizes</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={fillOneEach}
+                          className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                        >
+                          Fill 1 of each
+                        </button>
+                        <button
+                          onClick={clearQuantities}
+                          className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    <SizeGrid sizes={selectedColorRow.sizes} sizeQty={sizeQty} setSizeQty={setSizeQty} />
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-navy/40">This item has no size-based pricing (one-size item).</p>
+                )}
+
+                {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
+                  <label className="block text-xs text-navy/60 mt-4 max-w-xs">
+                    {columnLabel}
+                    <select
+                      value={selectedColumnId}
+                      onChange={(e) => setSelectedColumnId(e.target.value)}
+                      className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                    >
+                      <option value="">Select…</option>
+                      {selectedDecoration.priceColumns.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {selectedDecoration?.quoteRequired && (
+                  <p className="mt-2 text-xs text-amber-700">
+                    This decoration type is marked &quot;quote required&quot; site-wide, so it will price at
+                    $0 here too — set an explicit price on the Pricing tab if you want this quote to
+                    reflect a real cost.
+                  </p>
+                )}
+
+                <button
+                  onClick={addLine}
+                  className="mt-4 text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90"
+                >
+                  Add to quote
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -784,12 +993,21 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
                   className="flex items-start justify-between gap-3 border border-navy/10 rounded-lg px-3 py-2"
                 >
                   <div className="text-sm text-navy">
-                    <span className="font-medium">
-                      {line.brandName} {line.productName}
-                    </span>{" "}
-                    <span className="text-navy/40">
-                      ({line.styleNumber} — {line.colorName})
-                    </span>
+                    {line.customerSupplied ? (
+                      <>
+                        <span className="font-medium">Customer-supplied item</span>{" "}
+                        <span className="text-navy/40">({line.itemDescription})</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium">
+                          {line.brandName} {line.productName}
+                        </span>{" "}
+                        <span className="text-navy/40">
+                          ({line.styleNumber} — {line.colorName})
+                        </span>
+                      </>
+                    )}
                     <div className="text-xs text-navy/60 mt-0.5">
                       {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
                       {decoration ? ` · ${decoration.label}${column ? ` (${column.label})` : ""}` : ""}
@@ -883,12 +1101,25 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
           {quote.lines.map((line, i) => (
             <div key={i} className="mb-4">
               <p className="text-sm font-medium text-navy">
-                {line.brandName} {line.productName}{" "}
-                <span className="text-navy/40 font-normal">
-                  ({line.styleNumber} — {line.colorName})
-                  {line.decorationLabel ? ` · ${line.decorationLabel}` : ""}
-                  {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
-                </span>
+                {line.customerSupplied ? (
+                  <>
+                    Customer-supplied item{" "}
+                    <span className="text-navy/40 font-normal">
+                      ({line.itemDescription})
+                      {line.decorationLabel ? ` · ${line.decorationLabel}` : ""}
+                      {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {line.brandName} {line.productName}{" "}
+                    <span className="text-navy/40 font-normal">
+                      ({line.styleNumber} — {line.colorName})
+                      {line.decorationLabel ? ` · ${line.decorationLabel}` : ""}
+                      {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
+                    </span>
+                  </>
+                )}
               </p>
               <div className="mt-1 overflow-x-auto">
                 <table className="text-sm border-collapse w-full">

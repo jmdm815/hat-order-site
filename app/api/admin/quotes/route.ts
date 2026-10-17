@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     // the full rationale. Falls back to catalog pricing per-style on failure.
     await applyLiveSanmarPricingToProducts(
       productsByStyle,
-      body.lines.map((l) => l.styleNumber)
+      body.lines.map((l) => l.styleNumber).filter((s): s is string => Boolean(s))
     );
 
     const computed = computeQuote(body, productsByStyle, decorations, setupCharges, garmentMarkup.breakpoints);
