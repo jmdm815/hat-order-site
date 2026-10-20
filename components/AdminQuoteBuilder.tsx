@@ -167,6 +167,13 @@ export default function AdminQuoteBuilder({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
 
+  // Hide/show toggle for the admin-only cost/markup breakdown (the "Item
+  // Cost" and "Item Markup" rows in the size grid below, and the matching
+  // "Cost"/"Markup" columns in the Preview table) — handy for Quick Quote
+  // when a customer is looking at the screen and only the final price
+  // should be visible. Defaults to shown.
+  const [showMarkup, setShowMarkup] = useState(true);
+
   useEffect(() => {
     fetch("/api/decorations")
       .then((r) => r.json())
@@ -1013,6 +1020,17 @@ export default function AdminQuoteBuilder({
                       <span className="text-xs font-medium text-navy/60 uppercase tracking-wide">Sizes</span>
                       <div className="flex gap-2">
                         <button
+                          onClick={() => setShowMarkup((v) => !v)}
+                          title={
+                            showMarkup
+                              ? "Hide item cost and item markup — show only the item price"
+                              : "Show item cost and item markup"
+                          }
+                          className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                        >
+                          {showMarkup ? "Item Markup" : "IM%"}
+                        </button>
+                        <button
                           onClick={fillOneEach}
                           className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
                         >
@@ -1026,7 +1044,12 @@ export default function AdminQuoteBuilder({
                         </button>
                       </div>
                     </div>
-                    <SizeGrid sizes={selectedColorRow.sizes} sizeQty={sizeQty} setSizeQty={setSizeQty} />
+                    <SizeGrid
+                      sizes={selectedColorRow.sizes}
+                      sizeQty={sizeQty}
+                      setSizeQty={setSizeQty}
+                      showMarkup={showMarkup}
+                    />
                   </div>
                 ) : (
                   <p className="mt-3 text-xs text-navy/40">This item has no size-based pricing (one-size item).</p>
@@ -1215,7 +1238,20 @@ export default function AdminQuoteBuilder({
       {/* Computed preview */}
       {quote && (
         <section className="bg-white border border-navy/10 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-navy mb-3">Preview</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-navy">Preview</h3>
+            <button
+              onClick={() => setShowMarkup((v) => !v)}
+              title={
+                showMarkup
+                  ? "Hide item cost and item markup — show only the item price"
+                  : "Show item cost and item markup"
+              }
+              className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+            >
+              {showMarkup ? "Item Markup" : "IM%"}
+            </button>
+          </div>
           {quote.lines.map((line, i) => (
             <div key={i} className="mb-4">
               <p className="text-sm font-medium text-navy">
@@ -1245,8 +1281,12 @@ export default function AdminQuoteBuilder({
                     <tr className="text-xs text-navy/60">
                       <th className="text-left pr-3 pb-1">Size</th>
                       <th className="text-left pr-3 pb-1">Qty</th>
-                      <th className="text-left pr-3 pb-1">Cost</th>
-                      <th className="text-left pr-3 pb-1">Markup</th>
+                      {showMarkup && (
+                        <>
+                          <th className="text-left pr-3 pb-1">Cost</th>
+                          <th className="text-left pr-3 pb-1">Markup</th>
+                        </>
+                      )}
                       <th className="text-left pr-3 pb-1">Garment price</th>
                       <th className="text-left pr-3 pb-1">Decoration</th>
                       <th className="text-left pr-3 pb-1">Unit</th>
@@ -1258,14 +1298,18 @@ export default function AdminQuoteBuilder({
                       <tr key={s.size} className="border-t border-navy/5">
                         <td className="pr-3 py-1">{s.size}</td>
                         <td className="pr-3 py-1">{s.quantity}</td>
-                        <td className="pr-3 py-1">
-                          ${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}
-                        </td>
-                        <td className="pr-3 py-1">
-                          {(s.garmentMarkupAmount ?? 0) > 0
-                            ? `+$${(s.garmentMarkupAmount ?? 0).toFixed(2)}`
-                            : "—"}
-                        </td>
+                        {showMarkup && (
+                          <>
+                            <td className="pr-3 py-1">
+                              ${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}
+                            </td>
+                            <td className="pr-3 py-1">
+                              {(s.garmentMarkupAmount ?? 0) > 0
+                                ? `+$${(s.garmentMarkupAmount ?? 0).toFixed(2)}`
+                                : "—"}
+                            </td>
+                          </>
+                        )}
                         <td className="pr-3 py-1">${s.garmentUnitPrice.toFixed(2)}</td>
                         <td className="pr-3 py-1">
                           {s.decorationUnitPrice > 0 ? `+$${s.decorationUnitPrice.toFixed(2)}` : "—"}
@@ -1331,10 +1375,15 @@ function SizeGrid({
   sizes,
   sizeQty,
   setSizeQty,
+  showMarkup,
 }: {
   sizes: ManualQuoteSizeRow[];
   sizeQty: Record<string, number>;
   setSizeQty: (updater: (prev: Record<string, number>) => Record<string, number>) => void;
+  // When false, hides the Item Cost and Item Markup (%) rows — just the
+  // editable Quantity, the final Item Price, and the Line total stay
+  // visible. See AdminQuoteBuilder's showMarkup state/toggle.
+  showMarkup: boolean;
 }) {
   return (
     <div className="mt-2 overflow-x-auto">
@@ -1367,22 +1416,26 @@ function SizeGrid({
               </td>
             ))}
           </tr>
-          <tr className="border-t border-navy/5">
-            <td className="pr-3 py-1 text-navy/50">Item Cost</td>
-            {sizes.map((sz) => (
-              <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
-                ${sz.cost.toFixed(2)}
-              </td>
-            ))}
-          </tr>
-          <tr className="border-t border-navy/5">
-            <td className="pr-3 py-1 text-navy/50">Item Markup (%)</td>
-            {sizes.map((sz) => (
-              <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
-                {sz.markupPercent}
-              </td>
-            ))}
-          </tr>
+          {showMarkup && (
+            <>
+              <tr className="border-t border-navy/5">
+                <td className="pr-3 py-1 text-navy/50">Item Cost</td>
+                {sizes.map((sz) => (
+                  <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
+                    ${sz.cost.toFixed(2)}
+                  </td>
+                ))}
+              </tr>
+              <tr className="border-t border-navy/5">
+                <td className="pr-3 py-1 text-navy/50">Item Markup (%)</td>
+                {sizes.map((sz) => (
+                  <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
+                    {sz.markupPercent}
+                  </td>
+                ))}
+              </tr>
+            </>
+          )}
           <tr className="border-t border-navy/5">
             <td className="pr-3 py-1 text-navy/50">Item Price</td>
             {sizes.map((sz) => (
