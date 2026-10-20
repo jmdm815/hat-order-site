@@ -39,6 +39,7 @@ const HEADER_ALIASES: Record<keyof CustomerInput, string[]> = {
     "contactphone",
   ],
   notes: ["notes", "note", "comments", "comment", "description"],
+  defaultDepositPercent: ["depositpercent", "defaultdeposit", "deposit", "depositpct"],
 };
 
 function normalizeHeader(h: string): string {
@@ -114,6 +115,7 @@ function rowsToParsedImport(rows: string[][]): ParsedImport {
     if (!name) {
       return { rowNumber, skipReason: "No name" };
     }
+    const depositNum = values.defaultDepositPercent ? Number(values.defaultDepositPercent) : undefined;
     return {
       rowNumber,
       input: {
@@ -122,6 +124,10 @@ function rowsToParsedImport(rows: string[][]): ParsedImport {
         email: values.email || undefined,
         phone: values.phone || undefined,
         notes: values.notes || undefined,
+        defaultDepositPercent:
+          depositNum !== undefined && Number.isFinite(depositNum) && depositNum > 0 && depositNum <= 100
+            ? depositNum
+            : undefined,
       },
     };
   });

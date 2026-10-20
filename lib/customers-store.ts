@@ -80,6 +80,7 @@ export type CustomerInput = {
   email?: string;
   phone?: string;
   notes?: string;
+  defaultDepositPercent?: number;
 };
 
 export async function createCustomer(
@@ -94,6 +95,7 @@ export async function createCustomer(
     email: input.email || undefined,
     phone: input.phone || undefined,
     notes: input.notes || undefined,
+    defaultDepositPercent: input.defaultDepositPercent || undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -115,6 +117,7 @@ export async function updateCustomer(
     email: input.email || undefined,
     phone: input.phone || undefined,
     notes: input.notes || undefined,
+    defaultDepositPercent: input.defaultDepositPercent || undefined,
     updatedAt: new Date().toISOString(),
   };
   const { persisted } = await setCustomers(all.map((c) => (c.id === id ? updated : c)));
@@ -157,6 +160,7 @@ export async function importCustomers(inputs: CustomerInput[]): Promise<Customer
         company: input.company || existing.company,
         phone: input.phone || existing.phone,
         notes: input.notes || existing.notes,
+        defaultDepositPercent: input.defaultDepositPercent || existing.defaultDepositPercent,
         updatedAt: now,
       };
       updated++;
@@ -168,6 +172,7 @@ export async function importCustomers(inputs: CustomerInput[]): Promise<Customer
         email: input.email || undefined,
         phone: input.phone || undefined,
         notes: input.notes || undefined,
+        defaultDepositPercent: input.defaultDepositPercent || undefined,
         createdAt: now,
         updatedAt: now,
       };

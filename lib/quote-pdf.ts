@@ -41,6 +41,11 @@ export type InvoiceMeta = {
   // Rendered as a clickable line on the invoice PDF when present and the
   // invoice isn't already paid in full.
   paymentLinkUrl?: string;
+  // Running total already collected (dollars) — see lib/quotes-store.ts's
+  // QuoteRecord.amountPaid. Used to show "Paid to date" / "Balance
+  // remaining" instead of (or alongside) the flat deposit/balance split
+  // from quote.depositPercent, once a payment has actually come in.
+  amountPaid?: number;
 };
 
 function money(n: number): string {
@@ -475,6 +480,22 @@ export function renderQuotePdf(
       totalRow(`Subtotal (${quote.totalQuantity} units)`, money(quote.grandTotal));
       doc.moveDown(0.4);
       totalRow(invoice ? "Amount Due" : "Grand Total", money(quote.grandTotal), true);
+
+      const amountPaid = invoice ? invoiceMeta?.amountPaid ?? 0 : 0;
+      if (invoice && amountPaid > 0) {
+        const remaining = Math.max(0, quote.grandTotal - amountPaid);
+        doc.moveDown(0.4);
+        totalRow("Paid to date", money(amountPaid));
+        doc.moveDown(0.2);
+        totalRow("Balance remaining", money(remaining), true);
+      } else if (quote.depositPercent && quote.depositPercent < 100) {
+        const depositAmount = quote.grandTotal * (quote.depositPercent / 100);
+        const balanceAmount = quote.grandTotal - depositAmount;
+        doc.moveDown(0.4);
+        totalRow(`Deposit due now (${quote.depositPercent}%)`, money(depositAmount));
+        doc.moveDown(0.2);
+        totalRow("Balance due at pickup", money(balanceAmount));
+      }
     } else {
       totalRow("Total units", String(quote.totalQuantity), true);
     }

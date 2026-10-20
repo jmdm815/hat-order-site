@@ -53,6 +53,12 @@ export type QuoteInput = {
   // are independent of any line's decoration — a quote can combine any of
   // them (e.g. "Digitizing for embroidery" + "Logo vectorization").
   setupChargeIds?: string[];
+  // Percent (1-100) of the grand total due as a deposit when the order is
+  // placed; the remainder is due later (e.g. at pickup). Undefined/100 means
+  // "pay in full" — the common case — so this is optional and most quotes
+  // never set it. See lib/types.ts's Customer.defaultDepositPercent for the
+  // per-customer default this is usually copied from.
+  depositPercent?: number;
 };
 
 export type QuoteSizeResult = {
@@ -100,6 +106,7 @@ export type ComputedQuote = {
   totalSetupFees: number; // sum of setupCharges[].price
   totalGarmentAndDecoration: number; // sum of all lines' garment + decoration cost, no setup
   grandTotal: number; // totalGarmentAndDecoration + totalSetupFees
+  depositPercent?: number; // see QuoteInput.depositPercent
 };
 
 // Error thrown for a line whose styleNumber/colorName/size doesn't resolve
@@ -117,6 +124,11 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
   if (!Array.isArray(b.lines) || b.lines.length === 0) return false;
   if (b.setupChargeIds !== undefined) {
     if (!Array.isArray(b.setupChargeIds) || !b.setupChargeIds.every((id) => typeof id === "string")) {
+      return false;
+    }
+  }
+  if (b.depositPercent !== undefined) {
+    if (typeof b.depositPercent !== "number" || b.depositPercent <= 0 || b.depositPercent > 100) {
       return false;
     }
   }
@@ -314,5 +326,6 @@ export function computeQuote(
     totalSetupFees,
     totalGarmentAndDecoration,
     grandTotal,
+    depositPercent: input.depositPercent,
   };
 }

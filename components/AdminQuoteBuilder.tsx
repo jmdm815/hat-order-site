@@ -75,6 +75,14 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
   const [customerEmail, setCustomerEmail] = useState(() => initialRecord?.input.customerEmail ?? "");
   const [quoteDate, setQuoteDate] = useState(() => initialRecord?.input.quoteDate ?? todayIso());
   const [notes, setNotes] = useState(() => initialRecord?.input.notes ?? "");
+  // Payment terms — 100 means "pay in full" (the common case); anything
+  // less is a deposit-now / balance-later split (most often 50-50). See
+  // lib/quote.ts's QuoteInput.depositPercent and lib/types.ts's
+  // Customer.defaultDepositPercent, which this is pre-filled from when a
+  // saved customer is picked below.
+  const [depositPercent, setDepositPercent] = useState<number>(
+    () => initialRecord?.input.depositPercent ?? 100
+  );
 
   // Saved customer picker — loads the whole list once (see Customers tab)
   // and filters client-side, since this is expected to stay a small
@@ -168,6 +176,7 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
     setCustomerName(c.name);
     setCustomerCompany(c.company ?? "");
     setCustomerEmail(c.email ?? "");
+    setDepositPercent(c.defaultDepositPercent ?? 100);
     setCustomerQuery("");
     setCustomerSuggestionsOpen(false);
   }
@@ -179,6 +188,7 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
     setCustomerEmail("");
     setQuoteDate(todayIso());
     setNotes("");
+    setDepositPercent(100);
     setSelectedSetupChargeIds([]);
     setLines([]);
     setQuote(null);
@@ -376,6 +386,7 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
       customerEmail: customerEmail || undefined,
       quoteDate,
       notes: notes || undefined,
+      depositPercent: depositPercent < 100 ? depositPercent : undefined,
       lines: lines.map((l) => ({
         styleNumber: l.styleNumber,
         colorName: l.colorName,
@@ -641,6 +652,45 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
             rows={2}
           />
         </label>
+
+        <div className="mt-3">
+          <p className="text-xs text-navy/60 mb-1">Payment terms</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={depositPercent === 100 ? "full" : depositPercent === 50 ? "50-50" : "custom"}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "full") setDepositPercent(100);
+                else if (v === "50-50") setDepositPercent(50);
+                else if (depositPercent === 100 || depositPercent === 50) setDepositPercent(25);
+              }}
+              className="border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            >
+              <option value="full">Pay in full</option>
+              <option value="50-50">50% deposit, 50% on pickup</option>
+              <option value="custom">Custom %</option>
+            </select>
+            {depositPercent !== 100 && depositPercent !== 50 && (
+              <label className="text-xs text-navy/60 flex items-center gap-1.5">
+                Deposit
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={depositPercent}
+                  onChange={(e) => setDepositPercent(Math.min(99, Math.max(1, Number(e.target.value) || 0)))}
+                  className="w-16 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                />
+                %
+              </label>
+            )}
+            {depositPercent < 100 && (
+              <span className="text-xs text-navy/40">
+                {depositPercent}% deposit due now, {100 - depositPercent}% balance due at pickup
+              </span>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* Setup charges — flat, quote-wide, independent of any decoration */}
@@ -1199,6 +1249,18 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
                 Grand total: ${quote.grandTotal.toFixed(2)}
               </div>
               <div className="text-xs text-navy/40">(setup charges included above)</div>
+              {depositPercent < 100 && (
+                <div className="text-xs text-navy/60 pt-1 border-t border-navy/10 mt-1">
+                  <div>
+                    Deposit due ({depositPercent}%): $
+                    {(quote.grandTotal * (depositPercent / 100)).toFixed(2)}
+                  </div>
+                  <div>
+                    Balance due at pickup ({100 - depositPercent}%): $
+                    {(quote.grandTotal * ((100 - depositPercent) / 100)).toFixed(2)}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </section>

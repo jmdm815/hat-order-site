@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { QuoteRecord, InvoicePaymentStatus } from "@/lib/quotes-store";
+import AdminInvoicePaymentModal from "./AdminInvoicePaymentModal";
 
 type Props = {
   // Bump this (e.g. a counter) whenever the parent knows the list is stale
@@ -51,6 +52,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [linkMessage, setLinkMessage] = useState<string | null>(null);
+  const [paymentModalRecord, setPaymentModalRecord] = useState<QuoteRecord | null>(null);
 
   function load() {
     fetch("/api/admin/quotes")
@@ -74,25 +76,6 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
       const res = await fetch(`/api/admin/quotes/${id}/convert`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to convert");
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function handlePaymentStatus(id: string, invoiceStatus: InvoicePaymentStatus) {
-    setBusyId(id);
-    setError(null);
-    try {
-      const res = await fetch(`/api/admin/quotes/${id}/payment`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceStatus }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to update payment status");
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -283,33 +266,16 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                           {isBusy ? "…" : r.paymentLinkUrl ? "Copy Square link" : "Create Square link"}
                         </button>
                       )}
-                      {r.invoiceStatus !== "paid" && (
-                        <button
-                          onClick={() => handlePaymentStatus(r.id, "paid")}
-                          disabled={isBusy}
-                          className="text-xs px-2.5 py-1 rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-40"
-                        >
-                          {isBusy ? "…" : "Mark paid"}
-                        </button>
-                      )}
-                      {r.invoiceStatus !== "unpaid" && (
-                        <button
-                          onClick={() => handlePaymentStatus(r.id, "unpaid")}
-                          disabled={isBusy}
-                          className="text-xs px-2.5 py-1 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
-                        >
-                          Mark unpaid
-                        </button>
-                      )}
-                      {r.invoiceStatus === "unpaid" && (
-                        <button
-                          onClick={() => handlePaymentStatus(r.id, "partially_paid")}
-                          disabled={isBusy}
-                          className="text-xs px-2.5 py-1 rounded-lg border border-amber-400 text-amber-800 hover:bg-amber-50 disabled:opacity-40"
-                        >
-                          Partial payment
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setPaymentModalRecord(r)}
+                        className={`text-xs px-2.5 py-1 rounded-lg font-medium ${
+                          r.invoiceStatus === "paid"
+                            ? "border border-green-600/30 text-green-700 hover:bg-green-50"
+                            : "bg-navy text-white hover:bg-navy/90"
+                        }`}
+                      >
+                        Payment
+                      </button>
                     </>
                   )}
                   <button
@@ -324,6 +290,17 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
             );
           })}
         </div>
+      )}
+
+      {paymentModalRecord && (
+        <AdminInvoicePaymentModal
+          record={paymentModalRecord}
+          onClose={() => setPaymentModalRecord(null)}
+          onUpdated={(updated) => {
+            setPaymentModalRecord(updated);
+            setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+          }}
+        />
       )}
     </div>
   );

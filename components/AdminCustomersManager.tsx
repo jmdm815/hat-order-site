@@ -14,7 +14,7 @@ type ImportResult = {
   persisted: boolean;
 };
 
-const EMPTY_FORM = { name: "", company: "", email: "", phone: "", notes: "" };
+const EMPTY_FORM = { name: "", company: "", email: "", phone: "", notes: "", defaultDepositPercent: "" };
 
 const IMPORT_TEMPLATE_CSV =
   "Name,Company,Email,Phone,Notes\nJane Smith,Smith Construction,jane@smithconstruction.com,555-123-4567,Prefers embroidered logos\n";
@@ -132,6 +132,7 @@ export default function AdminCustomersManager() {
       email: c.email ?? "",
       phone: c.phone ?? "",
       notes: c.notes ?? "",
+      defaultDepositPercent: c.defaultDepositPercent ? String(c.defaultDepositPercent) : "",
     });
     setError(null);
     setShowForm(true);
@@ -148,10 +149,13 @@ export default function AdminCustomersManager() {
     setError(null);
     try {
       const isUpdate = Boolean(editingId);
+      const depositPercentNum = form.defaultDepositPercent.trim()
+        ? Number(form.defaultDepositPercent)
+        : undefined;
       const res = await fetch(isUpdate ? `/api/admin/customers/${editingId}` : "/api/admin/customers", {
         method: isUpdate ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, defaultDepositPercent: depositPercentNum }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to save customer");
@@ -441,6 +445,18 @@ export default function AdminCustomersManager() {
                 className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
               />
             </label>
+            <label className="text-xs text-navy/60">
+              Default deposit % (optional — leave blank for &quot;pays in full&quot;)
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={form.defaultDepositPercent}
+                onChange={(e) => setForm((f) => ({ ...f, defaultDepositPercent: e.target.value }))}
+                placeholder="e.g. 50"
+                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              />
+            </label>
           </div>
           <label className="block text-xs text-navy/60 mt-3">
             Notes (optional)
@@ -504,6 +520,9 @@ export default function AdminCustomersManager() {
                   <div className="text-xs text-navy/60 mt-0.5">
                     {[c.email, c.phone].filter(Boolean).join(" · ") || (
                       <span className="text-navy/30">No email or phone on file</span>
+                    )}
+                    {c.defaultDepositPercent && (
+                      <span className="text-navy/40"> · {c.defaultDepositPercent}% deposit</span>
                     )}
                   </div>
                   {c.notes && <div className="text-xs text-navy/40 mt-1 whitespace-pre-wrap">{c.notes}</div>}

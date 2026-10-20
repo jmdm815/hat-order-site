@@ -36,6 +36,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       invoiceNumber: record.invoiceNumber,
       invoiceStatus: record.invoiceStatus,
       paymentLinkUrl: record.paymentLinkUrl,
+      amountPaid: record.amountPaid,
     });
     const fileNameSafe = (record.computed.customerName || "quote")
       .replace(/[^a-z0-9]+/gi, "-")

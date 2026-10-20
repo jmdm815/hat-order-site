@@ -158,6 +158,12 @@ export type Customer = {
   email?: string;
   phone?: string;
   notes?: string;
+  // Percent (1-100) of the grand total this customer typically pays as a
+  // deposit when placing an order (the rest due later, e.g. at pickup).
+  // Undefined/100 means "pays in full". Copied onto a new quote's
+  // depositPercent when this customer is picked in the Quote Builder, but
+  // can be overridden per-quote — see lib/quote.ts's QuoteInput.
+  defaultDepositPercent?: number;
   createdAt: string;
   updatedAt: string;
 };

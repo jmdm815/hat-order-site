@@ -83,6 +83,10 @@ export type InvoicePaymentEntry = {
   amount: number; // dollars
   method: "square_card" | "manual";
   squarePaymentId?: string;
+  // How a "manual" payment was actually collected (cash in hand, a check,
+  // etc.) — unset/irrelevant for method: "square_card" since that's always a
+  // card charge. Shown in the admin payment-history list.
+  tender?: "cash" | "check" | "other";
   createdAt: string;
   note?: string;
 };
@@ -414,7 +418,13 @@ export async function markInvoicePaidFromSquare(
 // recorded (e.g. a retried request), it's a no-op rather than double-counted.
 export async function recordInvoicePayment(
   id: string,
-  payment: { amount: number; method: InvoicePaymentEntry["method"]; squarePaymentId?: string; note?: string }
+  payment: {
+    amount: number;
+    method: InvoicePaymentEntry["method"];
+    squarePaymentId?: string;
+    tender?: InvoicePaymentEntry["tender"];
+    note?: string;
+  }
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
   const existing = await readRecord(id);
   if (!existing || existing.status !== "invoice") return { record: null, persisted: true };
@@ -432,6 +442,7 @@ export async function recordInvoicePayment(
     amount: payment.amount,
     method: payment.method,
     squarePaymentId: payment.squarePaymentId,
+    tender: payment.tender,
     createdAt: now,
     note: payment.note,
   };
@@ -447,6 +458,26 @@ export async function recordInvoicePayment(
     invoiceStatus,
     paidAt: invoiceStatus === "paid" ? now : existing.paidAt,
     updatedAt: now,
+  };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+// Clears every recorded payment and resets an invoice back to unpaid — the
+// "Reset to unpaid" escape hatch in the admin payment modal, for when a
+// manual entry was recorded by mistake. Not exposed anywhere customer-facing.
+export async function resetInvoicePayments(
+  id: string
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing || existing.status !== "invoice") return { record: null, persisted: true };
+  const updated: QuoteRecord = {
+    ...existing,
+    amountPaid: 0,
+    payments: [],
+    invoiceStatus: "unpaid",
+    paidAt: undefined,
+    updatedAt: new Date().toISOString(),
   };
   const { persisted } = await writeRecord(updated);
   return { record: updated, persisted };

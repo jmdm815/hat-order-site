@@ -6,12 +6,15 @@ function parseInput(body: unknown): CustomerInput | null {
   const b = body as Record<string, unknown> | null;
   const name = typeof b?.name === "string" ? b.name.trim() : "";
   if (!name) return null;
+  const depositPercent = typeof b?.defaultDepositPercent === "number" ? b.defaultDepositPercent : undefined;
   return {
     name,
     company: typeof b?.company === "string" ? b.company.trim() : undefined,
     email: typeof b?.email === "string" ? b.email.trim() : undefined,
     phone: typeof b?.phone === "string" ? b.phone.trim() : undefined,
     notes: typeof b?.notes === "string" ? b.notes.trim() : undefined,
+    defaultDepositPercent:
+      depositPercent !== undefined && depositPercent > 0 && depositPercent <= 100 ? depositPercent : undefined,
   };
 }
 
