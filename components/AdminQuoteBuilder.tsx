@@ -29,6 +29,23 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Remembers the Item Markup hide/show toggle across refreshes and across
+// remounts (switching which saved quote is loaded remounts this component —
+// see Props' comment on initialRecord) so it stays wherever the admin last
+// left it, rather than always coming back on. Scoped to this browser/device
+// only (localStorage), which is fine here — it's a UI preference, not data.
+const SHOW_MARKUP_STORAGE_KEY = "admin-quote-builder-show-markup";
+
+function loadShowMarkup(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const stored = window.localStorage.getItem(SHOW_MARKUP_STORAGE_KEY);
+    return stored === null ? true : stored === "true";
+  } catch {
+    return true;
+  }
+}
+
 type Props = {
   // A previously saved quote/invoice to load into the builder for editing
   // (see AdminSavedQuotesList's "Edit" action, wired up in AdminQuotesTab).
@@ -171,8 +188,18 @@ export default function AdminQuoteBuilder({
   // Cost" and "Item Markup" rows in the size grid below, and the matching
   // "Cost"/"Markup" columns in the Preview table) — handy for Quick Quote
   // when a customer is looking at the screen and only the final price
-  // should be visible. Defaults to shown.
-  const [showMarkup, setShowMarkup] = useState(true);
+  // should be visible. Persisted to localStorage (see loadShowMarkup above)
+  // so it stays however it was last left, across refreshes and tabs.
+  const [showMarkup, setShowMarkup] = useState<boolean>(loadShowMarkup);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SHOW_MARKUP_STORAGE_KEY, String(showMarkup));
+    } catch {
+      // Private browsing / storage disabled — the toggle still works for
+      // this page view, it just won't be remembered next time.
+    }
+  }, [showMarkup]);
 
   useEffect(() => {
     fetch("/api/decorations")
