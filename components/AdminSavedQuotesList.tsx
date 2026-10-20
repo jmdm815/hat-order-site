@@ -128,6 +128,25 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
     }
   }
 
+  // Copies this site's own branded invoice-payment page link
+  // (app/pay/[id]/page.tsx) to the clipboard — no API call needed, since the
+  // page is reached by the record's own id. The customer sees a JM Digital
+  // Media-styled summary of their order and pays (in full or partially)
+  // right there via Square's card form, with no redirect to a Square-hosted
+  // checkout page — unlike the "Square checkout link" button below.
+  function handleCopyPayPageLink(id: string) {
+    const url = `${window.location.origin}/pay/${id}`;
+    setLinkMessage(null);
+    if (navigator.clipboard) {
+      navigator.clipboard
+        .writeText(url)
+        .then(() => setLinkMessage("Pay page link copied to clipboard."))
+        .catch(() => setLinkMessage(url));
+    } else {
+      setLinkMessage(url);
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Delete this saved quote/invoice? This can't be undone.")) return;
     setBusyId(id);
@@ -191,6 +210,12 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                   <div className="text-xs text-navy/50 mt-0.5">
                     {r.computed.totalQuantity} units · ${r.computed.grandTotal.toFixed(2)} · saved{" "}
                     {new Date(r.updatedAt).toLocaleDateString()}
+                    {r.status === "invoice" &&
+                      typeof r.amountPaid === "number" &&
+                      r.amountPaid > 0 &&
+                      r.amountPaid < r.computed.grandTotal && (
+                        <> · ${r.amountPaid.toFixed(2)} paid, ${(r.computed.grandTotal - r.amountPaid).toFixed(2)} remaining</>
+                      )}
                   </div>
                 </div>
 
@@ -237,16 +262,25 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                       </button>
                       {r.invoiceStatus !== "paid" && (
                         <button
+                          onClick={() => handleCopyPayPageLink(r.id)}
+                          title="Copy a link to this site's own branded payment page for this invoice"
+                          className="text-xs px-2.5 py-1 rounded-lg border border-red/30 text-red hover:bg-red/5"
+                        >
+                          Copy pay page link
+                        </button>
+                      )}
+                      {r.invoiceStatus !== "paid" && (
+                        <button
                           onClick={() => handlePaymentLink(r.id)}
                           disabled={isBusy}
                           title={
                             r.paymentLinkUrl
-                              ? "Refresh and copy the Square payment link"
-                              : "Create a Square payment link for the customer"
+                              ? "Refresh and copy the Square-hosted checkout link"
+                              : "Create a Square-hosted checkout link for the customer"
                           }
                           className="text-xs px-2.5 py-1 rounded-lg border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
                         >
-                          {isBusy ? "…" : r.paymentLinkUrl ? "Copy payment link" : "Create payment link"}
+                          {isBusy ? "…" : r.paymentLinkUrl ? "Copy Square link" : "Create Square link"}
                         </button>
                       )}
                       {r.invoiceStatus !== "paid" && (

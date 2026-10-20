@@ -63,6 +63,28 @@ export type QuoteRecord = {
   paymentLinkId?: string;
   squareOrderId?: string;
   squarePaymentId?: string;
+  // Running total actually collected on this invoice (dollars), and a log of
+  // each individual payment — populated by real card charges made through
+  // the branded /pay/[id] page (app/api/pay/[id]/route.ts,
+  // recordInvoicePayment() below), which supports partial payments/deposits.
+  // The three "Mark paid"/"Mark unpaid" admin buttons also keep this in
+  // sync for the unambiguous full-paid/full-unpaid cases (see
+  // setInvoicePaymentStatus) so the pay page's balance-due figure never
+  // disagrees with what the admin sees. invoiceStatus is still the
+  // source of truth for which banner/buttons show in the admin UI and on
+  // PDFs; amountPaid is the source of truth for "how much is actually left
+  // to pay" on the customer-facing pay page.
+  amountPaid?: number;
+  payments?: InvoicePaymentEntry[];
+};
+
+export type InvoicePaymentEntry = {
+  id: string;
+  amount: number; // dollars
+  method: "square_card" | "manual";
+  squarePaymentId?: string;
+  createdAt: string;
+  note?: string;
 };
 
 const PREFIX = "quotes/";
@@ -302,6 +324,20 @@ export async function setInvoicePaymentStatus(
   const updated: QuoteRecord = {
     ...existing,
     invoiceStatus,
+    // Keep amountPaid in sync for the two unambiguous cases — "paid" means
+    // the full total was collected (by whatever means, e.g. cash/check),
+    // "unpaid" means none of it was — so the /pay/[id] page's balance-due
+    // figure never disagrees with what the admin just set here. For
+    // "partially_paid" there's no dollar figure attached to this manual
+    // button, so amountPaid is left as whatever recordInvoicePayment() has
+    // already tracked from real payments (possibly 0, if this was set by
+    // hand for an off-platform partial payment not tracked here).
+    amountPaid:
+      invoiceStatus === "paid"
+        ? existing.computed.grandTotal
+        : invoiceStatus === "unpaid"
+          ? 0
+          : existing.amountPaid,
     paidAt: invoiceStatus === "paid" ? now : undefined,
     updatedAt: now,
   };
@@ -359,7 +395,57 @@ export async function markInvoicePaidFromSquare(
     ...existing,
     invoiceStatus: "paid",
     squarePaymentId,
+    amountPaid: existing.computed.grandTotal,
     paidAt: now,
+    updatedAt: now,
+  };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+// Records one real payment against an invoice — used by the branded
+// customer-facing pay page (app/api/pay/[id]/route.ts) right after a Square
+// card charge succeeds, so partial payments/deposits are possible (unlike
+// setInvoicePaymentStatus's manual all-or-nothing buttons). Appends to
+// `payments` and bumps `amountPaid`, then derives invoiceStatus from the new
+// running total vs the invoice's grandTotal (a small epsilon avoids floating-
+// point dust leaving a fully-paid invoice stuck at "partially_paid").
+// Idempotent on squarePaymentId: if this exact Square payment was already
+// recorded (e.g. a retried request), it's a no-op rather than double-counted.
+export async function recordInvoicePayment(
+  id: string,
+  payment: { amount: number; method: InvoicePaymentEntry["method"]; squarePaymentId?: string; note?: string }
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing || existing.status !== "invoice") return { record: null, persisted: true };
+
+  if (
+    payment.squarePaymentId &&
+    existing.payments?.some((p) => p.squarePaymentId === payment.squarePaymentId)
+  ) {
+    return { record: existing, persisted: true };
+  }
+
+  const now = new Date().toISOString();
+  const entry: InvoicePaymentEntry = {
+    id: uuid(),
+    amount: payment.amount,
+    method: payment.method,
+    squarePaymentId: payment.squarePaymentId,
+    createdAt: now,
+    note: payment.note,
+  };
+  const newAmountPaid = Math.round(((existing.amountPaid ?? 0) + payment.amount) * 100) / 100;
+  const grandTotal = existing.computed.grandTotal;
+  const invoiceStatus: InvoicePaymentStatus =
+    newAmountPaid <= 0 ? "unpaid" : newAmountPaid >= grandTotal - 0.005 ? "paid" : "partially_paid";
+
+  const updated: QuoteRecord = {
+    ...existing,
+    amountPaid: newAmountPaid,
+    payments: [...(existing.payments ?? []), entry],
+    invoiceStatus,
+    paidAt: invoiceStatus === "paid" ? now : existing.paidAt,
     updatedAt: now,
   };
   const { persisted } = await writeRecord(updated);
