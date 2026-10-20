@@ -17,7 +17,7 @@ const CATALOG_OPTIONS: { id: CatalogSource; label: string; disabled?: boolean }[
   { id: "customer-supplied", label: "Customer-Supplied Item" },
 ];
 
-type PendingLine = QuoteLineInput & {
+export type PendingLine = QuoteLineInput & {
   key: string;
   brandName: string;
   productName: string;
@@ -39,6 +39,21 @@ type Props = {
   // Called after a successful save/update so a parent can refresh its
   // saved-quotes list and keep track of which record is now active.
   onSaved?: (record: QuoteRecord) => void;
+  // "quick" powers the Quick Quote tab (components/AdminQuickQuoteTab.tsx) —
+  // a fast price check with no customer/date/notes/payment-terms fields and
+  // no save/convert/PDF actions. Instead of saving, it offers a single
+  // "Create quote" button (onCreateQuote) that hands the admin's in-progress
+  // lines + setup charges to the full Quotes tab so they can add customer
+  // info and save for real. Defaults to "full", the original behavior.
+  mode?: "full" | "quick";
+  // Seeds a brand-new (unsaved) builder with lines/setup charges carried
+  // over from a Quick Quote — ignored once initialRecord is set, since
+  // editing a saved record always wins. See AdminQuotesTab's `seed` prop.
+  initialLines?: PendingLine[];
+  initialSetupChargeIds?: string[];
+  // mode "quick" only: called with the current lines + setup charges when
+  // the admin taps "Create quote" after a customer decides to order.
+  onCreateQuote?: (lines: PendingLine[], setupChargeIds: string[]) => void;
 };
 
 function linesFromRecord(record: QuoteRecord): PendingLine[] {
@@ -59,12 +74,19 @@ function linesFromRecord(record: QuoteRecord): PendingLine[] {
   });
 }
 
-export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
+export default function AdminQuoteBuilder({
+  initialRecord,
+  onSaved,
+  mode = "full",
+  initialLines,
+  initialSetupChargeIds,
+  onCreateQuote,
+}: Props) {
   const [decorations, setDecorations] = useState<DecorationOption[]>([]);
   const [decorationsLoaded, setDecorationsLoaded] = useState(false);
   const [setupCharges, setSetupCharges] = useState<SetupChargeType[]>([]);
   const [selectedSetupChargeIds, setSelectedSetupChargeIds] = useState<string[]>(
-    () => initialRecord?.input.setupChargeIds ?? []
+    () => initialRecord?.input.setupChargeIds ?? initialSetupChargeIds ?? []
   );
 
   // Customer / quote header fields.
@@ -129,7 +151,7 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
   const [csError, setCsError] = useState<string | null>(null);
 
   const [lines, setLines] = useState<PendingLine[]>(() =>
-    initialRecord ? linesFromRecord(initialRecord) : []
+    initialRecord ? linesFromRecord(initialRecord) : initialLines ?? []
   );
 
   const [quote, setQuote] = useState<ComputedQuote | null>(() => initialRecord?.computed ?? null);
@@ -566,7 +588,9 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
         </div>
       )}
 
-      {/* Customer / quote header */}
+      {/* Customer / quote header — skipped entirely in "quick" mode (Quick
+          Quote tab): no customer to look up, no payment terms to set. */}
+      {mode === "full" && (
       <section className="bg-white border border-navy/10 rounded-xl p-4">
         <h3 className="text-sm font-semibold text-navy mb-3">Quote details</h3>
 
@@ -692,6 +716,7 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
           </div>
         </div>
       </section>
+      )}
 
       {/* Setup charges — flat, quote-wide, independent of any decoration */}
       <section className="bg-white border border-navy/10 rounded-xl p-4">
@@ -1099,64 +1124,90 @@ export default function AdminQuoteBuilder({ initialRecord, onSaved }: Props) {
             >
               {quoteLoading ? "Calculating…" : "Preview quote"}
             </button>
-            <button
-              onClick={saveQuote}
-              disabled={saving}
-              className="text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90 disabled:opacity-40"
-            >
-              {saving ? "Saving…" : activeRecord ? "Save changes" : "Save quote"}
-            </button>
-            {activeRecord && activeRecord.status === "quote" && (
+            {mode === "full" ? (
+              <>
+                <button
+                  onClick={saveQuote}
+                  disabled={saving}
+                  className="text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90 disabled:opacity-40"
+                >
+                  {saving ? "Saving…" : activeRecord ? "Save changes" : "Save quote"}
+                </button>
+                {activeRecord && activeRecord.status === "quote" && (
+                  <button
+                    onClick={convertToInvoice}
+                    disabled={converting}
+                    className="text-sm px-4 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
+                  >
+                    {converting ? "Converting…" : "Convert to invoice"}
+                  </button>
+                )}
+              </>
+            ) : (
               <button
-                onClick={convertToInvoice}
-                disabled={converting}
-                className="text-sm px-4 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
+                onClick={() => onCreateQuote?.(lines, selectedSetupChargeIds)}
+                disabled={lines.length === 0}
+                className="text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90 disabled:opacity-40"
+                title="Carry these items into a full quote where you can add the customer's info and save it"
               >
-                {converting ? "Converting…" : "Convert to invoice"}
+                Create quote
               </button>
             )}
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              onClick={() => downloadPdf("customer")}
-              disabled={pdfLoading !== null}
-              className="text-sm px-4 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
-            >
-              {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
-            </button>
-            <button
-              onClick={() => downloadPdf("internal")}
-              disabled={pdfLoading !== null}
-              className="text-sm px-4 py-1.5 rounded-lg border border-red/30 text-red hover:bg-red/5 disabled:opacity-40"
-            >
-              {pdfLoading === "internal" ? "Generating…" : "Download company PDF (with cost)"}
-            </button>
-            <button
-              onClick={() => downloadPdf("work-order")}
-              disabled={pdfLoading !== null}
-              className="text-sm px-4 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
-            >
-              {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
-            </button>
-            {activeRecord?.status === "invoice" && (
+          {mode === "full" && (
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
-                onClick={() => downloadPdf("invoice")}
+                onClick={() => downloadPdf("customer")}
                 disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-lg border border-green-600/30 text-green-700 hover:bg-green-50 disabled:opacity-40"
+                className="text-sm px-4 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
               >
-                {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
+                {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
               </button>
-            )}
-          </div>
+              <button
+                onClick={() => downloadPdf("internal")}
+                disabled={pdfLoading !== null}
+                className="text-sm px-4 py-1.5 rounded-lg border border-red/30 text-red hover:bg-red/5 disabled:opacity-40"
+              >
+                {pdfLoading === "internal" ? "Generating…" : "Download company PDF (with cost)"}
+              </button>
+              <button
+                onClick={() => downloadPdf("work-order")}
+                disabled={pdfLoading !== null}
+                className="text-sm px-4 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
+              >
+                {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
+              </button>
+              {activeRecord?.status === "invoice" && (
+                <button
+                  onClick={() => downloadPdf("invoice")}
+                  disabled={pdfLoading !== null}
+                  className="text-sm px-4 py-1.5 rounded-lg border border-green-600/30 text-green-700 hover:bg-green-50 disabled:opacity-40"
+                >
+                  {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
+                </button>
+              )}
+            </div>
+          )}
           <p className="mt-2 text-xs text-navy/40">
-            The customer PDF shows only the final unit price and totals. The company PDF adds garment
-            cost and decoration cost columns and is marked &quot;internal use only.&quot; The work order
-            has no pricing at all — just garments, sizes, quantities, and decoration details for
-            production staff. Saving keeps this quote on the &quot;Saved quotes &amp; invoices&quot; list
-            below so it can be reopened, edited, or converted to an invoice later.
+            {mode === "full" ? (
+              <>
+                The customer PDF shows only the final unit price and totals. The company PDF adds
+                garment cost and decoration cost columns and is marked &quot;internal use only.&quot;
+                The work order has no pricing at all — just garments, sizes, quantities, and
+                decoration details for production staff. Saving keeps this quote on the &quot;Saved
+                quotes &amp; invoices&quot; list below so it can be reopened, edited, or converted to
+                an invoice later.
+              </>
+            ) : (
+              <>
+                This is just a quick price check — nothing is saved yet. If the customer wants to
+                order, tap &quot;Create quote&quot; to carry these items over to the Quotes tab, where
+                you can add their info and save it for real.
+              </>
+            )}
           </p>
-          {saveMessage && <p className="mt-2 text-xs text-green-700">{saveMessage}</p>}
+          {mode === "full" && saveMessage && <p className="mt-2 text-xs text-green-700">{saveMessage}</p>}
           {quoteError && <p className="mt-2 text-xs text-red-600">{quoteError}</p>}
         </section>
       )}

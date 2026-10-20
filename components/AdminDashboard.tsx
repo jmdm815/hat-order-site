@@ -6,7 +6,8 @@ import AdminCategoriesManager from "@/components/AdminCategoriesManager";
 import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
 import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManager";
-import AdminQuotesTab from "@/components/AdminQuotesTab";
+import AdminQuotesTab, { QuoteBuilderSeed } from "@/components/AdminQuotesTab";
+import AdminQuickQuoteTab from "@/components/AdminQuickQuoteTab";
 import AdminSetupChargesManager from "@/components/AdminSetupChargesManager";
 import AdminGarmentMarkupManager from "@/components/AdminGarmentMarkupManager";
 import AdminCustomersManager from "@/components/AdminCustomersManager";
@@ -17,6 +18,7 @@ const TABS = [
   { id: "catalog", label: "Catalog" },
   { id: "pricing", label: "Pricing" },
   { id: "settings", label: "Settings" },
+  { id: "quick-quote", label: "Quick Quote" },
   { id: "quotes", label: "Quotes" },
   { id: "customers", label: "Customers" },
   { id: "setup-charges", label: "Setup Charges" },
@@ -26,6 +28,7 @@ const TABS = [
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("categories");
+  const [quickQuoteSeed, setQuickQuoteSeed] = useState<QuoteBuilderSeed | null>(null);
 
   return (
     <div>
@@ -98,6 +101,23 @@ export default function AdminDashboard() {
             <AdminPricingManager />
           </>
         )}
+        {tab === "quick-quote" && (
+          <>
+            <p className="mb-4 text-navy/60 text-sm">
+              A fast price check for a walk-in or phone call — pick a garment (and a decoration, if
+              any — leave it as &quot;None&quot; for a blank item) straight from the catalog and see
+              the price right away, with no customer info required. If they decide to order, tap
+              &quot;Create quote&quot; to carry it into a real quote on the Quotes tab, where you can
+              add their info and save it.
+            </p>
+            <AdminQuickQuoteTab
+              onCreateQuote={(lines, setupChargeIds) => {
+                setQuickQuoteSeed({ token: Date.now(), lines, setupChargeIds });
+                setTab("quotes");
+              }}
+            />
+          </>
+        )}
         {tab === "quotes" && (
           <>
             <p className="mb-4 text-navy/60 text-sm">
@@ -106,7 +126,7 @@ export default function AdminDashboard() {
               PDF. Saved quotes can be reopened, edited, and converted to invoices below. Nothing
               here touches the customer-facing catalog or cart.
             </p>
-            <AdminQuotesTab />
+            <AdminQuotesTab seed={quickQuoteSeed} onSeedConsumed={() => setQuickQuoteSeed(null)} />
           </>
         )}
         {tab === "customers" && (
