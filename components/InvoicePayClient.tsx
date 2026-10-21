@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import InvoicePayForm from "./InvoicePayForm";
+import InvoicePayForm, { InvoicePaymentMethod } from "./InvoicePayForm";
 
 type InvoiceSummary = {
   id: string;
@@ -67,7 +67,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  async function handlePay(sourceId: string) {
+  async function handlePay(sourceId: string, method: InvoicePaymentMethod) {
     if (!invoice) return;
     setError(null);
     const amount = Number(amountInput);
@@ -75,7 +75,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
       const res = await fetch(`/api/pay/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId, amount }),
+        body: JSON.stringify({ sourceId, amount, method }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Payment failed");

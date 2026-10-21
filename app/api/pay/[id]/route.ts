@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getQuote, recordInvoicePayment, QuoteRecord } from "@/lib/quotes-store";
 import { getSquareClient, getSquareLocationId, isSquareConfigured } from "@/lib/square-client";
+import { sendInvoicePaymentNotification } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -86,6 +87,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await req.json().catch(() => null);
   const sourceId = body?.sourceId;
   const amount = Number(body?.amount);
+  // Which Square Web Payments SDK flow produced the token — purely
+  // cosmetic (used in the admin notification email below), doesn't affect
+  // how the charge itself is processed. Falls back to "card" for any
+  // unrecognized/missing value rather than rejecting the payment over it.
+  const walletMethod: "card" | "apple_pay" | "google_pay" =
+    body?.method === "apple_pay" || body?.method === "google_pay" ? body.method : "card";
   if (typeof sourceId !== "string" || !sourceId) {
     return NextResponse.json({ error: "Missing payment source" }, { status: 400 });
   }
@@ -133,7 +140,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, invoice: toCustomerSummary(updated), persisted });
+    const summary = toCustomerSummary(updated);
+    // Best-effort — never blocks or fails the response to the customer; the
+    // charge already succeeded with Square regardless of whether this email
+    // goes out.
+    void sendInvoicePaymentNotification({
+      invoiceId: id,
+      invoiceNumber: updated.invoiceNumber,
+      customerName: updated.computed.customerName,
+      customerCompany: updated.computed.customerCompany,
+      amount,
+      method: walletMethod === "apple_pay" ? "square_apple_pay" : walletMethod === "google_pay" ? "square_google_pay" : "square_card",
+      grandTotal: summary.grandTotal,
+      amountPaid: summary.amountPaid,
+      balance: summary.balance,
+      payPageUrl: `${req.nextUrl.origin}/pay/${id}`,
+    });
+
+    return NextResponse.json({ ok: true, invoice: summary, persisted });
   } catch (err) {
     console.error(`POST /api/pay/${id} failed`, err);
     return NextResponse.json(

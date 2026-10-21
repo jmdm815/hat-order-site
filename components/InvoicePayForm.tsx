@@ -57,10 +57,12 @@ const SDK_SRC =
     ? "https://web.squarecdn.com/v1/square.js"
     : "https://sandbox.web.squarecdn.com/v1/square.js";
 
+export type InvoicePaymentMethod = "card" | "apple_pay" | "google_pay";
+
 type Props = {
   amount: number; // dollars — the amount about to be charged
   disabled?: boolean;
-  onPay: (sourceId: string) => Promise<void> | void;
+  onPay: (sourceId: string, method: InvoicePaymentMethod) => Promise<void> | void;
 };
 
 // Card + Apple Pay + Google Pay, direct-charge Square Web Payments SDK form
@@ -202,7 +204,7 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
     try {
       const result = await cardRef.current.tokenize();
       if (result.status === "OK" && result.token) {
-        await onPay(result.token);
+        await onPay(result.token, "card");
       } else {
         setError(result.errors?.[0]?.message ?? "Card was declined");
       }
@@ -223,7 +225,7 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
       const result = await applePayRef.current.tokenize();
       setError(null);
       if (result.status === "OK" && result.token) {
-        await onPay(result.token);
+        await onPay(result.token, "apple_pay");
       } else {
         setError(result.errors?.[0]?.message ?? "Apple Pay payment was declined");
       }
@@ -241,7 +243,7 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
       const result = await googlePayRef.current.tokenize();
       setError(null);
       if (result.status === "OK" && result.token) {
-        await onPay(result.token);
+        await onPay(result.token, "google_pay");
       } else {
         setError(result.errors?.[0]?.message ?? "Google Pay payment was declined");
       }
@@ -275,14 +277,21 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
             onClick={handleApplePayClick}
             disabled={!canPay}
             aria-label="Pay with Apple Pay"
-            style={{ WebkitAppearance: "-apple-pay-button" }}
-            className="w-full h-11 rounded-lg bg-black text-white text-sm font-medium disabled:opacity-40"
-          >
-            {/* Apple renders its own label/logo via -webkit-appearance
-                above on supporting browsers; this text is the fallback
-                shown anywhere that CSS value isn't recognized. */}
-            Apple Pay
-          </button>
+            // Apple renders its own label/logo entirely via these CSS
+            // appearance properties (supported wherever payments.applePay()
+            // successfully initializes, which is the only time this button
+            // renders at all) — no text/children here, since any would sit
+            // on top of Apple's own rendered graphic instead of being a
+            // fallback for it.
+            style={
+              {
+                WebkitAppearance: "-apple-pay-button",
+                "-apple-pay-button-type": "plain",
+                "-apple-pay-button-style": "black",
+              } as React.CSSProperties
+            }
+            className="w-full h-11 rounded-lg disabled:opacity-40"
+          />
         )}
         <div
           id={`google-pay-button-${googlePayButtonId}`}
