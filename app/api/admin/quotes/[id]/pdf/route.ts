@@ -36,6 +36,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       invoiceNumber: record.invoiceNumber,
       invoiceStatus: record.invoiceStatus,
       paymentLinkUrl: record.paymentLinkUrl,
+      payPageUrl: `${req.nextUrl.origin}/pay/${record.id}`,
       amountPaid: record.amountPaid,
     });
     const fileNameSafe = (record.computed.customerName || "quote")

@@ -39,9 +39,17 @@ export type InvoiceMeta = {
   invoiceNumber?: string;
   invoiceStatus?: InvoicePaymentStatus;
   // Square-hosted "Pay online" checkout link (lib/square-payment-links.ts).
-  // Rendered as a clickable line on the invoice PDF when present and the
-  // invoice isn't already paid in full.
+  // No longer rendered on the PDF itself (see payPageUrl below) — kept here
+  // because the admin UI still independently offers a "Create/Copy Square
+  // link" action elsewhere, unrelated to what shows on the PDF.
   paymentLinkUrl?: string;
+  // The site's own branded pay page (/pay/[id]) — always computable for any
+  // invoice record regardless of whether a Square link has ever been
+  // created, and always reflects the invoice's current total/line items
+  // since the page reads the record fresh on every load. This is what's
+  // rendered as the clickable "Pay online" line + QR code on the invoice
+  // PDF when present and the invoice isn't already paid in full.
+  payPageUrl?: string;
   // Running total already collected (dollars) — see lib/quotes-store.ts's
   // QuoteRecord.amountPaid. Used to show "Paid to date" / "Balance
   // remaining" instead of (or alongside) the flat deposit/balance split
@@ -81,8 +89,8 @@ export async function renderQuotePdf(
   // link already rendered as text. Failing to generate it (should be rare)
   // just means the PDF ships without the QR code, not without the link.
   const paymentQrPng =
-    mode === "invoice" && invoiceMeta?.paymentLinkUrl && invoiceMeta.invoiceStatus !== "paid"
-      ? await QRCode.toBuffer(invoiceMeta.paymentLinkUrl, {
+    mode === "invoice" && invoiceMeta?.payPageUrl && invoiceMeta.invoiceStatus !== "paid"
+      ? await QRCode.toBuffer(invoiceMeta.payPageUrl, {
           type: "png",
           margin: 1,
           width: 240,
@@ -180,7 +188,7 @@ export async function renderQuotePdf(
       doc.y = bannerY + 20;
       doc.moveDown(0.6);
 
-      if (invoiceMeta?.paymentLinkUrl && !paid) {
+      if (invoiceMeta?.payPageUrl && !paid) {
         doc
           .fillColor(NAVY)
           .font("Helvetica-Bold")
@@ -188,7 +196,7 @@ export async function renderQuotePdf(
           .text("Pay online: ", left, doc.y, { continued: true })
           .font("Helvetica")
           .fillColor("#1a56cd")
-          .text(invoiceMeta.paymentLinkUrl, { link: invoiceMeta.paymentLinkUrl, underline: true });
+          .text(invoiceMeta.payPageUrl, { link: invoiceMeta.payPageUrl, underline: true });
         doc.moveDown(0.5);
 
         if (paymentQrPng) {
@@ -196,7 +204,7 @@ export async function renderQuotePdf(
           const qrY = doc.y;
           doc.image(paymentQrPng, left, qrY, { width: qrSize, height: qrSize });
           // Make the whole QR image clickable too, not just scannable.
-          doc.link(left, qrY, qrSize, qrSize, invoiceMeta.paymentLinkUrl);
+          doc.link(left, qrY, qrSize, qrSize, invoiceMeta.payPageUrl);
           doc
             .fillColor(GRAY)
             .font("Helvetica")
