@@ -21,6 +21,7 @@
 // ---------------------------------------------------------------------------
 
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 import { ComputedQuote } from "./quote";
 import { InvoicePaymentStatus } from "./quotes-store";
 
@@ -69,11 +70,29 @@ const TITLE: Record<QuotePdfMode, string> = {
   invoice: "INVOICE",
 };
 
-export function renderQuotePdf(
+export async function renderQuotePdf(
   quote: ComputedQuote,
   mode: QuotePdfMode = "customer",
   invoiceMeta?: InvoiceMeta
 ): Promise<Buffer> {
+  // Generated up front (QRCode.toBuffer is async; pdfkit's drawing calls
+  // below are not) so the PNG bytes are ready by the time doc.image() needs
+  // them. Scannable on a phone — points straight at the same "Pay online"
+  // link already rendered as text. Failing to generate it (should be rare)
+  // just means the PDF ships without the QR code, not without the link.
+  const paymentQrPng =
+    mode === "invoice" && invoiceMeta?.paymentLinkUrl && invoiceMeta.invoiceStatus !== "paid"
+      ? await QRCode.toBuffer(invoiceMeta.paymentLinkUrl, {
+          type: "png",
+          margin: 1,
+          width: 240,
+          color: { dark: NAVY, light: "#ffffff" },
+        }).catch((err) => {
+          console.error("renderQuotePdf: failed to generate payment QR code", err);
+          return null;
+        })
+      : null;
+
   return new Promise((resolve, reject) => {
     const internal = mode === "internal";
     const workOrder = mode === "work-order";
@@ -170,7 +189,22 @@ export function renderQuotePdf(
           .font("Helvetica")
           .fillColor("#1a56cd")
           .text(invoiceMeta.paymentLinkUrl, { link: invoiceMeta.paymentLinkUrl, underline: true });
-        doc.moveDown(0.6);
+        doc.moveDown(0.5);
+
+        if (paymentQrPng) {
+          const qrSize = 72;
+          const qrY = doc.y;
+          doc.image(paymentQrPng, left, qrY, { width: qrSize, height: qrSize });
+          // Make the whole QR image clickable too, not just scannable.
+          doc.link(left, qrY, qrSize, qrSize, invoiceMeta.paymentLinkUrl);
+          doc
+            .fillColor(GRAY)
+            .font("Helvetica")
+            .fontSize(7.5)
+            .text("Scan to pay", left, qrY + qrSize + 3, { width: qrSize, align: "center" });
+          doc.y = qrY + qrSize + 14;
+        }
+        doc.moveDown(0.3);
       }
     }
 
