@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getQuote, recordInvoicePayment, QuoteRecord } from "@/lib/quotes-store";
 import { getSquareClient, getSquareLocationId, isSquareConfigured } from "@/lib/square-client";
-import { sendInvoicePaymentNotification } from "@/lib/email";
+import { sendInvoicePaymentNotification, sendInvoiceReceiptEmail } from "@/lib/email";
+import { renderQuotePdf } from "@/lib/quote-pdf";
+
+// Loose email format check — good enough to catch obvious typos before
+// bothering Resend with it; not trying to be a full RFC 5322 validator.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const runtime = "nodejs";
 
@@ -25,6 +30,7 @@ type CustomerInvoiceSummary = {
   invoiceStatus?: string;
   customerName?: string;
   customerCompany?: string;
+  customerEmail?: string;
   quoteDate: string;
   lines: Array<{
     description: string;
@@ -50,6 +56,7 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
     invoiceStatus: record.invoiceStatus,
     customerName: record.computed.customerName,
     customerCompany: record.computed.customerCompany,
+    customerEmail: record.computed.customerEmail,
     quoteDate: record.computed.quoteDate,
     lines: record.computed.lines.map((l) => ({
       description: l.customerSupplied
@@ -93,6 +100,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // unrecognized/missing value rather than rejecting the payment over it.
   const walletMethod: "card" | "apple_pay" | "google_pay" =
     body?.method === "apple_pay" || body?.method === "google_pay" ? body.method : "card";
+  // Optional — the customer can type an email on the pay page to get a PDF
+  // receipt; left blank, payment proceeds exactly as before. Invalid-looking
+  // input is just dropped rather than rejecting the whole payment over it.
+  const receiptEmail: string | null =
+    typeof body?.email === "string" && EMAIL_RE.test(body.email.trim()) ? body.email.trim() : null;
   if (typeof sourceId !== "string" || !sourceId) {
     return NextResponse.json({ error: "Missing payment source" }, { status: 400 });
   }
@@ -162,6 +174,50 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       balance: summary.balance,
       payPageUrl: `${req.nextUrl.origin}/pay/${id}`,
     });
+
+    if (receiptEmail) {
+      // Best-effort — a failed receipt email never fails the payment
+      // response (the charge already succeeded with Square regardless).
+      // Awaited rather than fire-and-forget like the admin notification
+      // above: this does real work (rendering a PDF) that's worth not
+      // risking getting cut off if the serverless function freezes right
+      // after the response is sent. Renders the invoice PDF fresh (same
+      // renderer the admin's "PDF" button uses) so the attachment already
+      // reflects this payment's updated paid/balance status.
+      try {
+        const payPageUrl = `${req.nextUrl.origin}/pay/${id}`;
+        const pdfBuffer = await renderQuotePdf(updated.computed, "invoice", {
+          invoiceNumber: updated.invoiceNumber,
+          invoiceStatus: updated.invoiceStatus,
+          paymentLinkUrl: updated.paymentLinkUrl,
+          payPageUrl,
+          amountPaid: updated.amountPaid,
+        });
+        await sendInvoiceReceiptEmail({
+          to: receiptEmail,
+          invoiceNumber: updated.invoiceNumber,
+          customerName: updated.computed.customerName,
+          customerCompany: updated.computed.customerCompany,
+          amount,
+          method:
+            walletMethod === "apple_pay"
+              ? "square_apple_pay"
+              : walletMethod === "google_pay"
+                ? "square_google_pay"
+                : "square_card",
+          grandTotal: summary.grandTotal,
+          amountPaid: summary.amountPaid,
+          balance: summary.balance,
+          payPageUrl,
+          pdf: {
+            filename: `${updated.invoiceNumber ?? "invoice"}.pdf`,
+            content: pdfBuffer,
+          },
+        });
+      } catch (err) {
+        console.error(`POST /api/pay/${id}: failed to build/send receipt PDF`, err);
+      }
+    }
 
     return NextResponse.json({ ok: true, invoice: summary, persisted });
   } catch (err) {

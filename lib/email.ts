@@ -25,6 +25,13 @@ export function isEmailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.ADMIN_NOTIFICATION_EMAIL);
 }
 
+// Separate from isEmailConfigured() above — a customer receipt only needs
+// RESEND_API_KEY and an EMAIL_FROM sender, not ADMIN_NOTIFICATION_EMAIL
+// (the "to" address is whatever the customer typed in on the pay page).
+export function isReceiptEmailConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY);
+}
+
 function getResendClient(): Resend {
   return new Resend(process.env.RESEND_API_KEY ?? "");
 }
@@ -107,5 +114,81 @@ export async function sendInvoicePaymentNotification(notice: InvoicePaymentNotif
     }
   } catch (err) {
     console.error("sendInvoicePaymentNotification: failed to send", err);
+  }
+}
+
+export type InvoiceReceiptEmail = {
+  to: string;
+  invoiceNumber?: string;
+  customerName?: string;
+  customerCompany?: string;
+  amount: number; // this payment, dollars
+  method: "square_card" | "square_apple_pay" | "square_google_pay" | string;
+  grandTotal: number;
+  amountPaid: number; // running total after this payment
+  balance: number; // remaining after this payment
+  payPageUrl: string;
+  pdf: { filename: string; content: Buffer };
+};
+
+// Customer-facing payment receipt — sent from app/api/pay/[id]/route.ts
+// only when the customer typed an email in on the pay page (it's optional
+// there, so this is opt-in per payment, not automatic). Attaches the same
+// invoice PDF the admin can download, generated fresh with the post-payment
+// status/balance baked in.
+export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Promise<void> {
+  if (!isReceiptEmailConfigured()) {
+    console.warn("sendInvoiceReceiptEmail: RESEND_API_KEY not set, skipping email");
+    return;
+  }
+
+  const label = receipt.invoiceNumber ? `Invoice ${receipt.invoiceNumber}` : "your invoice";
+  const methodLabel = METHOD_LABEL[receipt.method] ?? receipt.method;
+  const paidInFull = receipt.balance <= 0.01;
+  const greetingName = receipt.customerName || receipt.customerCompany || "there";
+
+  const subject = paidInFull
+    ? `Receipt — ${label} paid in full`
+    : `Receipt — payment received on ${label}`;
+
+  const html = `
+    <div style="font-family: Helvetica, Arial, sans-serif; color: #1a2332; max-width: 480px;">
+      <h2 style="margin: 0 0 4px;">Thank you, ${greetingName}!</h2>
+      <p style="margin: 0 0 16px; color: #666;">We received your payment on ${label}. The PDF receipt is attached.</p>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <tr><td style="padding: 4px 0; color: #666;">Amount paid</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${money(receipt.amount)}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Method</td><td style="padding: 4px 0; text-align: right;">${methodLabel}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Paid to date</td><td style="padding: 4px 0; text-align: right;">${money(receipt.amountPaid)} of ${money(receipt.grandTotal)}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Balance remaining</td><td style="padding: 4px 0; text-align: right;">${paidInFull ? "Paid in full" : money(receipt.balance)}</td></tr>
+      </table>
+      <p style="margin: 20px 0 0;"><a href="${receipt.payPageUrl}" style="color: #1a56cd;">View your invoice online</a></p>
+      <p style="margin: 20px 0 0; color: #999; font-size: 12px;">JM Digital Media — buyjmmedia.com</p>
+    </div>
+  `.trim();
+
+  const text = [
+    `Thank you! We received your payment on ${label}.`,
+    `Amount paid: ${money(receipt.amount)}`,
+    `Method: ${methodLabel}`,
+    `Paid to date: ${money(receipt.amountPaid)} of ${money(receipt.grandTotal)}`,
+    `Balance remaining: ${paidInFull ? "Paid in full" : money(receipt.balance)}`,
+    `View online: ${receipt.payPageUrl}`,
+  ].join("\n");
+
+  try {
+    const resend = getResendClient();
+    const { error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM ?? "JM Digital Media <onboarding@resend.dev>",
+      to: receipt.to,
+      subject,
+      html,
+      text,
+      attachments: [{ filename: receipt.pdf.filename, content: receipt.pdf.content }],
+    });
+    if (error) {
+      console.error("sendInvoiceReceiptEmail: Resend returned an error", error);
+    }
+  } catch (err) {
+    console.error("sendInvoiceReceiptEmail: failed to send", err);
   }
 }

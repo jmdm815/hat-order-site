@@ -9,6 +9,7 @@ type InvoiceSummary = {
   invoiceStatus?: string;
   customerName?: string;
   customerCompany?: string;
+  customerEmail?: string;
   quoteDate: string;
   lines: Array<{
     description: string;
@@ -28,6 +29,11 @@ function money(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+// Same loose check as the server (app/api/pay/[id]/route.ts) — just UI
+// feedback, the server is the real gate on whether an email actually gets
+// used.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Client half of the public invoice pay page (app/pay/[id]/page.tsx) — loads
 // the invoice's customer-safe summary from /api/pay/[id], renders a
 // shopVOX/competitor-style "Total / Paid / Balance" box plus an itemized
@@ -40,6 +46,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [amountInput, setAmountInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -56,6 +63,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
         if (data?.invoice) {
           setInvoice(data.invoice);
           setAmountInput(data.invoice.balance > 0 ? data.invoice.balance.toFixed(2) : "0.00");
+          if (data.invoice.customerEmail) setEmailInput(data.invoice.customerEmail);
         }
       })
       .catch(() => setNotFound(true))
@@ -71,21 +79,23 @@ export default function InvoicePayClient({ id }: { id: string }) {
     if (!invoice) return;
     setError(null);
     const amount = Number(amountInput);
+    const email = emailInput.trim();
+    const emailValid = email !== "" && EMAIL_RE.test(email);
     try {
       const res = await fetch(`/api/pay/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId, amount, method }),
+        body: JSON.stringify({ sourceId, amount, method, email: emailValid ? email : undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Payment failed");
       setInvoice(data.invoice);
       setAmountInput(data.invoice.balance > 0 ? data.invoice.balance.toFixed(2) : "0.00");
-      setSuccessMessage(
+      const base =
         data.invoice.balance <= 0
           ? "Payment received — this invoice is now paid in full. Thank you!"
-          : `Payment of ${money(amount)} received. Remaining balance: ${money(data.invoice.balance)}.`
-      );
+          : `Payment of ${money(amount)} received. Remaining balance: ${money(data.invoice.balance)}.`;
+      setSuccessMessage(emailValid ? `${base} A receipt is on its way to ${email}.` : base);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Payment failed");
     }
@@ -201,6 +211,24 @@ export default function InvoicePayClient({ id }: { id: string }) {
           {!amountValid && amountInput !== "" && (
             <p className="mt-1 text-xs text-red">Enter an amount between $0.01 and {money(invoice.balance)}.</p>
           )}
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-navy mb-1" htmlFor="pay-email">
+              Email for receipt <span className="font-normal text-navy/40">(optional)</span>
+            </label>
+            <input
+              id="pay-email"
+              type="email"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full bg-white border border-navy/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+            />
+            {emailInput.trim() !== "" && !EMAIL_RE.test(emailInput.trim()) && (
+              <p className="mt-1 text-xs text-red">That doesn&apos;t look like a valid email address.</p>
+            )}
+            <p className="mt-1 text-xs text-navy/40">We&apos;ll email you a PDF receipt once payment goes through.</p>
+          </div>
 
           <div className="mt-5">
             <InvoicePayForm
