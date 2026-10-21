@@ -120,7 +120,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const client = getSquareClient();
     const result = await client.payments.create({
       sourceId,
-      idempotencyKey: `${id}-${Date.now()}`,
+      // Square caps idempotency_key at 45 characters — the invoice's full
+      // uuid (36 chars) plus a "-" and a millisecond timestamp (13 digits)
+      // ran to 50 and got rejected with VALUE_TOO_LONG, so this uses a
+      // short id prefix instead. Still effectively unique per request (the
+      // timestamp alone already is), and still traceable back to the
+      // invoice from the first 8 characters if needed.
+      idempotencyKey: `${id.slice(0, 8)}-${Date.now()}`,
       amountMoney: { amount: BigInt(Math.round(amount * 100)), currency: "USD" },
       locationId: getSquareLocationId(),
       referenceId: id,
