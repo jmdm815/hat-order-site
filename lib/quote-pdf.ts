@@ -493,6 +493,29 @@ export async function renderQuotePdf(
       doc.moveDown(1);
     }
 
+    // --- Miscellaneous fees ------------------------------------------------
+    // Ad-hoc, one-off charges entered on this quote only (a rush fee, a
+    // shipping surcharge, etc.) — see lib/quote.ts's QuoteInput.miscFees.
+    // Like setup charges, the dollar amount is already folded into the
+    // subtotal below; this is just an itemized breakdown. Skipped on the
+    // work order — these are billing line items, not production ones.
+    if (quote.miscFees.length > 0 && showPricing) {
+      if (doc.y > doc.page.height - doc.page.margins.bottom - 60) {
+        doc.addPage();
+      }
+      doc
+        .fillColor(GRAY)
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .text("MISCELLANEOUS FEES", left, doc.y, { width: pageWidth });
+      doc.moveDown(0.2);
+      doc.font("Helvetica").fontSize(9.5);
+      for (const fee of quote.miscFees) {
+        doc.fillColor(NAVY).text(`${fee.label} — ${money(fee.amount)}`, left, doc.y);
+      }
+      doc.moveDown(1);
+    }
+
     // --- Totals -------------------------------------------------------
     if (doc.y > doc.page.height - doc.page.margins.bottom - 120) {
       doc.addPage();

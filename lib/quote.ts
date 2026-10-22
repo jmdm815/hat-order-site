@@ -53,6 +53,12 @@ export type QuoteInput = {
   // are independent of any line's decoration — a quote can combine any of
   // them (e.g. "Digitizing for embroidery" + "Logo vectorization").
   setupChargeIds?: string[];
+  // Ad-hoc, one-off charges entered directly on this quote — a rush fee, a
+  // shipping surcharge, anything that isn't a garment/decoration line and
+  // isn't a reusable, admin-managed Setup Charge (lib/setup-charges-store.ts).
+  // Unlike setupChargeIds, these aren't looked up against any catalog — the
+  // label and amount are whatever the admin typed for this quote only.
+  miscFees?: { label: string; amount: number }[];
   // Percent (1-100) of the grand total due as a deposit when the order is
   // placed; the remainder is due later (e.g. at pickup). Undefined/100 means
   // "pay in full" — the common case — so this is optional and most quotes
@@ -94,6 +100,9 @@ export type QuoteLineResult = {
 // A quote-level setup/digitization charge resolved from lib/setup-charges-store.ts.
 export type QuoteSetupCharge = { id: string; label: string; price: number };
 
+// A quote-level miscellaneous fee — see QuoteInput.miscFees.
+export type QuoteMiscFee = { label: string; amount: number };
+
 export type ComputedQuote = {
   customerName?: string;
   customerCompany?: string;
@@ -102,10 +111,12 @@ export type ComputedQuote = {
   notes?: string;
   lines: QuoteLineResult[];
   setupCharges: QuoteSetupCharge[]; // itemized, quote-wide (not tied to any decoration)
+  miscFees: QuoteMiscFee[]; // itemized, ad-hoc, quote-wide — see QuoteInput.miscFees
   totalQuantity: number;
   totalSetupFees: number; // sum of setupCharges[].price
+  totalMiscFees: number; // sum of miscFees[].amount
   totalGarmentAndDecoration: number; // sum of all lines' garment + decoration cost, no setup
-  grandTotal: number; // totalGarmentAndDecoration + totalSetupFees
+  grandTotal: number; // totalGarmentAndDecoration + totalSetupFees + totalMiscFees
   depositPercent?: number; // see QuoteInput.depositPercent
 };
 
@@ -129,6 +140,18 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
   }
   if (b.depositPercent !== undefined) {
     if (typeof b.depositPercent !== "number" || b.depositPercent <= 0 || b.depositPercent > 100) {
+      return false;
+    }
+  }
+  if (b.miscFees !== undefined) {
+    if (
+      !Array.isArray(b.miscFees) ||
+      !b.miscFees.every((f) => {
+        if (typeof f !== "object" || f === null) return false;
+        const m = f as Record<string, unknown>;
+        return typeof m.label === "string" && m.label !== "" && typeof m.amount === "number" && m.amount > 0;
+      })
+    ) {
       return false;
     }
   }
@@ -307,12 +330,21 @@ export function computeQuote(
     };
   });
 
+  // Ad-hoc miscellaneous fees — see QuoteInput.miscFees. Unlike setup
+  // charges, there's no catalog to resolve against; the label/amount typed
+  // by the admin is taken as-is (money() just cleans up float noise).
+  const miscFees: QuoteMiscFee[] = (input.miscFees ?? []).map((f) => ({
+    label: f.label,
+    amount: money(f.amount),
+  }));
+
   const totalQuantity = lines.reduce((sum, l) => sum + l.quantity, 0);
   const totalSetupFees = money(setupCharges.reduce((sum, c) => sum + c.price, 0));
+  const totalMiscFees = money(miscFees.reduce((sum, f) => sum + f.amount, 0));
   const totalGarmentAndDecoration = money(
     lines.reduce((sum, l) => sum + l.sizes.reduce((s, sz) => s + sz.lineTotal, 0), 0)
   );
-  const grandTotal = money(totalGarmentAndDecoration + totalSetupFees);
+  const grandTotal = money(totalGarmentAndDecoration + totalSetupFees + totalMiscFees);
 
   return {
     customerName: input.customerName,
@@ -322,8 +354,10 @@ export function computeQuote(
     notes: input.notes,
     lines,
     setupCharges,
+    miscFees,
     totalQuantity,
     totalSetupFees,
+    totalMiscFees,
     totalGarmentAndDecoration,
     grandTotal,
     depositPercent: input.depositPercent,

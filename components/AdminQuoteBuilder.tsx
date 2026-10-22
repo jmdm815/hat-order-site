@@ -23,6 +23,13 @@ export type PendingLine = QuoteLineInput & {
   productName: string;
 };
 
+// A one-off, ad-hoc charge added directly to this quote — e.g. a rush fee
+// or a shipping surcharge. Distinct from Setup Charges (lib/types.ts's
+// SetupChargeType), which are a named, reusable charge type managed on the
+// "Setup Charges" tab; a misc fee only exists on this one quote. See
+// lib/quote.ts's QuoteInput.miscFees.
+type PendingMiscFee = { id: string; label: string; amount: number };
+
 type PdfMode = "customer" | "internal" | "work-order" | "invoice";
 
 function todayIso(): string {
@@ -105,6 +112,21 @@ export default function AdminQuoteBuilder({
   const [selectedSetupChargeIds, setSelectedSetupChargeIds] = useState<string[]>(
     () => initialRecord?.input.setupChargeIds ?? initialSetupChargeIds ?? []
   );
+
+  // Ad-hoc miscellaneous fees — see PendingMiscFee above. Only surfaced in
+  // "full" mode (Quick Quote has no save/customer-info step either, so it
+  // doesn't carry these over).
+  const [miscFees, setMiscFees] = useState<PendingMiscFee[]>(
+    () =>
+      initialRecord?.input.miscFees?.map((f, i) => ({
+        id: `misc-initial-${i}`,
+        label: f.label,
+        amount: f.amount,
+      })) ?? []
+  );
+  const [miscFeeLabel, setMiscFeeLabel] = useState("");
+  const [miscFeeAmount, setMiscFeeAmount] = useState("");
+  const [miscFeeError, setMiscFeeError] = useState<string | null>(null);
 
   // Customer / quote header fields.
   const [customerName, setCustomerName] = useState(() => initialRecord?.input.customerName ?? "");
@@ -246,6 +268,10 @@ export default function AdminQuoteBuilder({
     setNotes("");
     setDepositPercent(100);
     setSelectedSetupChargeIds([]);
+    setMiscFees([]);
+    setMiscFeeLabel("");
+    setMiscFeeAmount("");
+    setMiscFeeError(null);
     setLines([]);
     setQuote(null);
     setFoundProduct(null);
@@ -255,6 +281,29 @@ export default function AdminQuoteBuilder({
 
   function toggleSetupCharge(id: string, checked: boolean) {
     setSelectedSetupChargeIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+    setQuote(null);
+  }
+
+  function addMiscFee() {
+    const label = miscFeeLabel.trim();
+    const amount = Number(miscFeeAmount);
+    if (!label) {
+      setMiscFeeError("Enter a description before adding.");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMiscFeeError("Enter an amount greater than 0.");
+      return;
+    }
+    setMiscFees((prev) => [...prev, { id: `misc-${Date.now()}`, label, amount }]);
+    setMiscFeeLabel("");
+    setMiscFeeAmount("");
+    setMiscFeeError(null);
+    setQuote(null);
+  }
+
+  function removeMiscFee(id: string) {
+    setMiscFees((prev) => prev.filter((f) => f.id !== id));
     setQuote(null);
   }
 
@@ -453,6 +502,7 @@ export default function AdminQuoteBuilder({
         itemDescription: l.itemDescription,
       })),
       setupChargeIds: selectedSetupChargeIds,
+      miscFees: miscFees.length > 0 ? miscFees.map(({ label, amount }) => ({ label, amount })) : undefined,
     };
   }
 
@@ -495,7 +545,7 @@ export default function AdminQuoteBuilder({
     }, 400);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, selectedSetupChargeIds]);
+  }, [lines, selectedSetupChargeIds, miscFees]);
 
   async function downloadPdf(mode: PdfMode) {
     if (lines.length === 0) return;
@@ -776,6 +826,71 @@ export default function AdminQuoteBuilder({
           </div>
         )}
       </section>
+
+      {/* Miscellaneous fees — ad-hoc, one-off charges for this quote only
+          (a rush fee, a shipping surcharge), distinct from the reusable
+          Setup Charges above. Only shown in "full" mode. */}
+      {mode === "full" && (
+      <section className="bg-white border border-navy/10 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-navy mb-1">Miscellaneous fees</h3>
+        <p className="text-xs text-navy/50 mb-3">
+          One-off charges for this quote only — a rush fee, a shipping surcharge, anything that
+          isn&apos;t a garment or a reusable setup charge. These aren&apos;t added to the Setup
+          Charges list.
+        </p>
+        {miscFees.length > 0 && (
+          <div className="space-y-1.5 mb-3">
+            {miscFees.map((f) => (
+              <div
+                key={f.id}
+                className="flex items-center justify-between gap-3 border border-navy/10 rounded-lg px-3 py-1.5"
+              >
+                <span className="text-sm text-navy">
+                  {f.label} <span className="text-navy/40">({formatUSD(f.amount)})</span>
+                </span>
+                <button
+                  onClick={() => removeMiscFee(f.id)}
+                  className="text-xs text-red-600 hover:underline shrink-0"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-xs text-navy/60">
+            Description
+            <input
+              value={miscFeeLabel}
+              onChange={(e) => setMiscFeeLabel(e.target.value)}
+              placeholder="e.g. Rush fee, Shipping"
+              className="mt-1 w-48 border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="text-xs text-navy/60">
+            Amount
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={miscFeeAmount}
+              onChange={(e) => setMiscFeeAmount(e.target.value)}
+              placeholder="0.00"
+              className="mt-1 w-28 border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={addMiscFee}
+            className="text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90"
+          >
+            + Add fee
+          </button>
+        </div>
+        {miscFeeError && <p className="mt-2 text-xs text-red-600">{miscFeeError}</p>}
+      </section>
+      )}
 
       {/* Add a garment — guided flow: decoration, catalog, product, color,
           sizes, locations, in that order, matching the shop's other
@@ -1124,43 +1239,48 @@ export default function AdminQuoteBuilder({
       {lines.length > 0 && (
         <section className="bg-white border border-navy/10 rounded-xl p-4">
           <h3 className="text-sm font-semibold text-navy mb-3">Quote lines ({lines.length})</h3>
-          <div className="space-y-2">
-            {lines.map((line) => {
+          <div className="space-y-2.5">
+            {lines.map((line, idx) => {
               const decoration = decorations.find((d) => d.id === line.decorationId);
               const column = decoration?.priceColumns?.find((c) => c.id === line.priceColumnId);
               const totalQty = line.sizes.reduce((sum, s) => sum + s.quantity, 0);
               return (
                 <div
                   key={line.key}
-                  className="flex items-start justify-between gap-3 border border-navy/10 rounded-lg px-3 py-2"
+                  className="flex items-start gap-3 border border-navy/15 rounded-lg px-3 py-2.5 bg-navy/[0.015]"
                 >
-                  <div className="text-sm text-navy">
-                    {line.customerSupplied ? (
-                      <>
-                        <span className="font-medium">Customer-supplied item</span>{" "}
-                        <span className="text-navy/40">({line.itemDescription})</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-medium">
-                          {line.brandName} {line.productName}
-                        </span>{" "}
-                        <span className="text-navy/40">
-                          ({line.styleNumber} — {line.colorName})
-                        </span>
-                      </>
-                    )}
-                    <div className="text-xs text-navy/60 mt-0.5">
-                      {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
-                      {decoration ? ` · ${decoration.label}${column ? ` (${column.label})` : ""}` : ""}
-                    </div>
+                  <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-navy/10 text-navy/60 text-xs font-semibold flex items-center justify-center">
+                    {idx + 1}
                   </div>
-                  <button
-                    onClick={() => removeLine(line.key)}
-                    className="text-xs text-red-600 hover:underline shrink-0"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
+                    <div className="text-sm text-navy">
+                      {line.customerSupplied ? (
+                        <>
+                          <span className="font-medium">Customer-supplied item</span>{" "}
+                          <span className="text-navy/40">({line.itemDescription})</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-medium">
+                            {line.brandName} {line.productName}
+                          </span>{" "}
+                          <span className="text-navy/40">
+                            ({line.styleNumber} — {line.colorName})
+                          </span>
+                        </>
+                      )}
+                      <div className="text-xs text-navy/60 mt-0.5">
+                        {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
+                        {decoration ? ` · ${decoration.label}${column ? ` (${column.label})` : ""}` : ""}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeLine(line.key)}
+                      className="text-xs text-red-600 hover:underline shrink-0"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -1358,6 +1478,18 @@ export default function AdminQuoteBuilder({
               {quote.setupCharges.map((c) => (
                 <div key={c.id} className="text-sm text-navy/70">
                   {c.label} — ${c.price.toFixed(2)}
+                </div>
+              ))}
+            </div>
+          )}
+          {quote.miscFees.length > 0 && (
+            <div className="border-t border-navy/10 pt-3 mb-3">
+              <div className="text-xs font-medium text-navy/60 uppercase tracking-wide mb-1">
+                Miscellaneous fees
+              </div>
+              {quote.miscFees.map((f, i) => (
+                <div key={i} className="text-sm text-navy/70">
+                  {f.label} — ${f.amount.toFixed(2)}
                 </div>
               ))}
             </div>

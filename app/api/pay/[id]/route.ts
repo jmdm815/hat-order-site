@@ -41,6 +41,7 @@ type CustomerInvoiceSummary = {
     subtotal: number;
   }>;
   setupCharges: Array<{ id: string; label: string; price: number }>;
+  miscFees: Array<{ label: string; amount: number }>;
   grandTotal: number;
   amountPaid: number;
   balance: number;
@@ -69,6 +70,7 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
       subtotal: l.subtotal,
     })),
     setupCharges: record.computed.setupCharges,
+    miscFees: record.computed.miscFees,
     grandTotal,
     amountPaid,
     balance,
