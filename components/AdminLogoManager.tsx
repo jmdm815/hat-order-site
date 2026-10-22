@@ -76,12 +76,12 @@ export default function AdminLogoManager() {
     }
   }
 
-  if (loading) return <p className="text-navy/40 text-sm">Loading…</p>;
+  if (loading) return <p className="text-white/40 text-sm">Loading…</p>;
 
   return (
-    <div className="bg-white border border-navy/10 rounded-xl p-4 max-w-xl">
-      <h3 className="text-sm font-semibold text-navy">Site logo</h3>
-      <p className="mt-1 text-xs text-navy/50">
+    <div className="bg-black border border-white/10 rounded-xl p-4 max-w-xl">
+      <h3 className="text-sm font-semibold text-white">Site logo</h3>
+      <p className="mt-1 text-xs text-white/50">
         Shown on the homepage hero and the order-flow header. The built-in default is a tiny
         48×48 placeholder, which is why it looks blurry on the live site — upload a proper
         high-resolution logo (square, at least 512×512, PNG/SVG with a transparent background
@@ -96,7 +96,7 @@ export default function AdminLogoManager() {
       )}
 
       <div className="mt-4 flex items-center gap-4">
-        <div className="w-20 h-20 rounded-lg border border-navy/10 bg-gray/30 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="w-20 h-20 rounded-lg border border-white/10 bg-gray/30 flex items-center justify-center overflow-hidden shrink-0">
           {logoUrl && (
             // Admin preview of an arbitrary uploaded-image URL; next/image
             // would need the Blob host registered in next.config, and this
@@ -115,13 +115,13 @@ export default function AdminLogoManager() {
               if (file) handleFileChosen(file);
             }}
             disabled={uploading}
-            className="text-xs text-navy/70"
+            className="text-xs text-white/70"
           />
           {isCustom && (
             <button
               onClick={handleRevert}
               disabled={reverting || uploading}
-              className="self-start text-xs text-navy/60 px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-50"
+              className="self-start text-xs text-white/60 px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5 disabled:opacity-50"
             >
               {reverting ? "Reverting…" : "Revert to default"}
             </button>
@@ -129,9 +129,9 @@ export default function AdminLogoManager() {
         </div>
       </div>
 
-      {uploading && <p className="mt-2 text-xs text-navy/50">Uploading…</p>}
+      {uploading && <p className="mt-2 text-xs text-white/50">Uploading…</p>}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-      {message && !error && <p className="mt-2 text-sm text-navy/60">{message}</p>}
+      {message && !error && <p className="mt-2 text-sm text-white/60">{message}</p>}
     </div>
   );
 }

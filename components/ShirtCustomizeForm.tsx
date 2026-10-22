@@ -135,10 +135,10 @@ function RailButton({
 }) {
   const classes = `flex lg:flex-col items-center gap-1 lg:gap-1.5 px-3 py-2 lg:py-3 rounded-none text-xs font-medium transition ${
     active
-      ? "bg-red text-white"
+      ? "bg-red text-navy"
       : disabled
-      ? "text-navy/25 cursor-not-allowed"
-      : "text-navy/70 hover:bg-gray cursor-pointer"
+      ? "text-white/25 cursor-not-allowed"
+      : "text-white/70 hover:bg-white/5 cursor-pointer"
   }`;
   const content = (
     <>
@@ -508,7 +508,7 @@ export default function ShirtCustomizeForm({
   return (
     <div className="mt-6">
       {/* Step tabs */}
-      <div className="flex items-center border-b border-navy/10">
+      <div className="flex items-center border-b border-white/10">
         {stepMeta.map((s, i) => {
           const reachable = stepOrder.indexOf(s.id) <= stepOrder.indexOf(furthestStep);
           return (
@@ -518,15 +518,15 @@ export default function ShirtCustomizeForm({
               disabled={!reachable}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition ${
                 step === s.id
-                  ? "border-red text-navy"
+                  ? "border-red text-white"
                   : reachable
-                  ? "border-transparent text-navy/60 hover:text-navy"
-                  : "border-transparent text-navy/25 cursor-not-allowed"
+                  ? "border-transparent text-white/60 hover:text-white"
+                  : "border-transparent text-white/25 cursor-not-allowed"
               }`}
             >
               <span
                 className={`flex items-center justify-center w-5 h-5 rounded-full text-xs ${
-                  step === s.id ? "bg-red text-white" : "bg-navy/10 text-navy/50"
+                  step === s.id ? "bg-red text-navy" : "bg-white/10 text-white/50"
                 }`}
               >
                 {i + 1}
@@ -538,24 +538,24 @@ export default function ShirtCustomizeForm({
       </div>
 
       {step === "design" && (
-        <div className="mt-6 border border-navy/10 rounded-none overflow-hidden bg-white">
+        <div className="mt-6 border border-white/10 rounded-none overflow-hidden bg-black">
           {/* Top toolbar */}
-          <div className="flex items-center justify-between border-b border-navy/10 px-4 py-2.5 bg-gray">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5 bg-white/5">
             <button
               type="button"
               onClick={handleStartOver}
-              className="px-3 py-1.5 text-xs font-heading font-semibold rounded-none border border-navy text-navy hover:bg-navy hover:text-white transition"
+              className="px-3 py-1.5 text-xs font-heading font-semibold rounded-none border border-white text-white hover:bg-navy hover:text-white transition"
             >
               ↺ Start Over
             </button>
-            <div className="text-xs text-navy/50 text-right">
+            <div className="text-xs text-white/50 text-right">
               {product.brandName} · {product.styleNumber}
             </div>
           </div>
 
           <div className="flex flex-col lg:flex-row">
             {/* Left icon rail */}
-            <div className="flex lg:flex-col items-stretch justify-center gap-1 border-b lg:border-b-0 lg:border-r border-navy/10 px-2 py-2 lg:w-20 lg:py-4 shrink-0 bg-gray/60">
+            <div className="flex lg:flex-col items-stretch justify-center gap-1 border-b lg:border-b-0 lg:border-r border-white/10 px-2 py-2 lg:w-20 lg:py-4 shrink-0 bg-gray/60">
               <RailButton
                 icon="colors"
                 label="Color"
@@ -580,12 +580,12 @@ export default function ShirtCustomizeForm({
             </div>
 
             {/* Manage panel: colors or locations */}
-            <div className="lg:w-64 border-b lg:border-b-0 lg:border-r border-navy/10 p-4 shrink-0">
+            <div className="lg:w-64 border-b lg:border-b-0 lg:border-r border-white/10 p-4 shrink-0">
               {activePanel === "colors" ? (
                 <>
                   <div className="flex items-baseline justify-between">
-                    <h2 className="font-heading font-semibold text-navy">Color</h2>
-                    <span className="text-sm text-navy/60">{colorName}</span>
+                    <h2 className="font-heading font-semibold text-white">Color</h2>
+                    <span className="text-sm text-white/60">{colorName}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2.5">
                     {product.colors.map((c) => (
@@ -596,7 +596,7 @@ export default function ShirtCustomizeForm({
                           aria-label={c.colorName}
                           className={`w-8 h-8 rounded-full border transition ${
                             colorName === c.colorName
-                              ? "border-navy ring-2 ring-red ring-offset-2 ring-offset-white"
+                              ? "border-white ring-2 ring-red ring-offset-2 ring-offset-black"
                               : "border-black/10 hover:scale-110"
                           }`}
                           style={swatchBackground(c.colorHexes)}
@@ -608,14 +608,14 @@ export default function ShirtCustomizeForm({
                     ))}
                   </div>
                   <div className="mt-4 text-sm">
-                    <div className="font-semibold text-navy">{product.productName}</div>
-                    <p className="mt-1 text-xs text-navy/60">{product.description}</p>
+                    <div className="font-semibold text-white">{product.productName}</div>
+                    <p className="mt-1 text-xs text-white/60">{product.description}</p>
                   </div>
                 </>
               ) : (
                 <>
-                  <h2 className="font-heading font-semibold text-navy">Print locations</h2>
-                  <p className="mt-1 text-xs text-navy/60">
+                  <h2 className="font-heading font-semibold text-white">Print locations</h2>
+                  <p className="mt-1 text-xs text-white/60">
                     Add every spot you want decorated — front, back, sleeve. Each location is priced
                     separately. Upload artwork now for a live mockup, or skip it and just pick
                     locations to get an instant quote — we&apos;ll finalize the design with you after
@@ -631,8 +631,8 @@ export default function ShirtCustomizeForm({
                         }}
                         className={`flex items-center gap-2 pl-3.5 pr-2 py-1.5 rounded-full text-sm border transition ${
                           activeLocationId === loc.id
-                            ? "bg-red text-white border-red"
-                            : "bg-white border-navy text-navy hover:bg-gray"
+                            ? "bg-red text-navy border-red"
+                            : "bg-black border-white text-white hover:bg-white/5"
                         }`}
                       >
                         {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel}
@@ -643,7 +643,7 @@ export default function ShirtCustomizeForm({
                             handleRemoveLocation(loc.id);
                           }}
                           className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                            activeLocationId === loc.id ? "hover:bg-white/20" : "hover:bg-navy/10"
+                            activeLocationId === loc.id ? "hover:bg-white/20" : "hover:bg-white/10"
                           }`}
                           aria-label="Remove location"
                           title="Remove location"
@@ -657,21 +657,21 @@ export default function ShirtCustomizeForm({
                       <button
                         onClick={() => setShowAddPicker((v) => !v)}
                         disabled={availableToAdd.length === 0}
-                        className="px-3.5 py-1.5 rounded-full text-sm border border-dashed border-navy/40 text-navy/70 hover:bg-gray disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="px-3.5 py-1.5 rounded-full text-sm border border-dashed border-white/40 text-white/70 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         + Add print location
                       </button>
                       {showAddPicker && availableToAdd.length > 0 && (
-                        <div className="absolute z-30 mt-1 w-64 bg-white border border-navy/10 rounded-none shadow-lg p-1.5">
+                        <div className="absolute z-30 mt-1 w-64 bg-black border border-white/10 rounded-none shadow-lg p-1.5">
                           {availableToAdd.map((opt) => (
                             <button
                               key={opt.key}
                               onClick={() => handleAddLocation(opt)}
-                              className="w-full text-left px-3 py-2 rounded-none text-sm text-navy hover:bg-gray"
+                              className="w-full text-left px-3 py-2 rounded-none text-sm text-white hover:bg-white/5"
                             >
                               {opt.zone.label} · {opt.decoration.shortLabel}
                               {opt.decoration.quoteRequired && (
-                                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-navy bg-tan/25 border border-tan/40 px-1.5 py-0.5 rounded">
+                                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-white bg-tan/25 border border-tan/40 px-1.5 py-0.5 rounded">
                                   Custom quote
                                 </span>
                               )}
@@ -682,7 +682,7 @@ export default function ShirtCustomizeForm({
                     </div>
                   </div>
                   {locations.length === 0 && (
-                    <p className="mt-2 text-xs text-navy/50">Add at least one print location to continue.</p>
+                    <p className="mt-2 text-xs text-white/50">Add at least one print location to continue.</p>
                   )}
                 </>
               )}
@@ -693,7 +693,7 @@ export default function ShirtCustomizeForm({
               <div className="w-full">
                 <div
                   ref={imageRef}
-                  className="relative w-full aspect-square rounded-none overflow-hidden bg-white border border-navy/10"
+                  className="relative w-full aspect-square rounded-none overflow-hidden bg-black border border-white/10"
                 >
                   <GarmentPreview
                     url={view === "back" ? selectedColor?.backImageUrl : selectedColor?.imageUrl}
@@ -741,7 +741,7 @@ export default function ShirtCustomizeForm({
                                   e.stopPropagation();
                                   handleRemoveLocation(loc.id);
                                 }}
-                                className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-white border border-navy/20 text-navy shadow flex items-center justify-center pointer-events-auto"
+                                className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-black border border-white/20 text-white shadow flex items-center justify-center pointer-events-auto"
                                 aria-label="Remove this print location"
                                 title="Remove this print location"
                               >
@@ -786,7 +786,7 @@ export default function ShirtCustomizeForm({
                                     e.stopPropagation();
                                     handleRemoveLayer(layer.id);
                                   }}
-                                  className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-white border border-navy/20 text-navy shadow flex items-center justify-center"
+                                  className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-black border border-white/20 text-white shadow flex items-center justify-center"
                                   aria-label="Remove layer"
                                   title="Remove layer"
                                 >
@@ -831,23 +831,23 @@ export default function ShirtCustomizeForm({
 
                 {activeLocation && liveDesignerEnabled && (
                   <div className="mt-2 flex flex-col items-center gap-1.5">
-                    <p className="text-center text-xs text-navy/50">
+                    <p className="text-center text-xs text-white/50">
                       Editing {activeLocation.zoneLabel} · {decorationById.get(activeLocation.decorationId)?.shortLabel} —
                       drag to move, corner handle to resize, top-right dot to rotate.
                     </p>
-                    <label className="flex items-center gap-1.5 text-xs text-navy/60 cursor-pointer select-none">
+                    <label className="flex items-center gap-1.5 text-xs text-white/60 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={snapEnabled}
                         onChange={(e) => setSnapEnabled(e.target.checked)}
-                        className="rounded border-navy/30 accent-red"
+                        className="rounded border-white/30 accent-red"
                       />
                       Snap to center while dragging
                     </label>
                   </div>
                 )}
                 {activeLocation && !liveDesignerEnabled && (
-                  <p className="mt-2 text-center text-xs text-navy/50">
+                  <p className="mt-2 text-center text-xs text-white/50">
                     Editing {activeLocation.zoneLabel} · {decorationById.get(activeLocation.decorationId)?.shortLabel} —
                     artwork is centered in the zone; we&apos;ll finalize exact
                     placement with you after checkout.
@@ -858,7 +858,7 @@ export default function ShirtCustomizeForm({
                     const activeDecoration = decorationById.get(activeLocation.decorationId);
                     if (activeDecoration?.quoteRequired) {
                       return (
-                        <p className="mt-2 text-center text-xs text-navy/50 max-w-xs mx-auto">
+                        <p className="mt-2 text-center text-xs text-white/50 max-w-xs mx-auto">
                           Pricing for {activeDecoration.shortLabel} depends on your design, so
                           there&apos;s no automatic price for this location — we&apos;ll follow
                           up with a quote before production.
@@ -871,9 +871,9 @@ export default function ShirtCustomizeForm({
                     const unknownChecked = activeLocation.unknownStitchCount === true;
                     return (
                       <div className="mt-2 flex flex-col items-center gap-1.5">
-                        <p className="text-xs text-navy/50">Stitch count / pricing tier</p>
+                        <p className="text-xs text-white/50">Stitch count / pricing tier</p>
                         {unknownChecked ? (
-                          <p className="text-xs text-navy/50 max-w-xs mx-auto text-center">
+                          <p className="text-xs text-white/50 max-w-xs mx-auto text-center">
                             No problem — we&apos;ll follow up with an accurate quote once we&apos;ve
                             seen your design&apos;s stitch count.
                           </p>
@@ -886,8 +886,8 @@ export default function ShirtCustomizeForm({
                                 onClick={() => handleSetLocationPriceColumn(activeLocation.id, col.id)}
                                 className={`px-3 py-1 rounded-full text-xs border transition ${
                                   activeLocation.priceColumnId === col.id
-                                    ? "bg-red text-white border-red"
-                                    : "bg-white border-navy text-navy hover:bg-gray"
+                                    ? "bg-red text-navy border-red"
+                                    : "bg-black border-white text-white hover:bg-white/5"
                                 }`}
                               >
                                 {col.label}
@@ -896,14 +896,14 @@ export default function ShirtCustomizeForm({
                           </div>
                         )}
                         {unknownAllowed && (
-                          <label className="mt-1 flex items-center gap-1.5 text-xs text-navy/60 cursor-pointer select-none">
+                          <label className="mt-1 flex items-center gap-1.5 text-xs text-white/60 cursor-pointer select-none">
                             <input
                               type="checkbox"
                               checked={unknownChecked}
                               onChange={(e) =>
                                 handleSetUnknownStitchCount(activeLocation.id, e.target.checked)
                               }
-                              className="rounded border-navy/30 accent-red"
+                              className="rounded border-white/30 accent-red"
                             />
                             I don&apos;t know how many stitches my design has.
                           </label>
@@ -926,15 +926,15 @@ export default function ShirtCustomizeForm({
             </div>
 
             {/* Right view thumbnails */}
-            <div className="hidden lg:flex flex-col items-center gap-3 border-l border-navy/10 px-3 py-4 w-24 shrink-0">
+            <div className="hidden lg:flex flex-col items-center gap-3 border-l border-white/10 px-3 py-4 w-24 shrink-0">
               <button
                 type="button"
                 onClick={() => setView("front")}
                 className={`w-full rounded-none border p-1.5 transition ${
-                  view === "front" ? "border-navy ring-1 ring-navy" : "border-navy/15 hover:border-navy/30"
+                  view === "front" ? "border-white ring-1 ring-white" : "border-white/15 hover:border-white/30"
                 }`}
               >
-                <div className="relative w-full aspect-square rounded overflow-hidden bg-white">
+                <div className="relative w-full aspect-square rounded overflow-hidden bg-black">
                   <GarmentPreview
                     url={selectedColor?.imageUrl}
                     view="front"
@@ -943,17 +943,17 @@ export default function ShirtCustomizeForm({
                     className="w-full h-full object-contain p-1.5"
                   />
                 </div>
-                <span className="mt-1 block text-[11px] font-medium text-navy/70">Front</span>
+                <span className="mt-1 block text-[11px] font-medium text-white/70">Front</span>
               </button>
               {hasBackZone && (
                 <button
                   type="button"
                   onClick={() => setView("back")}
                   className={`w-full rounded-none border p-1.5 transition ${
-                    view === "back" ? "border-navy ring-1 ring-navy" : "border-navy/15 hover:border-navy/30"
+                    view === "back" ? "border-white ring-1 ring-white" : "border-white/15 hover:border-white/30"
                   }`}
                 >
-                  <div className="relative w-full aspect-square rounded overflow-hidden bg-white">
+                  <div className="relative w-full aspect-square rounded overflow-hidden bg-black">
                     <GarmentPreview
                       url={selectedColor?.backImageUrl}
                       view="back"
@@ -962,7 +962,7 @@ export default function ShirtCustomizeForm({
                       className="w-full h-full object-contain p-1.5"
                     />
                   </div>
-                  <span className="mt-1 block text-[11px] font-medium text-navy/70">Back</span>
+                  <span className="mt-1 block text-[11px] font-medium text-white/70">Back</span>
                 </button>
               )}
             </div>
@@ -976,7 +976,7 @@ export default function ShirtCustomizeForm({
                   key={v}
                   onClick={() => setView(v)}
                   className={`px-3 py-1 text-xs rounded-full border capitalize ${
-                    view === v ? "bg-navy text-white border-navy" : "border-navy/20 text-navy/70"
+                    view === v ? "bg-navy text-white border-white" : "border-white/20 text-white/70"
                   }`}
                 >
                   {v}
@@ -987,8 +987,8 @@ export default function ShirtCustomizeForm({
 
           {/* Artwork layers + notes for the active location */}
           {activeLocation && (
-            <div className="border-t border-navy/10 p-4">
-              <h2 className="font-heading font-semibold text-navy text-sm">
+            <div className="border-t border-white/10 p-4">
+              <h2 className="font-heading font-semibold text-white text-sm">
                 Layers — {activeLocation.zoneLabel} · {decorationById.get(activeLocation.decorationId)?.shortLabel}
               </h2>
               {activeLocation.layers.length > 0 ? (
@@ -996,22 +996,22 @@ export default function ShirtCustomizeForm({
                   {activeLocation.layers.map((layer) => (
                     <li
                       key={layer.id}
-                      className="flex items-center gap-2 border border-navy/10 rounded-none px-3 py-2"
+                      className="flex items-center gap-2 border border-white/10 rounded-none px-3 py-2"
                     >
                       {layer.kind === "image" ? (
-                        <span className="text-sm text-navy/70 truncate flex-1">{layer.fileName}</span>
+                        <span className="text-sm text-white/70 truncate flex-1">{layer.fileName}</span>
                       ) : (
                         <>
                           <input
                             value={layer.text}
                             onChange={(e) => handleLayerTextChange(layer.id, e.target.value)}
-                            className="flex-1 text-sm bg-white border border-navy/30 rounded px-2 py-1 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                            className="flex-1 text-sm bg-black border border-white/30 rounded px-2 py-1 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
                           />
                           <input
                             type="color"
                             value={layer.color}
                             onChange={(e) => handleLayerColorChange(layer.id, e.target.value)}
-                            className="w-7 h-7 rounded border border-navy/30 shrink-0"
+                            className="w-7 h-7 rounded border border-white/30 shrink-0"
                             aria-label="Text color"
                           />
                         </>
@@ -1026,7 +1026,7 @@ export default function ShirtCustomizeForm({
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 text-xs text-navy/50">
+                <p className="mt-1 text-xs text-white/50">
                   No artwork yet — use Upload Art or Add Text on the left, or leave blank for a quote-only location.
                 </p>
               )}
@@ -1034,17 +1034,17 @@ export default function ShirtCustomizeForm({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notes for our design team (colors, sizing, placement details)…"
-                className="mt-3 w-full max-w-xl bg-white border border-navy/30 rounded-none p-3 text-sm resize-none h-20 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                className="mt-3 w-full max-w-xl bg-black border border-white/30 rounded-none p-3 text-sm resize-none h-20 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
               />
             </div>
           )}
 
           {/* Bottom action bar */}
-          <div className="flex items-center justify-end gap-3 border-t border-navy/10 px-4 py-3 bg-gray">
+          <div className="flex items-center justify-end gap-3 border-t border-white/10 px-4 py-3 bg-white/5">
             <button
               onClick={() => goToStep("quantity")}
               disabled={!canProceedToQuantity}
-              className="px-6 py-2.5 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 rounded-none bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
             >
               Next Step →
             </button>
@@ -1054,15 +1054,15 @@ export default function ShirtCustomizeForm({
 
       {step === "quantity" && (
         <div className="mt-6 max-w-xl">
-          <h2 className="font-heading font-semibold text-navy">How many do you need?</h2>
-          <p className="mt-1 text-sm text-navy/60">
+          <h2 className="font-heading font-semibold text-white">How many do you need?</h2>
+          <p className="mt-1 text-sm text-white/60">
             Enter quantities per size. Pricing updates in real time as you go.
           </p>
           <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 gap-3">
             {(selectedColor?.sizes ?? []).map((s) => (
               <label key={s.name} className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-navy/70">
-                  {s.name} <span className="text-navy/40">· {formatUSD(s.price)}</span>
+                <span className="text-xs font-medium text-white/70">
+                  {s.name} <span className="text-white/40">· {formatUSD(s.price)}</span>
                 </span>
                 <input
                   type="number"
@@ -1072,14 +1072,14 @@ export default function ShirtCustomizeForm({
                     setSizeQty((q) => ({ ...q, [s.name]: Math.max(0, Number(e.target.value) || 0) }))
                   }
                   placeholder="0"
-                  className="bg-white border border-navy/30 rounded-none px-2.5 py-2 text-sm focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                  className="bg-black border border-white/30 rounded-none px-2.5 py-2 text-sm focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
                 />
               </label>
             ))}
           </div>
 
           {locations.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-1.5 text-xs text-navy/60">
+            <div className="mt-4 flex flex-wrap gap-1.5 text-xs text-white/60">
               {minQuantity > 0 && <span>Minimum order: {minQuantity} units ·</span>}
               {pricedLocations[0] &&
                 !pricedLocations[0].quoteRequired &&
@@ -1090,7 +1090,7 @@ export default function ShirtCustomizeForm({
                     <span
                       key={t.minQty}
                       className={`px-2 py-1 rounded border ${
-                        totalQuantity >= t.minQty ? "border-red bg-red/5 text-red font-semibold" : "border-navy/15 text-navy/50"
+                        totalQuantity >= t.minQty ? "border-red bg-red/5 text-red font-semibold" : "border-white/15 text-white/50"
                       }`}
                     >
                       {t.minQty}+ · {formatUSD(t.pricePerUnit)}/ea
@@ -1099,7 +1099,7 @@ export default function ShirtCustomizeForm({
             </div>
           )}
           {pricedLocations.some((l) => l.quoteRequired || l.unknownStitchCount) && (
-            <p className="mt-2 text-xs text-navy/50">
+            <p className="mt-2 text-xs text-white/50">
               One or more print locations here are priced by custom quote — we&apos;ll follow
               up after checkout instead of charging for those automatically.
             </p>
@@ -1111,24 +1111,24 @@ export default function ShirtCustomizeForm({
             </p>
           )}
 
-          <div className="mt-6 border border-navy/10 rounded-none bg-white p-4 text-sm text-navy/70">
+          <div className="mt-6 border border-white/10 rounded-none bg-black p-4 text-sm text-white/70">
             <div className="flex justify-between">
               <span>{totalQuantity} items · garment subtotal</span>
-              <span className="text-black">{formatUSD(sizeBaseTotal)}</span>
+              <span className="text-white">{formatUSD(sizeBaseTotal)}</span>
             </div>
           </div>
 
           <div className="mt-6 flex gap-3">
             <button
               onClick={() => goToStep("design")}
-              className="px-5 py-3 rounded-none border border-navy text-navy font-heading font-semibold hover:bg-navy hover:text-white transition"
+              className="px-5 py-3 rounded-none border border-white text-white font-heading font-semibold hover:bg-navy hover:text-white transition"
             >
               ← Back to Design
             </button>
             <button
               onClick={() => goToStep("review")}
               disabled={!canProceedToReview}
-              className="flex-1 py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
+              className="flex-1 py-3 rounded-none bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
             >
               Calculate Pricing →
             </button>
@@ -1139,20 +1139,20 @@ export default function ShirtCustomizeForm({
       {step === "review" && (
         <div className="mt-6 max-w-2xl">
           <div className="flex flex-wrap gap-2">
-            <span className="px-3 py-1.5 rounded-full bg-gray text-navy text-sm font-medium">
+            <span className="px-3 py-1.5 rounded-full bg-white/5 text-white text-sm font-medium">
               {totalQuantity} items
             </span>
-            <span className="px-3 py-1.5 rounded-full bg-gray text-navy text-sm font-medium">
+            <span className="px-3 py-1.5 rounded-full bg-white/5 text-white text-sm font-medium">
               {locations.length} print {locations.length === 1 ? "area" : "areas"}
             </span>
-            <span className="px-3 py-1.5 rounded-full bg-gray text-navy text-sm font-medium">
+            <span className="px-3 py-1.5 rounded-full bg-white/5 text-white text-sm font-medium">
               {colorName}
             </span>
           </div>
 
-          <div className="mt-5 border border-navy/10 rounded-none bg-white p-5">
+          <div className="mt-5 border border-white/10 rounded-none bg-black p-5">
             <div className="flex gap-4">
-              <div className="relative w-20 h-20 rounded-none overflow-hidden bg-gray shrink-0">
+              <div className="relative w-20 h-20 rounded-none overflow-hidden bg-white/5 shrink-0">
                 <GarmentPreview
                   url={selectedColor?.imageUrl}
                   view="front"
@@ -1162,13 +1162,13 @@ export default function ShirtCustomizeForm({
                 />
               </div>
               <div className="flex-1">
-                <div className="font-semibold text-navy">{product.productName}</div>
-                <div className="text-xs text-navy/50">
+                <div className="font-semibold text-white">{product.productName}</div>
+                <div className="text-xs text-white/50">
                   {product.styleNumber} · {colorName}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {sizeEntries.map((e) => (
-                    <span key={e.size} className="text-xs px-2 py-0.5 rounded bg-gray text-navy/70">
+                    <span key={e.size} className="text-xs px-2 py-0.5 rounded bg-white/5 text-white/70">
                       {e.size}-{e.quantity}
                     </span>
                   ))}
@@ -1176,17 +1176,17 @@ export default function ShirtCustomizeForm({
               </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-navy/10 space-y-2">
-              <div className="flex justify-between text-sm text-navy/70">
+            <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+              <div className="flex justify-between text-sm text-white/70">
                 <span>Garments × {totalQuantity}</span>
-                <span className="text-black">{formatUSD(sizeBaseTotal)}</span>
+                <span className="text-white">{formatUSD(sizeBaseTotal)}</span>
               </div>
               {pricedLocations.map((loc) => (
-                <div key={loc.id} className="flex justify-between text-sm text-navy/70">
+                <div key={loc.id} className="flex justify-between text-sm text-white/70">
                   <span>
                     {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel} × {totalQuantity}
                   </span>
-                  <span className="text-black">
+                  <span className="text-white">
                     {loc.quoteRequired || loc.unknownStitchCount
                       ? "Contact us for a quote"
                       : formatUSD(loc.unitPrice * totalQuantity)}
@@ -1194,9 +1194,9 @@ export default function ShirtCustomizeForm({
                 </div>
               ))}
               {pricedLocations.map((loc) => (
-                <div key={`${loc.id}-setup`} className="flex justify-between text-sm text-navy/70">
+                <div key={`${loc.id}-setup`} className="flex justify-between text-sm text-white/70">
                   <span>{loc.zoneLabel} setup / digitization fee</span>
-                  <span className="text-black">
+                  <span className="text-white">
                     {loc.quoteRequired || loc.unknownStitchCount
                       ? "Included in quote"
                       : loc.setupFee === 0
@@ -1205,12 +1205,12 @@ export default function ShirtCustomizeForm({
                   </span>
                 </div>
               ))}
-              <div className="flex justify-between font-semibold text-black pt-2 border-t border-navy/10">
+              <div className="flex justify-between font-semibold text-white pt-2 border-t border-white/10">
                 <span>Line total</span>
                 <span>{formatUSD(lineTotal)}</span>
               </div>
               {pricedLocations.some((l) => l.quoteRequired || l.unknownStitchCount) && (
-                <p className="text-xs text-navy/50">
+                <p className="text-xs text-white/50">
                   The line total above only reflects the garments and any priced locations —
                   we&apos;ll reach out with pricing for the custom-quote location(s) before
                   we charge or produce anything.
@@ -1218,7 +1218,7 @@ export default function ShirtCustomizeForm({
               )}
             </div>
 
-            <label className="mt-4 flex items-center gap-2 text-sm text-navy/70">
+            <label className="mt-4 flex items-center gap-2 text-sm text-white/70">
               <input
                 type="checkbox"
                 checked={sameLogoBefore}
@@ -1231,7 +1231,7 @@ export default function ShirtCustomizeForm({
             <button
               onClick={handleAddToCart}
               disabled={!canAddToCart}
-              className="mt-5 w-full py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
+              className="mt-5 w-full py-3 rounded-none bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
             >
               Add to Cart →
             </button>
@@ -1239,7 +1239,7 @@ export default function ShirtCustomizeForm({
 
           <button
             onClick={() => goToStep("quantity")}
-            className="mt-4 px-5 py-2.5 rounded-none border border-navy text-navy font-heading font-semibold hover:bg-navy hover:text-white transition"
+            className="mt-4 px-5 py-2.5 rounded-none border border-white text-white font-heading font-semibold hover:bg-navy hover:text-white transition"
           >
             ← Back to Quantity
           </button>

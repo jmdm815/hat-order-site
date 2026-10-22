@@ -41,11 +41,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <main className="flex-1 bg-gray w-full">
+      <main className="flex-1 bg-white/5 w-full">
         <div className="max-w-6xl mx-auto px-4 py-10">
           {categories.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-navy/60">
+              <p className="text-white/60">
                 The catalog is being set up — check back soon, or{" "}
                 <Link href="/catalog" className="text-red font-semibold hover:underline">
                   browse the full catalog
@@ -58,10 +58,10 @@ export default async function HomePage() {
               {categories.map((cat) => (
                 <section key={cat.id}>
                   <div className="flex items-baseline justify-between">
-                    <h2 className="font-heading text-2xl font-semibold uppercase text-navy tracking-wide">
+                    <h2 className="font-heading text-2xl font-semibold uppercase text-white tracking-wide">
                       {cat.name}
                     </h2>
-                    <span className="text-sm text-navy/50">
+                    <span className="text-sm text-white/50">
                       {cat.products.length} item{cat.products.length === 1 ? "" : "s"}
                     </span>
                   </div>
@@ -75,7 +75,7 @@ export default async function HomePage() {
             </div>
           )}
 
-          <div className="mt-14 text-center text-sm text-navy/50">
+          <div className="mt-14 text-center text-sm text-white/50">
             Looking for something specific?{" "}
             <Link href="/catalog" className="text-red font-semibold hover:underline">
               Browse the full catalog

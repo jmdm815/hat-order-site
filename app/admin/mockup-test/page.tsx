@@ -14,8 +14,8 @@ export default async function MockupTestPage() {
 
   return (
     <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full">
-      <h1 className="text-2xl font-bold text-navy">Mockup Render Test</h1>
-      <p className="mt-1 text-sm text-navy/60">
+      <h1 className="text-2xl font-bold text-white">Mockup Render Test</h1>
+      <p className="mt-1 text-sm text-white/60">
         Internal smoke test for the mockup rendering engines. Not part of the
         customer-facing flow.
       </p>

@@ -246,7 +246,7 @@ export default function AdminCustomersManager() {
     }
   }
 
-  if (loading) return <p className="text-navy/40 text-sm">Loading customers…</p>;
+  if (loading) return <p className="text-white/40 text-sm">Loading customers…</p>;
 
   return (
     <div>
@@ -259,8 +259,8 @@ export default function AdminCustomersManager() {
 
       {/* Header bar: count + search + the "+" button that reveals the form, instead of the form always being open */}
       <div className="flex flex-wrap items-center gap-3 justify-between">
-        <h3 className="text-sm font-semibold text-navy">
-          Customers <span className="text-navy/40 font-normal">({customers.length})</span>
+        <h3 className="text-sm font-semibold text-white">
+          Customers <span className="text-white/40 font-normal">({customers.length})</span>
         </h3>
         <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-xl ml-auto">
           <input
@@ -268,14 +268,14 @@ export default function AdminCustomersManager() {
             placeholder="Search customers by name, company, email, or phone…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 border border-navy/20 rounded-lg px-3 py-2 text-sm"
+            className="flex-1 border border-white/20 rounded-lg px-3 py-2 text-sm"
           />
           <button
             onClick={toggleSelectMode}
             className={`shrink-0 px-3 h-9 flex items-center justify-center rounded-full border text-sm font-medium transition ${
               selectMode
-                ? "border-navy bg-navy text-white"
-                : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                ? "border-white bg-navy text-white"
+                : "border-white/20 text-white/70 hover:bg-white/5"
             }`}
             title="Select customers to delete"
           >
@@ -283,14 +283,14 @@ export default function AdminCustomersManager() {
           </button>
           <button
             onClick={() => (showImport ? closeImport() : openImport())}
-            className="shrink-0 px-3 h-9 flex items-center justify-center rounded-full border border-navy/20 text-navy/70 text-sm font-medium hover:bg-navy/5 transition"
+            className="shrink-0 px-3 h-9 flex items-center justify-center rounded-full border border-white/20 text-white/70 text-sm font-medium hover:bg-white/5 transition"
             title="Import customers from a CSV or Excel file"
           >
             Import
           </button>
           <button
             onClick={() => (showForm && !editingId ? closeForm() : startAdd())}
-            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-red text-white text-lg font-semibold leading-none hover:bg-navy transition"
+            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-red text-navy text-lg font-semibold leading-none hover:bg-navy hover:text-white transition"
             title="Add a customer"
             aria-label="Add a customer"
           >
@@ -300,8 +300,8 @@ export default function AdminCustomersManager() {
       </div>
 
       {selectMode && customers.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-3 bg-navy/5 border border-navy/10 rounded-xl px-3 py-2 max-w-2xl">
-          <label className="flex items-center gap-2 text-sm text-navy/70 cursor-pointer">
+        <div className="mt-3 flex flex-wrap items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2 max-w-2xl">
+          <label className="flex items-center gap-2 text-sm text-white/70 cursor-pointer">
             <input
               type="checkbox"
               checked={allFilteredSelected}
@@ -310,13 +310,13 @@ export default function AdminCustomersManager() {
             />
             Select all {search.trim() ? `(${filtered.length} shown)` : `(${filtered.length})`}
           </label>
-          <span className="text-sm text-navy/50">
+          <span className="text-sm text-white/50">
             {selectedIds.size} selected
           </span>
           <button
             onClick={handleBulkDelete}
             disabled={selectedIds.size === 0 || bulkDeleting}
-            className="ml-auto px-4 py-1.5 rounded-full bg-red text-white text-sm font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
+            className="ml-auto px-4 py-1.5 rounded-full bg-red text-navy text-sm font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
           >
             {bulkDeleting
               ? "Deleting…"
@@ -328,9 +328,9 @@ export default function AdminCustomersManager() {
       )}
 
       {showImport && (
-        <section className="mt-4 bg-white border border-navy/10 rounded-xl p-4 max-w-2xl">
-          <h3 className="text-sm font-semibold text-navy mb-1">Import customers</h3>
-          <p className="text-xs text-navy/50">
+        <section className="mt-4 bg-black border border-white/10 rounded-xl p-4 max-w-2xl">
+          <h3 className="text-sm font-semibold text-white mb-1">Import customers</h3>
+          <p className="text-xs text-white/50">
             Upload a CSV or Excel (.xls/.xlsx) file with a header row. A <span className="font-medium">Name</span>{" "}
             column is required — Company, Email, Phone, and Notes columns are optional and can be in any order. If
             your list only has a Company Name column and no separate Name column, that&apos;s fine too — it&apos;ll
@@ -347,21 +347,21 @@ export default function AdminCustomersManager() {
                 if (file) handleImportFile(file);
               }}
               disabled={importing}
-              className="text-xs text-navy/70"
+              className="text-xs text-white/70"
             />
             <button
               onClick={downloadImportTemplate}
-              className="text-xs text-navy/60 px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+              className="text-xs text-white/60 px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
             >
               Download template
             </button>
-            {importing && <span className="text-xs text-navy/50">Importing…</span>}
+            {importing && <span className="text-xs text-white/50">Importing…</span>}
           </div>
 
           {importError && <p className="mt-3 text-sm text-red-600">{importError}</p>}
 
           {importResult && (
-            <div className="mt-3 text-sm text-navy bg-tan/20 border border-tan/40 rounded-lg px-3 py-2">
+            <div className="mt-3 text-sm text-white bg-tan/20 border border-tan/40 rounded-lg px-3 py-2">
               <p>
                 Imported {importResult.totalRows} row{importResult.totalRows === 1 ? "" : "s"}:{" "}
                 <span className="font-semibold">{importResult.created} added</span>,{" "}
@@ -379,7 +379,7 @@ export default function AdminCustomersManager() {
                 </p>
               )}
               {importResult.skippedRows.length > 0 && (
-                <ul className="mt-2 text-xs text-navy/60 list-disc list-inside space-y-0.5">
+                <ul className="mt-2 text-xs text-white/60 list-disc list-inside space-y-0.5">
                   {importResult.skippedRows.map((r) => (
                     <li key={r.row}>
                       Row {r.row}: {r.reason}
@@ -396,7 +396,7 @@ export default function AdminCustomersManager() {
           <div className="mt-3">
             <button
               onClick={closeImport}
-              className="px-4 py-1.5 rounded-full border border-navy/20 text-sm text-navy/70 hover:bg-navy/5"
+              className="px-4 py-1.5 rounded-full border border-white/20 text-sm text-white/70 hover:bg-white/5"
             >
               Close
             </button>
@@ -405,47 +405,47 @@ export default function AdminCustomersManager() {
       )}
 
       {showForm && (
-        <section className="mt-4 bg-white border border-navy/10 rounded-xl p-4 max-w-2xl">
-          <h3 className="text-sm font-semibold text-navy mb-3">
+        <section className="mt-4 bg-black border border-white/10 rounded-xl p-4 max-w-2xl">
+          <h3 className="text-sm font-semibold text-white mb-3">
             {editingId ? "Edit customer" : "Add a customer"}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="text-xs text-navy/60">
+            <label className="text-xs text-white/60">
               Name *
               <input
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                 placeholder="Jane Smith"
                 autoFocus
               />
             </label>
-            <label className="text-xs text-navy/60">
+            <label className="text-xs text-white/60">
               Company (optional)
               <input
                 value={form.company}
                 onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
-                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
               />
             </label>
-            <label className="text-xs text-navy/60">
+            <label className="text-xs text-white/60">
               Email (optional)
               <input
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
               />
             </label>
-            <label className="text-xs text-navy/60">
+            <label className="text-xs text-white/60">
               Phone (optional)
               <input
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
               />
             </label>
-            <label className="text-xs text-navy/60">
+            <label className="text-xs text-white/60">
               Default deposit % (optional — leave blank for &quot;pays in full&quot;)
               <input
                 type="number"
@@ -454,16 +454,16 @@ export default function AdminCustomersManager() {
                 value={form.defaultDepositPercent}
                 onChange={(e) => setForm((f) => ({ ...f, defaultDepositPercent: e.target.value }))}
                 placeholder="e.g. 50"
-                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
               />
             </label>
           </div>
-          <label className="block text-xs text-navy/60 mt-3">
+          <label className="block text-xs text-white/60 mt-3">
             Notes (optional)
             <textarea
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
               rows={2}
             />
           </label>
@@ -472,13 +472,13 @@ export default function AdminCustomersManager() {
             <button
               onClick={handleSave}
               disabled={saving || !form.name.trim()}
-              className="px-4 py-1.5 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+              className="px-4 py-1.5 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
             >
               {saving ? "Saving…" : editingId ? "Save changes" : "+ Add customer"}
             </button>
             <button
               onClick={closeForm}
-              className="px-4 py-1.5 rounded-full border border-navy/20 text-sm text-navy/70 hover:bg-navy/5"
+              className="px-4 py-1.5 rounded-full border border-white/20 text-sm text-white/70 hover:bg-white/5"
             >
               Cancel
             </button>
@@ -487,18 +487,18 @@ export default function AdminCustomersManager() {
       )}
 
       {customers.length === 0 ? (
-        <p className="mt-4 text-sm text-navy/50">
-          No customers yet — tap <span className="font-semibold text-navy">+</span> above to add one.
+        <p className="mt-4 text-sm text-white/50">
+          No customers yet — tap <span className="font-semibold text-white">+</span> above to add one.
         </p>
       ) : filtered.length === 0 ? (
-        <p className="mt-4 text-sm text-navy/50">No customers match &quot;{search}&quot;.</p>
+        <p className="mt-4 text-sm text-white/50">No customers match &quot;{search}&quot;.</p>
       ) : (
-        <div className="mt-4 divide-y divide-navy/10 border border-navy/10 rounded-xl max-w-2xl overflow-hidden">
+        <div className="mt-4 divide-y divide-white/10 border border-white/10 rounded-xl max-w-2xl overflow-hidden">
           {filtered.map((c) => (
             <div
               key={c.id}
-              className={`flex items-start justify-between gap-3 p-3 bg-white ${
-                selectMode ? "cursor-pointer hover:bg-navy/5" : ""
+              className={`flex items-start justify-between gap-3 p-3 bg-black ${
+                selectMode ? "cursor-pointer hover:bg-white/5" : ""
               }`}
               onClick={selectMode ? () => toggleSelectOne(c.id) : undefined}
             >
@@ -513,26 +513,26 @@ export default function AdminCustomersManager() {
                   />
                 )}
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-navy">
+                  <div className="text-sm font-medium text-white">
                     {c.name}
-                    {c.company && <span className="text-navy/40 font-normal"> · {c.company}</span>}
+                    {c.company && <span className="text-white/40 font-normal"> · {c.company}</span>}
                   </div>
-                  <div className="text-xs text-navy/60 mt-0.5">
+                  <div className="text-xs text-white/60 mt-0.5">
                     {[c.email, c.phone].filter(Boolean).join(" · ") || (
-                      <span className="text-navy/30">No email or phone on file</span>
+                      <span className="text-white/30">No email or phone on file</span>
                     )}
                     {c.defaultDepositPercent && (
-                      <span className="text-navy/40"> · {c.defaultDepositPercent}% deposit</span>
+                      <span className="text-white/40"> · {c.defaultDepositPercent}% deposit</span>
                     )}
                   </div>
-                  {c.notes && <div className="text-xs text-navy/40 mt-1 whitespace-pre-wrap">{c.notes}</div>}
+                  {c.notes && <div className="text-xs text-white/40 mt-1 whitespace-pre-wrap">{c.notes}</div>}
                 </div>
               </div>
               {!selectMode && (
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => startEdit(c)}
-                    className="text-xs text-navy/60 px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                    className="text-xs text-white/60 px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
                   >
                     Edit
                   </button>

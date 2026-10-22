@@ -33,7 +33,7 @@ export default function AdminDashboard() {
   return (
     <div>
       <div className="relative -mx-4 sm:mx-0">
-        <div className="flex overflow-x-auto no-scrollbar border-b-2 border-navy/15 px-4 sm:px-0">
+        <div className="flex overflow-x-auto no-scrollbar border-b-2 border-white/15 px-4 sm:px-0">
           {TABS.map((t, i) => (
             <div key={t.id} className="flex items-center shrink-0">
               {i > 0 && <span className="h-4 w-px bg-navy/15 shrink-0" aria-hidden />}
@@ -41,8 +41,8 @@ export default function AdminDashboard() {
                 onClick={() => setTab(t.id)}
                 className={`shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-[3px] -mb-0.5 transition ${
                   tab === t.id
-                    ? "border-red text-navy bg-navy/[0.04] rounded-t-lg"
-                    : "border-transparent text-navy/50 hover:text-navy hover:bg-navy/[0.02] rounded-t-lg"
+                    ? "border-red text-white bg-white/[0.04] rounded-t-lg"
+                    : "border-transparent text-white/50 hover:text-white hover:bg-white/[0.02] rounded-t-lg"
                 }`}
               >
                 {t.label}
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
       <div className="mt-6">
         {tab === "categories" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <p className="mb-4 text-white/60 text-sm">
               Create and reorder the sections shown on the homepage catalog (Hats, Polos,
               Tumblers, or anything else) — more can be added any time. Assign products to a
               category from the Catalog tab&apos;s &quot;Configure decorations&quot; editor;
@@ -68,7 +68,7 @@ export default function AdminDashboard() {
         )}
         {tab === "catalog" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <p className="mb-4 text-white/60 text-sm">
               Check or uncheck styles to control what shows up in the
               customer-facing catalog. Everything is visible by default. Use
               &quot;Configure decorations&quot; on any item to choose which
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
         )}
         {tab === "pricing" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <p className="mb-4 text-white/60 text-sm">
               Add, edit, or remove decoration types (UV Patch, Embroidered,
               Screen Print, or anything new) — their labels, hat/shirt
               availability, accepted file types, turnaround, and pricing.
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
         {tab === "settings" && (
           <>
             <AdminLogoManager />
-            <p className="mt-8 mb-4 text-navy/60 text-sm">
+            <p className="mt-8 mb-4 text-white/60 text-sm">
               Turn the live drag/resize design canvas on or off for hats and
               for shirts, site-wide. Individual items can still override this.
             </p>
@@ -103,7 +103,7 @@ export default function AdminDashboard() {
         )}
         {tab === "quick-quote" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <p className="mb-4 text-white/60 text-sm">
               A fast price check for a walk-in or phone call — pick a garment (and a decoration, if
               any — leave it as &quot;None&quot; for a blank item) straight from the catalog and see
               the price right away, with no customer info required. If they decide to order, tap
@@ -120,7 +120,7 @@ export default function AdminDashboard() {
         )}
         {tab === "quotes" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <p className="mb-4 text-white/60 text-sm">
               Build a customer quote from live SanMar pricing plus your decoration pricing chart
               (quantity price-breaks apply across the whole quote), save it, and download it as a
               PDF. Saved quotes can be reopened, edited, and converted to invoices below. Nothing
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
         )}
         {tab === "customers" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <p className="mb-4 text-white/60 text-sm">
               A simple contact list — add a customer&apos;s name, company, email, phone, and notes
               once, then look them up here later. Not tied to checkout accounts or any specific
               order.
@@ -141,7 +141,7 @@ export default function AdminDashboard() {
         )}
         {tab === "setup-charges" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <p className="mb-4 text-white/60 text-sm">
               Manage the named, flat one-time setup charges (digitizing, logo
               vectorization, screen fees, etc.) available to pick when
               building a quote on the Quotes tab. These are independent of
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
         )}
         {tab === "garment-markup" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <p className="mb-4 text-white/60 text-sm">
               Set cost-based markup breakpoints for blank garments — a garment&apos;s vendor cost
               determines which breakpoint&apos;s percentage gets added before decoration cost.
               Used everywhere a customer or the Quote Builder sees a garment price: the catalog,
@@ -163,7 +163,7 @@ export default function AdminDashboard() {
         )}
         {tab === "mockup-generator" && (
           <>
-            <p className="mb-4 text-navy/60 text-sm">
+            <p className="mb-4 text-white/60 text-sm">
               Standalone custom hat mockup generator (separate from the
               regular order flow). Manage patch materials, shapes, sizes, and
               decoration-method / mockup rendering settings here. The

@@ -160,10 +160,10 @@ export default function QuoteBuilderWizard() {
               disabled={s.id > step}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition ${
                 s.id === step
-                  ? "bg-navy text-white border-navy"
+                  ? "bg-navy text-white border-white"
                   : s.id < step
-                    ? "border-navy/30 text-navy hover:bg-navy/5"
-                    : "border-navy/10 text-navy/30"
+                    ? "border-white/30 text-white hover:bg-white/5"
+                    : "border-white/10 text-white/30"
               }`}
             >
               <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs font-semibold">
@@ -178,24 +178,24 @@ export default function QuoteBuilderWizard() {
 
       {step === 1 && (
         <div>
-          <h2 className="font-heading text-xl font-semibold uppercase text-navy tracking-wide">
+          <h2 className="font-heading text-xl font-semibold uppercase text-white tracking-wide">
             Pick a decoration method
           </h2>
           {!decorations ? (
-            <p className="mt-6 text-navy/40 text-sm">Loading…</p>
+            <p className="mt-6 text-white/40 text-sm">Loading…</p>
           ) : (
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {decorations.map((d) => (
                 <button
                   key={d.id}
                   onClick={() => chooseDecoration(d.id)}
-                  className="text-left border-2 border-navy/10 rounded-none p-5 bg-white hover:border-red hover:shadow-md transition"
+                  className="text-left border-2 border-white/10 rounded-none p-5 bg-black hover:border-red hover:shadow-md transition"
                 >
-                  <div className="font-heading font-semibold uppercase text-navy tracking-wide">
+                  <div className="font-heading font-semibold uppercase text-white tracking-wide">
                     {d.shortLabel}
                   </div>
-                  <p className="mt-1.5 text-sm text-navy/60">{d.description}</p>
-                  <p className="mt-2 text-xs text-navy/40">{d.turnaroundDays}</p>
+                  <p className="mt-1.5 text-sm text-white/60">{d.description}</p>
+                  <p className="mt-2 text-xs text-white/40">{d.turnaroundDays}</p>
                 </button>
               ))}
             </div>
@@ -206,10 +206,10 @@ export default function QuoteBuilderWizard() {
       {step === 2 && decoration && (
         <div>
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <h2 className="font-heading text-xl font-semibold uppercase text-navy tracking-wide">
+            <h2 className="font-heading text-xl font-semibold uppercase text-white tracking-wide">
               Pick a garment for {decoration.shortLabel}
             </h2>
-            <button onClick={() => setStep(1)} className="text-sm text-navy/60 hover:text-navy">
+            <button onClick={() => setStep(1)} className="text-sm text-white/60 hover:text-white">
               ← Change decoration
             </button>
           </div>
@@ -220,7 +220,7 @@ export default function QuoteBuilderWizard() {
               placeholder="Search brand, name, or style #…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border border-navy/20 rounded-none px-3 py-2 text-sm w-64"
+              className="border border-white/20 rounded-none px-3 py-2 text-sm w-64"
             />
             {availableProductTypes.length > 1 && (
               <div className="flex gap-1">
@@ -228,8 +228,8 @@ export default function QuoteBuilderWizard() {
                   onClick={() => setProductTypeFilter("all")}
                   className={`px-3 py-2 text-sm rounded-none border ${
                     productTypeFilter === "all"
-                      ? "bg-navy text-white border-navy"
-                      : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                      ? "bg-navy text-white border-white"
+                      : "border-white/20 text-white/70 hover:bg-white/5"
                   }`}
                 >
                   All
@@ -240,8 +240,8 @@ export default function QuoteBuilderWizard() {
                     onClick={() => setProductTypeFilter(t)}
                     className={`px-3 py-2 text-sm rounded-none border ${
                       productTypeFilter === t
-                        ? "bg-navy text-white border-navy"
-                        : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                        ? "bg-navy text-white border-white"
+                        : "border-white/20 text-white/70 hover:bg-white/5"
                     }`}
                   >
                     {PRODUCT_TYPE_LABEL[t]}
@@ -249,22 +249,22 @@ export default function QuoteBuilderWizard() {
                 ))}
               </div>
             )}
-            <span className="text-sm text-navy/50 ml-auto">
+            <span className="text-sm text-white/50 ml-auto">
               {garmentsLoading ? "Loading…" : `${filteredGarments.length} styles`}
             </span>
           </div>
 
           {garmentsLoading ? (
-            <p className="mt-10 text-navy/40 text-sm">Loading catalog…</p>
+            <p className="mt-10 text-white/40 text-sm">Loading catalog…</p>
           ) : (
             <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {filteredGarments.map((g) => (
                 <button
                   key={g.styleNumber}
                   onClick={() => chooseGarment(g.styleNumber)}
-                  className="text-left border-2 border-navy/10 rounded-none bg-white overflow-hidden hover:border-red hover:shadow-md transition"
+                  className="text-left border-2 border-white/10 rounded-none bg-black overflow-hidden hover:border-red hover:shadow-md transition"
                 >
-                  <div className="relative w-full aspect-square bg-gray p-4">
+                  <div className="relative w-full aspect-square bg-white/5 p-4">
                     <Image
                       src={
                         g.heroImageIsOverride
@@ -279,18 +279,18 @@ export default function QuoteBuilderWizard() {
                     />
                   </div>
                   <div className="p-2.5">
-                    <div className="text-[11px] uppercase tracking-wide text-navy/40 truncate">
+                    <div className="text-[11px] uppercase tracking-wide text-white/40 truncate">
                       {g.brandName} · {g.styleNumber}
                     </div>
-                    <div className="text-xs font-semibold text-navy leading-tight line-clamp-2 mt-0.5">
+                    <div className="text-xs font-semibold text-white leading-tight line-clamp-2 mt-0.5">
                       {g.productName}
                     </div>
-                    <div className="text-xs text-navy/60 mt-1">{formatUSD(g.basePrice)}+</div>
+                    <div className="text-xs text-white/60 mt-1">{formatUSD(g.basePrice)}+</div>
                   </div>
                 </button>
               ))}
               {filteredGarments.length === 0 && (
-                <p className="col-span-full text-navy/40 text-sm py-10 text-center">
+                <p className="col-span-full text-white/40 text-sm py-10 text-center">
                   No garments match — try a different search or filter.
                 </p>
               )}
@@ -303,10 +303,10 @@ export default function QuoteBuilderWizard() {
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-8">
           <div>
             {productLoading || !product ? (
-              <div className="w-full aspect-square bg-gray rounded-none animate-pulse" />
+              <div className="w-full aspect-square bg-white/5 rounded-none animate-pulse" />
             ) : (
               <>
-                <div className="relative w-full aspect-square bg-gray rounded-none p-6">
+                <div className="relative w-full aspect-square bg-white/5 rounded-none p-6">
                   <Image
                     src={
                       product.heroImageIsOverride
@@ -323,13 +323,13 @@ export default function QuoteBuilderWizard() {
                     sizes="320px"
                   />
                 </div>
-                <div className="mt-3 text-xs uppercase tracking-wide text-navy/40">
+                <div className="mt-3 text-xs uppercase tracking-wide text-white/40">
                   {product.brandName} · {product.styleNumber}
                 </div>
-                <div className="font-semibold text-navy">{product.productName}</div>
+                <div className="font-semibold text-white">{product.productName}</div>
                 <button
                   onClick={() => setStep(2)}
-                  className="mt-2 text-sm text-navy/60 hover:text-navy"
+                  className="mt-2 text-sm text-white/60 hover:text-white"
                 >
                   ← Change garment
                 </button>
@@ -339,12 +339,12 @@ export default function QuoteBuilderWizard() {
 
           <div>
             {productLoading || !product ? (
-              <p className="text-navy/40 text-sm">Loading pricing…</p>
+              <p className="text-white/40 text-sm">Loading pricing…</p>
             ) : (
               <>
                 <div className="space-y-5">
                   <div>
-                    <label className="text-sm font-medium text-navy">Color</label>
+                    <label className="text-sm font-medium text-white">Color</label>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {product.colors.map((c) => (
                         <button
@@ -352,8 +352,8 @@ export default function QuoteBuilderWizard() {
                           onClick={() => setColorName(c.colorName)}
                           className={`px-3 py-1.5 rounded-full text-sm border transition ${
                             colorName === c.colorName
-                              ? "bg-navy text-white border-navy"
-                              : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                              ? "bg-navy text-white border-white"
+                              : "border-white/20 text-white/70 hover:bg-white/5"
                           }`}
                         >
                           {c.colorName}
@@ -364,10 +364,10 @@ export default function QuoteBuilderWizard() {
 
                   {hasSizes ? (
                     <div>
-                      <label className="text-sm font-medium text-navy">Quantity by size</label>
+                      <label className="text-sm font-medium text-white">Quantity by size</label>
                       <div className="mt-2 grid grid-cols-4 sm:grid-cols-6 gap-2">
                         {(color?.sizes ?? []).map((s) => (
-                          <label key={s.name} className="text-xs text-navy/70">
+                          <label key={s.name} className="text-xs text-white/70">
                             {s.name}
                             <input
                               type="number"
@@ -379,7 +379,7 @@ export default function QuoteBuilderWizard() {
                                   [s.name]: Math.max(0, Number(e.target.value) || 0),
                                 }))
                               }
-                              className="mt-1 w-full border border-navy/20 rounded-none px-2 py-1.5 text-sm"
+                              className="mt-1 w-full border border-white/20 rounded-none px-2 py-1.5 text-sm"
                               placeholder="0"
                             />
                           </label>
@@ -388,20 +388,20 @@ export default function QuoteBuilderWizard() {
                     </div>
                   ) : (
                     <div>
-                      <label className="text-sm font-medium text-navy">Quantity</label>
+                      <label className="text-sm font-medium text-white">Quantity</label>
                       <input
                         type="number"
                         min={1}
                         value={quantity}
                         onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-                        className="mt-2 w-32 border border-navy/20 rounded-none px-3 py-2 text-sm"
+                        className="mt-2 w-32 border border-white/20 rounded-none px-3 py-2 text-sm"
                       />
                     </div>
                   )}
 
                   {decoration.priceColumns && decoration.priceColumns.length > 0 && (
                     <div>
-                      <label className="text-sm font-medium text-navy">
+                      <label className="text-sm font-medium text-white">
                         {decoration.priceColumns[0].label.toLowerCase().includes("stitch")
                           ? "Stitch count"
                           : "Print locations"}
@@ -416,8 +416,8 @@ export default function QuoteBuilderWizard() {
                             }}
                             className={`px-3 py-1.5 rounded-full text-sm border transition ${
                               columnId === col.id && !unknownStitchCount
-                                ? "bg-navy text-white border-navy"
-                                : "border-navy/20 text-navy/70 hover:bg-navy/5"
+                                ? "bg-navy text-white border-white"
+                                : "border-white/20 text-white/70 hover:bg-white/5"
                             }`}
                           >
                             {col.label}
@@ -425,7 +425,7 @@ export default function QuoteBuilderWizard() {
                         ))}
                       </div>
                       {decoration.allowUnknownStitchCount && (
-                        <label className="mt-2 flex items-center gap-2 text-sm text-navy/70">
+                        <label className="mt-2 flex items-center gap-2 text-sm text-white/70">
                           <input
                             type="checkbox"
                             checked={unknownStitchCount}
@@ -437,7 +437,7 @@ export default function QuoteBuilderWizard() {
                     </div>
                   )}
 
-                  <label className="flex items-center gap-2 text-sm text-navy/70">
+                  <label className="flex items-center gap-2 text-sm text-white/70">
                     <input
                       type="checkbox"
                       checked={sameLogoBefore}
@@ -447,14 +447,14 @@ export default function QuoteBuilderWizard() {
                   </label>
                 </div>
 
-                <div className="mt-8 border border-navy/10 rounded-none p-5 bg-white max-w-sm">
-                  <h3 className="font-heading font-semibold uppercase text-navy tracking-wide text-sm">
+                <div className="mt-8 border border-white/10 rounded-none p-5 bg-black max-w-sm">
+                  <h3 className="font-heading font-semibold uppercase text-white tracking-wide text-sm">
                     Live price
                   </h3>
                   {totalQuantity <= 0 ? (
-                    <p className="mt-2 text-sm text-navy/50">Enter a quantity to see pricing.</p>
+                    <p className="mt-2 text-sm text-white/50">Enter a quantity to see pricing.</p>
                   ) : showQuoteRequired ? (
-                    <p className="mt-2 text-sm text-navy/70">
+                    <p className="mt-2 text-sm text-white/70">
                       {decoration.shortLabel}&apos;s pricing depends on your design — we&apos;ll
                       follow up with an exact quote once we see it. Garment cost for{" "}
                       {totalQuantity} units:{" "}
@@ -472,7 +472,7 @@ export default function QuoteBuilderWizard() {
                             return (
                               <div
                                 key={size.name}
-                                className="flex justify-between text-navy/70 gap-4"
+                                className="flex justify-between text-white/70 gap-4"
                               >
                                 <span>
                                   {size.name} ({sizeQuantity} × {formatUSD(decoratedUnitPrice)}
@@ -485,7 +485,7 @@ export default function QuoteBuilderWizard() {
                             );
                           })
                       ) : (
-                        <div className="flex justify-between text-navy/70 gap-4">
+                        <div className="flex justify-between text-white/70 gap-4">
                           <span>
                             Garment + {decoration.shortLabel} (
                             {formatUSD(
@@ -499,24 +499,24 @@ export default function QuoteBuilderWizard() {
                         </div>
                       )}
                       {estimate.setupFee > 0 && (
-                        <div className="flex justify-between text-navy/70">
+                        <div className="flex justify-between text-white/70">
                           <span>Setup fee</span>
                           <span>{formatUSD(estimate.setupFee)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between font-semibold text-navy pt-2 border-t border-navy/10 mt-2">
+                      <div className="flex justify-between font-semibold text-white pt-2 border-t border-white/10 mt-2">
                         <span>Total</span>
                         <span>{formatUSD(estimate.total)}</span>
                       </div>
                     </div>
                   )}
-                  <p className="mt-3 text-xs text-navy/40">
+                  <p className="mt-3 text-xs text-white/40">
                     Live SanMar pricing for this style/color. Setup fees may be waived at higher
                     quantities or repeat orders.
                   </p>
                   <Link
                     href={`/customize?style=${encodeURIComponent(product.styleNumber)}&type=${product.productType}`}
-                    className="mt-4 block text-center px-4 py-2.5 rounded-none bg-red text-white text-sm font-semibold hover:bg-navy transition"
+                    className="mt-4 block text-center px-4 py-2.5 rounded-none bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition"
                   >
                     Ready to order? Design Now →
                   </Link>

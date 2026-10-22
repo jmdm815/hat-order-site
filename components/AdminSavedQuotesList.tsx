@@ -147,7 +147,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
   }
 
   if (loading) {
-    return <p className="text-navy/40 text-sm">Loading…</p>;
+    return <p className="text-white/40 text-sm">Loading…</p>;
   }
 
   return (
@@ -163,7 +163,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
       {linkMessage && <p className="mb-3 text-sm text-green-700">{linkMessage}</p>}
 
       {records.length === 0 ? (
-        <p className="text-sm text-navy/40">No saved quotes yet — build one above and hit &quot;Save quote.&quot;</p>
+        <p className="text-sm text-white/40">No saved quotes yet — build one above and hit &quot;Save quote.&quot;</p>
       ) : (
         <div className="space-y-2">
           {records.map((r) => {
@@ -172,14 +172,14 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
             return (
               <div
                 key={r.id}
-                className="border border-navy/10 rounded-xl bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+                className="border border-white/10 rounded-xl bg-black p-4 flex flex-col sm:flex-row sm:items-center gap-3"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-navy truncate">{customer}</span>
+                    <span className="font-medium text-white truncate">{customer}</span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        r.status === "invoice" ? "bg-navy/10 text-navy" : "bg-navy/5 text-navy/60"
+                        r.status === "invoice" ? "bg-white/10 text-white" : "bg-white/5 text-white/60"
                       }`}
                     >
                       {r.status === "invoice" ? r.invoiceNumber : "Quote"}
@@ -190,7 +190,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-navy/50 mt-0.5">
+                  <div className="text-xs text-white/50 mt-0.5">
                     {r.computed.totalQuantity} units · ${r.computed.grandTotal.toFixed(2)} · saved{" "}
                     {new Date(r.updatedAt).toLocaleDateString()}
                     {r.status === "invoice" &&
@@ -205,13 +205,13 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => onEdit(r)}
-                    className="text-xs px-2.5 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                    className="text-xs px-2.5 py-1 rounded-lg border border-white/20 hover:bg-white/5"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => downloadPdf(r.id, "customer", "quote.pdf")}
-                    className="text-xs px-2.5 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                    className="text-xs px-2.5 py-1 rounded-lg border border-white/20 hover:bg-white/5"
                   >
                     PDF
                   </button>
@@ -223,7 +223,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                   </button>
                   <button
                     onClick={() => downloadPdf(r.id, "work-order", "work-order.pdf")}
-                    className="text-xs px-2.5 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                    className="text-xs px-2.5 py-1 rounded-lg border border-white/20 hover:bg-white/5"
                   >
                     Work order
                   </button>
@@ -281,7 +281,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                   <button
                     onClick={() => handleDelete(r.id)}
                     disabled={isBusy}
-                    className="text-xs px-2.5 py-1 text-red-600 hover:underline disabled:text-navy/20"
+                    className="text-xs px-2.5 py-1 text-red-600 hover:underline disabled:text-white/20"
                   >
                     Delete
                   </button>

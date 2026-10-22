@@ -67,7 +67,7 @@ function ColorSwatch({ hex, title }: { hex: string; title?: string }) {
   return (
     <span
       title={title ?? hex}
-      className="inline-block w-5 h-5 rounded border border-navy/20 align-middle"
+      className="inline-block w-5 h-5 rounded border border-white/20 align-middle"
       style={{ backgroundColor: /^#/.test(hex) ? hex : "#ffffff" }}
     />
   );
@@ -106,7 +106,7 @@ function ShapeThumbnail({ geometry, cornerRadiusPct }: { geometry: PatchShapeGeo
   }
   return (
     <svg viewBox="0 0 100 100" className="w-8 h-8 shrink-0" aria-hidden>
-      <g fill="none" stroke="currentColor" strokeWidth={4} className="text-navy/60">
+      <g fill="none" stroke="currentColor" strokeWidth={4} className="text-white/60">
         {inner}
       </g>
     </svg>
@@ -135,29 +135,29 @@ function AddNewCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mt-6 border border-dashed border-navy/20 rounded-xl">
+    <div className="mt-6 border border-dashed border-white/20 rounded-xl">
       {!creating ? (
         <button
           onClick={onStart}
-          className="w-full p-4 text-sm font-medium text-navy/70 hover:bg-navy/5 rounded-xl"
+          className="w-full p-4 text-sm font-medium text-white/70 hover:bg-white/5 rounded-xl"
         >
           + Add {label}
         </button>
       ) : (
         <div className="p-4">
-          <h3 className="font-semibold text-navy">New {label}</h3>
+          <h3 className="font-semibold text-white">New {label}</h3>
           {children}
           <div className="mt-4 flex items-center gap-3">
             <button
               onClick={onSubmit}
               disabled={disabled}
-              className="px-5 py-2 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+              className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
             >
               Add
             </button>
             <button
               onClick={onCancel}
-              className="px-4 py-2 rounded-full border border-navy/20 text-sm font-medium hover:bg-navy/5"
+              className="px-4 py-2 rounded-full border border-white/20 text-sm font-medium hover:bg-white/5"
             >
               Cancel
             </button>
@@ -199,46 +199,46 @@ function materialFields(
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Name
           <input
             type="text"
             value={draft.name}
             onChange={(e) => apply({ name: e.target.value })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Internal SKU
           <input
             type="text"
             value={draft.internalSku ?? ""}
             onChange={(e) => apply({ internalSku: e.target.value })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Supplier
           <input
             type="text"
             value={draft.supplier ?? ""}
             onChange={(e) => apply({ supplier: e.target.value })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Supplier SKU
           <input
             type="text"
             value={draft.supplierSku ?? ""}
             onChange={(e) => apply({ supplierSku: e.target.value })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
       </div>
 
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Surface color
           <div className="mt-1 flex items-center gap-2">
             <ColorSwatch hex={draft.surfaceColorHex} />
@@ -246,11 +246,11 @@ function materialFields(
               type="text"
               value={draft.surfaceColorHex}
               onChange={(e) => apply({ surfaceColorHex: e.target.value })}
-              className="w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             />
           </div>
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Engraving / ink color
           <div className="mt-1 flex items-center gap-2">
             <ColorSwatch hex={draft.engravingColorHex} />
@@ -258,11 +258,11 @@ function materialFields(
               type="text"
               value={draft.engravingColorHex}
               onChange={(e) => apply({ engravingColorHex: e.target.value })}
-              className="w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             />
           </div>
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Edge color
           <div className="mt-1 flex items-center gap-2">
             <ColorSwatch hex={draft.edgeColorHex ?? "#000000"} />
@@ -270,19 +270,19 @@ function materialFields(
               type="text"
               value={draft.edgeColorHex ?? ""}
               onChange={(e) => apply({ edgeColorHex: e.target.value })}
-              className="w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             />
           </div>
         </label>
       </div>
 
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Texture type
           <select
             value={draft.textureType}
             onChange={(e) => apply({ textureType: e.target.value as PatchTextureType })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           >
             {TEXTURE_TYPES.map((t) => (
               <option key={t} value={t}>
@@ -291,7 +291,7 @@ function materialFields(
             ))}
           </select>
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Texture strength (0-100)
           <input
             type="number"
@@ -299,33 +299,33 @@ function materialFields(
             max={100}
             value={draft.textureStrength}
             onChange={(e) => apply({ textureStrength: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
       </div>
 
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Reference image URL
           <input
             type="text"
             value={draft.referenceImageUrl ?? ""}
             onChange={(e) => apply({ referenceImageUrl: e.target.value })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Swatch image URL
           <input
             type="text"
             value={draft.swatchImageUrl ?? ""}
             onChange={(e) => apply({ swatchImageUrl: e.target.value })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-navy/70">
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-white/70">
         <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
@@ -352,7 +352,7 @@ function materialFields(
             type="number"
             value={draft.sortOrder}
             onChange={(e) => apply({ sortOrder: Number(e.target.value) || 0 })}
-            className="w-16 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+            className="w-16 border border-white/20 rounded-lg px-2 py-1 text-sm"
           />
         </label>
       </div>
@@ -451,12 +451,12 @@ function MaterialsPanel({
           const draft = drafts[m.id] ?? { ...m };
           const isOpen = openId === m.id;
           return (
-            <div key={m.id} className="border border-navy/10 rounded-xl bg-white overflow-hidden">
+            <div key={m.id} className="border border-white/10 rounded-xl bg-black overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <ColorSwatch hex={m.surfaceColorHex} />
                 <div className="flex-1">
-                  <div className="font-semibold text-navy">{m.name}</div>
-                  <div className="text-xs text-navy/50 mt-0.5">
+                  <div className="font-semibold text-white">{m.name}</div>
+                  <div className="text-xs text-white/50 mt-0.5">
                     {m.textureType} · {m.availableForEngraving ? "engraving" : ""}
                     {m.availableForEngraving && m.availableForUv ? " · " : ""}
                     {m.availableForUv ? "UV" : ""}
@@ -465,26 +465,26 @@ function MaterialsPanel({
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : m.id)}
-                  className="text-sm text-navy/70 px-3 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5"
+                  className="text-sm text-white/70 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
                 <button
                   onClick={() => handleDelete(m.id, m.name)}
                   disabled={savingId === m.id}
-                  className="text-sm text-red-600 px-2 hover:underline disabled:text-navy/20"
+                  className="text-sm text-red-600 px-2 hover:underline disabled:text-white/20"
                 >
                   Delete
                 </button>
               </div>
               {isOpen && (
-                <div className="p-4 border-t border-navy/10 bg-navy/[0.02]">
+                <div className="p-4 border-t border-white/10 bg-white/[0.02]">
                   {materialFields(draft, (patch) => updateDraft(m.id, patch))}
                   <div className="mt-4">
                     <button
                       onClick={() => handleSave(m.id)}
                       disabled={savingId === m.id}
-                      className="px-5 py-2 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+                      className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
                     >
                       {savingId === m.id ? "Saving…" : "Save changes"}
                     </button>
@@ -535,21 +535,21 @@ function shapeFields(draft: ShapeDraft, apply: (patch: Partial<ShapeDraft>) => v
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Name
           <input
             type="text"
             value={draft.name}
             onChange={(e) => apply({ name: e.target.value })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Geometry
           <select
             value={draft.geometry}
             onChange={(e) => apply({ geometry: e.target.value as PatchShapeGeometry })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           >
             {SHAPE_GEOMETRIES.map((g) => (
               <option key={g} value={g}>
@@ -561,7 +561,7 @@ function shapeFields(draft: ShapeDraft, apply: (patch: Partial<ShapeDraft>) => v
       </div>
 
       {showCornerRadius && (
-        <label className="mt-3 block text-sm text-navy/70 max-w-xs">
+        <label className="mt-3 block text-sm text-white/70 max-w-xs">
           Corner radius (% of shorter side, 0-50)
           <input
             type="number"
@@ -569,22 +569,22 @@ function shapeFields(draft: ShapeDraft, apply: (patch: Partial<ShapeDraft>) => v
             max={50}
             value={draft.cornerRadiusPct ?? 0}
             onChange={(e) => apply({ cornerRadiusPct: Math.min(50, Math.max(0, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
       )}
 
-      <label className="mt-3 block text-sm text-navy/70">
+      <label className="mt-3 block text-sm text-white/70">
         Custom SVG path override (optional, viewBox &quot;0 0 100 100&quot;)
         <input
           type="text"
           value={draft.svgPath ?? ""}
           onChange={(e) => apply({ svgPath: e.target.value })}
-          className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm font-mono"
+          className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm font-mono"
         />
       </label>
 
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-navy/70">
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-white/70">
         <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
@@ -611,7 +611,7 @@ function shapeFields(draft: ShapeDraft, apply: (patch: Partial<ShapeDraft>) => v
             type="number"
             value={draft.sortOrder}
             onChange={(e) => apply({ sortOrder: Number(e.target.value) || 0 })}
-            className="w-16 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+            className="w-16 border border-white/20 rounded-lg px-2 py-1 text-sm"
           />
         </label>
       </div>
@@ -710,38 +710,38 @@ function ShapesPanel({
           const draft = drafts[s.id] ?? { ...s };
           const isOpen = openId === s.id;
           return (
-            <div key={s.id} className="border border-navy/10 rounded-xl bg-white overflow-hidden">
+            <div key={s.id} className="border border-white/10 rounded-xl bg-black overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <ShapeThumbnail geometry={s.geometry} cornerRadiusPct={s.cornerRadiusPct} />
                 <div className="flex-1">
-                  <div className="font-semibold text-navy">{s.name}</div>
-                  <div className="text-xs text-navy/50 mt-0.5">
+                  <div className="font-semibold text-white">{s.name}</div>
+                  <div className="text-xs text-white/50 mt-0.5">
                     {s.geometry}
                     {!s.active && " · inactive"}
                   </div>
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : s.id)}
-                  className="text-sm text-navy/70 px-3 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5"
+                  className="text-sm text-white/70 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
                 <button
                   onClick={() => handleDelete(s.id, s.name)}
                   disabled={savingId === s.id}
-                  className="text-sm text-red-600 px-2 hover:underline disabled:text-navy/20"
+                  className="text-sm text-red-600 px-2 hover:underline disabled:text-white/20"
                 >
                   Delete
                 </button>
               </div>
               {isOpen && (
-                <div className="p-4 border-t border-navy/10 bg-navy/[0.02]">
+                <div className="p-4 border-t border-white/10 bg-white/[0.02]">
                   {shapeFields(draft, (patch) => updateDraft(s.id, patch))}
                   <div className="mt-4">
                     <button
                       onClick={() => handleSave(s.id)}
                       disabled={savingId === s.id}
-                      className="px-5 py-2 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+                      className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
                     >
                       {savingId === s.id ? "Saving…" : "Save changes"}
                     </button>
@@ -808,17 +808,17 @@ function sizeFields(
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Name
           <input
             type="text"
             value={draft.name}
             onChange={(e) => apply({ name: e.target.value })}
             placeholder='e.g. 3" x 2"'
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Width (in)
           <input
             type="number"
@@ -826,10 +826,10 @@ function sizeFields(
             min={0.1}
             value={draft.widthIn}
             onChange={(e) => apply({ widthIn: Math.max(0.1, Number(e.target.value) || 0.1) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Height (in)
           <input
             type="number"
@@ -837,13 +837,13 @@ function sizeFields(
             min={0.1}
             value={draft.heightIn}
             onChange={(e) => apply({ heightIn: Math.max(0.1, Number(e.target.value) || 0.1) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-navy/70">
-        <span className="font-medium text-navy">Applicable methods</span>
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-white/70">
+        <span className="font-medium text-white">Applicable methods</span>
         <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
@@ -863,9 +863,9 @@ function sizeFields(
       </div>
 
       <div className="mt-3">
-        <span className="text-sm font-medium text-navy">Applicable shapes</span>
-        <p className="text-xs text-navy/50 mt-0.5">Leave all unchecked to allow every shape.</p>
-        <div className="mt-2 flex flex-wrap gap-3 text-sm text-navy/70">
+        <span className="text-sm font-medium text-white">Applicable shapes</span>
+        <p className="text-xs text-white/50 mt-0.5">Leave all unchecked to allow every shape.</p>
+        <div className="mt-2 flex flex-wrap gap-3 text-sm text-white/70">
           {allShapes.map((shape) => (
             <label key={shape.id} className="flex items-center gap-1.5">
               <input
@@ -879,7 +879,7 @@ function sizeFields(
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-navy/70">
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-white/70">
         <label className="flex items-center gap-1.5">
           <input type="checkbox" checked={draft.active} onChange={(e) => apply({ active: e.target.checked })} />
           Active
@@ -890,7 +890,7 @@ function sizeFields(
             type="number"
             value={draft.sortOrder}
             onChange={(e) => apply({ sortOrder: Number(e.target.value) || 0 })}
-            className="w-16 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+            className="w-16 border border-white/20 rounded-lg px-2 py-1 text-sm"
           />
         </label>
       </div>
@@ -991,37 +991,37 @@ function SizesPanel({
           const draft = drafts[s.id] ?? { ...s };
           const isOpen = openId === s.id;
           return (
-            <div key={s.id} className="border border-navy/10 rounded-xl bg-white overflow-hidden">
+            <div key={s.id} className="border border-white/10 rounded-xl bg-black overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <div className="flex-1">
-                  <div className="font-semibold text-navy">{s.name}</div>
-                  <div className="text-xs text-navy/50 mt-0.5">
+                  <div className="font-semibold text-white">{s.name}</div>
+                  <div className="text-xs text-white/50 mt-0.5">
                     {s.applicableMethods.join(" & ")}
                     {!s.active && " · inactive"}
                   </div>
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : s.id)}
-                  className="text-sm text-navy/70 px-3 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5"
+                  className="text-sm text-white/70 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
                 <button
                   onClick={() => handleDelete(s.id, s.name)}
                   disabled={savingId === s.id}
-                  className="text-sm text-red-600 px-2 hover:underline disabled:text-navy/20"
+                  className="text-sm text-red-600 px-2 hover:underline disabled:text-white/20"
                 >
                   Delete
                 </button>
               </div>
               {isOpen && (
-                <div className="p-4 border-t border-navy/10 bg-navy/[0.02]">
+                <div className="p-4 border-t border-white/10 bg-white/[0.02]">
                   {sizeFields(draft, (patch) => updateDraft(s.id, patch), shapes)}
                   <div className="mt-4">
                     <button
                       onClick={() => handleSave(s.id)}
                       disabled={savingId === s.id}
-                      className="px-5 py-2 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+                      className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
                     >
                       {savingId === s.id ? "Saving…" : "Save changes"}
                     </button>
@@ -1093,7 +1093,7 @@ function MethodSettingsPanel({
     opts?: { step?: string; min?: number; max?: number }
   ) {
     return (
-      <label className="text-sm text-navy/70">
+      <label className="text-sm text-white/70">
         {label}
         <input
           type="number"
@@ -1102,7 +1102,7 @@ function MethodSettingsPanel({
           max={opts?.max}
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
-          className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+          className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
         />
       </label>
     );
@@ -1112,7 +1112,7 @@ function MethodSettingsPanel({
     <div className="max-w-2xl">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div>
-          <h3 className="font-semibold text-navy mb-2">Embroidery</h3>
+          <h3 className="font-semibold text-white mb-2">Embroidery</h3>
           <div className="space-y-3">
             {numberField("Thread texture intensity (0-100)", draft.embroidery.threadTextureIntensity, (v) =>
               setDraft((d) => ({ ...d, embroidery: { ...d.embroidery, threadTextureIntensity: v } }))
@@ -1136,7 +1136,7 @@ function MethodSettingsPanel({
         </div>
 
         <div>
-          <h3 className="font-semibold text-navy mb-2">Engraving</h3>
+          <h3 className="font-semibold text-white mb-2">Engraving</h3>
           <div className="space-y-3">
             {numberField("Contrast (0-100)", draft.engraving.contrast, (v) =>
               setDraft((d) => ({ ...d, engraving: { ...d.engraving, contrast: v } }))
@@ -1157,7 +1157,7 @@ function MethodSettingsPanel({
         </div>
 
         <div>
-          <h3 className="font-semibold text-navy mb-2">UV Printing</h3>
+          <h3 className="font-semibold text-white mb-2">UV Printing</h3>
           <div className="space-y-3">
             {numberField("Print saturation (0-100)", draft.uv.printSaturation, (v) =>
               setDraft((d) => ({ ...d, uv: { ...d.uv, printSaturation: v } }))
@@ -1182,7 +1182,7 @@ function MethodSettingsPanel({
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-5 py-2 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+          className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
         >
           {saving ? "Saving…" : "Save method settings"}
         </button>
@@ -1234,7 +1234,7 @@ function MockupSettingsPanel({
   return (
     <div className="max-w-2xl">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Background color
           <div className="mt-1 flex items-center gap-2">
             <ColorSwatch hex={draft.backgroundColor} />
@@ -1242,43 +1242,43 @@ function MockupSettingsPanel({
               type="text"
               value={draft.backgroundColor}
               onChange={(e) => apply({ backgroundColor: e.target.value })}
-              className="w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             />
           </div>
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Export resolution multiplier
           <select
             value={draft.exportResolutionMultiplier}
             onChange={(e) => apply({ exportResolutionMultiplier: Number(e.target.value) as 1 | 2 | 3 })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           >
             <option value={1}>1x</option>
             <option value={2}>2x</option>
             <option value={3}>3x</option>
           </select>
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Export width (px)
           <input
             type="number"
             min={1}
             value={draft.exportWidth}
             onChange={(e) => apply({ exportWidth: Math.max(1, Number(e.target.value) || 1) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Export height (px)
           <input
             type="number"
             min={1}
             value={draft.exportHeight}
             onChange={(e) => apply({ exportHeight: Math.max(1, Number(e.target.value) || 1) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Hat scale (% of canvas)
           <input
             type="number"
@@ -1286,10 +1286,10 @@ function MockupSettingsPanel({
             max={100}
             value={draft.hatScalePct}
             onChange={(e) => apply({ hatScalePct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Hat vertical offset (%, -50..50)
           <input
             type="number"
@@ -1297,10 +1297,10 @@ function MockupSettingsPanel({
             max={50}
             value={draft.hatOffsetYPct}
             onChange={(e) => apply({ hatOffsetYPct: Math.min(50, Math.max(-50, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Banner width (% of export width)
           <input
             type="number"
@@ -1308,62 +1308,62 @@ function MockupSettingsPanel({
             max={100}
             value={draft.bannerWidthPct}
             onChange={(e) => apply({ bannerWidthPct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Banner height (px)
           <input
             type="number"
             min={1}
             value={draft.bannerHeightPx}
             onChange={(e) => apply({ bannerHeightPx: Math.max(1, Number(e.target.value) || 1) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Banner spacing (px)
           <input
             type="number"
             min={0}
             value={draft.bannerSpacingPx}
             onChange={(e) => apply({ bannerSpacingPx: Math.max(0, Number(e.target.value) || 0) })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Default hat style number
           <input
             type="text"
             value={draft.defaultHatStyleNumber ?? ""}
             onChange={(e) => apply({ defaultHatStyleNumber: e.target.value })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Default decoration method
           <select
             value={draft.defaultMethod}
             onChange={(e) => apply({ defaultMethod: e.target.value as MockupSettings["defaultMethod"] })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           >
             <option value="embroidered">Embroidered</option>
             <option value="engraved">Engraved Patch</option>
             <option value="uv">UV Printed Patch</option>
           </select>
         </label>
-        <label className="text-sm text-navy/70">
+        <label className="text-sm text-white/70">
           Default material id
           <input
             type="text"
             value={draft.defaultMaterialId ?? ""}
             onChange={(e) => apply({ defaultMaterialId: e.target.value })}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
           />
         </label>
       </div>
 
-      <label className="mt-3 flex items-center gap-1.5 text-sm text-navy/70 cursor-pointer select-none">
+      <label className="mt-3 flex items-center gap-1.5 text-sm text-white/70 cursor-pointer select-none">
         <input
           type="checkbox"
           checked={draft.showSafeAreaGuideInEditor}
@@ -1376,7 +1376,7 @@ function MockupSettingsPanel({
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-5 py-2 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+          className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
         >
           {saving ? "Saving…" : "Save mockup settings"}
         </button>
@@ -1422,22 +1422,22 @@ export default function AdminMockupGeneratorManager() {
   }, [router]);
 
   if (loading || !config) {
-    return <p className="text-navy/40 text-sm">Loading…</p>;
+    return <p className="text-white/40 text-sm">Loading…</p>;
   }
 
   return (
     <div>
       {!persistent && <NotPersistentBanner />}
 
-      <div className="flex flex-wrap gap-1 border-b border-navy/10 mb-4">
+      <div className="flex flex-wrap gap-1 border-b border-white/10 mb-4">
         {SUB_TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setSubTab(t.id)}
             className={`px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition ${
               subTab === t.id
-                ? "border-red text-navy"
-                : "border-transparent text-navy/50 hover:text-navy"
+                ? "border-red text-white"
+                : "border-transparent text-white/50 hover:text-white"
             }`}
           >
             {t.label}
@@ -1482,7 +1482,7 @@ export default function AdminMockupGeneratorManager() {
         />
       )}
 
-      {message && <p className="mt-4 text-sm text-navy/70">{message}</p>}
+      {message && <p className="mt-4 text-sm text-white/70">{message}</p>}
 
       {/* Hat calibration (MockupHatCalibration) is intentionally not managed
           here — it will be added to the per-hat "Configure decorations" flow

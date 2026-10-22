@@ -9,8 +9,8 @@ export default async function CustomizePage() {
     <>
       <StepHeader logoUrl={publicLogoUrl(brand)} />
       <main className="flex-1 max-w-[110rem] mx-auto px-4 py-10 w-full">
-        <h1 className="text-2xl font-bold text-navy">Customize your order</h1>
-        <Suspense fallback={<p className="mt-10 text-navy/40 text-sm">Loading…</p>}>
+        <h1 className="text-2xl font-bold text-white">Customize your order</h1>
+        <Suspense fallback={<p className="mt-10 text-white/40 text-sm">Loading…</p>}>
           <CustomizeForm />
         </Suspense>
       </main>

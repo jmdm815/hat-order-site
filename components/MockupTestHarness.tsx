@@ -232,7 +232,7 @@ export default function MockupTestHarness() {
         >
           Re-render
         </button>
-        <span className="text-sm text-navy/60">
+        <span className="text-sm text-white/60">
           {status === "loading" && `Rendering… (${readyCount}/${SLOTS.length})`}
           {status === "ready" && "Done"}
           {status === "error" && "Failed"}
@@ -247,8 +247,8 @@ export default function MockupTestHarness() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {SLOTS.map((slot) => (
-          <div key={slot.key} className="border border-navy/10 rounded-xl bg-white p-3">
-            <h2 className="text-sm font-semibold text-navy mb-2">{slot.label}</h2>
+          <div key={slot.key} className="border border-white/10 rounded-xl bg-black p-3">
+            <h2 className="text-sm font-semibold text-white mb-2">{slot.label}</h2>
             <div ref={(el) => { containerRefs.current[slot.key] = el; }} className="bg-neutral-100 rounded-lg min-h-[200px]" />
           </div>
         ))}

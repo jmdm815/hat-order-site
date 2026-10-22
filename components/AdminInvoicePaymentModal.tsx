@@ -89,34 +89,34 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
   return (
     <div className="fixed inset-0 z-50 bg-navy/40 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto p-5"
+        className="bg-black rounded-xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-navy">Payment</h2>
-            <p className="text-xs text-navy/50">{record.invoiceNumber ?? "Invoice"}</p>
+            <h2 className="text-lg font-bold text-white">Payment</h2>
+            <p className="text-xs text-white/50">{record.invoiceNumber ?? "Invoice"}</p>
           </div>
-          <button onClick={onClose} className="text-navy/40 hover:text-navy text-sm px-1">
+          <button onClick={onClose} className="text-white/40 hover:text-white text-sm px-1">
             ✕
           </button>
         </div>
 
-        <div className="mt-4 bg-navy/5 rounded-lg px-3 py-2.5 space-y-1 text-sm">
+        <div className="mt-4 bg-white/5 rounded-lg px-3 py-2.5 space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-navy/70">Total</span>
-            <span className="font-medium text-navy">{money(grandTotal)}</span>
+            <span className="text-white/70">Total</span>
+            <span className="font-medium text-white">{money(grandTotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-navy/70">Paid</span>
-            <span className="font-medium text-navy">{money(amountPaid)}</span>
+            <span className="text-white/70">Paid</span>
+            <span className="font-medium text-white">{money(amountPaid)}</span>
           </div>
-          <div className="flex justify-between pt-1 border-t border-navy/10">
-            <span className="font-semibold text-navy">Balance</span>
+          <div className="flex justify-between pt-1 border-t border-white/10">
+            <span className="font-semibold text-white">Balance</span>
             <span className={`font-bold ${balance <= 0 ? "text-green-700" : "text-red"}`}>{money(balance)}</span>
           </div>
           {depositAmount !== undefined && (
-            <p className="text-xs text-navy/50 pt-1">
+            <p className="text-xs text-white/50 pt-1">
               Payment terms: {depositPercent}% deposit ({money(depositAmount)}), balance due at pickup
             </p>
           )}
@@ -124,10 +124,10 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
 
         {payments.length > 0 && (
           <div className="mt-4">
-            <p className="text-xs font-medium text-navy/60 uppercase tracking-wide mb-1.5">Payment history</p>
+            <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1.5">Payment history</p>
             <div className="space-y-1.5 max-h-32 overflow-y-auto">
               {payments.map((p) => (
-                <div key={p.id} className="flex justify-between items-baseline text-xs text-navy/70">
+                <div key={p.id} className="flex justify-between items-baseline text-xs text-white/70">
                   <span>
                     {new Date(p.createdAt).toLocaleDateString()} —{" "}
                     {p.method === "square_card" ? "Card" : TENDER_LABEL[p.tender ?? "other"]}
@@ -143,33 +143,33 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
         {error && <p className="mt-3 text-sm text-red font-medium">{error}</p>}
 
         {balance > 0 ? (
-          <div className="mt-4 border-t border-navy/10 pt-4">
-            <p className="text-xs font-medium text-navy/60 uppercase tracking-wide mb-2">Record manual payment</p>
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-2">Record manual payment</p>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs text-navy/60 mb-1" htmlFor="payment-amount">
+                <label className="block text-xs text-white/60 mb-1" htmlFor="payment-amount">
                   Amount
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-navy/50 text-sm">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 text-sm">$</span>
                   <input
                     id="payment-amount"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     inputMode="decimal"
-                    className="w-full bg-white border border-navy/20 rounded-lg pl-6 pr-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                    className="w-full bg-black border border-white/20 rounded-lg pl-6 pr-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-navy/60 mb-1" htmlFor="payment-tender">
+                <label className="block text-xs text-white/60 mb-1" htmlFor="payment-tender">
                   Paid via
                 </label>
                 <select
                   id="payment-tender"
                   value={tender}
                   onChange={(e) => setTender(e.target.value as InvoicePaymentEntry["tender"])}
-                  className="w-full bg-white border border-navy/20 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                  className="w-full bg-black border border-white/20 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
                 >
                   <option value="cash">Cash</option>
                   <option value="check">Check</option>
@@ -178,7 +178,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
               </div>
             </div>
             <div className="mt-2">
-              <label className="block text-xs text-navy/60 mb-1" htmlFor="payment-note">
+              <label className="block text-xs text-white/60 mb-1" htmlFor="payment-note">
                 Note (optional)
               </label>
               <input
@@ -186,7 +186,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="e.g. deposit paid at pickup counter"
-                className="w-full bg-white border border-navy/20 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                className="w-full bg-black border border-white/20 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
               />
             </div>
             {!amountValid && amount !== "" && (
@@ -219,7 +219,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
           <button
             onClick={handleResetToUnpaid}
             disabled={busy}
-            className="mt-4 text-xs text-navy/40 hover:text-red hover:underline disabled:opacity-40"
+            className="mt-4 text-xs text-white/40 hover:text-red hover:underline disabled:opacity-40"
           >
             Reset to unpaid (clears all recorded payments)
           </button>

@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #212a44;
+  /* Dark theme: navy page canvas, white body text (see app/layout.tsx's
+     <body> — it sets the same colors directly via bg-navy/text-white
+     Tailwind classes, which is what actually renders; these vars exist so
+     anything referencing bg-background/text-foreground stays consistent). */
+  --background: #212a44;
+  --foreground: #ffffff;
 }
 
 @theme inline {
@@ -17,14 +21,21 @@
      These are kept under the original --color-red / --color-red-dark /
      --color-tan variable names (and therefore the original bg-red,
      text-red, border-red, hover:bg-red-dark, etc. utility classes used
-     throughout the site) specifically so this one edit restyles every
-     page and component at once, instead of hunting down every usage —
-     "red" is now the site's near-black primary accent, "red-dark" is the
-     true-black hover/pressed state, and "tan" is the muted navy-tinted
-     highlight used for secondary text/links on navy backgrounds. */
+     throughout the site) specifically so editing them here restyles every
+     page and component at once, instead of hunting down every usage.
+
+     Now that every page/card background is dark (navy page, black cards —
+     see the bg-navy/bg-black usage throughout), the accent needs to be the
+     one LIGHT color in a black/navy/white scheme so primary buttons and
+     links still stand out: "red" is white, "red-dark" is a dimmed white
+     for the hover/pressed state, and "tan" is the muted navy-tinted
+     highlight used for secondary text/links on navy backgrounds. Every
+     "bg-red text-white" primary-button pairing was hand-flipped to
+     "bg-red text-navy" (white fill, navy label) to match — see
+     components/*.tsx. */
   --color-navy: #212a44;
-  --color-red: #141414;
-  --color-red-dark: #000000;
+  --color-red: #ffffff;
+  --color-red-dark: #cfd3dc;
   --color-tan: #9aa3bb;
   --color-white: #ffffff;
   --color-gray: #f3f3f3;

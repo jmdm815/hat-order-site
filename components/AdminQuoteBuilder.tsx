@@ -643,10 +643,10 @@ export default function AdminQuoteBuilder({
   return (
     <div className="space-y-8">
       {activeRecord && (
-        <div className="flex items-center justify-between gap-3 bg-navy/5 border border-navy/10 rounded-xl px-4 py-2.5 text-sm">
-          <div className="text-navy/70">
+        <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm">
+          <div className="text-white/70">
             Editing {activeRecord.status === "invoice" ? `invoice ${activeRecord.invoiceNumber}` : "saved quote"}{" "}
-            <span className="text-navy/40">
+            <span className="text-white/40">
               (saved {new Date(activeRecord.updatedAt).toLocaleDateString()})
             </span>
             {activeRecord.status === "invoice" && activeRecord.invoiceStatus && (
@@ -665,7 +665,7 @@ export default function AdminQuoteBuilder({
           </div>
           <button
             onClick={startNewQuote}
-            className="text-xs text-navy/60 px-3 py-1 rounded-lg border border-navy/20 hover:bg-white shrink-0"
+            className="text-xs text-white/60 px-3 py-1 rounded-lg border border-white/20 hover:bg-black shrink-0"
           >
             Start a new quote
           </button>
@@ -675,12 +675,12 @@ export default function AdminQuoteBuilder({
       {/* Customer / quote header — skipped entirely in "quick" mode (Quick
           Quote tab): no customer to look up, no payment terms to set. */}
       {mode === "full" && (
-      <section className="bg-white border border-navy/10 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-navy mb-3">Quote details</h3>
+      <section className="bg-black border border-white/10 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-white mb-3">Quote details</h3>
 
         {customers.length > 0 && (
           <div className="relative max-w-sm mb-3">
-            <label className="text-xs text-navy/60">
+            <label className="text-xs text-white/60">
               Load a saved customer (optional)
               <input
                 value={customerQuery}
@@ -690,21 +690,21 @@ export default function AdminQuoteBuilder({
                 }}
                 onFocus={() => setCustomerSuggestionsOpen(true)}
                 onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 150)}
-                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                 placeholder="Search by name, company, or email…"
               />
             </label>
             {customerSuggestionsOpen && customerSuggestions.length > 0 && (
-              <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-navy/20 rounded-lg shadow-lg text-sm">
+              <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-black border border-white/20 rounded-lg shadow-lg text-sm">
                 {customerSuggestions.map((c) => (
                   <li key={c.id}>
                     <button
                       type="button"
                       onMouseDown={() => selectCustomer(c)}
-                      className="block w-full text-left px-3 py-2 hover:bg-navy/5"
+                      className="block w-full text-left px-3 py-2 hover:bg-white/5"
                     >
-                      <span className="font-medium text-navy">{c.name}</span>{" "}
-                      <span className="text-navy/40">
+                      <span className="font-medium text-white">{c.name}</span>{" "}
+                      <span className="text-white/40">
                         {[c.company, c.email].filter(Boolean).join(" · ")}
                       </span>
                     </button>
@@ -716,53 +716,53 @@ export default function AdminQuoteBuilder({
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <label className="text-xs text-navy/60">
+          <label className="text-xs text-white/60">
             Customer name
             <input
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
               placeholder="Jane Smith"
             />
           </label>
-          <label className="text-xs text-navy/60">
+          <label className="text-xs text-white/60">
             Company (optional)
             <input
               value={customerCompany}
               onChange={(e) => setCustomerCompany(e.target.value)}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-xs text-navy/60">
+          <label className="text-xs text-white/60">
             Email (optional)
             <input
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-xs text-navy/60">
+          <label className="text-xs text-white/60">
             Quote date
             <input
               type="date"
               value={quoteDate}
               onChange={(e) => setQuoteDate(e.target.value)}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             />
           </label>
         </div>
-        <label className="block text-xs text-navy/60 mt-3">
+        <label className="block text-xs text-white/60 mt-3">
           Notes (optional, printed on the PDF)
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             rows={2}
           />
         </label>
 
         <div className="mt-3">
-          <p className="text-xs text-navy/60 mb-1">Payment terms</p>
+          <p className="text-xs text-white/60 mb-1">Payment terms</p>
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={depositPercent === 100 ? "full" : depositPercent === 50 ? "50-50" : "custom"}
@@ -772,14 +772,14 @@ export default function AdminQuoteBuilder({
                 else if (v === "50-50") setDepositPercent(50);
                 else if (depositPercent === 100 || depositPercent === 50) setDepositPercent(25);
               }}
-              className="border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             >
               <option value="full">Pay in full</option>
               <option value="50-50">50% deposit, 50% on pickup</option>
               <option value="custom">Custom %</option>
             </select>
             {depositPercent !== 100 && depositPercent !== 50 && (
-              <label className="text-xs text-navy/60 flex items-center gap-1.5">
+              <label className="text-xs text-white/60 flex items-center gap-1.5">
                 Deposit
                 <input
                   type="number"
@@ -787,13 +787,13 @@ export default function AdminQuoteBuilder({
                   max={99}
                   value={depositPercent}
                   onChange={(e) => setDepositPercent(Math.min(99, Math.max(1, Number(e.target.value) || 0)))}
-                  className="w-16 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                  className="w-16 border border-white/20 rounded-lg px-2 py-1 text-sm"
                 />
                 %
               </label>
             )}
             {depositPercent < 100 && (
-              <span className="text-xs text-navy/40">
+              <span className="text-xs text-white/40">
                 {depositPercent}% deposit due now, {100 - depositPercent}% balance due at pickup
               </span>
             )}
@@ -803,24 +803,24 @@ export default function AdminQuoteBuilder({
       )}
 
       {/* Setup charges — flat, quote-wide, independent of any decoration */}
-      <section className="bg-white border border-navy/10 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-navy mb-1">Setup charges</h3>
-        <p className="text-xs text-navy/50 mb-3">
+      <section className="bg-black border border-white/10 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-white mb-1">Setup charges</h3>
+        <p className="text-xs text-white/50 mb-3">
           One-time charges for this quote as a whole — not tied to any garment or decoration.
           Manage the available list on the &quot;Setup Charges&quot; tab.
         </p>
         {setupCharges.length === 0 ? (
-          <p className="text-xs text-navy/40">No setup charges configured yet.</p>
+          <p className="text-xs text-white/40">No setup charges configured yet.</p>
         ) : (
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             {setupCharges.map((c) => (
-              <label key={c.id} className="flex items-center gap-1.5 text-sm text-navy/70">
+              <label key={c.id} className="flex items-center gap-1.5 text-sm text-white/70">
                 <input
                   type="checkbox"
                   checked={selectedSetupChargeIds.includes(c.id)}
                   onChange={(e) => toggleSetupCharge(c.id, e.target.checked)}
                 />
-                {c.label} <span className="text-navy/40">({formatUSD(c.price)})</span>
+                {c.label} <span className="text-white/40">({formatUSD(c.price)})</span>
               </label>
             ))}
           </div>
@@ -831,9 +831,9 @@ export default function AdminQuoteBuilder({
           (a rush fee, a shipping surcharge), distinct from the reusable
           Setup Charges above. Only shown in "full" mode. */}
       {mode === "full" && (
-      <section className="bg-white border border-navy/10 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-navy mb-1">Miscellaneous fees</h3>
-        <p className="text-xs text-navy/50 mb-3">
+      <section className="bg-black border border-white/10 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-white mb-1">Miscellaneous fees</h3>
+        <p className="text-xs text-white/50 mb-3">
           One-off charges for this quote only — a rush fee, a shipping surcharge, anything that
           isn&apos;t a garment or a reusable setup charge. These aren&apos;t added to the Setup
           Charges list.
@@ -843,10 +843,10 @@ export default function AdminQuoteBuilder({
             {miscFees.map((f) => (
               <div
                 key={f.id}
-                className="flex items-center justify-between gap-3 border border-navy/10 rounded-lg px-3 py-1.5"
+                className="flex items-center justify-between gap-3 border border-white/10 rounded-lg px-3 py-1.5"
               >
-                <span className="text-sm text-navy">
-                  {f.label} <span className="text-navy/40">({formatUSD(f.amount)})</span>
+                <span className="text-sm text-white">
+                  {f.label} <span className="text-white/40">({formatUSD(f.amount)})</span>
                 </span>
                 <button
                   onClick={() => removeMiscFee(f.id)}
@@ -859,16 +859,16 @@ export default function AdminQuoteBuilder({
           </div>
         )}
         <div className="flex flex-wrap items-end gap-2">
-          <label className="text-xs text-navy/60">
+          <label className="text-xs text-white/60">
             Description
             <input
               value={miscFeeLabel}
               onChange={(e) => setMiscFeeLabel(e.target.value)}
               placeholder="e.g. Rush fee, Shipping"
-              className="mt-1 w-48 border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-48 border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-xs text-navy/60">
+          <label className="text-xs text-white/60">
             Amount
             <input
               type="number"
@@ -877,13 +877,13 @@ export default function AdminQuoteBuilder({
               value={miscFeeAmount}
               onChange={(e) => setMiscFeeAmount(e.target.value)}
               placeholder="0.00"
-              className="mt-1 w-28 border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-28 border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             />
           </label>
           <button
             type="button"
             onClick={addMiscFee}
-            className="text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90"
+            className="text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90"
           >
             + Add fee
           </button>
@@ -895,11 +895,11 @@ export default function AdminQuoteBuilder({
       {/* Add a garment — guided flow: decoration, catalog, product, color,
           sizes, locations, in that order, matching the shop's other
           quoting tool. */}
-      <section className="bg-white border border-navy/10 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-navy mb-3">Add a garment</h3>
+      <section className="bg-black border border-white/10 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-white mb-3">Add a garment</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
-          <label className="text-xs text-navy/60">
+          <label className="text-xs text-white/60">
             Decoration type
             <select
               value={selectedDecorationId}
@@ -907,7 +907,7 @@ export default function AdminQuoteBuilder({
                 setSelectedDecorationId(e.target.value);
                 setSelectedColumnId("");
               }}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             >
               <option value="">None — garment only</option>
               {decorations.map((d) => (
@@ -917,16 +917,16 @@ export default function AdminQuoteBuilder({
               ))}
             </select>
             {decorationsLoaded && decorations.length === 0 && (
-              <span className="text-[11px] text-navy/40">No decoration types configured yet.</span>
+              <span className="text-[11px] text-white/40">No decoration types configured yet.</span>
             )}
           </label>
 
-          <label className="text-xs text-navy/60">
+          <label className="text-xs text-white/60">
             Catalog
             <select
               value={catalogSource}
               onChange={(e) => onCatalogChange(e.target.value as CatalogSource)}
-              className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
             >
               {CATALOG_OPTIONS.map((c) => (
                 <option key={c.id} value={c.id} disabled={c.disabled}>
@@ -939,18 +939,18 @@ export default function AdminQuoteBuilder({
         </div>
 
         {catalogSource === "customer-supplied" ? (
-          <div className="mt-4 border-t border-navy/10 pt-4 max-w-xl">
-            <label className="block text-xs text-navy/60">
+          <div className="mt-4 border-t border-white/10 pt-4 max-w-xl">
+            <label className="block text-xs text-white/60">
               Item description
               <input
                 value={csDescription}
                 onChange={(e) => setCsDescription(e.target.value)}
-                className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                 placeholder="e.g. Hat, Shirt, Bag, Custom item"
               />
             </label>
 
-            <div className="mt-3 flex flex-wrap gap-4 text-sm text-navy/70">
+            <div className="mt-3 flex flex-wrap gap-4 text-sm text-white/70">
               <label className="flex items-center gap-1.5">
                 <input
                   type="radio"
@@ -972,19 +972,19 @@ export default function AdminQuoteBuilder({
             </div>
 
             {csQuantityMode === "flat" ? (
-              <label className="block text-xs text-navy/60 mt-3 max-w-[160px]">
+              <label className="block text-xs text-white/60 mt-3 max-w-[160px]">
                 Number of items
                 <input
                   type="number"
                   min={0}
                   value={csFlatQuantity}
                   onChange={(e) => setCsFlatQuantity(Math.max(0, Number(e.target.value) || 0))}
-                  className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                 />
               </label>
             ) : (
               <div className="mt-3">
-                <span className="text-xs font-medium text-navy/60 uppercase tracking-wide">
+                <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
                   Sizes &amp; quantities
                 </span>
                 <div className="mt-1.5 space-y-1.5">
@@ -998,7 +998,7 @@ export default function AdminQuoteBuilder({
                           setCsSizeRows(next);
                         }}
                         placeholder="Size (e.g. M, OSFA)"
-                        className="w-32 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                        className="w-32 border border-white/20 rounded-lg px-2 py-1 text-sm"
                       />
                       <input
                         type="number"
@@ -1010,7 +1010,7 @@ export default function AdminQuoteBuilder({
                           setCsSizeRows(next);
                         }}
                         placeholder="Qty"
-                        className="w-20 border border-navy/20 rounded-lg px-2 py-1 text-sm"
+                        className="w-20 border border-white/20 rounded-lg px-2 py-1 text-sm"
                       />
                       <button
                         type="button"
@@ -1025,7 +1025,7 @@ export default function AdminQuoteBuilder({
                 <button
                   type="button"
                   onClick={() => setCsSizeRows((prev) => [...prev, { size: "", quantity: 0 }])}
-                  className="mt-2 text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                  className="mt-2 text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
                 >
                   + Add size row
                 </button>
@@ -1033,12 +1033,12 @@ export default function AdminQuoteBuilder({
             )}
 
             {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
-              <label className="block text-xs text-navy/60 mt-4 max-w-xs">
+              <label className="block text-xs text-white/60 mt-4 max-w-xs">
                 {columnLabel}
                 <select
                   value={selectedColumnId}
                   onChange={(e) => setSelectedColumnId(e.target.value)}
-                  className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                 >
                   <option value="">Select…</option>
                   {selectedDecoration.priceColumns.map((c) => (
@@ -1058,7 +1058,7 @@ export default function AdminQuoteBuilder({
               </p>
             )}
 
-            <p className="mt-2 text-xs text-navy/40">
+            <p className="mt-2 text-xs text-white/40">
               No garment cost is charged for a customer-supplied item — only decoration pricing (if a
               decoration type is selected above) applies.
             </p>
@@ -1067,7 +1067,7 @@ export default function AdminQuoteBuilder({
 
             <button
               onClick={addCustomerSuppliedLine}
-              className="mt-4 text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90"
+              className="mt-4 text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90"
             >
               Add to quote
             </button>
@@ -1075,7 +1075,7 @@ export default function AdminQuoteBuilder({
         ) : (
           <>
             <div className="relative mt-3 max-w-xl">
-              <label className="text-xs text-navy/60">
+              <label className="text-xs text-white/60">
                 Product
                 <input
                   value={productQuery}
@@ -1083,7 +1083,7 @@ export default function AdminQuoteBuilder({
                   onFocus={() => productSuggestions.length > 0 && setSuggestionsOpen(true)}
                   onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
                   disabled={catalogSource === "ss"}
-                  className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-navy/5"
+                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-white/5"
                   placeholder={
                     catalogSource === "ss"
                       ? "S&S Activewear isn't connected yet"
@@ -1092,20 +1092,20 @@ export default function AdminQuoteBuilder({
                 />
               </label>
               {searchLoading && (
-                <span className="absolute right-2 top-8 text-[11px] text-navy/30">searching…</span>
+                <span className="absolute right-2 top-8 text-[11px] text-white/30">searching…</span>
               )}
               {suggestionsOpen && productSuggestions.length > 0 && (
-                <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto bg-white border border-navy/20 rounded-lg shadow-lg text-sm">
+                <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto bg-black border border-white/20 rounded-lg shadow-lg text-sm">
                   {productSuggestions.map((r) => (
                     <li key={r.styleNumber}>
                       <button
                         type="button"
                         // onMouseDown (not onClick) fires before the input's onBlur closes the list.
                         onMouseDown={() => selectProduct(r)}
-                        className="block w-full text-left px-3 py-2 hover:bg-navy/5"
+                        className="block w-full text-left px-3 py-2 hover:bg-white/5"
                       >
-                        <span className="font-medium text-navy">{r.name}</span>{" "}
-                        <span className="text-navy/40">
+                        <span className="font-medium text-white">{r.name}</span>{" "}
+                        <span className="text-white/40">
                           {r.brand} · {r.styleNumber}
                         </span>
                       </button>
@@ -1117,25 +1117,25 @@ export default function AdminQuoteBuilder({
                 !searchLoading &&
                 productSuggestions.length === 0 &&
                 productQuery.trim().length >= 2 && (
-                  <p className="mt-1 text-xs text-navy/40">No matches for &quot;{productQuery}&quot;.</p>
+                  <p className="mt-1 text-xs text-white/40">No matches for &quot;{productQuery}&quot;.</p>
                 )}
             </div>
-            {lookupLoading && <p className="mt-2 text-xs text-navy/40">Loading product…</p>}
+            {lookupLoading && <p className="mt-2 text-xs text-white/40">Loading product…</p>}
             {lookupError && <p className="mt-2 text-xs text-red-600">{lookupError}</p>}
 
             {foundProduct && (
-              <div className="mt-4 border-t border-navy/10 pt-4">
-                <p className="text-sm font-medium text-navy">
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="text-sm font-medium text-white">
                   {foundProduct.brandName} {foundProduct.productName}{" "}
-                  <span className="text-navy/40 font-normal">({foundProduct.styleNumber})</span>
+                  <span className="text-white/40 font-normal">({foundProduct.styleNumber})</span>
                   {catalogSource === "sanmar" && (
-                    <span className="ml-2 text-[11px] text-navy/40">
+                    <span className="ml-2 text-[11px] text-white/40">
                       {foundProductLive ? "live SanMar pricing" : "catalog list price (live pricing unavailable)"}
                     </span>
                   )}
                 </p>
 
-                <label className="block text-xs text-navy/60 mt-3 max-w-xs">
+                <label className="block text-xs text-white/60 mt-3 max-w-xs">
                   Color
                   <select
                     value={selectedColor}
@@ -1146,7 +1146,7 @@ export default function AdminQuoteBuilder({
                       for (const sz of color?.sizes ?? []) next[sz.name] = 0;
                       setSizeQty(next);
                     }}
-                    className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                    className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                   >
                     {foundProduct.colors.map((c) => (
                       <option key={c.colorName} value={c.colorName}>
@@ -1159,7 +1159,7 @@ export default function AdminQuoteBuilder({
                 {selectedColorRow && selectedColorRow.sizes.length > 0 ? (
                   <div className="mt-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-navy/60 uppercase tracking-wide">Sizes</span>
+                      <span className="text-xs font-medium text-white/60 uppercase tracking-wide">Sizes</span>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setShowMarkup((v) => !v)}
@@ -1168,19 +1168,19 @@ export default function AdminQuoteBuilder({
                               ? "Hide item cost and item markup — show only the item price"
                               : "Show item cost and item markup"
                           }
-                          className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                          className="text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
                         >
                           {showMarkup ? "Item Markup" : "IM%"}
                         </button>
                         <button
                           onClick={fillOneEach}
-                          className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                          className="text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
                         >
                           Fill 1 of each
                         </button>
                         <button
                           onClick={clearQuantities}
-                          className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+                          className="text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
                         >
                           Clear
                         </button>
@@ -1194,16 +1194,16 @@ export default function AdminQuoteBuilder({
                     />
                   </div>
                 ) : (
-                  <p className="mt-3 text-xs text-navy/40">This item has no size-based pricing (one-size item).</p>
+                  <p className="mt-3 text-xs text-white/40">This item has no size-based pricing (one-size item).</p>
                 )}
 
                 {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
-                  <label className="block text-xs text-navy/60 mt-4 max-w-xs">
+                  <label className="block text-xs text-white/60 mt-4 max-w-xs">
                     {columnLabel}
                     <select
                       value={selectedColumnId}
                       onChange={(e) => setSelectedColumnId(e.target.value)}
-                      className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                      className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                     >
                       <option value="">Select…</option>
                       {selectedDecoration.priceColumns.map((c) => (
@@ -1225,7 +1225,7 @@ export default function AdminQuoteBuilder({
 
                 <button
                   onClick={addLine}
-                  className="mt-4 text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90"
+                  className="mt-4 text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90"
                 >
                   Add to quote
                 </button>
@@ -1237,8 +1237,8 @@ export default function AdminQuoteBuilder({
 
       {/* Lines added so far */}
       {lines.length > 0 && (
-        <section className="bg-white border border-navy/10 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-navy mb-3">Quote lines ({lines.length})</h3>
+        <section className="bg-black border border-white/10 rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-white mb-3">Quote lines ({lines.length})</h3>
           <div className="space-y-2.5">
             {lines.map((line, idx) => {
               const decoration = decorations.find((d) => d.id === line.decorationId);
@@ -1247,29 +1247,29 @@ export default function AdminQuoteBuilder({
               return (
                 <div
                   key={line.key}
-                  className="flex items-start gap-3 border border-navy/15 rounded-lg px-3 py-2.5 bg-navy/[0.015]"
+                  className="flex items-start gap-3 border border-white/15 rounded-lg px-3 py-2.5 bg-white/[0.015]"
                 >
-                  <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-navy/10 text-navy/60 text-xs font-semibold flex items-center justify-center">
+                  <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
                     {idx + 1}
                   </div>
                   <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
-                    <div className="text-sm text-navy">
+                    <div className="text-sm text-white">
                       {line.customerSupplied ? (
                         <>
                           <span className="font-medium">Customer-supplied item</span>{" "}
-                          <span className="text-navy/40">({line.itemDescription})</span>
+                          <span className="text-white/40">({line.itemDescription})</span>
                         </>
                       ) : (
                         <>
                           <span className="font-medium">
                             {line.brandName} {line.productName}
                           </span>{" "}
-                          <span className="text-navy/40">
+                          <span className="text-white/40">
                             ({line.styleNumber} — {line.colorName})
                           </span>
                         </>
                       )}
-                      <div className="text-xs text-navy/60 mt-0.5">
+                      <div className="text-xs text-white/60 mt-0.5">
                         {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
                         {decoration ? ` · ${decoration.label}${column ? ` (${column.label})` : ""}` : ""}
                       </div>
@@ -1299,7 +1299,7 @@ export default function AdminQuoteBuilder({
                 <button
                   onClick={saveQuote}
                   disabled={saving}
-                  className="text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90 disabled:opacity-40"
+                  className="text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90 disabled:opacity-40"
                 >
                   {saving ? "Saving…" : activeRecord ? "Save changes" : "Save quote"}
                 </button>
@@ -1307,7 +1307,7 @@ export default function AdminQuoteBuilder({
                   <button
                     onClick={convertToInvoice}
                     disabled={converting}
-                    className="text-sm px-4 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
+                    className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/5 disabled:opacity-40"
                   >
                     {converting ? "Converting…" : "Convert to invoice"}
                   </button>
@@ -1317,7 +1317,7 @@ export default function AdminQuoteBuilder({
               <button
                 onClick={() => onCreateQuote?.(lines, selectedSetupChargeIds)}
                 disabled={lines.length === 0}
-                className="text-sm px-4 py-1.5 rounded-lg bg-red text-white hover:bg-red/90 disabled:opacity-40"
+                className="text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90 disabled:opacity-40"
                 title="Carry these items into a full quote where you can add the customer's info and save it"
               >
                 Create quote
@@ -1330,7 +1330,7 @@ export default function AdminQuoteBuilder({
               <button
                 onClick={() => downloadPdf("customer")}
                 disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
+                className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/5 disabled:opacity-40"
               >
                 {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
               </button>
@@ -1344,7 +1344,7 @@ export default function AdminQuoteBuilder({
               <button
                 onClick={() => downloadPdf("work-order")}
                 disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5 disabled:opacity-40"
+                className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/5 disabled:opacity-40"
               >
                 {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
               </button>
@@ -1359,7 +1359,7 @@ export default function AdminQuoteBuilder({
               )}
             </div>
           )}
-          <p className="mt-2 text-xs text-navy/40">
+          <p className="mt-2 text-xs text-white/40">
             {mode === "full" ? (
               <>
                 The customer PDF shows only the final unit price and totals. The company PDF adds
@@ -1384,9 +1384,9 @@ export default function AdminQuoteBuilder({
 
       {/* Computed preview */}
       {quote && (
-        <section className="bg-white border border-navy/10 rounded-xl p-4">
+        <section className="bg-black border border-white/10 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-navy">Preview</h3>
+            <h3 className="text-sm font-semibold text-white">Preview</h3>
             <button
               onClick={() => setShowMarkup((v) => !v)}
               title={
@@ -1394,18 +1394,18 @@ export default function AdminQuoteBuilder({
                   ? "Hide item cost and item markup — show only the item price"
                   : "Show item cost and item markup"
               }
-              className="text-xs px-2 py-1 rounded-lg border border-navy/20 hover:bg-navy/5"
+              className="text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
             >
               {showMarkup ? "Item Markup" : "IM%"}
             </button>
           </div>
           {quote.lines.map((line, i) => (
             <div key={i} className="mb-4">
-              <p className="text-sm font-medium text-navy">
+              <p className="text-sm font-medium text-white">
                 {line.customerSupplied ? (
                   <>
                     Customer-supplied item{" "}
-                    <span className="text-navy/40 font-normal">
+                    <span className="text-white/40 font-normal">
                       ({line.itemDescription})
                       {line.decorationLabel ? ` · ${line.decorationLabel}` : ""}
                       {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
@@ -1414,7 +1414,7 @@ export default function AdminQuoteBuilder({
                 ) : (
                   <>
                     {line.brandName} {line.productName}{" "}
-                    <span className="text-navy/40 font-normal">
+                    <span className="text-white/40 font-normal">
                       ({line.styleNumber} — {line.colorName})
                       {line.decorationLabel ? ` · ${line.decorationLabel}` : ""}
                       {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
@@ -1425,7 +1425,7 @@ export default function AdminQuoteBuilder({
               <div className="mt-1 overflow-x-auto">
                 <table className="text-sm border-collapse w-full">
                   <thead>
-                    <tr className="text-xs text-navy/60">
+                    <tr className="text-xs text-white/60">
                       <th className="text-left pr-3 pb-1">Size</th>
                       <th className="text-left pr-3 pb-1">Qty</th>
                       {showMarkup && (
@@ -1442,7 +1442,7 @@ export default function AdminQuoteBuilder({
                   </thead>
                   <tbody>
                     {line.sizes.map((s) => (
-                      <tr key={s.size} className="border-t border-navy/5">
+                      <tr key={s.size} className="border-t border-white/5">
                         <td className="pr-3 py-1">{s.size}</td>
                         <td className="pr-3 py-1">{s.quantity}</td>
                         {showMarkup && (
@@ -1471,40 +1471,40 @@ export default function AdminQuoteBuilder({
             </div>
           ))}
           {quote.setupCharges.length > 0 && (
-            <div className="border-t border-navy/10 pt-3 mb-3">
-              <div className="text-xs font-medium text-navy/60 uppercase tracking-wide mb-1">
+            <div className="border-t border-white/10 pt-3 mb-3">
+              <div className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1">
                 Setup charges
               </div>
               {quote.setupCharges.map((c) => (
-                <div key={c.id} className="text-sm text-navy/70">
+                <div key={c.id} className="text-sm text-white/70">
                   {c.label} — ${c.price.toFixed(2)}
                 </div>
               ))}
             </div>
           )}
           {quote.miscFees.length > 0 && (
-            <div className="border-t border-navy/10 pt-3 mb-3">
-              <div className="text-xs font-medium text-navy/60 uppercase tracking-wide mb-1">
+            <div className="border-t border-white/10 pt-3 mb-3">
+              <div className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1">
                 Miscellaneous fees
               </div>
               {quote.miscFees.map((f, i) => (
-                <div key={i} className="text-sm text-navy/70">
+                <div key={i} className="text-sm text-white/70">
                   {f.label} — ${f.amount.toFixed(2)}
                 </div>
               ))}
             </div>
           )}
-          <div className="border-t border-navy/10 pt-3 flex justify-end">
-            <div className="text-sm text-navy space-y-1 text-right">
+          <div className="border-t border-white/10 pt-3 flex justify-end">
+            <div className="text-sm text-white space-y-1 text-right">
               <div>
                 Total units: <span className="font-medium">{quote.totalQuantity}</span>
               </div>
               <div className="text-lg font-semibold text-red">
                 Grand total: ${quote.grandTotal.toFixed(2)}
               </div>
-              <div className="text-xs text-navy/40">(setup charges included above)</div>
+              <div className="text-xs text-white/40">(setup charges included above)</div>
               {depositPercent < 100 && (
-                <div className="text-xs text-navy/60 pt-1 border-t border-navy/10 mt-1">
+                <div className="text-xs text-white/60 pt-1 border-t border-white/10 mt-1">
                   <div>
                     Deposit due ({depositPercent}%): $
                     {(quote.grandTotal * (depositPercent / 100)).toFixed(2)}
@@ -1549,17 +1549,17 @@ function SizeGrid({
       <table className="text-xs border-collapse w-full min-w-[480px]">
         <thead>
           <tr>
-            <th className="text-left pr-3 py-1 text-navy/50 font-medium">Size</th>
+            <th className="text-left pr-3 py-1 text-white/50 font-medium">Size</th>
             {sizes.map((sz) => (
-              <th key={sz.name} className="text-center px-2 py-1 text-navy font-semibold">
+              <th key={sz.name} className="text-center px-2 py-1 text-white font-semibold">
                 {sz.name}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          <tr className="border-t border-navy/10">
-            <td className="pr-3 py-1.5 text-navy/50">Quantity</td>
+          <tr className="border-t border-white/10">
+            <td className="pr-3 py-1.5 text-white/50">Quantity</td>
             {sizes.map((sz) => (
               <td key={sz.name} className="px-1 py-1.5">
                 <input
@@ -1570,45 +1570,45 @@ function SizeGrid({
                     const v = Math.max(0, Number(e.target.value) || 0);
                     setSizeQty((prev) => ({ ...prev, [sz.name]: v }));
                   }}
-                  className="w-16 border border-navy/20 rounded-lg px-1.5 py-1 text-center text-sm"
+                  className="w-16 border border-white/20 rounded-lg px-1.5 py-1 text-center text-sm"
                 />
               </td>
             ))}
           </tr>
           {showMarkup && (
             <>
-              <tr className="border-t border-navy/5">
-                <td className="pr-3 py-1 text-navy/50">Item Cost</td>
+              <tr className="border-t border-white/5">
+                <td className="pr-3 py-1 text-white/50">Item Cost</td>
                 {sizes.map((sz) => (
-                  <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
+                  <td key={sz.name} className="px-2 py-1 text-center text-white/70">
                     ${sz.cost.toFixed(2)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-t border-navy/5">
-                <td className="pr-3 py-1 text-navy/50">Item Markup (%)</td>
+              <tr className="border-t border-white/5">
+                <td className="pr-3 py-1 text-white/50">Item Markup (%)</td>
                 {sizes.map((sz) => (
-                  <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
+                  <td key={sz.name} className="px-2 py-1 text-center text-white/70">
                     {sz.markupPercent}
                   </td>
                 ))}
               </tr>
             </>
           )}
-          <tr className="border-t border-navy/5">
-            <td className="pr-3 py-1 text-navy/50">Item Price</td>
+          <tr className="border-t border-white/5">
+            <td className="pr-3 py-1 text-white/50">Item Price</td>
             {sizes.map((sz) => (
-              <td key={sz.name} className="px-2 py-1 text-center font-medium text-navy">
+              <td key={sz.name} className="px-2 py-1 text-center font-medium text-white">
                 ${sz.price.toFixed(2)}
               </td>
             ))}
           </tr>
-          <tr className="border-t border-navy/10">
-            <td className="pr-3 py-1 text-navy/50">Line total</td>
+          <tr className="border-t border-white/10">
+            <td className="pr-3 py-1 text-white/50">Line total</td>
             {sizes.map((sz) => {
               const qty = sizeQty[sz.name] ?? 0;
               return (
-                <td key={sz.name} className="px-2 py-1 text-center text-navy/70">
+                <td key={sz.name} className="px-2 py-1 text-center text-white/70">
                   {qty > 0 ? `$${(qty * sz.price).toFixed(2)}` : "—"}
                 </td>
               );

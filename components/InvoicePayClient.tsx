@@ -103,14 +103,14 @@ export default function InvoicePayClient({ id }: { id: string }) {
   }
 
   if (loading) {
-    return <p className="text-navy/40 text-sm">Loading…</p>;
+    return <p className="text-white/40 text-sm">Loading…</p>;
   }
 
   if (notFound || !invoice) {
     return (
-      <div className="bg-white border border-navy/10 rounded-xl p-6">
-        <h1 className="text-xl font-bold text-navy">Invoice not found</h1>
-        <p className="mt-2 text-sm text-navy/60">
+      <div className="bg-black border border-white/10 rounded-xl p-6">
+        <h1 className="text-xl font-bold text-white">Invoice not found</h1>
+        <p className="mt-2 text-sm text-white/60">
           This payment link doesn&apos;t match an open invoice. If you think this is a mistake, please
           contact us.
         </p>
@@ -124,60 +124,60 @@ export default function InvoicePayClient({ id }: { id: string }) {
 
   return (
     <div>
-      <p className="text-xs font-medium text-navy/50 uppercase tracking-wide">
+      <p className="text-xs font-medium text-white/50 uppercase tracking-wide">
         {invoice.invoiceNumber ? `Invoice ${invoice.invoiceNumber}` : "Invoice"}
       </p>
-      <h1 className="text-2xl font-bold text-navy mt-1">
+      <h1 className="text-2xl font-bold text-white mt-1">
         {invoice.customerCompany || invoice.customerName || "Your invoice"}
       </h1>
       {invoice.customerCompany && invoice.customerName && (
-        <p className="text-sm text-navy/60">{invoice.customerName}</p>
+        <p className="text-sm text-white/60">{invoice.customerName}</p>
       )}
 
-      <div className="mt-6 bg-white border border-navy/10 rounded-xl overflow-hidden">
-        <div className="divide-y divide-navy/5">
+      <div className="mt-6 bg-black border border-white/10 rounded-xl overflow-hidden">
+        <div className="divide-y divide-white/5">
           {invoice.lines.map((line, i) => (
             <div key={i} className="px-4 py-3 flex items-start justify-between gap-4 text-sm">
               <div>
-                <p className="font-medium text-navy">
+                <p className="font-medium text-white">
                   {line.quantity} × {line.description}
                   {line.colorName ? ` — ${line.colorName}` : ""}
                 </p>
                 {line.decorationLabel && (
-                  <p className="text-navy/50 text-xs mt-0.5">
+                  <p className="text-white/50 text-xs mt-0.5">
                     {line.decorationLabel}
                     {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
                   </p>
                 )}
               </div>
-              <p className="text-navy font-medium shrink-0">{money(line.subtotal)}</p>
+              <p className="text-white font-medium shrink-0">{money(line.subtotal)}</p>
             </div>
           ))}
           {invoice.setupCharges.map((charge) => (
             <div key={charge.id} className="px-4 py-3 flex items-center justify-between gap-4 text-sm">
-              <p className="text-navy">{charge.label}</p>
-              <p className="text-navy font-medium shrink-0">{money(charge.price)}</p>
+              <p className="text-white">{charge.label}</p>
+              <p className="text-white font-medium shrink-0">{money(charge.price)}</p>
             </div>
           ))}
           {invoice.miscFees.map((fee, i) => (
             <div key={i} className="px-4 py-3 flex items-center justify-between gap-4 text-sm">
-              <p className="text-navy">{fee.label}</p>
-              <p className="text-navy font-medium shrink-0">{money(fee.amount)}</p>
+              <p className="text-white">{fee.label}</p>
+              <p className="text-white font-medium shrink-0">{money(fee.amount)}</p>
             </div>
           ))}
         </div>
 
-        <div className="bg-navy/5 px-4 py-3 space-y-1.5 text-sm">
+        <div className="bg-white/5 px-4 py-3 space-y-1.5 text-sm">
           <div className="flex justify-between">
-            <span className="text-navy/70">Total</span>
-            <span className="text-navy font-medium">{money(invoice.grandTotal)}</span>
+            <span className="text-white/70">Total</span>
+            <span className="text-white font-medium">{money(invoice.grandTotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-navy/70">Paid</span>
-            <span className="text-navy font-medium">{money(invoice.amountPaid)}</span>
+            <span className="text-white/70">Paid</span>
+            <span className="text-white font-medium">{money(invoice.amountPaid)}</span>
           </div>
-          <div className="flex justify-between pt-1.5 border-t border-navy/10">
-            <span className="font-semibold text-navy">Balance</span>
+          <div className="flex justify-between pt-1.5 border-t border-white/10">
+            <span className="font-semibold text-white">Balance</span>
             <span className={`font-bold ${paidInFull ? "text-green-700" : "text-red"}`}>
               {money(invoice.balance)}
             </span>
@@ -193,24 +193,24 @@ export default function InvoicePayClient({ id }: { id: string }) {
 
       {!paidInFull && (
         <div className="mt-6">
-          <label className="block text-sm font-medium text-navy mb-1" htmlFor="pay-amount">
+          <label className="block text-sm font-medium text-white mb-1" htmlFor="pay-amount">
             Amount to pay
           </label>
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-navy/50">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">$</span>
               <input
                 id="pay-amount"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
                 inputMode="decimal"
-                className="w-full bg-white border border-navy/20 rounded-lg pl-7 pr-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                className="w-full bg-black border border-white/20 rounded-lg pl-7 pr-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
               />
             </div>
             <button
               type="button"
               onClick={() => setAmountInput(invoice.balance.toFixed(2))}
-              className="text-xs px-3 py-2 rounded-lg border border-navy/20 text-navy/70 hover:bg-navy/5 shrink-0"
+              className="text-xs px-3 py-2 rounded-lg border border-white/20 text-white/70 hover:bg-white/5 shrink-0"
             >
               Pay full balance ({money(invoice.balance)})
             </button>
@@ -220,8 +220,8 @@ export default function InvoicePayClient({ id }: { id: string }) {
           )}
 
           <div className="mt-4">
-            <label className="block text-sm font-medium text-navy mb-1" htmlFor="pay-email">
-              Email for receipt <span className="font-normal text-navy/40">(optional)</span>
+            <label className="block text-sm font-medium text-white mb-1" htmlFor="pay-email">
+              Email for receipt <span className="font-normal text-white/40">(optional)</span>
             </label>
             <input
               id="pay-email"
@@ -229,12 +229,12 @@ export default function InvoicePayClient({ id }: { id: string }) {
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
               placeholder="you@example.com"
-              className="w-full bg-white border border-navy/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+              className="w-full bg-black border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
             />
             {emailInput.trim() !== "" && !EMAIL_RE.test(emailInput.trim()) && (
               <p className="mt-1 text-xs text-red">That doesn&apos;t look like a valid email address.</p>
             )}
-            <p className="mt-1 text-xs text-navy/40">We&apos;ll email you a PDF receipt once payment goes through.</p>
+            <p className="mt-1 text-xs text-white/40">We&apos;ll email you a PDF receipt once payment goes through.</p>
           </div>
 
           <div className="mt-5">

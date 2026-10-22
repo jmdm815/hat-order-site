@@ -82,9 +82,9 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
                   <span
                     className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold ${
                       i === current
-                        ? "bg-red text-white"
+                        ? "bg-red text-navy"
                         : i < current
-                        ? "bg-white text-navy"
+                        ? "bg-black text-white"
                         : "bg-gray/20 text-white/60"
                     }`}
                   >

@@ -62,7 +62,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${assistant.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-cream text-navy">
+      {/* Page canvas is navy; individual cards/sections sit on top of it in
+          black (see app/globals.css) so the two read as distinct layers
+          instead of one flat dark color. */}
+      <body className="min-h-full flex flex-col bg-navy text-white">
         <OrderProvider>{children}</OrderProvider>
       </body>
     </html>

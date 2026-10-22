@@ -47,7 +47,7 @@ export default function ColorSelectScreen({
     <div className="mt-6">
       <button
         onClick={() => router.push("/catalog")}
-        className="text-sm text-navy/60 hover:text-navy"
+        className="text-sm text-white/60 hover:text-white"
       >
         ← Back to catalog
       </button>
@@ -55,25 +55,25 @@ export default function ColorSelectScreen({
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-8">
         {/* Preview */}
         <div>
-          <div className="relative w-full aspect-square rounded-none overflow-hidden bg-white border border-navy/10 p-8">
+          <div className="relative w-full aspect-square rounded-none overflow-hidden bg-black border border-white/10 p-8">
             {selectedColor && renderPreview(selectedColor)}
           </div>
           <div className="mt-3">
-            <div className="text-xs uppercase tracking-wide text-navy/40">
+            <div className="text-xs uppercase tracking-wide text-white/40">
               {product.brandName} · {product.styleNumber}
             </div>
-            <div className="font-semibold text-lg text-navy">{product.productName}</div>
-            <p className="mt-1 text-sm text-navy/60">{product.description}</p>
+            <div className="font-semibold text-lg text-white">{product.productName}</div>
+            <p className="mt-1 text-sm text-white/60">{product.description}</p>
           </div>
         </div>
 
         {/* Color picker */}
         <div>
           <div className="flex items-baseline justify-between">
-            <h2 className="font-semibold text-navy text-lg">Choose a color</h2>
-            <span className="text-sm text-navy/60">{product.colors.length} colors</span>
+            <h2 className="font-semibold text-white text-lg">Choose a color</h2>
+            <span className="text-sm text-white/60">{product.colors.length} colors</span>
           </div>
-          <p className="mt-1 text-sm text-navy/60">
+          <p className="mt-1 text-sm text-white/60">
             Pick the garment color you want to design on. You can change it again once
             you&apos;re inside the designer.
           </p>
@@ -86,22 +86,22 @@ export default function ColorSelectScreen({
                 onClick={() => onSelectColor(c.colorName)}
                 className={`flex items-center gap-2.5 p-2.5 rounded-none border text-left transition ${
                   colorName === c.colorName
-                    ? "border-red ring-1 ring-red bg-white"
-                    : "border-navy/10 bg-white hover:border-navy/30"
+                    ? "border-red ring-1 ring-red bg-black"
+                    : "border-white/10 bg-black hover:border-white/30"
                 }`}
               >
                 <span
                   className="w-7 h-7 rounded-full border border-black/10 shrink-0"
                   style={swatchBackground(c.colorHexes)}
                 />
-                <span className="text-sm text-navy truncate">{c.colorName}</span>
+                <span className="text-sm text-white truncate">{c.colorName}</span>
               </button>
             ))}
           </div>
 
           <button
             onClick={onContinue}
-            className="mt-6 w-full sm:w-auto px-8 py-3 rounded-none bg-red text-white font-heading font-semibold hover:bg-red-dark transition"
+            className="mt-6 w-full sm:w-auto px-8 py-3 rounded-none bg-red text-navy font-heading font-semibold hover:bg-red-dark transition"
           >
             Design Now →
           </button>

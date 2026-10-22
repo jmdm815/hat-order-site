@@ -13,8 +13,8 @@ import { productPreviewImageUrl } from "@/lib/product-image";
 export default function CuratedProductCard({ product }: { product: CuratedProduct }) {
   const query = `?style=${encodeURIComponent(product.styleNumber)}&type=${product.productType}`;
   return (
-    <div className="group border-2 border-navy/10 rounded-none bg-white overflow-hidden hover:border-red hover:shadow-md transition flex flex-col">
-      <div className="relative w-full aspect-square bg-gray p-6">
+    <div className="group border-2 border-white/10 rounded-none bg-black overflow-hidden hover:border-red hover:shadow-md transition flex flex-col">
+      <div className="relative w-full aspect-square bg-white/5 p-6">
         <Image
           src={
             product.heroImageIsOverride
@@ -29,18 +29,18 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
         />
       </div>
       <div className="p-4 flex-1 flex flex-col">
-        <div className="text-xs uppercase tracking-wide text-navy/40">
+        <div className="text-xs uppercase tracking-wide text-white/40">
           {product.brandName} · {product.styleNumber}
         </div>
-        <div className="font-semibold text-navy mt-0.5 leading-tight">{product.productName}</div>
-        <div className="mt-2 text-sm text-navy/60">
-          Starting at <span className="font-semibold text-black">{formatUSD(product.basePrice)}</span>
+        <div className="font-semibold text-white mt-0.5 leading-tight">{product.productName}</div>
+        <div className="mt-2 text-sm text-white/60">
+          Starting at <span className="font-semibold text-white">{formatUSD(product.basePrice)}</span>
         </div>
         <div className="mt-3 flex gap-2 flex-wrap">
           {product.designEnabled && (
             <Link
               href={`/customize${query}`}
-              className="flex-1 text-center px-3 py-2 rounded-none bg-red text-white text-sm font-semibold hover:bg-navy transition"
+              className="flex-1 text-center px-3 py-2 rounded-none bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition"
             >
               Design Now
             </Link>
@@ -50,7 +50,7 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
               href={`/quote${query}`}
               className={`flex-1 text-center px-3 py-2 rounded-none text-sm font-semibold border transition ${
                 product.designEnabled
-                  ? "border-navy/20 text-navy hover:bg-navy/5"
+                  ? "border-white/20 text-white hover:bg-white/5"
                   : "bg-navy text-white hover:bg-navy/90"
               }`}
             >

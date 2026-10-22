@@ -208,7 +208,7 @@ export default function DragResizeBox({
           className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-navy border border-white cursor-alias touch-none flex items-center justify-center"
           aria-label="Rotate"
         >
-          <span className="block w-1 h-1 rounded-full bg-white" />
+          <span className="block w-1 h-1 rounded-full bg-black" />
         </div>
       )}
       </div>

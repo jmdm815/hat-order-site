@@ -60,9 +60,9 @@ export default function CatalogPage() {
   return (
     <>
       <StepHeader />
-      <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full bg-white">
-        <h1 className="text-2xl font-bold text-navy">Choose your gear</h1>
-        <p className="mt-1 text-navy/60 text-sm">
+      <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full bg-black">
+        <h1 className="text-2xl font-bold text-white">Choose your gear</h1>
+        <p className="mt-1 text-white/60 text-sm">
           Preset blanks pulled from our wholesale catalog (SanMar). Pick a style, then
           customize it on the next step.
         </p>
@@ -77,8 +77,8 @@ export default function CatalogPage() {
               }}
               className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
                 productType === t
-                  ? "bg-navy text-white border-navy"
-                  : "border-navy/20 text-navy/70 hover:bg-gray"
+                  ? "bg-navy text-white border-white"
+                  : "border-white/20 text-white/70 hover:bg-white/5"
               }`}
             >
               {tabLabel(t)}
@@ -93,8 +93,8 @@ export default function CatalogPage() {
               onClick={() => setCategory(c)}
               className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
                 category === c
-                  ? "bg-navy text-white border-navy"
-                  : "border-navy/20 text-navy/70 hover:bg-gray"
+                  ? "bg-navy text-white border-white"
+                  : "border-white/20 text-white/70 hover:bg-white/5"
               }`}
             >
               {c}
@@ -103,16 +103,16 @@ export default function CatalogPage() {
         </div>
 
         {loading ? (
-          <p className="mt-10 text-navy/40 text-sm">Loading catalog…</p>
+          <p className="mt-10 text-white/40 text-sm">Loading catalog…</p>
         ) : (
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {filtered.map((product) => (
               <Link
                 key={product.styleNumber}
                 href={`/customize?style=${product.styleNumber}&type=${product.productType}`}
-                className="group border-2 border-navy/10 rounded-none bg-white overflow-hidden hover:border-red hover:shadow-md hover:-translate-y-0.5 transition"
+                className="group border-2 border-white/10 rounded-none bg-black overflow-hidden hover:border-red hover:shadow-md hover:-translate-y-0.5 transition"
               >
-                <div className="relative w-full aspect-square bg-gray p-6">
+                <div className="relative w-full aspect-square bg-white/5 p-6">
                   <Image
                     src={
                       product.heroImageIsOverride
@@ -127,17 +127,17 @@ export default function CatalogPage() {
                   />
                 </div>
                 <div className="p-4">
-                  <div className="text-xs uppercase tracking-wide text-navy/40">
+                  <div className="text-xs uppercase tracking-wide text-white/40">
                     {product.brandName} · {product.styleNumber}
                   </div>
-                  <div className="font-semibold text-navy mt-0.5">
+                  <div className="font-semibold text-white mt-0.5">
                     {product.productName}
                   </div>
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="text-sm text-navy/60">
+                    <span className="text-sm text-white/60">
                       {product.colors.length} colors
                     </span>
-                    <span className="font-semibold text-black">
+                    <span className="font-semibold text-white">
                       {formatUSD(product.basePrice)}
                     </span>
                   </div>

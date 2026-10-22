@@ -77,7 +77,7 @@ export default function ConfirmationDetails() {
   if (!orderId) {
     return (
       <div className="mt-10 text-center">
-        <p className="text-navy/60">No order to show.</p>
+        <p className="text-white/60">No order to show.</p>
         <button
           onClick={() => router.push("/")}
           className="mt-4 px-6 py-2.5 rounded-full bg-navy text-white font-medium"
@@ -88,41 +88,41 @@ export default function ConfirmationDetails() {
     );
   }
 
-  if (loading) return <p className="mt-10 text-navy/40 text-sm">Loading your order…</p>;
+  if (loading) return <p className="mt-10 text-white/40 text-sm">Loading your order…</p>;
 
   if (!order) {
-    return <p className="mt-10 text-navy/60">We couldn&apos;t find that order.</p>;
+    return <p className="mt-10 text-white/60">We couldn&apos;t find that order.</p>;
   }
 
   const copy = STATUS_COPY[order.status] ?? STATUS_COPY.paid;
 
   return (
     <div className="mt-6">
-      <div className="rounded-none bg-gray overflow-hidden border border-navy/10">
+      <div className="rounded-none bg-white/5 overflow-hidden border border-white/10">
         <div className="bg-navy text-white px-6 sm:px-8 py-3 flex items-center gap-2">
           <span className="text-2xl leading-none">🎉</span>
           <span className="font-heading font-semibold">{copy.title}</span>
         </div>
         <div className="p-6 sm:p-8">
-          <p className="text-navy/70">{copy.body}</p>
+          <p className="text-white/70">{copy.body}</p>
 
-          <div className="mt-5 pt-5 border-t border-navy/10 grid grid-cols-2 gap-y-2 text-sm">
-            <span className="text-navy/60">Order number</span>
-            <span className="text-right font-mono text-black">{order.id.slice(0, 8).toUpperCase()}</span>
-            <span className="text-navy/60">Payment method</span>
-            <span className="text-right capitalize text-black">{order.paymentMethod}</span>
-            <span className="text-navy/60">Total</span>
-            <span className="text-right font-semibold text-black">{formatUSD(order.total)}</span>
+          <div className="mt-5 pt-5 border-t border-white/10 grid grid-cols-2 gap-y-2 text-sm">
+            <span className="text-white/60">Order number</span>
+            <span className="text-right font-mono text-white">{order.id.slice(0, 8).toUpperCase()}</span>
+            <span className="text-white/60">Payment method</span>
+            <span className="text-right capitalize text-white">{order.paymentMethod}</span>
+            <span className="text-white/60">Total</span>
+            <span className="text-right font-semibold text-white">{formatUSD(order.total)}</span>
             {order.paymentReference && (
               <>
-                <span className="text-navy/60">Reference</span>
-                <span className="text-right font-mono text-xs text-black">{order.paymentReference}</span>
+                <span className="text-white/60">Reference</span>
+                <span className="text-right font-mono text-xs text-white">{order.paymentReference}</span>
               </>
             )}
           </div>
 
           {order.status === "awaiting_zelle_confirmation" && (
-            <div className="mt-5 p-4 rounded-none bg-tan/30 border border-tan text-sm text-navy">
+            <div className="mt-5 p-4 rounded-none bg-tan/30 border border-tan text-sm text-white">
               <div className="font-semibold">Zelle payment instructions</div>
               <p className="mt-1">
                 Send {formatUSD(order.total)} to <strong>payments@yourhatshop.com</strong> via
@@ -133,14 +133,14 @@ export default function ConfirmationDetails() {
           )}
 
           {order.notes && (
-            <p className="mt-4 text-xs text-navy/40 italic">{order.notes}</p>
+            <p className="mt-4 text-xs text-white/40 italic">{order.notes}</p>
           )}
         </div>
       </div>
 
       <Link
         href="/catalog"
-        className="mt-6 inline-block px-6 py-2.5 rounded-none border border-navy text-navy font-medium hover:bg-navy hover:text-white transition"
+        className="mt-6 inline-block px-6 py-2.5 rounded-none border border-white text-white font-medium hover:bg-navy hover:text-white transition"
       >
         Start another order
       </Link>

@@ -112,7 +112,7 @@ export default function AdminSetupChargesManager() {
   }
 
   if (loading) {
-    return <p className="text-navy/40 text-sm">Loading…</p>;
+    return <p className="text-white/40 text-sm">Loading…</p>;
   }
 
   return (
@@ -131,15 +131,15 @@ export default function AdminSetupChargesManager() {
           const draft = drafts[c.id] ?? { label: c.label, price: c.price };
           const isOpen = openId === c.id;
           return (
-            <div key={c.id} className="border border-navy/10 rounded-xl bg-white overflow-hidden">
+            <div key={c.id} className="border border-white/10 rounded-xl bg-black overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <div className="flex-1">
-                  <div className="font-semibold text-navy">{c.label}</div>
-                  <div className="text-xs text-navy/50 mt-0.5">{formatUSD(c.price)}</div>
+                  <div className="font-semibold text-white">{c.label}</div>
+                  <div className="text-xs text-white/50 mt-0.5">{formatUSD(c.price)}</div>
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : c.id)}
-                  className="text-sm text-navy/70 px-3 py-1.5 rounded-lg border border-navy/20 hover:bg-navy/5"
+                  className="text-sm text-white/70 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
@@ -148,16 +148,16 @@ export default function AdminSetupChargesManager() {
                     if (confirm(`Delete "${c.label}"?`)) handleDelete(c.id);
                   }}
                   disabled={savingId === c.id}
-                  className="text-sm text-red-600 px-2 hover:underline disabled:text-navy/20"
+                  className="text-sm text-red-600 px-2 hover:underline disabled:text-white/20"
                 >
                   Delete
                 </button>
               </div>
 
               {isOpen && (
-                <div className="p-4 border-t border-navy/10 bg-navy/[0.02]">
+                <div className="p-4 border-t border-white/10 bg-white/[0.02]">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-                    <label className="text-sm text-navy/70">
+                    <label className="text-sm text-white/70">
                       Label
                       <input
                         type="text"
@@ -165,10 +165,10 @@ export default function AdminSetupChargesManager() {
                         onChange={(e) =>
                           setDrafts((prev) => ({ ...prev, [c.id]: { ...draft, label: e.target.value } }))
                         }
-                        className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                        className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                       />
                     </label>
-                    <label className="text-sm text-navy/70">
+                    <label className="text-sm text-white/70">
                       Price ($)
                       <input
                         type="number"
@@ -181,7 +181,7 @@ export default function AdminSetupChargesManager() {
                             [c.id]: { ...draft, price: Math.max(0, Number(e.target.value) || 0) },
                           }))
                         }
-                        className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                        className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                       />
                     </label>
                   </div>
@@ -189,7 +189,7 @@ export default function AdminSetupChargesManager() {
                     <button
                       onClick={() => handleSaveExisting(c.id)}
                       disabled={savingId === c.id || !draft.label.trim()}
-                      className="px-5 py-2 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+                      className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
                     >
                       {savingId === c.id ? "Saving…" : "Save changes"}
                     </button>
@@ -201,29 +201,29 @@ export default function AdminSetupChargesManager() {
         })}
       </div>
 
-      <div className="mt-6 border border-dashed border-navy/20 rounded-xl">
+      <div className="mt-6 border border-dashed border-white/20 rounded-xl">
         {!creating ? (
           <button
             onClick={() => setCreating(true)}
-            className="w-full p-4 text-sm font-medium text-navy/70 hover:bg-navy/5 rounded-xl"
+            className="w-full p-4 text-sm font-medium text-white/70 hover:bg-white/5 rounded-xl"
           >
             + Add a setup charge
           </button>
         ) : (
           <div className="p-4">
-            <h3 className="font-semibold text-navy">New setup charge</h3>
+            <h3 className="font-semibold text-white">New setup charge</h3>
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-              <label className="text-sm text-navy/70">
+              <label className="text-sm text-white/70">
                 Label
                 <input
                   type="text"
                   value={newDraft.label}
                   onChange={(e) => setNewDraft((prev) => ({ ...prev, label: e.target.value }))}
                   placeholder="e.g. Digitizing for embroidery"
-                  className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                 />
               </label>
-              <label className="text-sm text-navy/70">
+              <label className="text-sm text-white/70">
                 Price ($)
                 <input
                   type="number"
@@ -233,7 +233,7 @@ export default function AdminSetupChargesManager() {
                   onChange={(e) =>
                     setNewDraft((prev) => ({ ...prev, price: Math.max(0, Number(e.target.value) || 0) }))
                   }
-                  className="mt-1 w-full border border-navy/20 rounded-lg px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
                 />
               </label>
             </div>
@@ -241,7 +241,7 @@ export default function AdminSetupChargesManager() {
               <button
                 onClick={handleCreate}
                 disabled={savingId === "__new__" || !newDraft.label.trim()}
-                className="px-5 py-2 rounded-full bg-red text-white text-sm font-semibold hover:bg-navy transition disabled:bg-navy/20"
+                className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
               >
                 {savingId === "__new__" ? "Adding…" : "Add setup charge"}
               </button>
@@ -250,7 +250,7 @@ export default function AdminSetupChargesManager() {
                   setCreating(false);
                   setNewDraft(BLANK_DRAFT);
                 }}
-                className="px-4 py-2 rounded-full border border-navy/20 text-sm font-medium hover:bg-navy/5"
+                className="px-4 py-2 rounded-full border border-white/20 text-sm font-medium hover:bg-white/5"
               >
                 Cancel
               </button>
@@ -259,7 +259,7 @@ export default function AdminSetupChargesManager() {
         )}
       </div>
 
-      {message && <p className="mt-4 text-sm text-navy/70">{message}</p>}
+      {message && <p className="mt-4 text-sm text-white/70">{message}</p>}
     </div>
   );
 }
