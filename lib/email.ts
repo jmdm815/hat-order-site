@@ -1,9 +1,16 @@
 import { Resend } from "resend";
+import { CartLine, PaymentMethodId } from "./types";
 
 // ---------------------------------------------------------------------------
-// Transactional email (Resend) — currently just the admin payment
-// notification sent from app/api/pay/[id]/route.ts after a successful
-// online invoice payment (card, Apple Pay, or Google Pay).
+// Transactional email (Resend). Two flows send through this file:
+//  1. Admin invoice payments — app/api/pay/[id]/route.ts, after a customer
+//     pays a saved quote/invoice online (card, Apple Pay, or Google Pay).
+//  2. Regular storefront checkout — app/api/checkout/route.ts, after a
+//     customer places an order via the normal catalog -> cart -> checkout
+//     flow (any payment method, including the demo/simulated ones — this is
+//     a sample-orders prototype, so a "demo_simulated" order still gets a
+//     confirmation email since nothing about the flow felt different to the
+//     customer up to that point).
 //
 // To go live:
 //   1. Create a Resend account at https://resend.com and generate an API key.
@@ -190,5 +197,172 @@ export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Pro
     }
   } catch (err) {
     console.error("sendInvoiceReceiptEmail: failed to send", err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Regular storefront checkout (app/api/checkout/route.ts) — a customer
+// confirmation/receipt, and a matching admin "new order" notice, sent right
+// after an order is placed through the normal catalog -> cart -> checkout
+// flow. Separate from the invoice-pay emails above since there's no PDF to
+// attach here and the order shape (CartLine[]) is different from a quote.
+// ---------------------------------------------------------------------------
+
+const CHECKOUT_METHOD_LABEL: Record<PaymentMethodId, string> = {
+  card: "Credit / Debit Card",
+  afterpay: "Afterpay",
+  klarna: "Klarna",
+  affirm: "Affirm",
+  zelle: "Zelle",
+};
+
+function cartLineDescription(line: CartLine): string {
+  const parts = [line.styleNumber, line.colorName].filter(Boolean);
+  if (line.size) parts.push(line.size);
+  else if (line.sizes?.length) {
+    parts.push(line.sizes.map((s) => `${s.size} × ${s.quantity}`).join(", "));
+  }
+  return parts.join(" — ");
+}
+
+function cartLinesTable(cart: CartLine[]): string {
+  return cart
+    .map(
+      (l) => `
+        <tr>
+          <td style="padding: 6px 0; border-top: 1px solid #eee;">${cartLineDescription(l)} (× ${l.quantity})</td>
+          <td style="padding: 6px 0; border-top: 1px solid #eee; text-align: right; white-space: nowrap;">${money(l.lineTotal)}</td>
+        </tr>`
+    )
+    .join("");
+}
+
+function cartLinesText(cart: CartLine[]): string[] {
+  return cart.map((l) => `  ${cartLineDescription(l)} (× ${l.quantity}) — ${money(l.lineTotal)}`);
+}
+
+export type OrderEmailSummary = {
+  id: string;
+  cart: CartLine[];
+  customerName: string;
+  customerEmail: string;
+  paymentMethod: PaymentMethodId;
+  subtotal: number;
+  setupFees: number;
+  total: number;
+  status: string;
+};
+
+// Sent to whatever email the customer typed in at checkout — always
+// attempted (no opt-in checkbox the way the invoice-pay receipt has one,
+// since an email address is a required checkout field).
+export async function sendOrderConfirmationEmail(order: OrderEmailSummary): Promise<void> {
+  if (!isReceiptEmailConfigured()) {
+    console.warn("sendOrderConfirmationEmail: RESEND_API_KEY not set, skipping email");
+    return;
+  }
+
+  const shortId = order.id.slice(0, 8);
+  const methodLabel = CHECKOUT_METHOD_LABEL[order.paymentMethod] ?? order.paymentMethod;
+  const zelle = order.status === "awaiting_zelle_confirmation";
+
+  const subject = `Order confirmation — ${shortId}`;
+
+  const html = `
+    <div style="font-family: Helvetica, Arial, sans-serif; color: #1a2332; max-width: 480px;">
+      <h2 style="margin: 0 0 4px;">Thanks for your order, ${order.customerName || "there"}!</h2>
+      <p style="margin: 0 0 16px; color: #666;">
+        We've received order ${shortId}${zelle ? " and are waiting on your Zelle payment" : ""}.
+      </p>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        ${cartLinesTable(order.cart)}
+        <tr><td style="padding: 8px 0 2px; color: #666;">Subtotal</td><td style="padding: 8px 0 2px; text-align: right;">${money(order.subtotal)}</td></tr>
+        ${order.setupFees > 0 ? `<tr><td style="padding: 2px 0; color: #666;">Setup fees</td><td style="padding: 2px 0; text-align: right;">${money(order.setupFees)}</td></tr>` : ""}
+        <tr><td style="padding: 6px 0; font-weight: bold; border-top: 1px solid #eee;">Total</td><td style="padding: 6px 0; text-align: right; font-weight: bold; border-top: 1px solid #eee;">${money(order.total)}</td></tr>
+      </table>
+      <p style="margin: 16px 0 0; font-size: 13px; color: #666;">Payment method: ${methodLabel}</p>
+      <p style="margin: 20px 0 0; color: #999; font-size: 12px;">JM Digital Media — buyjmmedia.com</p>
+    </div>
+  `.trim();
+
+  const text = [
+    `Thanks for your order, ${order.customerName || "there"}!`,
+    `Order ${shortId}${zelle ? " — awaiting your Zelle payment" : ""}`,
+    "",
+    ...cartLinesText(order.cart),
+    "",
+    `Subtotal: ${money(order.subtotal)}`,
+    ...(order.setupFees > 0 ? [`Setup fees: ${money(order.setupFees)}`] : []),
+    `Total: ${money(order.total)}`,
+    `Payment method: ${methodLabel}`,
+  ].join("\n");
+
+  try {
+    const resend = getResendClient();
+    const { error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM ?? "JM Digital Media <onboarding@resend.dev>",
+      to: order.customerEmail,
+      subject,
+      html,
+      text,
+    });
+    if (error) {
+      console.error("sendOrderConfirmationEmail: Resend returned an error", error);
+    }
+  } catch (err) {
+    console.error("sendOrderConfirmationEmail: failed to send", err);
+  }
+}
+
+// Mirrors sendInvoicePaymentNotification's admin-facing pattern — lets the
+// admin see new storefront orders land in their inbox without needing to
+// keep /admin open. Fire-and-forget: never blocks or fails checkout.
+export async function sendOrderAdminNotification(order: OrderEmailSummary): Promise<void> {
+  if (!isEmailConfigured()) {
+    console.warn("sendOrderAdminNotification: RESEND_API_KEY / ADMIN_NOTIFICATION_EMAIL not set, skipping email");
+    return;
+  }
+
+  const shortId = order.id.slice(0, 8);
+  const methodLabel = CHECKOUT_METHOD_LABEL[order.paymentMethod] ?? order.paymentMethod;
+
+  const subject = `New order — ${shortId} (${money(order.total)})`;
+
+  const html = `
+    <div style="font-family: Helvetica, Arial, sans-serif; color: #1a2332; max-width: 480px;">
+      <h2 style="margin: 0 0 4px;">New order received</h2>
+      <p style="margin: 0 0 16px; color: #666;">${order.customerName || "A customer"} (${order.customerEmail}) placed order ${shortId}.</p>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        ${cartLinesTable(order.cart)}
+        <tr><td style="padding: 6px 0; font-weight: bold; border-top: 1px solid #eee;">Total</td><td style="padding: 6px 0; text-align: right; font-weight: bold; border-top: 1px solid #eee;">${money(order.total)}</td></tr>
+      </table>
+      <p style="margin: 16px 0 0; font-size: 13px; color: #666;">Payment method: ${methodLabel} — status: ${order.status}</p>
+    </div>
+  `.trim();
+
+  const text = [
+    `New order received — ${shortId}`,
+    `${order.customerName || "A customer"} (${order.customerEmail})`,
+    "",
+    ...cartLinesText(order.cart),
+    "",
+    `Total: ${money(order.total)}`,
+    `Payment method: ${methodLabel} — status: ${order.status}`,
+  ].join("\n");
+
+  try {
+    const resend = getResendClient();
+    const { error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM ?? "JM Digital Media <onboarding@resend.dev>",
+      to: process.env.ADMIN_NOTIFICATION_EMAIL as string,
+      subject,
+      html,
+      text,
+    });
+    if (error) {
+      console.error("sendOrderAdminNotification: Resend returned an error", error);
+    }
+  } catch (err) {
+    console.error("sendOrderAdminNotification: failed to send", err);
   }
 }

@@ -3,6 +3,7 @@ import { v4 as uuid } from "uuid";
 import { getSquareClient, getSquareLocationId, isSquareConfigured } from "@/lib/square-client";
 import { saveOrder, OrderRecord } from "@/lib/orders-store";
 import { CartLine, CustomerInfo, PaymentMethodId } from "@/lib/types";
+import { sendOrderConfirmationEmail, sendOrderAdminNotification } from "@/lib/email";
 
 type CheckoutBody = {
   cart: CartLine[];
@@ -20,6 +21,31 @@ type CheckoutBody = {
 // so a same-instance file lookup by id is not reliable. See lib/orders-store.ts.
 function respond(order: OrderRecord) {
   saveOrder(order);
+  // Fire-and-forget, same pattern as the invoice-pay flow in lib/email.ts —
+  // a flaky email provider must never block or fail the order response,
+  // since the order (and any real charge) already succeeded regardless.
+  void sendOrderConfirmationEmail({
+    id: order.id,
+    cart: order.cart,
+    customerName: order.customer.name,
+    customerEmail: order.customer.email,
+    paymentMethod: order.paymentMethod,
+    subtotal: order.subtotal,
+    setupFees: order.setupFees,
+    total: order.total,
+    status: order.status,
+  });
+  void sendOrderAdminNotification({
+    id: order.id,
+    cart: order.cart,
+    customerName: order.customer.name,
+    customerEmail: order.customer.email,
+    paymentMethod: order.paymentMethod,
+    subtotal: order.subtotal,
+    setupFees: order.setupFees,
+    total: order.total,
+    status: order.status,
+  });
   return NextResponse.json({ order });
 }
 
