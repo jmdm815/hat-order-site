@@ -51,7 +51,7 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
   const logoUrl = logoUrlProp ?? fetchedLogoUrl;
 
   return (
-    <header className="bg-navy sticky top-0 z-10 shadow-sm">
+    <header className="bg-navy sticky top-0 z-10 shadow-sm pt-safe">
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo can be an

@@ -212,7 +212,7 @@ export default function CheckoutForm() {
       </div>
 
       {/* Order summary */}
-      <aside className="rounded-none bg-gray overflow-hidden border border-navy/10 h-fit sticky top-24">
+      <aside className="rounded-none bg-gray overflow-hidden border border-navy/10 h-fit lg:sticky lg:top-24">
         <div className="bg-navy text-white px-5 py-2.5 text-sm font-semibold">Order summary</div>
         <div className="p-5">
           <div className="space-y-2 text-sm text-black/80">

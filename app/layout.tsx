@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Assistant, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { OrderProvider } from "@/lib/order-context";
@@ -33,9 +33,27 @@ export const metadata: Metadata = {
   title: "JM Digital Media — Custom Hat & T-Shirt Ordering",
   description:
     "Order custom hats and t-shirts from JM Digital Media with UV patch, engraved patch, embroidered, or screen print decoration.",
+  // iOS: if someone adds the site to their home screen, open it full-screen
+  // (no Safari chrome) with a black status bar matching the navy header,
+  // and use this title under the icon instead of the page's own <title>.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "JM Digital Media",
+  },
   // Invisible marker used to verify the auto-deploy pipeline (Claude edit ->
   // git push -> Vercel build) end to end. Safe to remove any time.
   other: { "x-autodeploy-test": "2026-08-29-ok" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Lets fixed/sticky elements (the header, admin popups) extend into the
+  // notch/home-indicator safe areas instead of leaving a plain white
+  // letterboxed bar on iPhones — see .pt-safe/.pb-safe in globals.css.
+  viewportFit: "cover",
+  themeColor: "#212a44",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

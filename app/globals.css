@@ -13,23 +13,65 @@
   /* buyjmmedia.com uses the same font (Assistant) for headings and body. */
   --font-heading: var(--font-assistant);
 
-  /* JM Digital Media brand palette — matches buyjmmedia.com */
+  /* JM Digital Media brand palette — black / navy / white.
+     These are kept under the original --color-red / --color-red-dark /
+     --color-tan variable names (and therefore the original bg-red,
+     text-red, border-red, hover:bg-red-dark, etc. utility classes used
+     throughout the site) specifically so this one edit restyles every
+     page and component at once, instead of hunting down every usage —
+     "red" is now the site's near-black primary accent, "red-dark" is the
+     true-black hover/pressed state, and "tan" is the muted navy-tinted
+     highlight used for secondary text/links on navy backgrounds. */
   --color-navy: #212a44;
-  --color-red: #dd1d1d;
-  --color-red-dark: #871616;
-  --color-tan: #d9c38c;
+  --color-red: #141414;
+  --color-red-dark: #000000;
+  --color-tan: #9aa3bb;
   --color-white: #ffffff;
   --color-gray: #f3f3f3;
-  --color-black: #121212;
+  --color-black: #000000;
 
   /* Backwards-compatible alias — old markup referenced --color-cream */
   --color-cream: #ffffff;
+}
+
+/* iOS Safari bumps the page's own font size up when it thinks the user
+   wants a reading-mode zoom; pin it to 100% so text renders at the size
+   the CSS actually asks for. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-assistant), Arial, Helvetica, sans-serif;
+  /* iOS Safari shows a gray tap-highlight rectangle on anything tappable
+     (links, buttons) by default; every interactive element here already
+     has its own hover/active styling, so suppress the native highlight. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS Safari auto-zooms the whole page when focusing a text input/select/
+   textarea smaller than 16px, which is jarring and hard to undo on a
+   phone. Bump form fields up to 16px on small screens only, so the admin
+   dashboard's denser desktop forms keep their smaller text. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Safe-area padding for notch/Dynamic-Island/home-indicator devices —
+   applied where a header or overlay sits flush against the edge of the
+   screen (see components/StepHeader.tsx and the admin popup modals). */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Hide scrollbar (still scrollable) for horizontally-scrolling nav strips,
