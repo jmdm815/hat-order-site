@@ -19,12 +19,9 @@ type CheckoutBody = {
 // so the client can render the confirmation page from it immediately —
 // this API route may run on a different serverless instance per request,
 // so a same-instance file lookup by id is not reliable. See lib/orders-store.ts.
-function respond(order: OrderRecord) {
+async function respond(order: OrderRecord) {
   saveOrder(order);
-  // Fire-and-forget, same pattern as the invoice-pay flow in lib/email.ts —
-  // a flaky email provider must never block or fail the order response,
-  // since the order (and any real charge) already succeeded regardless.
-  void sendOrderConfirmationEmail({
+  const summary = {
     id: order.id,
     cart: order.cart,
     customerName: order.customer.name,
@@ -34,18 +31,16 @@ function respond(order: OrderRecord) {
     setupFees: order.setupFees,
     total: order.total,
     status: order.status,
-  });
-  void sendOrderAdminNotification({
-    id: order.id,
-    cart: order.cart,
-    customerName: order.customer.name,
-    customerEmail: order.customer.email,
-    paymentMethod: order.paymentMethod,
-    subtotal: order.subtotal,
-    setupFees: order.setupFees,
-    total: order.total,
-    status: order.status,
-  });
+  };
+  // Awaited, NOT fire-and-forget: on Vercel the serverless function can be
+  // frozen/torn down the instant the response is sent, which can silently
+  // cut off a still-in-flight "void someAsyncCall()" before its network
+  // request even completes — this is exactly why
+  // app/api/pay/[id]/route.ts's receipt email is awaited rather than
+  // fire-and-forget too. A failed send still never fails the order
+  // response (errors are caught and logged inside lib/email.ts), so this
+  // only adds the time of two quick API calls, not a new failure mode.
+  await Promise.allSettled([sendOrderConfirmationEmail(summary), sendOrderAdminNotification(summary)]);
   return NextResponse.json({ order });
 }
 
