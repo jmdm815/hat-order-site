@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { searchAnySanmarStyle } from "@/lib/sanmar";
+import { searchSsStyles } from "@/lib/ssactivewear";
 import { getCustomProducts } from "@/lib/custom-products-store";
 
 export type ManualQuoteSearchResult = {
@@ -19,10 +20,10 @@ export type ManualQuoteSearchResult = {
 // raw SanMar feed (see lib/sanmar.ts's searchAnySanmarStyle — deliberately
 // not limited to the site's curated Caps/T-Shirts/Polos categories, since a
 // one-off customer order can call for any real SanMar blank). "custom"
-// searches the admin's own hand-added products. "ss" (S&S Activewear) has
-// no feed connected yet, so it always returns an empty list — the frontend
-// disables that catalog option rather than let it look like search is
-// broken.
+// searches the admin's own hand-added products. "ss" (S&S Activewear) hits
+// S&S's own live REST API directly (lib/ssactivewear.ts) on every search —
+// unlike SanMar there's no pre-synced feed to query, since S&S's API is
+// real-time already.
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -52,7 +53,19 @@ export async function GET(req: NextRequest) {
   }
 
   if (catalog === "ss") {
-    return NextResponse.json({ results: [] satisfies ManualQuoteSearchResult[] });
+    try {
+      const matches = await searchSsStyles(q, 20);
+      const results: ManualQuoteSearchResult[] = matches.map((m) => ({
+        styleNumber: m.styleNumber,
+        name: m.name,
+        brand: m.brand,
+        imageUrl: m.imageUrl,
+      }));
+      return NextResponse.json({ results });
+    } catch (err) {
+      console.error("GET /api/admin/quote/search-products: S&S search failed", err);
+      return NextResponse.json({ results: [] satisfies ManualQuoteSearchResult[] });
+    }
   }
 
   const matches = await searchAnySanmarStyle(q, 20);

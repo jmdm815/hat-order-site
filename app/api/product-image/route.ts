@@ -8,6 +8,8 @@ export const runtime = "nodejs";
 const ALLOWED_HOSTS = new Set([
   "cdnm.sanmar.com",
   "images.unsplash.com",
+  "www.ssactivewear.com",
+  "cdn.ssactivewear.com",
 ]);
 
 const CANVAS_SIZE = 1000;

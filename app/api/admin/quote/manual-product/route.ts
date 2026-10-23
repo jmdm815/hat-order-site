@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { getAnySanmarStyleAsProduct } from "@/lib/sanmar";
 import { applyLiveSanmarPricingToProducts } from "@/lib/sanmar-pricing";
+import { getSsStyleAsProduct } from "@/lib/ssactivewear";
 import { getCustomProductByStyleNumber } from "@/lib/custom-products-store";
 import { getGarmentMarkupSettings } from "@/lib/garment-markup-store";
 import { getMarkupPercentForCost } from "@/lib/garment-markup";
@@ -53,10 +54,42 @@ export async function GET(req: NextRequest) {
   }
 
   if (catalog === "ss") {
-    return NextResponse.json(
-      { error: "S&S Activewear isn't connected yet — no live feed to quote from." },
-      { status: 400 }
-    );
+    let ssProduct: Product | undefined;
+    try {
+      ssProduct = await getSsStyleAsProduct(styleNumber);
+    } catch (err) {
+      console.error("GET /api/admin/quote/manual-product: S&S fetch failed", err);
+      return NextResponse.json({ error: "Failed to reach the S&S Activewear API" }, { status: 502 });
+    }
+    if (!ssProduct) {
+      return NextResponse.json({ error: `No S&S Activewear style found for "${styleNumber}"` }, { status: 404 });
+    }
+
+    // Same cost -> markup pipeline as the SanMar branch below (garment-markup
+    // breakpoint table), so a quote from either supplier prices consistently.
+    const garmentMarkup = await getGarmentMarkupSettings();
+    const manualProduct: ManualQuoteProduct = {
+      styleNumber: ssProduct.styleNumber,
+      brandName: ssProduct.brandName,
+      productName: ssProduct.productName,
+      colors: ssProduct.colors.map((c) => ({
+        colorName: c.colorName,
+        colorHexes: c.colorHexes,
+        sizes: (c.sizes ?? []).map((s) => {
+          const markupPercent = getMarkupPercentForCost(garmentMarkup.breakpoints, s.price);
+          return {
+            name: s.name,
+            cost: s.price,
+            markupPercent,
+            price: Math.round(s.price * (1 + markupPercent / 100) * 100) / 100,
+            inventory: s.inventory,
+          };
+        }),
+        imageUrl: c.imageUrl || undefined,
+        imageFallbackUrl: c.backImageUrl || undefined,
+      })),
+    };
+    return NextResponse.json({ product: manualProduct, livePricingApplied: true });
   }
 
   if (catalog === "custom") {

@@ -14,7 +14,7 @@ import AdminSendDocumentModal from "./AdminSendDocumentModal";
 type CatalogSource = "sanmar" | "custom" | "ss" | "customer-supplied";
 const CATALOG_OPTIONS: { id: CatalogSource; label: string; disabled?: boolean }[] = [
   { id: "sanmar", label: "SanMar" },
-  { id: "ss", label: "S&S Activewear", disabled: true },
+  { id: "ss", label: "S&S Activewear" },
   { id: "custom", label: "Custom" },
   { id: "customer-supplied", label: "Customer-Supplied Item" },
 ];
@@ -2456,11 +2456,10 @@ export default function AdminQuoteBuilder({
                   onChange={(e) => onProductQueryChange(e.target.value)}
                   onFocus={() => productSuggestions.length > 0 && setSuggestionsOpen(true)}
                   onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
-                  disabled={catalogSource === "ss"}
                   className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-white/5"
                   placeholder={
                     catalogSource === "ss"
-                      ? "S&S Activewear isn't connected yet"
+                      ? "Start typing a style number or name — e.g. 2000"
                       : "Start typing a style number or name — e.g. st640"
                   }
                 />
@@ -2530,6 +2529,9 @@ export default function AdminQuoteBuilder({
                       <span className="ml-2 text-[11px] text-white/40">
                         {foundProductLive ? "live SanMar pricing" : "catalog list price (live pricing unavailable)"}
                       </span>
+                    )}
+                    {catalogSource === "ss" && (
+                      <span className="ml-2 text-[11px] text-white/40">live S&amp;S Activewear pricing</span>
                     )}
                   </p>
                 </div>
