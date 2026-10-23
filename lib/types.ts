@@ -225,6 +225,13 @@ export type PriceColumn = { id: string; label: string };
 // lib/setup-charges-store.ts, lib/quote.ts).
 export type SetupChargeType = { id: string; label: string; price: number };
 
+// A reusable payment-terms preset an admin can pick when setting up a
+// quote's "Payment terms" (e.g. "Pay in full", "50% deposit, 50% on
+// pickup") — admin-editable, add/edit/delete, same pattern as
+// SetupChargeType. depositPercent of 100 means pay in full; anything less
+// is a deposit-now/balance-later split. See lib/payment-terms-store.ts.
+export type PaymentTermOption = { id: string; label: string; depositPercent: number };
+
 // Admin-editable override of an admin-dashboard tab's icon/label (the tab's
 // `id` and its position in the menu stay fixed in code — see
 // components/AdminDashboard.tsx — only how it's labeled/iconified is

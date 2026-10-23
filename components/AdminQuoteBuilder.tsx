@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ComputedQuote, QuoteLineInput, QuoteSizeInput } from "@/lib/quote";
 import { QuoteRecord } from "@/lib/quotes-store";
-import { DecorationOption, SetupChargeType } from "@/lib/types";
+import { DecorationOption, SetupChargeType, PaymentTermOption } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
 import { ManualQuoteProduct, ManualQuoteSizeRow } from "@/app/api/admin/quote/manual-product/route";
 import { ManualQuoteSearchResult } from "@/app/api/admin/quote/search-products/route";
@@ -164,6 +164,28 @@ export default function AdminQuoteBuilder({
     () => initialRecord?.input.depositPercent ?? 100
   );
 
+  // Payment terms — a dropdown of admin-editable, reusable presets (e.g.
+  // "Pay in full", "50% deposit, 50% on pickup") that each just set
+  // depositPercent above, plus a "Custom %" option for a one-off split that
+  // isn't saved to the shared list. Same dropdown-doubles-as-editor pattern
+  // as the Setup charges picker below. See lib/payment-terms-store.ts.
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTermOption[]>([]);
+  const [paymentTermsOpen, setPaymentTermsOpen] = useState(false);
+  const paymentTermsRef = useRef<HTMLDivElement | null>(null);
+  const [customPercentMode, setCustomPercentMode] = useState(false);
+  const [editingTermId, setEditingTermId] = useState<string | null>(null);
+  const [termEditDraft, setTermEditDraft] = useState<{ label: string; depositPercent: number }>({
+    label: "",
+    depositPercent: 100,
+  });
+  const [creatingTerm, setCreatingTerm] = useState(false);
+  const [newTermDraft, setNewTermDraft] = useState<{ label: string; depositPercent: number }>({
+    label: "",
+    depositPercent: 100,
+  });
+  const [termBusyId, setTermBusyId] = useState<string | null>(null);
+  const [termError, setTermError] = useState<string | null>(null);
+
   // Saved customer picker — loads the whole list once (see Customers tab)
   // and filters client-side, since this is expected to stay a small
   // address book, not a full CRM. Picking one just fills the three fields
@@ -182,6 +204,21 @@ export default function AdminQuoteBuilder({
   const [selectedDecorationId, setSelectedDecorationId] = useState("");
   const [selectedColumnId, setSelectedColumnId] = useState("");
   const [catalogSource, setCatalogSource] = useState<CatalogSource>("sanmar");
+
+  // Decoration type picker — a dropdown (same pattern as Setup charges)
+  // that doubles as a lightweight editor for the shared decoration-types
+  // catalog: rename any type in place, or quick-add a brand-new one with
+  // sane $0 defaults (full pricing/turnaround/file-type setup stays on the
+  // Pricing tab — see components/AdminDecorationTypesManager.tsx). This is
+  // the "possible line items to add" dropdown from the quote builder.
+  const [decorationDropdownOpen, setDecorationDropdownOpen] = useState(false);
+  const decorationDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [editingDecorationId, setEditingDecorationId] = useState<string | null>(null);
+  const [decorationEditLabel, setDecorationEditLabel] = useState("");
+  const [creatingDecoration, setCreatingDecoration] = useState(false);
+  const [newDecorationLabel, setNewDecorationLabel] = useState("");
+  const [decorationBusyId, setDecorationBusyId] = useState<string | null>(null);
+  const [decorationError, setDecorationError] = useState<string | null>(null);
 
   const [productQuery, setProductQuery] = useState("");
   const [productSuggestions, setProductSuggestions] = useState<ManualQuoteSearchResult[]>([]);
@@ -252,10 +289,24 @@ export default function AdminQuoteBuilder({
       .then((r) => r.json())
       .then((d: { setupCharges: SetupChargeType[] }) => setSetupCharges(d.setupCharges ?? []))
       .catch(() => setSetupCharges([]));
+    fetch("/api/admin/payment-terms")
+      .then((r) => r.json())
+      .then((d: { paymentTerms: PaymentTermOption[] }) => {
+        const terms = d.paymentTerms ?? [];
+        setPaymentTerms(terms);
+        // If the quote's initial deposit % doesn't match any known preset
+        // (e.g. a saved quote's one-off split), show it as "Custom" rather
+        // than silently matching the wrong preset.
+        if (!terms.some((t) => t.depositPercent === depositPercent)) {
+          setCustomPercentMode(true);
+        }
+      })
+      .catch(() => setPaymentTerms([]));
     fetch("/api/admin/customers")
       .then((r) => r.json())
       .then((d: { customers: Customer[] }) => setCustomers(d.customers ?? []))
       .catch(() => setCustomers([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const customerSuggestions =
@@ -320,6 +371,230 @@ export default function AdminQuoteBuilder({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [setupDropdownOpen]);
+
+  useEffect(() => {
+    if (!paymentTermsOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (paymentTermsRef.current && !paymentTermsRef.current.contains(e.target as Node)) {
+        setPaymentTermsOpen(false);
+        setEditingTermId(null);
+        setCreatingTerm(false);
+        setTermError(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [paymentTermsOpen]);
+
+  useEffect(() => {
+    if (!decorationDropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (decorationDropdownRef.current && !decorationDropdownRef.current.contains(e.target as Node)) {
+        setDecorationDropdownOpen(false);
+        setEditingDecorationId(null);
+        setCreatingDecoration(false);
+        setDecorationError(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [decorationDropdownOpen]);
+
+  function selectPaymentTerm(term: PaymentTermOption) {
+    setDepositPercent(term.depositPercent);
+    setCustomPercentMode(false);
+    setPaymentTermsOpen(false);
+  }
+
+  function startEditTerm(t: PaymentTermOption) {
+    setEditingTermId(t.id);
+    setTermEditDraft({ label: t.label, depositPercent: t.depositPercent });
+    setCreatingTerm(false);
+    setTermError(null);
+  }
+
+  async function saveTermEdit(id: string) {
+    if (!termEditDraft.label.trim()) {
+      setTermError("Enter a label before saving.");
+      return;
+    }
+    setTermBusyId(id);
+    setTermError(null);
+    try {
+      const res = await fetch("/api/admin/payment-terms", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          label: termEditDraft.label.trim(),
+          depositPercent: termEditDraft.depositPercent,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      setPaymentTerms((prev) => prev.map((t) => (t.id === id ? data.term : t)));
+      setEditingTermId(null);
+    } catch (e) {
+      setTermError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setTermBusyId(null);
+    }
+  }
+
+  async function handleDeleteTerm(t: PaymentTermOption) {
+    if (!confirm(`Delete "${t.label}" from the payment terms list? This removes it everywhere, not just this quote.`)) {
+      return;
+    }
+    setTermBusyId(t.id);
+    setTermError(null);
+    try {
+      const res = await fetch(`/api/admin/payment-terms?id=${encodeURIComponent(t.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      setPaymentTerms((prev) => prev.filter((x) => x.id !== t.id));
+      if (editingTermId === t.id) setEditingTermId(null);
+    } catch (e) {
+      setTermError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setTermBusyId(null);
+    }
+  }
+
+  async function handleCreateTerm() {
+    const label = newTermDraft.label.trim();
+    if (!label) {
+      setTermError("Enter a label before adding.");
+      return;
+    }
+    setTermBusyId("__new__");
+    setTermError(null);
+    try {
+      const res = await fetch("/api/admin/payment-terms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, depositPercent: newTermDraft.depositPercent }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Create failed");
+      setPaymentTerms((prev) => [...prev, data.term]);
+      setDepositPercent(data.term.depositPercent);
+      setCustomPercentMode(false);
+      setNewTermDraft({ label: "", depositPercent: 100 });
+      setCreatingTerm(false);
+      setPaymentTermsOpen(false);
+    } catch (e) {
+      setTermError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setTermBusyId(null);
+    }
+  }
+
+  function startEditDecoration(d: DecorationOption) {
+    setEditingDecorationId(d.id);
+    setDecorationEditLabel(d.label);
+    setCreatingDecoration(false);
+    setDecorationError(null);
+  }
+
+  async function saveDecorationEdit(id: string) {
+    const label = decorationEditLabel.trim();
+    if (!label) {
+      setDecorationError("Enter a name before saving.");
+      return;
+    }
+    const existing = decorations.find((d) => d.id === id);
+    if (!existing) return;
+    setDecorationBusyId(id);
+    setDecorationError(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id: _ignored, ...fields } = existing;
+      const res = await fetch("/api/admin/decoration-types", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...fields, label }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      setDecorations((prev) => prev.map((d) => (d.id === id ? data.decoration : d)));
+      setEditingDecorationId(null);
+    } catch (e) {
+      setDecorationError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setDecorationBusyId(null);
+    }
+  }
+
+  async function handleDeleteDecoration(d: DecorationOption) {
+    if (
+      !confirm(
+        `Delete "${d.label}" from decoration types? This removes it everywhere — including the customer-facing catalog — not just this quote.`
+      )
+    ) {
+      return;
+    }
+    setDecorationBusyId(d.id);
+    setDecorationError(null);
+    try {
+      const res = await fetch(`/api/admin/decoration-types?id=${encodeURIComponent(d.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      setDecorations((prev) => prev.filter((x) => x.id !== d.id));
+      if (selectedDecorationId === d.id) setSelectedDecorationId("");
+      if (editingDecorationId === d.id) setEditingDecorationId(null);
+    } catch (e) {
+      setDecorationError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setDecorationBusyId(null);
+    }
+  }
+
+  // Quick-add a brand-new decoration type right from this dropdown, with
+  // sane $0 defaults — full pricing/turnaround/file-type setup can be
+  // filled in later from the Pricing tab's AdminDecorationTypesManager.
+  async function handleCreateDecoration() {
+    const label = newDecorationLabel.trim();
+    if (!label) {
+      setDecorationError("Enter a name before adding.");
+      return;
+    }
+    setDecorationBusyId("__new__");
+    setDecorationError(null);
+    try {
+      const res = await fetch("/api/admin/decoration-types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label,
+          shortLabel: label,
+          description: "",
+          productTypes: ["hat", "shirt", "tumbler", "polo"],
+          minQuantity: 0,
+          setupFee: 0,
+          setupFeeEnabled: false,
+          pricingTiers: [{ minQty: 1, pricePerUnit: 0 }],
+          turnaroundDays: "",
+          acceptedFileTypes: [],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Create failed");
+      setDecorations((prev) => [...prev, data.decoration]);
+      setSelectedDecorationId(data.decoration.id);
+      setSelectedColumnId("");
+      setNewDecorationLabel("");
+      setCreatingDecoration(false);
+      setDecorationDropdownOpen(false);
+    } catch (e) {
+      setDecorationError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setDecorationBusyId(null);
+    }
+  }
 
   function startEditCharge(c: SetupChargeType) {
     setEditingChargeId(c.id);
@@ -890,44 +1165,221 @@ export default function AdminQuoteBuilder({
 
         <div className="mt-3">
           <p className="text-xs text-white/60 mb-1">Payment terms</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={depositPercent === 100 ? "full" : depositPercent === 50 ? "50-50" : "custom"}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "full") setDepositPercent(100);
-                else if (v === "50-50") setDepositPercent(50);
-                else if (depositPercent === 100 || depositPercent === 50) setDepositPercent(25);
-              }}
-              className="border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+          <div className="relative inline-block" ref={paymentTermsRef}>
+            <button
+              type="button"
+              onClick={() => setPaymentTermsOpen((o) => !o)}
+              className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
             >
-              <option value="full">Pay in full</option>
-              <option value="50-50">50% deposit, 50% on pickup</option>
-              <option value="custom">Custom %</option>
-            </select>
-            {depositPercent !== 100 && depositPercent !== 50 && (
-              <label className="text-xs text-white/60 flex items-center gap-1.5">
-                Deposit
-                <input
-                  type="number"
-                  min={1}
-                  max={99}
-                  value={depositPercent}
-                  onChange={(e) => setDepositPercent(Math.min(99, Math.max(1, Number(e.target.value) || 0)))}
-                  className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
-                />
-                %
-              </label>
-            )}
-            {depositPercent < 100 && (
-              <span className="text-xs text-white/40">
-                {depositPercent}% deposit due now, {100 - depositPercent}% balance due at pickup
-              </span>
+              {customPercentMode
+                ? `Custom — ${depositPercent}% deposit`
+                : (paymentTerms.find((t) => t.depositPercent === depositPercent)?.label ??
+                  `${depositPercent}% deposit`)}
+              <span className="text-white/40">{paymentTermsOpen ? "▲" : "▼"}</span>
+            </button>
+
+            {paymentTermsOpen && (
+              <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+                {paymentTerms.map((t) => {
+                  const isEditing = editingTermId === t.id;
+                  const busy = termBusyId === t.id;
+                  if (isEditing) {
+                    return (
+                      <div key={t.id} className="px-2 py-2 border-b border-white/5 last:border-b-0">
+                        <div className="flex flex-col gap-1.5">
+                          <input
+                            value={termEditDraft.label}
+                            onChange={(e) => setTermEditDraft((d) => ({ ...d, label: e.target.value }))}
+                            className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                            placeholder="Label"
+                          />
+                          <label className="flex items-center gap-1.5 text-xs text-white/60">
+                            Deposit
+                            <input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={termEditDraft.depositPercent}
+                              onChange={(e) =>
+                                setTermEditDraft((d) => ({
+                                  ...d,
+                                  depositPercent: Math.min(100, Math.max(1, Number(e.target.value) || 0)),
+                                }))
+                              }
+                              className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                            />
+                            %
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => saveTermEdit(t.id)}
+                              disabled={busy}
+                              className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                            >
+                              {busy ? "Saving…" : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingTermId(null)}
+                              className="text-xs text-white/60 hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => selectPaymentTerm(t)}
+                        className="flex-1 min-w-0 text-left text-sm text-white/80"
+                      >
+                        <span className="truncate">{t.label}</span>{" "}
+                        <span className="text-white/40">({t.depositPercent}%)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startEditTerm(t)}
+                        className="text-xs text-white/50 hover:text-white hover:underline shrink-0"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTerm(t)}
+                        disabled={busy}
+                        className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                      >
+                        {busy ? "…" : "Delete"}
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomPercentMode(true);
+                    setPaymentTermsOpen(false);
+                  }}
+                  className="w-full text-left text-sm text-white/80 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5"
+                >
+                  Custom % (this quote only)
+                </button>
+
+                <div className="mt-1 pt-1 border-t border-white/10">
+                  {!creatingTerm ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreatingTerm(true);
+                        setEditingTermId(null);
+                        setTermError(null);
+                      }}
+                      className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-xl hover:bg-white/5"
+                    >
+                      + Add custom payment term
+                    </button>
+                  ) : (
+                    <div className="px-2 py-1.5 flex flex-col gap-1.5">
+                      <input
+                        value={newTermDraft.label}
+                        onChange={(e) => setNewTermDraft((d) => ({ ...d, label: e.target.value }))}
+                        placeholder="e.g. 25% deposit, balance on delivery"
+                        className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                        autoFocus
+                      />
+                      <label className="flex items-center gap-1.5 text-xs text-white/60">
+                        Deposit
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={newTermDraft.depositPercent}
+                          onChange={(e) =>
+                            setNewTermDraft((d) => ({
+                              ...d,
+                              depositPercent: Math.min(100, Math.max(1, Number(e.target.value) || 0)),
+                            }))
+                          }
+                          className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                        />
+                        %
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleCreateTerm}
+                          disabled={termBusyId === "__new__"}
+                          className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                        >
+                          {termBusyId === "__new__" ? "Adding…" : "Add & select"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreatingTerm(false);
+                            setNewTermDraft({ label: "", depositPercent: 100 });
+                            setTermError(null);
+                          }}
+                          className="text-xs text-white/60 hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {termError && <p className="px-2 py-1.5 text-xs text-red-500">{termError}</p>}
+              </div>
             )}
           </div>
+
+          {customPercentMode && (
+            <label className="mt-2 flex items-center gap-1.5 text-xs text-white/60">
+              Deposit
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={depositPercent}
+                onChange={(e) => setDepositPercent(Math.min(99, Math.max(1, Number(e.target.value) || 0)))}
+                className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
+              />
+              %
+            </label>
+          )}
+
+          {depositPercent < 100 && (
+            <p className="mt-1.5 text-xs text-white/40">
+              {depositPercent}% deposit due now, {100 - depositPercent}% balance due at pickup
+            </p>
+          )}
         </div>
       </section>
       )}
+
+      {/* Items — everything that adds to the quote total, grouped into its
+          own clearly separate sections: Setup charges, Other charges (ad-hoc
+          one-off fees), and Garments. Each stays its own card below, same as
+          before — this just gives them a shared heading, matching the
+          "Quote details" section above it. */}
+      <div>
+        <h2 className="text-lg font-bold text-white mb-1">Items</h2>
+        <p className="text-sm text-white/50 mb-4">
+          Everything that adds to this quote&apos;s total — setup charges, garments, and any other
+          one-off charges — organized into its own section below.
+        </p>
+
+        <div className="space-y-8">
 
       {/* Setup charges — flat, quote-wide, independent of any decoration.
           A dropdown picker that also doubles as an inline editor for the
@@ -1126,12 +1578,14 @@ export default function AdminQuoteBuilder({
         )}
       </section>
 
-      {/* Miscellaneous fees — ad-hoc, one-off charges for this quote only
-          (a rush fee, a shipping surcharge), distinct from the reusable
-          Setup Charges above. Only shown in "full" mode. */}
+      {/* Other charges — ad-hoc, one-off charges for this quote only (a rush
+          fee, a shipping surcharge), distinct from the reusable Setup
+          Charges above. Internally still "misc fees" (lib/quote.ts's
+          QuoteInput.miscFees) — only the admin-facing label changed. Only
+          shown in "full" mode. */}
       {mode === "full" && (
       <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-white mb-1">Miscellaneous fees</h3>
+        <h3 className="text-sm font-semibold text-white mb-1">Other charges</h3>
         <p className="text-xs text-white/50 mb-3">
           One-off charges for this quote only — a rush fee, a shipping surcharge, anything that
           isn&apos;t a garment or a reusable setup charge. These aren&apos;t added to the Setup
@@ -1195,30 +1649,167 @@ export default function AdminQuoteBuilder({
           sizes, locations, in that order, matching the shop's other
           quoting tool. */}
       <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-white mb-3">Add a garment</h3>
+        <h3 className="text-sm font-semibold text-white mb-3">Garments</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
-          <label className="text-xs text-white/60">
+          <div className="text-xs text-white/60">
             Decoration type
-            <select
-              value={selectedDecorationId}
-              onChange={(e) => {
-                setSelectedDecorationId(e.target.value);
-                setSelectedColumnId("");
-              }}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
-            >
-              <option value="">None — garment only</option>
-              {decorations.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-            {decorationsLoaded && decorations.length === 0 && (
-              <span className="text-[11px] text-white/40">No decoration types configured yet.</span>
-            )}
-          </label>
+            <div className="relative mt-1" ref={decorationDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setDecorationDropdownOpen((o) => !o)}
+                className="flex items-center justify-between gap-2 w-full text-sm px-2 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 text-left"
+              >
+                <span className="truncate">
+                  {selectedDecorationId
+                    ? (decorations.find((d) => d.id === selectedDecorationId)?.label ?? "—")
+                    : "None — garment only"}
+                </span>
+                <span className="text-white/40 shrink-0">{decorationDropdownOpen ? "▲" : "▼"}</span>
+              </button>
+
+              {decorationDropdownOpen && (
+                <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDecorationId("");
+                      setSelectedColumnId("");
+                      setDecorationDropdownOpen(false);
+                    }}
+                    className="w-full text-left text-sm text-white/80 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5"
+                  >
+                    None — garment only
+                  </button>
+                  {decorationsLoaded && decorations.length === 0 && !creatingDecoration && (
+                    <p className="text-xs text-white/40 px-2 py-2">No decoration types configured yet.</p>
+                  )}
+                  {decorations.map((d) => {
+                    const isEditing = editingDecorationId === d.id;
+                    const busy = decorationBusyId === d.id;
+                    if (isEditing) {
+                      return (
+                        <div key={d.id} className="px-2 py-2 border-b border-white/5 last:border-b-0">
+                          <div className="flex flex-col gap-1.5">
+                            <input
+                              value={decorationEditLabel}
+                              onChange={(e) => setDecorationEditLabel(e.target.value)}
+                              className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                              placeholder="Name"
+                              autoFocus
+                            />
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => saveDecorationEdit(d.id)}
+                                disabled={busy}
+                                className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                              >
+                                {busy ? "Saving…" : "Save"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingDecorationId(null)}
+                                className="text-xs text-white/60 hover:underline"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div
+                        key={d.id}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDecorationId(d.id);
+                            setSelectedColumnId("");
+                            setDecorationDropdownOpen(false);
+                          }}
+                          className="flex-1 min-w-0 text-left text-sm text-white/80 truncate"
+                        >
+                          {d.label}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startEditDecoration(d)}
+                          className="text-xs text-white/50 hover:text-white hover:underline shrink-0"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDecoration(d)}
+                          disabled={busy}
+                          className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                        >
+                          {busy ? "…" : "Delete"}
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  <div className="mt-1 pt-1 border-t border-white/10">
+                    {!creatingDecoration ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreatingDecoration(true);
+                          setEditingDecorationId(null);
+                          setDecorationError(null);
+                        }}
+                        className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-xl hover:bg-white/5"
+                      >
+                        + Add decoration type
+                      </button>
+                    ) : (
+                      <div className="px-2 py-1.5 flex flex-col gap-1.5">
+                        <input
+                          value={newDecorationLabel}
+                          onChange={(e) => setNewDecorationLabel(e.target.value)}
+                          placeholder="e.g. Banner, Vinyl Decal"
+                          className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                          autoFocus
+                        />
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={handleCreateDecoration}
+                            disabled={decorationBusyId === "__new__"}
+                            className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                          >
+                            {decorationBusyId === "__new__" ? "Adding…" : "Add & select"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCreatingDecoration(false);
+                              setNewDecorationLabel("");
+                              setDecorationError(null);
+                            }}
+                            className="text-xs text-white/60 hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-white/40">
+                          Added with $0 pricing — fine-tune its price, turnaround, and file types on the
+                          Pricing tab.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {decorationError && <p className="px-2 py-1.5 text-xs text-red-500">{decorationError}</p>}
+                </div>
+              )}
+            </div>
+          </div>
 
           <label className="text-xs text-white/60">
             Catalog
@@ -1681,6 +2272,9 @@ export default function AdminQuoteBuilder({
         </section>
       )}
 
+        </div>
+      </div>
+
       {/* Computed preview */}
       {quote && (
         <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
@@ -1784,7 +2378,7 @@ export default function AdminQuoteBuilder({
           {quote.miscFees.length > 0 && (
             <div className="border-t border-white/10 pt-3 mb-3">
               <div className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1">
-                Miscellaneous fees
+                Other charges
               </div>
               {quote.miscFees.map((f, i) => (
                 <div key={i} className="text-sm text-white/70">

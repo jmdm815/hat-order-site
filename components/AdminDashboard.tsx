@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AdminCatalogManager from "@/components/AdminCatalogManager";
 import AdminCategoriesManager from "@/components/AdminCategoriesManager";
 import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
 import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManager";
-import AdminQuotesTab, { QuoteBuilderSeed } from "@/components/AdminQuotesTab";
+import AdminQuotesTab from "@/components/AdminQuotesTab";
 import AdminQuickQuoteTab from "@/components/AdminQuickQuoteTab";
 import AdminSetupChargesManager from "@/components/AdminSetupChargesManager";
 import AdminGarmentMarkupManager from "@/components/AdminGarmentMarkupManager";
@@ -41,9 +42,24 @@ const ICON_CHOICES = [
   "⭐", "🏠", "🔧", "📁", "🧵", "💬", "📋", "🔍", "🧮", "✅",
 ];
 
+const TAB_IDS = DEFAULT_TABS.map((t) => t.id) as readonly string[];
+
+// sessionStorage key used to carry Quick Quote's lines/setup charges over to
+// a brand-new quote page — see the Quick Quote tab's onCreateQuote below and
+// components/AdminQuotePageClient.tsx, which reads and clears it on mount.
+const QUICK_QUOTE_SEED_KEY = "admin-quote-seed";
+
 export default function AdminDashboard() {
-  const [tab, setTab] = useState<TabId>("categories");
-  const [quickQuoteSeed, setQuickQuoteSeed] = useState<QuoteBuilderSeed | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // Lets a link from elsewhere (e.g. the quote builder's "← Back to
+  // quotes") land directly on a specific tab via ?tab=quotes, instead of
+  // always resetting to Categories.
+  const initialTabParam = searchParams.get("tab");
+  const initialTab: TabId = (
+    initialTabParam && (TAB_IDS as string[]).includes(initialTabParam) ? initialTabParam : "categories"
+  ) as TabId;
+  const [tab, setTab] = useState<TabId>(initialTab);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -322,13 +338,22 @@ export default function AdminDashboard() {
               A fast price check for a walk-in or phone call — pick a garment (and a decoration, if
               any — leave it as &quot;None&quot; for a blank item) straight from the catalog and see
               the price right away, with no customer info required. If they decide to order, tap
-              &quot;Create quote&quot; to carry it into a real quote on the Quotes tab, where you can
+              &quot;Create quote&quot; to carry it into a real quote on its own page, where you can
               add their info and save it.
             </p>
             <AdminQuickQuoteTab
               onCreateQuote={(lines, setupChargeIds) => {
-                setQuickQuoteSeed({ token: Date.now(), lines, setupChargeIds });
-                setTab("quotes");
+                try {
+                  window.sessionStorage.setItem(
+                    QUICK_QUOTE_SEED_KEY,
+                    JSON.stringify({ lines, setupChargeIds })
+                  );
+                } catch {
+                  // Private browsing / storage disabled — the new quote page
+                  // just opens empty instead of pre-filled; not worth
+                  // blocking navigation over.
+                }
+                router.push("/admin/quotes/new");
               }}
             />
           </>
@@ -338,10 +363,10 @@ export default function AdminDashboard() {
             <p className="mb-4 text-white/60 text-sm">
               Build a customer quote from live SanMar pricing plus your decoration pricing chart
               (quantity price-breaks apply across the whole quote), save it, and download it as a
-              PDF. Saved quotes can be reopened, edited, and converted to invoices below. Nothing
-              here touches the customer-facing catalog or cart.
+              PDF. Saved quotes can be reopened, edited, and converted to invoices on their own
+              page. Nothing here touches the customer-facing catalog or cart.
             </p>
-            <AdminQuotesTab seed={quickQuoteSeed} onSeedConsumed={() => setQuickQuoteSeed(null)} />
+            <AdminQuotesTab />
           </>
         )}
         {tab === "customers" && (
