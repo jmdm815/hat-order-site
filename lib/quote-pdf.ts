@@ -55,6 +55,10 @@ export type InvoiceMeta = {
   // remaining" instead of (or alongside) the flat deposit/balance split
   // from quote.depositPercent, once a payment has actually come in.
   amountPaid?: number;
+  // The record's human-readable quote number (see lib/quotes-store.ts's
+  // QuoteRecord.quoteNumber) — shown as "Quote #: ..." on a non-invoice PDF,
+  // the same way invoiceNumber shows as "Invoice #: ..." on an invoice one.
+  quoteNumber?: string;
 };
 
 function money(n: number): string {
@@ -147,6 +151,8 @@ export async function renderQuotePdf(
       .text(`Date: ${formatDate(quote.quoteDate)}`, { width: pageWidth, align: "right" });
     if (invoice && invoiceMeta?.invoiceNumber) {
       doc.text(`Invoice #: ${invoiceMeta.invoiceNumber}`, { width: pageWidth, align: "right" });
+    } else if (!invoice && invoiceMeta?.quoteNumber) {
+      doc.text(`Quote #: ${invoiceMeta.quoteNumber}`, { width: pageWidth, align: "right" });
     }
 
     // The header has two independently-flowing columns (brand block on the
@@ -539,10 +545,14 @@ export async function renderQuotePdf(
     }
 
     if (showPricing) {
-      // Setup charges are already folded in here (see quote.grandTotal) —
-      // they're itemized above, in the "SETUP CHARGES" section, rather than
-      // shown again as a separate addend in this totals block.
-      totalRow(`Subtotal (${quote.totalQuantity} units)`, money(quote.grandTotal));
+      // Setup charges and misc fees are already folded into subtotalBeforeTax
+      // (see quote.subtotalBeforeTax) — they're itemized above, in their own
+      // sections, rather than shown again as a separate addend here.
+      totalRow(`Subtotal (${quote.totalQuantity} units)`, money(quote.subtotalBeforeTax));
+      if (quote.taxAmount > 0) {
+        doc.moveDown(0.4);
+        totalRow(`Tax (${quote.taxRatePercent}%)`, money(quote.taxAmount));
+      }
       doc.moveDown(0.4);
       totalRow(invoice ? "Amount Due" : "Grand Total", money(quote.grandTotal), true);
 

@@ -16,6 +16,7 @@ function isValidChargeFields(value: unknown): value is Omit<SetupChargeType, "id
   const c = value as Record<string, unknown>;
   if (typeof c.label !== "string" || !c.label.trim()) return false;
   if (typeof c.price !== "number" || c.price < 0) return false;
+  if (c.taxable !== undefined && typeof c.taxable !== "boolean") return false;
   return true;
 }
 

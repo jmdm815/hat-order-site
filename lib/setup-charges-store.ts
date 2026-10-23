@@ -21,9 +21,9 @@ import { isPersistent } from "./pricing-store";
 const BLOB_PATHNAME = "setup-charges.json";
 
 const SEED_SETUP_CHARGES: SetupChargeType[] = [
-  { id: "digitizing-embroidery", label: "Digitizing for embroidery", price: 35 },
-  { id: "logo-vectorization", label: "Logo vectorization", price: 20 },
-  { id: "screen-print-screen-fee", label: "Screen print screen fee (per color)", price: 25 },
+  { id: "digitizing-embroidery", label: "Digitizing for embroidery", price: 35, taxable: true },
+  { id: "logo-vectorization", label: "Logo vectorization", price: 20, taxable: true },
+  { id: "screen-print-screen-fee", label: "Screen print screen fee (per color)", price: 25, taxable: true },
 ];
 
 let memory: SetupChargeType[] | null = null;

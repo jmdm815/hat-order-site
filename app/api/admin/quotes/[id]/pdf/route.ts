@@ -38,6 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       paymentLinkUrl: record.paymentLinkUrl,
       payPageUrl: `${req.nextUrl.origin}/pay/${record.id}`,
       amountPaid: record.amountPaid,
+      quoteNumber: record.quoteNumber,
     });
     const fileNameSafe = (record.computed.customerName || "quote")
       .replace(/[^a-z0-9]+/gi, "-")

@@ -43,6 +43,13 @@ export type InvoicePaymentStatus = "unpaid" | "partially_paid" | "paid";
 
 export type QuoteRecord = {
   id: string;
+  // Human-readable sequential number assigned at creation (e.g. "QT-1001"),
+  // distinct from `id` (an opaque uuid used for the blob path/URL) — shown
+  // to the admin and on quote PDFs instead of the uuid. See
+  // nextQuoteNumber() below. Optional only because records saved before
+  // this field existed don't have one; createQuote always sets it on any
+  // new record going forward.
+  quoteNumber?: string;
   createdAt: string;
   updatedAt: string;
   input: QuoteInput;
@@ -239,13 +246,28 @@ export async function getQuote(id: string): Promise<QuoteRecord | undefined> {
   return record ?? undefined;
 }
 
+// Scanning every existing quote for the current max number (rather than a
+// dedicated counter blob) mirrors nextInvoiceNumber() below — see its
+// comment for the narrow race-condition tradeoff this accepts. Starts at
+// 1001 so numbers read like a real sequence rather than starting at 1.
+function nextQuoteNumber(all: QuoteRecord[]): string {
+  let max = 1000;
+  for (const q of all) {
+    const match = q.quoteNumber?.match(/^QT-(\d+)$/);
+    if (match) max = Math.max(max, parseInt(match[1], 10));
+  }
+  return `QT-${max + 1}`;
+}
+
 export async function createQuote(
   input: QuoteInput,
   computed: ComputedQuote
 ): Promise<{ record: QuoteRecord; persisted: boolean }> {
+  const all = await getQuotes();
   const now = new Date().toISOString();
   const record: QuoteRecord = {
     id: uuid(),
+    quoteNumber: nextQuoteNumber(all),
     createdAt: now,
     updatedAt: now,
     input,

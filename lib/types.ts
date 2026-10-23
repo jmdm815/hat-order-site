@@ -223,7 +223,10 @@ export type PriceColumn = { id: string; label: string };
 // decoration's own setupFee, these are NOT tied to any decoration type:
 // they're picked individually per quote in the admin quote builder (see
 // lib/setup-charges-store.ts, lib/quote.ts).
-export type SetupChargeType = { id: string; label: string; price: number };
+// taxable defaults to true when absent — only charges explicitly marked
+// non-taxable (taxable: false) are excluded from a quote's taxable subtotal.
+// See lib/quote.ts's tax calculation.
+export type SetupChargeType = { id: string; label: string; price: number; taxable?: boolean };
 
 // A reusable payment-terms preset an admin can pick when setting up a
 // quote's "Payment terms" (e.g. "Pay in full", "50% deposit, 50% on
@@ -231,6 +234,12 @@ export type SetupChargeType = { id: string; label: string; price: number };
 // SetupChargeType. depositPercent of 100 means pay in full; anything less
 // is a deposit-now/balance-later split. See lib/payment-terms-store.ts.
 export type PaymentTermOption = { id: string; label: string; depositPercent: number };
+
+// A reusable sales-tax rate preset an admin can pick for a quote's "Tax"
+// field (e.g. "No tax", "State sales tax — 8%") — admin-editable, add/edit/
+// delete, same pattern as PaymentTermOption. ratePercent of 0 means no tax
+// is applied. See lib/tax-rates-store.ts.
+export type TaxRateOption = { id: string; label: string; ratePercent: number };
 
 // Admin-editable override of an admin-dashboard tab's icon/label (the tab's
 // `id` and its position in the menu stay fixed in code — see

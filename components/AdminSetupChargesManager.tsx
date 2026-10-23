@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { SetupChargeType } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
 
-type Draft = { label: string; price: number };
+type Draft = { label: string; price: number; taxable: boolean };
 
-const BLANK_DRAFT: Draft = { label: "", price: 0 };
+const BLANK_DRAFT: Draft = { label: "", price: 0, taxable: true };
 
 // Full CRUD admin editor for the flat, named setup/digitization charges used
 // by the admin quote builder (e.g. "Digitizing for embroidery" — $35). These
@@ -35,7 +35,12 @@ export default function AdminSetupChargesManager() {
       .then((data: { setupCharges: SetupChargeType[]; persistent: boolean }) => {
         setCharges(data.setupCharges);
         setDrafts(
-          Object.fromEntries(data.setupCharges.map((c) => [c.id, { label: c.label, price: c.price }]))
+          Object.fromEntries(
+            data.setupCharges.map((c) => [
+              c.id,
+              { label: c.label, price: c.price, taxable: c.taxable ?? true },
+            ])
+          )
         );
         setPersistent(data.persistent);
       })
@@ -185,6 +190,16 @@ export default function AdminSetupChargesManager() {
                       />
                     </label>
                   </div>
+                  <label className="mt-3 flex items-center gap-2 text-sm text-white/70">
+                    <input
+                      type="checkbox"
+                      checked={draft.taxable}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({ ...prev, [c.id]: { ...draft, taxable: e.target.checked } }))
+                      }
+                    />
+                    Taxable
+                  </label>
                   <div className="mt-4 flex items-center gap-3">
                     <button
                       onClick={() => handleSaveExisting(c.id)}
@@ -237,6 +252,14 @@ export default function AdminSetupChargesManager() {
                 />
               </label>
             </div>
+            <label className="mt-3 flex items-center gap-2 text-sm text-white/70">
+              <input
+                type="checkbox"
+                checked={newDraft.taxable}
+                onChange={(e) => setNewDraft((prev) => ({ ...prev, taxable: e.target.checked }))}
+              />
+              Taxable
+            </label>
             <div className="mt-4 flex items-center gap-3">
               <button
                 onClick={handleCreate}

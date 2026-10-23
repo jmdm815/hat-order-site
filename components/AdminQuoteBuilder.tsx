@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ComputedQuote, QuoteLineInput, QuoteSizeInput } from "@/lib/quote";
 import { QuoteRecord } from "@/lib/quotes-store";
-import { DecorationOption, SetupChargeType, PaymentTermOption } from "@/lib/types";
+import { DecorationOption, SetupChargeType, PaymentTermOption, TaxRateOption } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
 import { ManualQuoteProduct, ManualQuoteSizeRow } from "@/app/api/admin/quote/manual-product/route";
 import { ManualQuoteSearchResult } from "@/app/api/admin/quote/search-products/route";
@@ -28,7 +28,7 @@ export type PendingLine = QuoteLineInput & {
 // SetupChargeType), which are a named, reusable charge type managed on the
 // "Setup Charges" tab; a misc fee only exists on this one quote. See
 // lib/quote.ts's QuoteInput.miscFees.
-type PendingMiscFee = { id: string; label: string; amount: number };
+type PendingMiscFee = { id: string; label: string; amount: number; taxable: boolean };
 
 type PdfMode = "customer" | "internal" | "work-order" | "invoice";
 
@@ -92,6 +92,7 @@ function linesFromRecord(record: QuoteRecord): PendingLine[] {
       priceColumnId: l.priceColumnId,
       customerSupplied: l.customerSupplied,
       itemDescription: l.itemDescription,
+      taxable: l.taxable ?? true,
       brandName: computedLine?.brandName ?? "",
       productName: computedLine?.productName ?? "",
     };
@@ -120,14 +121,16 @@ export default function AdminQuoteBuilder({
   const [setupDropdownOpen, setSetupDropdownOpen] = useState(false);
   const setupDropdownRef = useRef<HTMLDivElement | null>(null);
   const [editingChargeId, setEditingChargeId] = useState<string | null>(null);
-  const [chargeEditDraft, setChargeEditDraft] = useState<{ label: string; price: number }>({
+  const [chargeEditDraft, setChargeEditDraft] = useState<{ label: string; price: number; taxable: boolean }>({
     label: "",
     price: 0,
+    taxable: true,
   });
   const [creatingCharge, setCreatingCharge] = useState(false);
-  const [newChargeDraft, setNewChargeDraft] = useState<{ label: string; price: number }>({
+  const [newChargeDraft, setNewChargeDraft] = useState<{ label: string; price: number; taxable: boolean }>({
     label: "",
     price: 0,
+    taxable: true,
   });
   const [chargeBusyId, setChargeBusyId] = useState<string | null>(null);
   const [chargeError, setChargeError] = useState<string | null>(null);
@@ -141,10 +144,12 @@ export default function AdminQuoteBuilder({
         id: `misc-initial-${i}`,
         label: f.label,
         amount: f.amount,
+        taxable: f.taxable ?? true,
       })) ?? []
   );
   const [miscFeeLabel, setMiscFeeLabel] = useState("");
   const [miscFeeAmount, setMiscFeeAmount] = useState("");
+  const [miscFeeTaxable, setMiscFeeTaxable] = useState(true);
   const [miscFeeError, setMiscFeeError] = useState<string | null>(null);
 
   // Customer / quote header fields.
@@ -186,6 +191,31 @@ export default function AdminQuoteBuilder({
   const [termBusyId, setTermBusyId] = useState<string | null>(null);
   const [termError, setTermError] = useState<string | null>(null);
 
+  // Tax rate — a dropdown of admin-editable, reusable presets (e.g. "No
+  // tax", "8.25% sales tax") that each just set taxRatePercent below, plus
+  // a "Custom %" option for a one-off rate that isn't saved to the shared
+  // list. Same dropdown-doubles-as-editor pattern as Payment terms and
+  // Setup charges. See lib/tax-rates-store.ts.
+  const [taxRatePercent, setTaxRatePercent] = useState<number>(
+    () => initialRecord?.input.taxRatePercent ?? 0
+  );
+  const [taxRates, setTaxRates] = useState<TaxRateOption[]>([]);
+  const [taxDropdownOpen, setTaxDropdownOpen] = useState(false);
+  const taxDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [customTaxMode, setCustomTaxMode] = useState(false);
+  const [editingTaxId, setEditingTaxId] = useState<string | null>(null);
+  const [taxEditDraft, setTaxEditDraft] = useState<{ label: string; ratePercent: number }>({
+    label: "",
+    ratePercent: 0,
+  });
+  const [creatingTaxRate, setCreatingTaxRate] = useState(false);
+  const [newTaxRateDraft, setNewTaxRateDraft] = useState<{ label: string; ratePercent: number }>({
+    label: "",
+    ratePercent: 0,
+  });
+  const [taxBusyId, setTaxBusyId] = useState<string | null>(null);
+  const [taxError, setTaxError] = useState<string | null>(null);
+
   // Saved customer picker — loads the whole list once (see Customers tab)
   // and filters client-side, since this is expected to stay a small
   // address book, not a full CRM. Picking one just fills the three fields
@@ -204,6 +234,10 @@ export default function AdminQuoteBuilder({
   const [selectedDecorationId, setSelectedDecorationId] = useState("");
   const [selectedColumnId, setSelectedColumnId] = useState("");
   const [catalogSource, setCatalogSource] = useState<CatalogSource>("sanmar");
+  // Whether the next garment line added (via either the catalog flow or the
+  // customer-supplied flow below) counts toward the taxable subtotal. See
+  // lib/quote.ts's QuoteLineInput.taxable.
+  const [lineTaxable, setLineTaxable] = useState(true);
 
   // Decoration type picker — a dropdown (same pattern as Setup charges)
   // that doubles as a lightweight editor for the shared decoration-types
@@ -302,6 +336,19 @@ export default function AdminQuoteBuilder({
         }
       })
       .catch(() => setPaymentTerms([]));
+    fetch("/api/admin/tax-rates")
+      .then((r) => r.json())
+      .then((d: { taxRates: TaxRateOption[] }) => {
+        const rates = d.taxRates ?? [];
+        setTaxRates(rates);
+        // If the quote's initial tax rate doesn't match any known preset
+        // (e.g. a saved quote's one-off rate), show it as "Custom" rather
+        // than silently matching the wrong preset.
+        if (!rates.some((t) => t.ratePercent === taxRatePercent)) {
+          setCustomTaxMode(true);
+        }
+      })
+      .catch(() => setTaxRates([]));
     fetch("/api/admin/customers")
       .then((r) => r.json())
       .then((d: { customers: Customer[] }) => setCustomers(d.customers ?? []))
@@ -385,6 +432,20 @@ export default function AdminQuoteBuilder({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [paymentTermsOpen]);
+
+  useEffect(() => {
+    if (!taxDropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (taxDropdownRef.current && !taxDropdownRef.current.contains(e.target as Node)) {
+        setTaxDropdownOpen(false);
+        setEditingTaxId(null);
+        setCreatingTaxRate(false);
+        setTaxError(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [taxDropdownOpen]);
 
   useEffect(() => {
     if (!decorationDropdownOpen) return;
@@ -488,6 +549,97 @@ export default function AdminQuoteBuilder({
       setTermError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setTermBusyId(null);
+    }
+  }
+
+  function selectTaxRate(rate: TaxRateOption) {
+    setTaxRatePercent(rate.ratePercent);
+    setCustomTaxMode(false);
+    setTaxDropdownOpen(false);
+  }
+
+  function startEditTaxRate(t: TaxRateOption) {
+    setEditingTaxId(t.id);
+    setTaxEditDraft({ label: t.label, ratePercent: t.ratePercent });
+    setCreatingTaxRate(false);
+    setTaxError(null);
+  }
+
+  async function saveTaxRateEdit(id: string) {
+    if (!taxEditDraft.label.trim()) {
+      setTaxError("Enter a label before saving.");
+      return;
+    }
+    setTaxBusyId(id);
+    setTaxError(null);
+    try {
+      const res = await fetch("/api/admin/tax-rates", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          label: taxEditDraft.label.trim(),
+          ratePercent: taxEditDraft.ratePercent,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      setTaxRates((prev) => prev.map((t) => (t.id === id ? data.rate : t)));
+      setEditingTaxId(null);
+    } catch (e) {
+      setTaxError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setTaxBusyId(null);
+    }
+  }
+
+  async function handleDeleteTaxRate(t: TaxRateOption) {
+    if (!confirm(`Delete "${t.label}" from the tax rates list? This removes it everywhere, not just this quote.`)) {
+      return;
+    }
+    setTaxBusyId(t.id);
+    setTaxError(null);
+    try {
+      const res = await fetch(`/api/admin/tax-rates?id=${encodeURIComponent(t.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      setTaxRates((prev) => prev.filter((x) => x.id !== t.id));
+      if (editingTaxId === t.id) setEditingTaxId(null);
+    } catch (e) {
+      setTaxError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setTaxBusyId(null);
+    }
+  }
+
+  async function handleCreateTaxRate() {
+    const label = newTaxRateDraft.label.trim();
+    if (!label) {
+      setTaxError("Enter a label before adding.");
+      return;
+    }
+    setTaxBusyId("__new__");
+    setTaxError(null);
+    try {
+      const res = await fetch("/api/admin/tax-rates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, ratePercent: newTaxRateDraft.ratePercent }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Create failed");
+      setTaxRates((prev) => [...prev, data.rate]);
+      setTaxRatePercent(data.rate.ratePercent);
+      setCustomTaxMode(false);
+      setNewTaxRateDraft({ label: "", ratePercent: 0 });
+      setCreatingTaxRate(false);
+      setTaxDropdownOpen(false);
+    } catch (e) {
+      setTaxError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setTaxBusyId(null);
     }
   }
 
@@ -598,7 +750,7 @@ export default function AdminQuoteBuilder({
 
   function startEditCharge(c: SetupChargeType) {
     setEditingChargeId(c.id);
-    setChargeEditDraft({ label: c.label, price: c.price });
+    setChargeEditDraft({ label: c.label, price: c.price, taxable: c.taxable ?? true });
     setCreatingCharge(false);
     setChargeError(null);
   }
@@ -614,7 +766,12 @@ export default function AdminQuoteBuilder({
       const res = await fetch("/api/admin/setup-charges", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, label: chargeEditDraft.label.trim(), price: chargeEditDraft.price }),
+        body: JSON.stringify({
+          id,
+          label: chargeEditDraft.label.trim(),
+          price: chargeEditDraft.price,
+          taxable: chargeEditDraft.taxable,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Save failed");
@@ -670,13 +827,13 @@ export default function AdminQuoteBuilder({
       const res = await fetch("/api/admin/setup-charges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, price: newChargeDraft.price }),
+        body: JSON.stringify({ label, price: newChargeDraft.price, taxable: newChargeDraft.taxable }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Create failed");
       setSetupCharges((prev) => [...prev, data.charge]);
       setSelectedSetupChargeIds((prev) => [...prev, data.charge.id]);
-      setNewChargeDraft({ label: "", price: 0 });
+      setNewChargeDraft({ label: "", price: 0, taxable: true });
       setCreatingCharge(false);
       setQuote(null);
     } catch (e) {
@@ -697,9 +854,10 @@ export default function AdminQuoteBuilder({
       setMiscFeeError("Enter an amount greater than 0.");
       return;
     }
-    setMiscFees((prev) => [...prev, { id: `misc-${Date.now()}`, label, amount }]);
+    setMiscFees((prev) => [...prev, { id: `misc-${Date.now()}`, label, amount, taxable: miscFeeTaxable }]);
     setMiscFeeLabel("");
     setMiscFeeAmount("");
+    setMiscFeeTaxable(true);
     setMiscFeeError(null);
     setQuote(null);
   }
@@ -830,6 +988,7 @@ export default function AdminQuoteBuilder({
       sizes,
       decorationId: selectedDecorationId || undefined,
       priceColumnId: selectedColumnId || undefined,
+      taxable: lineTaxable,
     };
     setLines((prev) => [...prev, line]);
     // Reset the product picker for the next garment, but keep the chosen
@@ -875,6 +1034,7 @@ export default function AdminQuoteBuilder({
       priceColumnId: selectedColumnId || undefined,
       brandName: "Customer-supplied item",
       productName: description,
+      taxable: lineTaxable,
     };
     setLines((prev) => [...prev, line]);
     resetCustomerSuppliedForm();
@@ -894,6 +1054,7 @@ export default function AdminQuoteBuilder({
       quoteDate,
       notes: notes || undefined,
       depositPercent: depositPercent < 100 ? depositPercent : undefined,
+      taxRatePercent: taxRatePercent > 0 ? taxRatePercent : undefined,
       lines: lines.map((l) => ({
         styleNumber: l.styleNumber,
         colorName: l.colorName,
@@ -902,14 +1063,18 @@ export default function AdminQuoteBuilder({
         priceColumnId: l.priceColumnId,
         customerSupplied: l.customerSupplied,
         itemDescription: l.itemDescription,
+        taxable: l.taxable,
       })),
       setupChargeIds: selectedSetupChargeIds,
-      miscFees: miscFees.length > 0 ? miscFees.map(({ label, amount }) => ({ label, amount })) : undefined,
+      miscFees:
+        miscFees.length > 0
+          ? miscFees.map(({ label, amount, taxable }) => ({ label, amount, taxable }))
+          : undefined,
     };
   }
 
   async function generateQuote() {
-    if (lines.length === 0) return;
+    if (lines.length === 0 && selectedSetupChargeIds.length === 0 && miscFees.length === 0) return;
     setQuoteLoading(true);
     setQuoteError(null);
     setQuote(null);
@@ -939,7 +1104,7 @@ export default function AdminQuoteBuilder({
   // input) coalesces rapid edits into one recompute.
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (lines.length === 0) {
+      if (lines.length === 0 && selectedSetupChargeIds.length === 0 && miscFees.length === 0) {
         setQuote(null);
         return;
       }
@@ -947,10 +1112,9 @@ export default function AdminQuoteBuilder({
     }, 400);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, selectedSetupChargeIds, miscFees]);
+  }, [lines, selectedSetupChargeIds, miscFees, taxRatePercent]);
 
   async function downloadPdf(mode: PdfMode) {
-    if (lines.length === 0) return;
     setPdfLoading(mode);
     setQuoteError(null);
     try {
@@ -989,7 +1153,6 @@ export default function AdminQuoteBuilder({
   }
 
   async function saveQuote() {
-    if (lines.length === 0) return;
     setSaving(true);
     setSaveMessage(null);
     setQuoteError(null);
@@ -1047,7 +1210,12 @@ export default function AdminQuoteBuilder({
       {activeRecord && (
         <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-2xl px-4 py-2.5 text-sm">
           <div className="text-white/70">
-            Editing {activeRecord.status === "invoice" ? `invoice ${activeRecord.invoiceNumber}` : "saved quote"}{" "}
+            Editing{" "}
+            {activeRecord.status === "invoice"
+              ? `invoice ${activeRecord.invoiceNumber}`
+              : activeRecord.quoteNumber
+                ? `quote ${activeRecord.quoteNumber}`
+                : "saved quote"}{" "}
             <span className="text-white/40">
               (saved {new Date(activeRecord.updatedAt).toLocaleDateString()})
             </span>
@@ -1364,14 +1532,234 @@ export default function AdminQuoteBuilder({
             </p>
           )}
         </div>
+
+        <div className="mt-3">
+          <p className="text-xs text-white/60 mb-1">Tax</p>
+          <div className="relative inline-block" ref={taxDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setTaxDropdownOpen((o) => !o)}
+              className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+            >
+              {customTaxMode
+                ? `Custom — ${taxRatePercent}% tax`
+                : (taxRates.find((t) => t.ratePercent === taxRatePercent)?.label ??
+                  (taxRatePercent === 0 ? "No tax" : `${taxRatePercent}% tax`))}
+              <span className="text-white/40">{taxDropdownOpen ? "▲" : "▼"}</span>
+            </button>
+
+            {taxDropdownOpen && (
+              <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+                {taxRates.map((t) => {
+                  const isEditing = editingTaxId === t.id;
+                  const busy = taxBusyId === t.id;
+                  if (isEditing) {
+                    return (
+                      <div key={t.id} className="px-2 py-2 border-b border-white/5 last:border-b-0">
+                        <div className="flex flex-col gap-1.5">
+                          <input
+                            value={taxEditDraft.label}
+                            onChange={(e) => setTaxEditDraft((d) => ({ ...d, label: e.target.value }))}
+                            className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                            placeholder="Label"
+                          />
+                          <label className="flex items-center gap-1.5 text-xs text-white/60">
+                            Rate
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.01"
+                              value={taxEditDraft.ratePercent}
+                              onChange={(e) =>
+                                setTaxEditDraft((d) => ({
+                                  ...d,
+                                  ratePercent: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
+                                }))
+                              }
+                              className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                            />
+                            %
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => saveTaxRateEdit(t.id)}
+                              disabled={busy}
+                              className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                            >
+                              {busy ? "Saving…" : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingTaxId(null)}
+                              className="text-xs text-white/60 hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => selectTaxRate(t)}
+                        className="flex-1 min-w-0 text-left text-sm text-white/80"
+                      >
+                        <span className="truncate">{t.label}</span>{" "}
+                        <span className="text-white/40">({t.ratePercent}%)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startEditTaxRate(t)}
+                        className="text-xs text-white/50 hover:text-white hover:underline shrink-0"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTaxRate(t)}
+                        disabled={busy}
+                        className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                      >
+                        {busy ? "…" : "Delete"}
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomTaxMode(true);
+                    setTaxDropdownOpen(false);
+                  }}
+                  className="w-full text-left text-sm text-white/80 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5"
+                >
+                  Custom % (this quote only)
+                </button>
+
+                <div className="mt-1 pt-1 border-t border-white/10">
+                  {!creatingTaxRate ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreatingTaxRate(true);
+                        setEditingTaxId(null);
+                        setTaxError(null);
+                      }}
+                      className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-xl hover:bg-white/5"
+                    >
+                      + Add custom tax rate
+                    </button>
+                  ) : (
+                    <div className="px-2 py-1.5 flex flex-col gap-1.5">
+                      <input
+                        value={newTaxRateDraft.label}
+                        onChange={(e) => setNewTaxRateDraft((d) => ({ ...d, label: e.target.value }))}
+                        placeholder="e.g. 8.25% sales tax"
+                        className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                        autoFocus
+                      />
+                      <label className="flex items-center gap-1.5 text-xs text-white/60">
+                        Rate
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.01"
+                          value={newTaxRateDraft.ratePercent}
+                          onChange={(e) =>
+                            setNewTaxRateDraft((d) => ({
+                              ...d,
+                              ratePercent: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
+                            }))
+                          }
+                          className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                        />
+                        %
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleCreateTaxRate}
+                          disabled={taxBusyId === "__new__"}
+                          className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                        >
+                          {taxBusyId === "__new__" ? "Adding…" : "Add & select"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreatingTaxRate(false);
+                            setNewTaxRateDraft({ label: "", ratePercent: 0 });
+                            setTaxError(null);
+                          }}
+                          className="text-xs text-white/60 hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {taxError && <p className="px-2 py-1.5 text-xs text-red-500">{taxError}</p>}
+              </div>
+            )}
+          </div>
+
+          {customTaxMode && (
+            <label className="mt-2 flex items-center gap-1.5 text-xs text-white/60">
+              Rate
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={taxRatePercent}
+                onChange={(e) => setTaxRatePercent(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+              />
+              %
+            </label>
+          )}
+        </div>
       </section>
+      )}
+
+      {mode === "full" && !activeRecord && (
+        <div className="flex flex-col items-start gap-2">
+          <button
+            onClick={saveQuote}
+            disabled={saving}
+            className="text-sm font-semibold px-6 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 disabled:opacity-40"
+          >
+            {saving ? "Saving…" : "Save & add line item"}
+          </button>
+          <p className="text-xs text-white/40">
+            Saves the customer details, payment terms, and tax above, assigns this quote a quote
+            number, and unlocks the Items section below so you can add garments and charges.
+          </p>
+          {quoteError && <p className="text-xs text-red-600">{quoteError}</p>}
+        </div>
       )}
 
       {/* Items — everything that adds to the quote total, grouped into its
           own clearly separate sections: Setup charges, Other charges (ad-hoc
           one-off fees), and Garments. Each stays its own card below, same as
           before — this just gives them a shared heading, matching the
-          "Quote details" section above it. */}
+          "Quote details" section above it. Hidden until the quote has been
+          saved at least once in "full" mode (see the "Save & add line
+          item" button above) so a brand-new quote always has an explicit
+          save step — mirroring the reference quoting tool's two-phase flow. */}
+      {(mode === "quick" || activeRecord) && (
       <div>
         <h2 className="text-lg font-bold text-white mb-1">Items</h2>
         <p className="text-sm text-white/50 mb-4">
@@ -1435,6 +1823,16 @@ export default function AdminQuoteBuilder({
                           className="w-28 border border-white/20 rounded-xl px-2 py-1 text-sm"
                           placeholder="Price"
                         />
+                        <label className="flex items-center gap-1.5 text-xs text-white/60">
+                          <input
+                            type="checkbox"
+                            checked={chargeEditDraft.taxable}
+                            onChange={(e) =>
+                              setChargeEditDraft((d) => ({ ...d, taxable: e.target.checked }))
+                            }
+                          />
+                          Taxable
+                        </label>
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
@@ -1522,6 +1920,14 @@ export default function AdminQuoteBuilder({
                       placeholder="Price"
                       className="w-28 border border-white/20 rounded-xl px-2 py-1 text-sm"
                     />
+                    <label className="flex items-center gap-1.5 text-xs text-white/60">
+                      <input
+                        type="checkbox"
+                        checked={newChargeDraft.taxable}
+                        onChange={(e) => setNewChargeDraft((d) => ({ ...d, taxable: e.target.checked }))}
+                      />
+                      Taxable
+                    </label>
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
@@ -1535,7 +1941,7 @@ export default function AdminQuoteBuilder({
                         type="button"
                         onClick={() => {
                           setCreatingCharge(false);
-                          setNewChargeDraft({ label: "", price: 0 });
+                          setNewChargeDraft({ label: "", price: 0, taxable: true });
                           setChargeError(null);
                         }}
                         className="text-xs text-white/60 hover:underline"
@@ -1599,7 +2005,8 @@ export default function AdminQuoteBuilder({
                 className="flex items-center justify-between gap-3 border border-white/10 shadow-lg shadow-black/30 rounded-xl px-3 py-1.5"
               >
                 <span className="text-sm text-white">
-                  {f.label} <span className="text-white/40">({formatUSD(f.amount)})</span>
+                  {f.label} <span className="text-white/40">({formatUSD(f.amount)})</span>{" "}
+                  <span className="text-white/30 text-xs">{f.taxable ? "· taxable" : "· not taxable"}</span>
                 </span>
                 <button
                   onClick={() => removeMiscFee(f.id)}
@@ -1633,6 +2040,14 @@ export default function AdminQuoteBuilder({
               className="mt-1 w-28 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
+          <label className="flex items-center gap-1.5 text-xs text-white/60 pb-1.5">
+            <input
+              type="checkbox"
+              checked={miscFeeTaxable}
+              onChange={(e) => setMiscFeeTaxable(e.target.checked)}
+            />
+            Taxable
+          </label>
           <button
             type="button"
             onClick={addMiscFee}
@@ -1650,6 +2065,15 @@ export default function AdminQuoteBuilder({
           quoting tool. */}
       <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-white mb-3">Garments</h3>
+
+        <label className="flex items-center gap-1.5 text-xs text-white/60 mb-3">
+          <input
+            type="checkbox"
+            checked={lineTaxable}
+            onChange={(e) => setLineTaxable(e.target.checked)}
+          />
+          Taxable (applies to the next garment added below)
+        </label>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
           <div className="text-xs text-white/60">
@@ -2125,9 +2549,15 @@ export default function AdminQuoteBuilder({
         )}
       </section>
 
-      {/* Lines added so far */}
-      {lines.length > 0 && (
+      {/* Lines added so far, plus the Preview/Save/Convert/PDF action bar —
+          the action bar itself stays visible once a quote has been saved
+          (activeRecord set) even with zero lines yet, so a draft quote can
+          still be previewed/re-saved/downloaded while garments are being
+          added one at a time. */}
+      {(lines.length > 0 || activeRecord) && (
         <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+          {lines.length > 0 && (
+          <>
           <h3 className="text-sm font-semibold text-white mb-3">Quote lines ({lines.length})</h3>
           <div className="space-y-2.5">
             {lines.map((line, idx) => {
@@ -2175,6 +2605,8 @@ export default function AdminQuoteBuilder({
               );
             })}
           </div>
+          </>
+          )}
 
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -2274,6 +2706,7 @@ export default function AdminQuoteBuilder({
 
         </div>
       </div>
+      )}
 
       {/* Computed preview */}
       {quote && (
@@ -2392,6 +2825,15 @@ export default function AdminQuoteBuilder({
               <div>
                 Total units: <span className="font-medium">{quote.totalQuantity}</span>
               </div>
+              <div>
+                Subtotal: <span className="font-medium">${quote.subtotalBeforeTax.toFixed(2)}</span>
+              </div>
+              {quote.taxRatePercent > 0 && (
+                <div>
+                  Tax ({quote.taxRatePercent}% on ${quote.taxableSubtotal.toFixed(2)} taxable):{" "}
+                  <span className="font-medium">${quote.taxAmount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="text-lg font-semibold text-red">
                 Grand total: ${quote.grandTotal.toFixed(2)}
               </div>
@@ -2411,6 +2853,26 @@ export default function AdminQuoteBuilder({
             </div>
           </div>
         </section>
+      )}
+
+      {/* Persistent bottom bar — mirrors the reference quoting tool's
+          always-visible Subtotal/Tax/Total strip, so the running total is
+          visible without scrolling down to the Preview section, especially
+          on a long quote with many garments. Only shown once there's a
+          computed quote to summarize. */}
+      {quote && (
+        <div className="sticky bottom-0 left-0 right-0 -mx-4 sm:mx-0 bg-black/95 backdrop-blur border-t border-white/10 shadow-lg shadow-black/50 px-4 py-3 flex flex-wrap items-center justify-end gap-4 text-sm text-white z-30">
+          <span className="text-white/60">
+            Subtotal <span className="text-white font-medium">${quote.subtotalBeforeTax.toFixed(2)}</span>
+          </span>
+          <span className="text-white/60">
+            Tax{quote.taxRatePercent > 0 ? ` (${quote.taxRatePercent}%)` : ""}{" "}
+            <span className="text-white font-medium">${quote.taxAmount.toFixed(2)}</span>
+          </span>
+          <span className="text-base font-semibold text-red">
+            Total ${quote.grandTotal.toFixed(2)}
+          </span>
+        </div>
       )}
     </div>
   );

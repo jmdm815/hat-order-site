@@ -39,6 +39,9 @@ export type QuoteLineInput = {
   priceColumnId?: string; // e.g. a stitch-count band, when the decoration has priceColumns
   customerSupplied?: boolean;
   itemDescription?: string; // required when customerSupplied is true
+  // Whether this line counts toward the quote's taxable subtotal — defaults
+  // to true (taxable) when absent. See QuoteInput.taxRatePercent.
+  taxable?: boolean;
 };
 
 export type QuoteInput = {
@@ -58,13 +61,19 @@ export type QuoteInput = {
   // isn't a reusable, admin-managed Setup Charge (lib/setup-charges-store.ts).
   // Unlike setupChargeIds, these aren't looked up against any catalog — the
   // label and amount are whatever the admin typed for this quote only.
-  miscFees?: { label: string; amount: number }[];
+  miscFees?: { label: string; amount: number; taxable?: boolean }[];
   // Percent (1-100) of the grand total due as a deposit when the order is
   // placed; the remainder is due later (e.g. at pickup). Undefined/100 means
   // "pay in full" — the common case — so this is optional and most quotes
   // never set it. See lib/types.ts's Customer.defaultDepositPercent for the
   // per-customer default this is usually copied from.
   depositPercent?: number;
+  // Sales-tax rate (0-100) applied to the taxable portion of this quote —
+  // see lib/tax-rates-store.ts for the admin-editable preset list this is
+  // usually picked from, and each line/setupChargeIds entry/miscFee's own
+  // `taxable` flag for what counts toward the taxable subtotal. Undefined or
+  // 0 means no tax.
+  taxRatePercent?: number;
 };
 
 export type QuoteSizeResult = {
@@ -95,13 +104,16 @@ export type QuoteLineResult = {
   // is what should actually be shown for this line.
   customerSupplied?: boolean;
   itemDescription?: string;
+  // See QuoteLineInput.taxable — resolved to a concrete true/false here
+  // (defaults true when the input left it unset).
+  taxable: boolean;
 };
 
 // A quote-level setup/digitization charge resolved from lib/setup-charges-store.ts.
-export type QuoteSetupCharge = { id: string; label: string; price: number };
+export type QuoteSetupCharge = { id: string; label: string; price: number; taxable: boolean };
 
 // A quote-level miscellaneous fee — see QuoteInput.miscFees.
-export type QuoteMiscFee = { label: string; amount: number };
+export type QuoteMiscFee = { label: string; amount: number; taxable: boolean };
 
 export type ComputedQuote = {
   customerName?: string;
@@ -116,7 +128,14 @@ export type ComputedQuote = {
   totalSetupFees: number; // sum of setupCharges[].price
   totalMiscFees: number; // sum of miscFees[].amount
   totalGarmentAndDecoration: number; // sum of all lines' garment + decoration cost, no setup
-  grandTotal: number; // totalGarmentAndDecoration + totalSetupFees + totalMiscFees
+  // Sum of this quote's garment, setup-charge, and misc-fee totals — the
+  // amount due before tax. "Grand total" used to mean this; now that meaning
+  // has moved to subtotalBeforeTax and grandTotal includes taxAmount.
+  subtotalBeforeTax: number;
+  taxRatePercent: number; // see QuoteInput.taxRatePercent; 0 when untaxed
+  taxableSubtotal: number; // portion of subtotalBeforeTax from taxable: true items only
+  taxAmount: number; // money(taxableSubtotal * taxRatePercent / 100)
+  grandTotal: number; // subtotalBeforeTax + taxAmount
   depositPercent?: number; // see QuoteInput.depositPercent
 };
 
@@ -132,7 +151,13 @@ export class QuoteInputError extends Error {}
 export function isValidQuoteInput(body: unknown): body is QuoteInput {
   if (typeof body !== "object" || body === null) return false;
   const b = body as Record<string, unknown>;
-  if (!Array.isArray(b.lines) || b.lines.length === 0) return false;
+  // Empty lines are allowed — a brand-new quote is saved right after the
+  // "Quote details" step (customer info, payment terms, tax) so it gets a
+  // real id/quote number before any items are added, mirroring the
+  // reference quoting tool's "Save & add line item" flow. See
+  // components/AdminQuoteBuilder.tsx and computeQuote's handling of an
+  // empty cleanedLines below.
+  if (!Array.isArray(b.lines)) return false;
   if (b.setupChargeIds !== undefined) {
     if (!Array.isArray(b.setupChargeIds) || !b.setupChargeIds.every((id) => typeof id === "string")) {
       return false;
@@ -143,12 +168,18 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
       return false;
     }
   }
+  if (b.taxRatePercent !== undefined) {
+    if (typeof b.taxRatePercent !== "number" || b.taxRatePercent < 0 || b.taxRatePercent > 100) {
+      return false;
+    }
+  }
   if (b.miscFees !== undefined) {
     if (
       !Array.isArray(b.miscFees) ||
       !b.miscFees.every((f) => {
         if (typeof f !== "object" || f === null) return false;
         const m = f as Record<string, unknown>;
+        if (m.taxable !== undefined && typeof m.taxable !== "boolean") return false;
         return typeof m.label === "string" && m.label !== "" && typeof m.amount === "number" && m.amount > 0;
       })
     ) {
@@ -163,6 +194,7 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
     } else if (typeof l.styleNumber !== "string" || typeof l.colorName !== "string") {
       return false;
     }
+    if (l.taxable !== undefined && typeof l.taxable !== "boolean") return false;
     if (!Array.isArray(l.sizes)) return false;
     return l.sizes.every(
       (s) =>
@@ -205,9 +237,9 @@ export function computeQuote(
     .map((line) => ({ ...line, sizes: line.sizes.filter((s) => s.quantity > 0) }))
     .filter((line) => line.sizes.length > 0);
 
-  if (cleanedLines.length === 0) {
-    throw new QuoteInputError("A quote needs at least one line with a quantity greater than 0.");
-  }
+  // An empty quote (no lines yet) is valid — see isValidQuoteInput's comment.
+  // It just prices to $0 of garments/decoration; setup charges and misc fees
+  // (and tax on whichever of those are taxable) still apply normally.
 
   // Setup/digitization charges are picked directly for the quote as a whole
   // (e.g. "Digitizing for embroidery", "Logo vectorization") — they are NOT
@@ -218,7 +250,7 @@ export function computeQuote(
     if (!match) {
       throw new QuoteInputError(`Unknown setup charge "${id}"`);
     }
-    return { id: match.id, label: match.label, price: money(match.price) };
+    return { id: match.id, label: match.label, price: money(match.price), taxable: match.taxable ?? true };
   });
 
   // Pass 1: resolve garment prices and combined quantity per decoration group.
@@ -284,6 +316,7 @@ export function computeQuote(
         sizes,
         quantity,
         subtotal,
+        taxable: line.taxable ?? true,
       };
     }
 
@@ -327,6 +360,7 @@ export function computeQuote(
       sizes,
       quantity,
       subtotal,
+      taxable: line.taxable ?? true,
     };
   });
 
@@ -336,6 +370,7 @@ export function computeQuote(
   const miscFees: QuoteMiscFee[] = (input.miscFees ?? []).map((f) => ({
     label: f.label,
     amount: money(f.amount),
+    taxable: f.taxable ?? true,
   }));
 
   const totalQuantity = lines.reduce((sum, l) => sum + l.quantity, 0);
@@ -344,7 +379,21 @@ export function computeQuote(
   const totalGarmentAndDecoration = money(
     lines.reduce((sum, l) => sum + l.sizes.reduce((s, sz) => s + sz.lineTotal, 0), 0)
   );
-  const grandTotal = money(totalGarmentAndDecoration + totalSetupFees + totalMiscFees);
+  const subtotalBeforeTax = money(totalGarmentAndDecoration + totalSetupFees + totalMiscFees);
+
+  // Tax applies only to the portion of the subtotal from items marked
+  // taxable (defaults true) — see QuoteInput.taxRatePercent and each
+  // line/setupCharge/miscFee's own `taxable` flag above.
+  const taxRatePercent = input.taxRatePercent ?? 0;
+  const taxableLinesTotal = lines.reduce(
+    (sum, l) => sum + (l.taxable ? l.sizes.reduce((s, sz) => s + sz.lineTotal, 0) : 0),
+    0
+  );
+  const taxableSetupFees = setupCharges.reduce((sum, c) => sum + (c.taxable ? c.price : 0), 0);
+  const taxableMiscFees = miscFees.reduce((sum, f) => sum + (f.taxable ? f.amount : 0), 0);
+  const taxableSubtotal = money(taxableLinesTotal + taxableSetupFees + taxableMiscFees);
+  const taxAmount = money(taxableSubtotal * (taxRatePercent / 100));
+  const grandTotal = money(subtotalBeforeTax + taxAmount);
 
   return {
     customerName: input.customerName,
@@ -359,6 +408,10 @@ export function computeQuote(
     totalSetupFees,
     totalMiscFees,
     totalGarmentAndDecoration,
+    subtotalBeforeTax,
+    taxRatePercent,
+    taxableSubtotal,
+    taxAmount,
     grandTotal,
     depositPercent: input.depositPercent,
   };
