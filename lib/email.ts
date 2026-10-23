@@ -200,6 +200,73 @@ export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Pro
   }
 }
 
+export type SendQuoteDocumentEmail = {
+  to: string[]; // one or more recipient addresses, admin-entered — see
+  // app/api/admin/quotes/[id]/send/route.ts and AdminSendDocumentModal.tsx.
+  kind: "quote" | "invoice";
+  label: string; // e.g. "Quote QT-1001" or "Invoice INV-1002"
+  customerName?: string;
+  customerCompany?: string;
+  grandTotal: number;
+  payPageUrl?: string; // only meaningful for an invoice (see /pay/[id])
+  pdf: { filename: string; content: Buffer };
+};
+
+// Admin-initiated "send to customer" — the quote builder's / saved-quotes
+// list's "Send to customer" button (app/api/admin/quotes/[id]/send/route.ts)
+// renders the same PDF the admin can download and emails it to one or more
+// addresses the admin typed in (the customer's profile email, pre-filled, is
+// just a starting point — any address(es) can be added/removed). Uses the
+// same lighter isReceiptEmailConfigured() gate as the customer receipt email
+// above (no ADMIN_NOTIFICATION_EMAIL needed — the recipient is whatever the
+// admin supplied). SMS is not wired up yet; this is the email-only path.
+export async function sendQuoteDocumentEmail(msg: SendQuoteDocumentEmail): Promise<void> {
+  if (!isReceiptEmailConfigured()) {
+    throw new Error("Email isn't configured yet (RESEND_API_KEY is not set).");
+  }
+
+  const greetingName = msg.customerName || msg.customerCompany || "there";
+  const docWord = msg.kind === "invoice" ? "invoice" : "quote";
+  const subject = `${msg.label} from JM Digital Media`;
+
+  const html = `
+    <div style="font-family: Helvetica, Arial, sans-serif; color: #1a2332; max-width: 480px;">
+      <h2 style="margin: 0 0 4px;">Hi ${greetingName},</h2>
+      <p style="margin: 0 0 16px; color: #666;">
+        Here&rsquo;s your ${docWord} from JM Digital Media — ${msg.label}. The PDF is attached.
+      </p>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <tr><td style="padding: 4px 0; color: #666;">Total</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${money(msg.grandTotal)}</td></tr>
+      </table>
+      ${msg.payPageUrl ? `<p style="margin: 20px 0 0;"><a href="${msg.payPageUrl}" style="color: #1a56cd;">View and pay online</a></p>` : ""}
+      <p style="margin: 20px 0 0; color: #999; font-size: 12px;">JM Digital Media — buyjmmedia.com</p>
+    </div>
+  `.trim();
+
+  const text = [
+    `Hi ${greetingName},`,
+    `Here's your ${docWord} from JM Digital Media — ${msg.label}. The PDF is attached.`,
+    `Total: ${money(msg.grandTotal)}`,
+    msg.payPageUrl ? `View and pay online: ${msg.payPageUrl}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const resend = getResendClient();
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM ?? "JM Digital Media <onboarding@resend.dev>",
+    to: msg.to,
+    subject,
+    html,
+    text,
+    attachments: [{ filename: msg.pdf.filename, content: msg.pdf.content }],
+  });
+  if (error) {
+    console.error("sendQuoteDocumentEmail: Resend returned an error", error);
+    throw new Error(error.message || "Resend rejected the email");
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Regular storefront checkout (app/api/checkout/route.ts) — a customer
 // confirmation/receipt, and a matching admin "new order" notice, sent right

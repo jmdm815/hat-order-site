@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { QuoteRecord, InvoicePaymentStatus } from "@/lib/quotes-store";
 import AdminInvoicePaymentModal from "./AdminInvoicePaymentModal";
+import AdminSendDocumentModal from "./AdminSendDocumentModal";
 
 type Props = {
   // Bump this (e.g. a counter) whenever the parent knows the list is stale
@@ -23,20 +24,32 @@ const STATUS_CLASS: Record<InvoicePaymentStatus, string> = {
   paid: "bg-green-100 text-green-800",
 };
 
-async function downloadPdf(id: string, mode: string, fallbackName: string) {
-  const res = await fetch(`/api/admin/quotes/${id}/pdf?mode=${mode}`);
-  if (!res.ok) return;
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const disposition = res.headers.get("Content-Disposition") ?? "";
-  const match = disposition.match(/filename="(.+)"/);
-  a.download = match?.[1] ?? fallbackName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+// Opens a blank tab synchronously (before the fetch's `await`) so the
+// browser treats it as a direct result of the click and doesn't block it as
+// a popup, then navigates that tab to the PDF once it's ready — matching the
+// fix in components/AdminQuoteBuilder.tsx's downloadPdf. Opening the tab only
+// after the await (or relying on an anchor's `download` attribute, which
+// mobile Safari largely ignores) is what was navigating the admin's current
+// tab away to view the PDF instead of leaving it open in a new one.
+async function downloadPdf(id: string, mode: string) {
+  const tab = window.open("", "_blank");
+  try {
+    const res = await fetch(`/api/admin/quotes/${id}/pdf?mode=${mode}`);
+    if (!res.ok) {
+      tab?.close();
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    if (tab) {
+      tab.location.href = url;
+    } else {
+      window.open(url, "_blank");
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch {
+    tab?.close();
+  }
 }
 
 // Lists every quote/invoice saved from the Quote Builder (see
@@ -53,6 +66,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [linkMessage, setLinkMessage] = useState<string | null>(null);
   const [paymentModalRecord, setPaymentModalRecord] = useState<QuoteRecord | null>(null);
+  const [sendModalRecord, setSendModalRecord] = useState<QuoteRecord | null>(null);
 
   function load() {
     fetch("/api/admin/quotes")
@@ -210,19 +224,19 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                     Edit
                   </button>
                   <button
-                    onClick={() => downloadPdf(r.id, "customer", "quote.pdf")}
+                    onClick={() => downloadPdf(r.id, "customer")}
                     className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                   >
                     PDF
                   </button>
                   <button
-                    onClick={() => downloadPdf(r.id, "internal", "quote-internal.pdf")}
+                    onClick={() => downloadPdf(r.id, "internal")}
                     className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
                   >
                     Internal
                   </button>
                   <button
-                    onClick={() => downloadPdf(r.id, "work-order", "work-order.pdf")}
+                    onClick={() => downloadPdf(r.id, "work-order")}
                     className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                   >
                     Work order
@@ -238,7 +252,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                   ) : (
                     <>
                       <button
-                        onClick={() => downloadPdf(r.id, "invoice", `${r.invoiceNumber}.pdf`)}
+                        onClick={() => downloadPdf(r.id, "invoice")}
                         className="text-xs px-2.5 py-1 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50"
                       >
                         Invoice
@@ -279,6 +293,12 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                     </>
                   )}
                   <button
+                    onClick={() => setSendModalRecord(r)}
+                    className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                  >
+                    Send
+                  </button>
+                  <button
                     onClick={() => handleDelete(r.id)}
                     disabled={isBusy}
                     className="text-xs px-2.5 py-1 text-red-600 hover:underline disabled:text-white/20"
@@ -301,6 +321,10 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
             setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
           }}
         />
+      )}
+
+      {sendModalRecord && (
+        <AdminSendDocumentModal record={sendModalRecord} onClose={() => setSendModalRecord(null)} />
       )}
     </div>
   );

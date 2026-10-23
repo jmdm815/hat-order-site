@@ -9,6 +9,7 @@ import { ManualQuoteProduct, ManualQuoteSizeRow } from "@/app/api/admin/quote/ma
 import { ManualQuoteSearchResult } from "@/app/api/admin/quote/search-products/route";
 import { Customer } from "@/lib/types";
 import { productPreviewImageUrl } from "@/lib/product-image";
+import AdminSendDocumentModal from "./AdminSendDocumentModal";
 
 type CatalogSource = "sanmar" | "custom" | "ss" | "customer-supplied";
 const CATALOG_OPTIONS: { id: CatalogSource; label: string; disabled?: boolean }[] = [
@@ -303,6 +304,7 @@ export default function AdminQuoteBuilder({
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState<PdfMode | null>(null);
+  const [sendModalOpen, setSendModalOpen] = useState(false);
 
   // The saved record currently loaded into the builder, if any — null means
   // "unsaved, brand-new quote." Set at mount from initialRecord, or by a
@@ -1147,6 +1149,16 @@ export default function AdminQuoteBuilder({
   async function downloadPdf(mode: PdfMode) {
     setPdfLoading(mode);
     setQuoteError(null);
+    // Open the tab synchronously, in direct response to the click, and
+    // navigate it to the PDF once it's ready — opening it only after the
+    // `await` below (or just setting a.download on a same-tab anchor, which
+    // mobile Safari largely ignores) is what was actually navigating the
+    // admin's current tab away to view the PDF instead of leaving it open
+    // in a new one. Most desktop/mobile browsers allow a synchronous
+    // window.open() from a click handler even though this function is
+    // async; a null return (popup blocked) falls back to opening it once
+    // the blob is ready instead.
+    const tab = window.open("", "_blank");
     try {
       // A saved record renders from its stored pricing snapshot (so the
       // document matches what was actually saved, and invoice mode has the
@@ -1162,21 +1174,21 @@ export default function AdminQuoteBuilder({
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setQuoteError(data.error || "Failed to generate PDF");
+        tab?.close();
         return;
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const disposition = res.headers.get("Content-Disposition") ?? "";
-      const match = disposition.match(/filename="(.+)"/);
-      a.download = match?.[1] ?? "quote.pdf";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      if (tab) {
+        tab.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
+      // Give the new tab time to actually load the blob before revoking it.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
       setQuoteError("Failed to generate PDF — check your connection and try again.");
+      tab?.close();
     } finally {
       setPdfLoading(null);
     }
@@ -1236,6 +1248,7 @@ export default function AdminQuoteBuilder({
   }
 
   return (
+    <>
     <div className="space-y-8">
       {activeRecord && (
         <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-2xl px-4 py-2.5 text-sm">
@@ -2760,6 +2773,14 @@ export default function AdminQuoteBuilder({
                   {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
                 </button>
               )}
+              {activeRecord && (
+                <button
+                  onClick={() => setSendModalOpen(true)}
+                  className="text-sm px-4 py-1.5 rounded-xl bg-white/10 text-white hover:bg-white/15"
+                >
+                  Send to customer
+                </button>
+              )}
             </div>
           )}
           <p className="mt-2 text-xs text-white/40">
@@ -2958,6 +2979,10 @@ export default function AdminQuoteBuilder({
         </div>
       )}
     </div>
+    {sendModalOpen && activeRecord && (
+      <AdminSendDocumentModal record={activeRecord} onClose={() => setSendModalOpen(false)} />
+    )}
+    </>
   );
 }
 
