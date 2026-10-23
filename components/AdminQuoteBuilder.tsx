@@ -8,6 +8,7 @@ import { formatUSD } from "@/lib/pricing";
 import { ManualQuoteProduct, ManualQuoteSizeRow } from "@/app/api/admin/quote/manual-product/route";
 import { ManualQuoteSearchResult } from "@/app/api/admin/quote/search-products/route";
 import { Customer } from "@/lib/types";
+import { productPreviewImageUrl } from "@/lib/product-image";
 
 type CatalogSource = "sanmar" | "custom" | "ss" | "customer-supplied";
 const CATALOG_OPTIONS: { id: CatalogSource; label: string; disabled?: boolean }[] = [
@@ -21,6 +22,13 @@ export type PendingLine = QuoteLineInput & {
   key: string;
   brandName: string;
   productName: string;
+  // Thumbnail for this exact color, carried over from the product/color
+  // picker (see ManualQuoteColor.imageUrl) so the "Quote lines" list can
+  // show a photo per line, mirroring the reference quoting tool — not
+  // persisted with the saved quote record, so it's only present for lines
+  // added this session, not ones loaded back from a saved quote.
+  imageUrl?: string;
+  imageFallbackUrl?: string;
 };
 
 // A one-off, ad-hoc charge added directly to this quote — e.g. a rush fee
@@ -979,8 +987,13 @@ export default function AdminQuoteBuilder({
       setLookupError("Enter a quantity for at least one size before adding.");
       return;
     }
+    // Looked up fresh here (rather than reading the render-scoped
+    // selectedColorRow above) so this function stays a plain, self-contained
+    // event handler for the purposes of React's purity analysis.
+    const colorRow = foundProduct.colors.find((c) => c.colorName === selectedColor);
+    const lineKey = `${foundProduct.styleNumber}-${selectedColor}-${Date.now()}`;
     const line: PendingLine = {
-      key: `${foundProduct.styleNumber}-${selectedColor}-${Date.now()}`,
+      key: lineKey,
       styleNumber: foundProduct.styleNumber,
       brandName: foundProduct.brandName,
       productName: foundProduct.productName,
@@ -989,6 +1002,8 @@ export default function AdminQuoteBuilder({
       decorationId: selectedDecorationId || undefined,
       priceColumnId: selectedColumnId || undefined,
       taxable: lineTaxable,
+      imageUrl: colorRow?.imageUrl,
+      imageFallbackUrl: colorRow?.imageFallbackUrl,
     };
     setLines((prev) => [...prev, line]);
     // Reset the product picker for the next garment, but keep the chosen
@@ -2416,11 +2431,23 @@ export default function AdminQuoteBuilder({
                         type="button"
                         // onMouseDown (not onClick) fires before the input's onBlur closes the list.
                         onMouseDown={() => selectProduct(r)}
-                        className="block w-full text-left px-3 py-2 hover:bg-white/5"
+                        className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-white/5"
                       >
-                        <span className="font-medium text-white">{r.name}</span>{" "}
-                        <span className="text-white/40">
-                          {r.brand} · {r.styleNumber}
+                        {r.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={productPreviewImageUrl(r.imageUrl)}
+                            alt=""
+                            className="w-8 h-8 shrink-0 rounded-md object-contain bg-white/5"
+                          />
+                        ) : (
+                          <span className="w-8 h-8 shrink-0 rounded-md bg-white/5" />
+                        )}
+                        <span className="min-w-0">
+                          <span className="font-medium text-white">{r.name}</span>{" "}
+                          <span className="text-white/40">
+                            {r.brand} · {r.styleNumber}
+                          </span>
                         </span>
                       </button>
                     </li>
@@ -2439,15 +2466,28 @@ export default function AdminQuoteBuilder({
 
             {foundProduct && (
               <div className="mt-4 border-t border-white/10 pt-4">
-                <p className="text-sm font-medium text-white">
-                  {foundProduct.brandName} {foundProduct.productName}{" "}
-                  <span className="text-white/40 font-normal">({foundProduct.styleNumber})</span>
-                  {catalogSource === "sanmar" && (
-                    <span className="ml-2 text-[11px] text-white/40">
-                      {foundProductLive ? "live SanMar pricing" : "catalog list price (live pricing unavailable)"}
-                    </span>
+                <div className="flex items-start gap-3">
+                  {selectedColorRow?.imageUrl && (
+                    // A picture of the shirt and color being selected — mirrors
+                    // the reference quoting tool showing a product photo as
+                    // soon as a color is picked, instead of plain text only.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={productPreviewImageUrl(selectedColorRow.imageUrl, selectedColorRow.imageFallbackUrl)}
+                      alt={`${foundProduct.productName} — ${selectedColor}`}
+                      className="w-20 h-20 shrink-0 rounded-xl object-contain bg-white/5 border border-white/10"
+                    />
                   )}
-                </p>
+                  <p className="text-sm font-medium text-white">
+                    {foundProduct.brandName} {foundProduct.productName}{" "}
+                    <span className="text-white/40 font-normal">({foundProduct.styleNumber})</span>
+                    {catalogSource === "sanmar" && (
+                      <span className="ml-2 text-[11px] text-white/40">
+                        {foundProductLive ? "live SanMar pricing" : "catalog list price (live pricing unavailable)"}
+                      </span>
+                    )}
+                  </p>
+                </div>
 
                 <label className="block text-xs text-white/60 mt-3 max-w-xs">
                   Color
@@ -2569,9 +2609,18 @@ export default function AdminQuoteBuilder({
                   key={line.key}
                   className="flex items-start gap-3 border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
                 >
-                  <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
-                    {idx + 1}
-                  </div>
+                  {line.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={productPreviewImageUrl(line.imageUrl, line.imageFallbackUrl)}
+                      alt=""
+                      className="shrink-0 w-10 h-10 rounded-lg object-contain bg-white/5 border border-white/10"
+                    />
+                  ) : (
+                    <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
+                      {idx + 1}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
                     <div className="text-sm text-white">
                       {line.customerSupplied ? (

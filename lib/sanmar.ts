@@ -83,7 +83,22 @@ const POLO_NAME_PATTERN = /\b(polo|pique|sport shirt|golf shirt)\b/i;
 // narrowed to just tees/polos) an item from one of these additionally has
 // to look like a real tee or polo by name — see TEE_NAME_PATTERN/
 // NON_TEE_NAME_PATTERN and the existing POLO_NAME_PATTERN below.
-const CROSS_LISTED_CATEGORIES = new Set(["Youth", "Women's", "Tall", "Juniors & Young Men"]);
+// "Activewear" is the same kind of grab-bag (performance jackets, pants,
+// leggings, fleece — but also plenty of real performance tees like
+// Sport-Tek's PosiCharge Competitor Tee, ST350), so it gets the same
+// name-pattern treatment as the demographic categories above. Without this,
+// a style like ST350 is findable via the admin's full-feed search/lookup
+// (lib/sanmar.ts's searchAnySanmarStyle/getAnySanmarStyleAsProduct, which
+// aren't restricted by category) but then fails at quote-compute time with
+// "Unknown style number" because getCatalog("shirt") — which the quote
+// endpoints build their product lookup from — silently excluded it.
+const CROSS_LISTED_CATEGORIES = new Set([
+  "Youth",
+  "Women's",
+  "Tall",
+  "Juniors & Young Men",
+  "Activewear",
+]);
 const TEE_NAME_PATTERN = /\b(tee|t-shirt|v-neck|crew|raglan)\b/i;
 const NON_TEE_NAME_PATTERN =
   /\b(hoodie|hooded|sweatshirt|sweatpant|jogger|jacket|short|pant|legging|vest|cardigan|shrug|coat|dress|skirt|onesie|pinnie|beanie|cap|fleece|sweater)\b/i;
@@ -316,6 +331,11 @@ export type SanmarSearchResult = {
   name: string;
   brand: string;
   category: string;
+  // Raw SanMar default-photo URL (not yet trimmed/padded — see
+  // lib/product-image.ts's productPreviewImageUrl, which the frontend
+  // should route this through before rendering) so the admin's "Product"
+  // typeahead can show a thumbnail per suggestion instead of just text.
+  imageUrl?: string;
 };
 
 export async function searchAnySanmarStyle(
@@ -339,6 +359,7 @@ export async function searchAnySanmarStyle(
       name: s.name.trim(),
       brand: s.brand,
       category: s.category.trim(),
+      imageUrl: s.colors?.[0]?.image || s.defaultImage || undefined,
     };
     if (styleId.toLowerCase().startsWith(q)) {
       byStylePrefix.push(entry);

@@ -19,6 +19,11 @@ export type ManualQuoteColor = {
   colorName: string;
   colorHexes: string[];
   sizes: ManualQuoteSizeRow[];
+  // Raw image URLs (not yet trimmed/padded) — route through
+  // lib/product-image.ts's productPreviewImageUrl before rendering, same as
+  // every other product photo in the app.
+  imageUrl?: string;
+  imageFallbackUrl?: string;
 };
 
 export type ManualQuoteProduct = {
@@ -73,6 +78,8 @@ export async function GET(req: NextRequest) {
         sizes: (c.sizes ?? [{ name: "One Size", price: product.basePrice, inventory: undefined }]).map(
           (s) => ({ name: s.name, cost: s.price, markupPercent: 0, price: s.price, inventory: s.inventory })
         ),
+        imageUrl: c.imageUrl || undefined,
+        imageFallbackUrl: c.imageFallbackUrl || undefined,
       })),
     };
     return NextResponse.json({ product: manualProduct, livePricingApplied: false });
@@ -114,6 +121,8 @@ export async function GET(req: NextRequest) {
           inventory: s.inventory,
         };
       }),
+      imageUrl: c.imageUrl || undefined,
+      imageFallbackUrl: c.imageFallbackUrl || undefined,
     })),
   };
 

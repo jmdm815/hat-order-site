@@ -7,6 +7,9 @@ export type ManualQuoteSearchResult = {
   styleNumber: string;
   name: string;
   brand: string;
+  // Raw image URL — route through lib/product-image.ts's
+  // productPreviewImageUrl before rendering (see AdminQuoteBuilder).
+  imageUrl?: string;
 };
 
 // Admin-only, catalog-source-aware typeahead for the manual quote builder's
@@ -39,7 +42,12 @@ export async function GET(req: NextRequest) {
           p.brandName.toLowerCase().includes(ql)
       )
       .slice(0, 20)
-      .map((p) => ({ styleNumber: p.styleNumber, name: p.productName, brand: p.brandName }));
+      .map((p) => ({
+        styleNumber: p.styleNumber,
+        name: p.productName,
+        brand: p.brandName,
+        imageUrl: p.heroImageUrl || p.colors?.[0]?.imageUrl || undefined,
+      }));
     return NextResponse.json({ results });
   }
 
@@ -52,6 +60,7 @@ export async function GET(req: NextRequest) {
     styleNumber: m.styleNumber,
     name: m.name,
     brand: m.brand,
+    imageUrl: m.imageUrl,
   }));
   return NextResponse.json({ results });
 }
