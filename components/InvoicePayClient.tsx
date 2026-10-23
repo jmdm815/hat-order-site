@@ -50,6 +50,11 @@ export default function InvoicePayClient({ id }: { id: string }) {
   const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [receiptDownloading, setReceiptDownloading] = useState(false);
+  const [receiptEmailInput, setReceiptEmailInput] = useState("");
+  const [receiptSending, setReceiptSending] = useState(false);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [receiptSentTo, setReceiptSentTo] = useState<string[]>([]);
 
   function load() {
     fetch(`/api/pay/${id}`)
@@ -99,6 +104,63 @@ export default function InvoicePayClient({ id }: { id: string }) {
       setSuccessMessage(emailValid ? `${base} A receipt is on its way to ${email}.` : base);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Payment failed");
+    }
+  }
+
+  // Opens a blank tab synchronously (before the fetch's `await`) so the
+  // browser treats it as a direct result of the click rather than blocking
+  // it as a popup — same fix applied to the admin PDF buttons
+  // (components/AdminQuoteBuilder.tsx's downloadPdf).
+  async function downloadReceipt() {
+    setReceiptDownloading(true);
+    setReceiptError(null);
+    const tab = window.open("", "_blank");
+    try {
+      const res = await fetch(`/api/pay/${id}/receipt-pdf`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setReceiptError(data.error || "Failed to load the receipt");
+        tab?.close();
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (tab) {
+        tab.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setReceiptError("Failed to load the receipt — check your connection and try again.");
+      tab?.close();
+    } finally {
+      setReceiptDownloading(false);
+    }
+  }
+
+  async function emailReceipt() {
+    const email = receiptEmailInput.trim().toLowerCase();
+    if (!email || !EMAIL_RE.test(email)) {
+      setReceiptError("Enter a valid email address.");
+      return;
+    }
+    setReceiptSending(true);
+    setReceiptError(null);
+    try {
+      const res = await fetch(`/api/pay/${id}/receipt-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to send receipt");
+      setReceiptSentTo((prev) => [...prev, email]);
+      setReceiptEmailInput("");
+    } catch (e) {
+      setReceiptError(e instanceof Error ? e.message : "Failed to send receipt");
+    } finally {
+      setReceiptSending(false);
     }
   }
 
@@ -192,6 +254,59 @@ export default function InvoicePayClient({ id }: { id: string }) {
         <p className="mt-4 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
           {successMessage}
         </p>
+      )}
+
+      {invoice.amountPaid > 0 && (
+        <div className="mt-4 bg-black border border-white/10 rounded-2xl p-4">
+          <p className="text-sm font-medium text-white">Get a PDF receipt</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={downloadReceipt}
+              disabled={receiptDownloading}
+              className="text-sm px-4 py-1.5 rounded-xl border border-white/20 text-white hover:bg-white/5 disabled:opacity-40"
+            >
+              {receiptDownloading ? "Loading…" : "Download receipt"}
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              type="email"
+              value={receiptEmailInput}
+              onChange={(e) => {
+                setReceiptEmailInput(e.target.value);
+                setReceiptError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  emailReceipt();
+                }
+              }}
+              placeholder="you@example.com"
+              className="flex-1 min-w-[200px] bg-black border border-white/20 rounded-xl px-3 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+            />
+            <button
+              type="button"
+              onClick={emailReceipt}
+              disabled={receiptSending}
+              className="shrink-0 text-sm px-4 py-1.5 rounded-xl bg-white text-navy hover:bg-white/90 disabled:opacity-40"
+            >
+              {receiptSending ? "Sending…" : "Email receipt"}
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs text-white/40">
+            Enter one address at a time — add more after each send.
+          </p>
+
+          {receiptError && <p className="mt-2 text-xs text-red font-medium">{receiptError}</p>}
+          {receiptSentTo.length > 0 && (
+            <p className="mt-2 text-xs text-green-700">
+              Receipt sent to {receiptSentTo.join(", ")}.
+            </p>
+          )}
+        </div>
       )}
 
       {!paidInFull && (

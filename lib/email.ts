@@ -138,15 +138,24 @@ export type InvoiceReceiptEmail = {
   pdf: { filename: string; content: Buffer };
 };
 
-// Customer-facing payment receipt — sent from app/api/pay/[id]/route.ts
-// only when the customer typed an email in on the pay page (it's optional
-// there, so this is opt-in per payment, not automatic). Attaches the same
-// invoice PDF the admin can download, generated fresh with the post-payment
-// status/balance baked in.
+// Customer-facing payment receipt — sent two ways:
+//  1. app/api/pay/[id]/route.ts, right after a payment, when the customer
+//     typed an email in on the pay page (optional there, opt-in per
+//     payment).
+//  2. app/api/pay/[id]/receipt-email/route.ts, on demand, from the "Email
+//     receipt" button that appears on the pay page once something's been
+//     paid — lets the customer (re-)request a receipt to any one address at
+//     a time, independent of whether they opted in at payment time.
+// Attaches the same invoice PDF the admin can download, generated fresh so
+// it always reflects the invoice's current paid/balance status. Throws on
+// failure/misconfiguration (unlike most of this file's senders) so an
+// on-demand request can surface a real error — callers that want today's
+// old best-effort, never-blocks-the-response behavior (the payment flow
+// above) just wrap the call in their own try/catch, same as they already do
+// for the PDF render alongside it.
 export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Promise<void> {
   if (!isReceiptEmailConfigured()) {
-    console.warn("sendInvoiceReceiptEmail: RESEND_API_KEY not set, skipping email");
-    return;
+    throw new Error("Email isn't configured yet (RESEND_API_KEY is not set).");
   }
 
   const label = receipt.invoiceNumber ? `Invoice ${receipt.invoiceNumber}` : "your invoice";
@@ -182,21 +191,18 @@ export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Pro
     `View online: ${receipt.payPageUrl}`,
   ].join("\n");
 
-  try {
-    const resend = getResendClient();
-    const { error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM ?? "JM Digital Media <onboarding@resend.dev>",
-      to: receipt.to,
-      subject,
-      html,
-      text,
-      attachments: [{ filename: receipt.pdf.filename, content: receipt.pdf.content }],
-    });
-    if (error) {
-      console.error("sendInvoiceReceiptEmail: Resend returned an error", error);
-    }
-  } catch (err) {
-    console.error("sendInvoiceReceiptEmail: failed to send", err);
+  const resend = getResendClient();
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM ?? "JM Digital Media <onboarding@resend.dev>",
+    to: receipt.to,
+    subject,
+    html,
+    text,
+    attachments: [{ filename: receipt.pdf.filename, content: receipt.pdf.content }],
+  });
+  if (error) {
+    console.error("sendInvoiceReceiptEmail: Resend returned an error", error);
+    throw new Error(error.message || "Resend rejected the email");
   }
 }
 
