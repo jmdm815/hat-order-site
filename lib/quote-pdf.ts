@@ -517,7 +517,8 @@ export async function renderQuotePdf(
       doc.moveDown(0.2);
       doc.font("Helvetica").fontSize(9.5);
       for (const fee of quote.miscFees) {
-        doc.fillColor(NAVY).text(`${fee.label} — ${money(fee.amount)}`, left, doc.y);
+        const qtyLabel = fee.quantity > 1 ? ` x${fee.quantity} @ ${money(fee.amount)}` : "";
+        doc.fillColor(NAVY).text(`${fee.label}${qtyLabel} — ${money(fee.lineTotal)}`, left, doc.y);
       }
       doc.moveDown(1);
     }

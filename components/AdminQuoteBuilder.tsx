@@ -36,7 +36,13 @@ export type PendingLine = QuoteLineInput & {
 // SetupChargeType), which are a named, reusable charge type managed on the
 // "Setup Charges" tab; a misc fee only exists on this one quote. See
 // lib/quote.ts's QuoteInput.miscFees.
-type PendingMiscFee = { id: string; label: string; amount: number; taxable: boolean };
+type PendingMiscFee = {
+  id: string;
+  label: string;
+  amount: number; // per-unit price
+  quantity: number; // multiplies amount — e.g. a $0.35 polymailer x 50
+  taxable: boolean;
+};
 
 type PdfMode = "customer" | "internal" | "work-order" | "invoice";
 
@@ -152,11 +158,13 @@ export default function AdminQuoteBuilder({
         id: `misc-initial-${i}`,
         label: f.label,
         amount: f.amount,
+        quantity: f.quantity ?? 1,
         taxable: f.taxable ?? true,
       })) ?? []
   );
   const [miscFeeLabel, setMiscFeeLabel] = useState("");
   const [miscFeeAmount, setMiscFeeAmount] = useState("");
+  const [miscFeeQuantity, setMiscFeeQuantity] = useState("1");
   const [miscFeeTaxable, setMiscFeeTaxable] = useState(true);
   const [miscFeeError, setMiscFeeError] = useState<string | null>(null);
 
@@ -854,6 +862,7 @@ export default function AdminQuoteBuilder({
   function addMiscFee() {
     const label = miscFeeLabel.trim();
     const amount = Number(miscFeeAmount);
+    const quantity = Number(miscFeeQuantity);
     if (!label) {
       setMiscFeeError("Enter a description before adding.");
       return;
@@ -862,9 +871,15 @@ export default function AdminQuoteBuilder({
       setMiscFeeError("Enter an amount greater than 0.");
       return;
     }
-    setMiscFees((prev) => [...prev, { id: `misc-${Date.now()}`, label, amount, taxable: miscFeeTaxable }]);
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
+      setMiscFeeError("Enter a quantity of 1 or more.");
+      return;
+    }
+    const feeId = `misc-${Date.now()}`;
+    setMiscFees((prev) => [...prev, { id: feeId, label, amount, quantity, taxable: miscFeeTaxable }]);
     setMiscFeeLabel("");
     setMiscFeeAmount("");
+    setMiscFeeQuantity("1");
     setMiscFeeTaxable(true);
     setMiscFeeError(null);
     setQuote(null);
@@ -1083,7 +1098,7 @@ export default function AdminQuoteBuilder({
       setupChargeIds: selectedSetupChargeIds,
       miscFees:
         miscFees.length > 0
-          ? miscFees.map(({ label, amount, taxable }) => ({ label, amount, taxable }))
+          ? miscFees.map(({ label, amount, quantity, taxable }) => ({ label, amount, quantity, taxable }))
           : undefined,
     };
   }
@@ -2020,7 +2035,12 @@ export default function AdminQuoteBuilder({
                 className="flex items-center justify-between gap-3 border border-white/10 shadow-lg shadow-black/30 rounded-xl px-3 py-1.5"
               >
                 <span className="text-sm text-white">
-                  {f.label} <span className="text-white/40">({formatUSD(f.amount)})</span>{" "}
+                  {f.label}{" "}
+                  <span className="text-white/40">
+                    {f.quantity > 1
+                      ? `(${f.quantity} × ${formatUSD(f.amount)} = ${formatUSD(f.amount * f.quantity)})`
+                      : `(${formatUSD(f.amount)})`}
+                  </span>{" "}
                   <span className="text-white/30 text-xs">{f.taxable ? "· taxable" : "· not taxable"}</span>
                 </span>
                 <button
@@ -2053,6 +2073,18 @@ export default function AdminQuoteBuilder({
               onChange={(e) => setMiscFeeAmount(e.target.value)}
               placeholder="0.00"
               className="mt-1 w-28 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="text-xs text-white/60">
+            Quantity
+            <input
+              type="number"
+              min={1}
+              step="1"
+              value={miscFeeQuantity}
+              onChange={(e) => setMiscFeeQuantity(e.target.value)}
+              placeholder="1"
+              className="mt-1 w-20 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
           <label className="flex items-center gap-1.5 text-xs text-white/60 pb-1.5">
@@ -2864,7 +2896,9 @@ export default function AdminQuoteBuilder({
               </div>
               {quote.miscFees.map((f, i) => (
                 <div key={i} className="text-sm text-white/70">
-                  {f.label} — ${f.amount.toFixed(2)}
+                  {f.label}
+                  {f.quantity > 1 ? ` × ${f.quantity} @ $${f.amount.toFixed(2)}` : ""} — $
+                  {f.lineTotal.toFixed(2)}
                 </div>
               ))}
             </div>

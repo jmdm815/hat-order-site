@@ -41,7 +41,7 @@ type CustomerInvoiceSummary = {
     subtotal: number;
   }>;
   setupCharges: Array<{ id: string; label: string; price: number }>;
-  miscFees: Array<{ label: string; amount: number }>;
+  miscFees: Array<{ label: string; amount: number; quantity: number; lineTotal: number }>;
   grandTotal: number;
   amountPaid: number;
   balance: number;

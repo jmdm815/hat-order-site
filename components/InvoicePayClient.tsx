@@ -20,7 +20,7 @@ type InvoiceSummary = {
     subtotal: number;
   }>;
   setupCharges: Array<{ id: string; label: string; price: number }>;
-  miscFees: Array<{ label: string; amount: number }>;
+  miscFees: Array<{ label: string; amount: number; quantity: number; lineTotal: number }>;
   grandTotal: number;
   amountPaid: number;
   balance: number;
@@ -161,8 +161,11 @@ export default function InvoicePayClient({ id }: { id: string }) {
           ))}
           {invoice.miscFees.map((fee, i) => (
             <div key={i} className="px-4 py-3 flex items-center justify-between gap-4 text-sm">
-              <p className="text-white">{fee.label}</p>
-              <p className="text-white font-medium shrink-0">{money(fee.amount)}</p>
+              <p className="text-white">
+                {fee.label}
+                {fee.quantity > 1 ? ` × ${fee.quantity}` : ""}
+              </p>
+              <p className="text-white font-medium shrink-0">{money(fee.lineTotal)}</p>
             </div>
           ))}
         </div>

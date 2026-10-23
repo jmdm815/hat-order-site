@@ -61,7 +61,9 @@ export type QuoteInput = {
   // isn't a reusable, admin-managed Setup Charge (lib/setup-charges-store.ts).
   // Unlike setupChargeIds, these aren't looked up against any catalog — the
   // label and amount are whatever the admin typed for this quote only.
-  miscFees?: { label: string; amount: number; taxable?: boolean }[];
+  // `amount` is the per-unit price; `quantity` (default 1) multiplies it —
+  // e.g. a $0.35 polymailer x 50 units.
+  miscFees?: { label: string; amount: number; quantity?: number; taxable?: boolean }[];
   // Percent (1-100) of the grand total due as a deposit when the order is
   // placed; the remainder is due later (e.g. at pickup). Undefined/100 means
   // "pay in full" — the common case — so this is optional and most quotes
@@ -112,8 +114,16 @@ export type QuoteLineResult = {
 // A quote-level setup/digitization charge resolved from lib/setup-charges-store.ts.
 export type QuoteSetupCharge = { id: string; label: string; price: number; taxable: boolean };
 
-// A quote-level miscellaneous fee — see QuoteInput.miscFees.
-export type QuoteMiscFee = { label: string; amount: number; taxable: boolean };
+// A quote-level miscellaneous fee — see QuoteInput.miscFees. `amount` is
+// the per-unit price; `lineTotal` is amount * quantity, already computed
+// for display/PDF/totals so nothing downstream has to redo that math.
+export type QuoteMiscFee = {
+  label: string;
+  amount: number;
+  quantity: number;
+  lineTotal: number;
+  taxable: boolean;
+};
 
 export type ComputedQuote = {
   customerName?: string;
@@ -126,7 +136,7 @@ export type ComputedQuote = {
   miscFees: QuoteMiscFee[]; // itemized, ad-hoc, quote-wide — see QuoteInput.miscFees
   totalQuantity: number;
   totalSetupFees: number; // sum of setupCharges[].price
-  totalMiscFees: number; // sum of miscFees[].amount
+  totalMiscFees: number; // sum of miscFees[].lineTotal
   totalGarmentAndDecoration: number; // sum of all lines' garment + decoration cost, no setup
   // Sum of this quote's garment, setup-charge, and misc-fee totals — the
   // amount due before tax. "Grand total" used to mean this; now that meaning
@@ -180,6 +190,7 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
         if (typeof f !== "object" || f === null) return false;
         const m = f as Record<string, unknown>;
         if (m.taxable !== undefined && typeof m.taxable !== "boolean") return false;
+        if (m.quantity !== undefined && (typeof m.quantity !== "number" || m.quantity <= 0)) return false;
         return typeof m.label === "string" && m.label !== "" && typeof m.amount === "number" && m.amount > 0;
       })
     ) {
@@ -367,15 +378,21 @@ export function computeQuote(
   // Ad-hoc miscellaneous fees — see QuoteInput.miscFees. Unlike setup
   // charges, there's no catalog to resolve against; the label/amount typed
   // by the admin is taken as-is (money() just cleans up float noise).
-  const miscFees: QuoteMiscFee[] = (input.miscFees ?? []).map((f) => ({
-    label: f.label,
-    amount: money(f.amount),
-    taxable: f.taxable ?? true,
-  }));
+  const miscFees: QuoteMiscFee[] = (input.miscFees ?? []).map((f) => {
+    const quantity = f.quantity && f.quantity > 0 ? Math.round(f.quantity) : 1;
+    const amount = money(f.amount);
+    return {
+      label: f.label,
+      amount,
+      quantity,
+      lineTotal: money(amount * quantity),
+      taxable: f.taxable ?? true,
+    };
+  });
 
   const totalQuantity = lines.reduce((sum, l) => sum + l.quantity, 0);
   const totalSetupFees = money(setupCharges.reduce((sum, c) => sum + c.price, 0));
-  const totalMiscFees = money(miscFees.reduce((sum, f) => sum + f.amount, 0));
+  const totalMiscFees = money(miscFees.reduce((sum, f) => sum + f.lineTotal, 0));
   const totalGarmentAndDecoration = money(
     lines.reduce((sum, l) => sum + l.sizes.reduce((s, sz) => s + sz.lineTotal, 0), 0)
   );
@@ -390,7 +407,7 @@ export function computeQuote(
     0
   );
   const taxableSetupFees = setupCharges.reduce((sum, c) => sum + (c.taxable ? c.price : 0), 0);
-  const taxableMiscFees = miscFees.reduce((sum, f) => sum + (f.taxable ? f.amount : 0), 0);
+  const taxableMiscFees = miscFees.reduce((sum, f) => sum + (f.taxable ? f.lineTotal : 0), 0);
   const taxableSubtotal = money(taxableLinesTotal + taxableSetupFees + taxableMiscFees);
   const taxAmount = money(taxableSubtotal * (taxRatePercent / 100));
   const grandTotal = money(subtotalBeforeTax + taxAmount);
