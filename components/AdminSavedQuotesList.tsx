@@ -67,6 +67,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
   const [linkMessage, setLinkMessage] = useState<string | null>(null);
   const [paymentModalRecord, setPaymentModalRecord] = useState<QuoteRecord | null>(null);
   const [sendModalRecord, setSendModalRecord] = useState<QuoteRecord | null>(null);
+  const [jobsMessage, setJobsMessage] = useState<string | null>(null);
 
   function load() {
     fetch("/api/admin/quotes")
@@ -144,6 +145,30 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
     }
   }
 
+  // Creates a production job per line item not already sent (see
+  // lib/jobs-store.ts's createJobsFromQuote) — safe to click more than once
+  // on the same record, e.g. after adding more lines later.
+  async function handleSendToJobs(id: string) {
+    setBusyId(id);
+    setError(null);
+    setJobsMessage(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}/send-to-jobs`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to send to jobs");
+      const createdCount = data.created?.length ?? 0;
+      setJobsMessage(
+        createdCount === 0
+          ? "Already sent — no new line items to add."
+          : `Sent ${createdCount} item${createdCount === 1 ? "" : "s"} to Jobs.${data.skipped ? ` (${data.skipped} already there.)` : ""}`
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Delete this saved quote/invoice? This can't be undone.")) return;
     setBusyId(id);
@@ -175,6 +200,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
       )}
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
       {linkMessage && <p className="mb-3 text-sm text-green-700">{linkMessage}</p>}
+      {jobsMessage && <p className="mb-3 text-sm text-green-700">{jobsMessage}</p>}
 
       {records.length === 0 ? (
         <p className="text-sm text-white/40">No saved quotes yet — build one above and hit &quot;Save quote.&quot;</p>
@@ -297,6 +323,14 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                     className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                   >
                     Send
+                  </button>
+                  <button
+                    onClick={() => handleSendToJobs(r.id)}
+                    disabled={isBusy}
+                    title="Create a production job per line item, assigned to each item's decoration type"
+                    className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                  >
+                    {isBusy ? "…" : "Send to Jobs"}
                   </button>
                   <button
                     onClick={() => handleDelete(r.id)}

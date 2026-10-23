@@ -8,6 +8,7 @@ import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
 import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManager";
 import AdminQuotesTab from "@/components/AdminQuotesTab";
+import AdminJobsTab from "@/components/AdminJobsTab";
 import AdminQuickQuoteTab from "@/components/AdminQuickQuoteTab";
 import AdminSetupChargesManager from "@/components/AdminSetupChargesManager";
 import AdminGarmentMarkupManager from "@/components/AdminGarmentMarkupManager";
@@ -25,6 +26,7 @@ const DEFAULT_TABS = [
   { id: "settings", label: "Settings", icon: "⚙️" },
   { id: "quick-quote", label: "Quick Quote", icon: "⚡" },
   { id: "quotes", label: "Quotes", icon: "📝" },
+  { id: "jobs", label: "Jobs", icon: "🧵" },
   { id: "customers", label: "Customers", icon: "👥" },
   { id: "setup-charges", label: "Setup Charges", icon: "🧾" },
   { id: "garment-markup", label: "Garment Markup", icon: "📈" },
@@ -369,6 +371,7 @@ export default function AdminDashboard() {
             <AdminQuotesTab />
           </>
         )}
+        {tab === "jobs" && <AdminJobsTab />}
         {tab === "customers" && (
           <>
             <p className="mb-4 text-white/60 text-sm">
