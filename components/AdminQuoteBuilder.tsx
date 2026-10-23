@@ -112,6 +112,25 @@ export default function AdminQuoteBuilder({
   const [selectedSetupChargeIds, setSelectedSetupChargeIds] = useState<string[]>(
     () => initialRecord?.input.setupChargeIds ?? initialSetupChargeIds ?? []
   );
+  // Dropdown picker for setup charges — replaces the old always-expanded
+  // checkbox block. The dropdown also doubles as a lightweight editor for
+  // the shared Setup Charges catalog (edit/delete any charge, or add a new
+  // custom one) right from the quote builder, instead of needing to jump to
+  // the separate "Setup Charges" admin tab — see lib/setup-charges-store.ts.
+  const [setupDropdownOpen, setSetupDropdownOpen] = useState(false);
+  const setupDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [editingChargeId, setEditingChargeId] = useState<string | null>(null);
+  const [chargeEditDraft, setChargeEditDraft] = useState<{ label: string; price: number }>({
+    label: "",
+    price: 0,
+  });
+  const [creatingCharge, setCreatingCharge] = useState(false);
+  const [newChargeDraft, setNewChargeDraft] = useState<{ label: string; price: number }>({
+    label: "",
+    price: 0,
+  });
+  const [chargeBusyId, setChargeBusyId] = useState<string | null>(null);
+  const [chargeError, setChargeError] = useState<string | null>(null);
 
   // Ad-hoc miscellaneous fees — see PendingMiscFee above. Only surfaced in
   // "full" mode (Quick Quote has no save/customer-info step either, so it
@@ -282,6 +301,114 @@ export default function AdminQuoteBuilder({
   function toggleSetupCharge(id: string, checked: boolean) {
     setSelectedSetupChargeIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
     setQuote(null);
+  }
+
+  // Close the setup-charges dropdown (and any in-progress edit/create form
+  // inside it) on an outside click — needed instead of a simple onBlur
+  // because the dropdown contains its own inputs/buttons, whose clicks
+  // would otherwise blur-and-close the panel before the click registers.
+  useEffect(() => {
+    if (!setupDropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (setupDropdownRef.current && !setupDropdownRef.current.contains(e.target as Node)) {
+        setSetupDropdownOpen(false);
+        setEditingChargeId(null);
+        setCreatingCharge(false);
+        setChargeError(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [setupDropdownOpen]);
+
+  function startEditCharge(c: SetupChargeType) {
+    setEditingChargeId(c.id);
+    setChargeEditDraft({ label: c.label, price: c.price });
+    setCreatingCharge(false);
+    setChargeError(null);
+  }
+
+  async function saveChargeEdit(id: string) {
+    if (!chargeEditDraft.label.trim()) {
+      setChargeError("Enter a label before saving.");
+      return;
+    }
+    setChargeBusyId(id);
+    setChargeError(null);
+    try {
+      const res = await fetch("/api/admin/setup-charges", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, label: chargeEditDraft.label.trim(), price: chargeEditDraft.price }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      setSetupCharges((prev) => prev.map((c) => (c.id === id ? data.charge : c)));
+      setEditingChargeId(null);
+      setQuote(null);
+    } catch (e) {
+      setChargeError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setChargeBusyId(null);
+    }
+  }
+
+  // Deletes a charge from the shared catalog entirely (not just this quote)
+  // — matches AdminSetupChargesManager's own delete behavior, since this is
+  // the same underlying list. Also drops it from this quote's selection if
+  // it was checked.
+  async function handleDeleteCharge(c: SetupChargeType) {
+    if (!confirm(`Delete "${c.label}" from the setup charges list? This removes it everywhere, not just this quote.`)) {
+      return;
+    }
+    setChargeBusyId(c.id);
+    setChargeError(null);
+    try {
+      const res = await fetch(`/api/admin/setup-charges?id=${encodeURIComponent(c.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      setSetupCharges((prev) => prev.filter((x) => x.id !== c.id));
+      setSelectedSetupChargeIds((prev) => prev.filter((x) => x !== c.id));
+      if (editingChargeId === c.id) setEditingChargeId(null);
+      setQuote(null);
+    } catch (e) {
+      setChargeError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setChargeBusyId(null);
+    }
+  }
+
+  // Creates a brand-new reusable setup charge (saved to the shared catalog,
+  // same as adding one on the "Setup Charges" tab) and immediately selects
+  // it for this quote.
+  async function handleCreateCharge() {
+    const label = newChargeDraft.label.trim();
+    if (!label) {
+      setChargeError("Enter a label before adding.");
+      return;
+    }
+    setChargeBusyId("__new__");
+    setChargeError(null);
+    try {
+      const res = await fetch("/api/admin/setup-charges", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, price: newChargeDraft.price }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Create failed");
+      setSetupCharges((prev) => [...prev, data.charge]);
+      setSelectedSetupChargeIds((prev) => [...prev, data.charge.id]);
+      setNewChargeDraft({ label: "", price: 0 });
+      setCreatingCharge(false);
+      setQuote(null);
+    } catch (e) {
+      setChargeError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setChargeBusyId(null);
+    }
   }
 
   function addMiscFee() {
@@ -802,27 +929,199 @@ export default function AdminQuoteBuilder({
       </section>
       )}
 
-      {/* Setup charges — flat, quote-wide, independent of any decoration */}
+      {/* Setup charges — flat, quote-wide, independent of any decoration.
+          A dropdown picker that also doubles as an inline editor for the
+          shared catalog (edit label/price, delete, or add a brand-new
+          custom one) — applies to every charge in the list, including the
+          three seeded defaults (Digitizing, Logo vectorization, Screen
+          print screen fee), not just ones added here. */}
       <section className="bg-black border border-white/10 rounded-xl p-4">
         <h3 className="text-sm font-semibold text-white mb-1">Setup charges</h3>
         <p className="text-xs text-white/50 mb-3">
           One-time charges for this quote as a whole — not tied to any garment or decoration.
-          Manage the available list on the &quot;Setup Charges&quot; tab.
         </p>
-        {setupCharges.length === 0 ? (
-          <p className="text-xs text-white/40">No setup charges configured yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            {setupCharges.map((c) => (
-              <label key={c.id} className="flex items-center gap-1.5 text-sm text-white/70">
-                <input
-                  type="checkbox"
-                  checked={selectedSetupChargeIds.includes(c.id)}
-                  onChange={(e) => toggleSetupCharge(c.id, e.target.checked)}
-                />
-                {c.label} <span className="text-white/40">({formatUSD(c.price)})</span>
-              </label>
-            ))}
+
+        <div className="relative inline-block" ref={setupDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setSetupDropdownOpen((o) => !o)}
+            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
+          >
+            {selectedSetupChargeIds.length > 0
+              ? `${selectedSetupChargeIds.length} setup charge${selectedSetupChargeIds.length === 1 ? "" : "s"} selected`
+              : "Add setup charges"}
+            <span className="text-white/40">{setupDropdownOpen ? "▲" : "▼"}</span>
+          </button>
+
+          {setupDropdownOpen && (
+            <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-xl shadow-xl p-2 max-h-96 overflow-y-auto">
+              {setupCharges.length === 0 && !creatingCharge && (
+                <p className="text-xs text-white/40 px-2 py-2">No setup charges configured yet.</p>
+              )}
+              {setupCharges.map((c) => {
+                const checked = selectedSetupChargeIds.includes(c.id);
+                const isEditing = editingChargeId === c.id;
+                const busy = chargeBusyId === c.id;
+                if (isEditing) {
+                  return (
+                    <div key={c.id} className="px-2 py-2 border-b border-white/5 last:border-b-0">
+                      <div className="flex flex-col gap-1.5">
+                        <input
+                          value={chargeEditDraft.label}
+                          onChange={(e) => setChargeEditDraft((d) => ({ ...d, label: e.target.value }))}
+                          className="w-full border border-white/20 rounded-lg px-2 py-1 text-sm"
+                          placeholder="Label"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={chargeEditDraft.price}
+                          onChange={(e) =>
+                            setChargeEditDraft((d) => ({ ...d, price: Math.max(0, Number(e.target.value) || 0) }))
+                          }
+                          className="w-28 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                          placeholder="Price"
+                        />
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => saveChargeEdit(c.id)}
+                            disabled={busy}
+                            className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                          >
+                            {busy ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingChargeId(null)}
+                            className="text-xs text-white/60 hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                  >
+                    <label className="flex items-center gap-2 flex-1 min-w-0 text-sm text-white/80 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => toggleSetupCharge(c.id, e.target.checked)}
+                      />
+                      <span className="truncate">{c.label}</span>
+                      <span className="text-white/40 shrink-0">({formatUSD(c.price)})</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => startEditCharge(c)}
+                      className="text-xs text-white/50 hover:text-white hover:underline shrink-0"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCharge(c)}
+                      disabled={busy}
+                      className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                    >
+                      {busy ? "…" : "Delete"}
+                    </button>
+                  </div>
+                );
+              })}
+
+              <div className="mt-1 pt-1 border-t border-white/10">
+                {!creatingCharge ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreatingCharge(true);
+                      setEditingChargeId(null);
+                      setChargeError(null);
+                    }}
+                    className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-lg hover:bg-white/5"
+                  >
+                    + Add custom setup charge
+                  </button>
+                ) : (
+                  <div className="px-2 py-1.5 flex flex-col gap-1.5">
+                    <input
+                      value={newChargeDraft.label}
+                      onChange={(e) => setNewChargeDraft((d) => ({ ...d, label: e.target.value }))}
+                      placeholder="e.g. Rush digitizing"
+                      className="w-full border border-white/20 rounded-lg px-2 py-1 text-sm"
+                      autoFocus
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={newChargeDraft.price}
+                      onChange={(e) =>
+                        setNewChargeDraft((d) => ({ ...d, price: Math.max(0, Number(e.target.value) || 0) }))
+                      }
+                      placeholder="Price"
+                      className="w-28 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleCreateCharge}
+                        disabled={chargeBusyId === "__new__"}
+                        className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                      >
+                        {chargeBusyId === "__new__" ? "Adding…" : "Add & select"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreatingCharge(false);
+                          setNewChargeDraft({ label: "", price: 0 });
+                          setChargeError(null);
+                        }}
+                        className="text-xs text-white/60 hover:underline"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {chargeError && <p className="px-2 py-1.5 text-xs text-red-500">{chargeError}</p>}
+            </div>
+          )}
+        </div>
+
+        {selectedSetupChargeIds.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedSetupChargeIds.map((id) => {
+              const c = setupCharges.find((sc) => sc.id === id);
+              if (!c) return null;
+              return (
+                <span
+                  key={id}
+                  className="flex items-center gap-1.5 text-xs bg-white/5 border border-white/10 rounded-full pl-3 pr-1.5 py-1 text-white/80"
+                >
+                  {c.label} <span className="text-white/40">({formatUSD(c.price)})</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleSetupCharge(id, false)}
+                    aria-label={`Remove ${c.label} from this quote`}
+                    className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-white/10 text-white/50 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </span>
+              );
+            })}
           </div>
         )}
       </section>
