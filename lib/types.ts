@@ -225,6 +225,12 @@ export type PriceColumn = { id: string; label: string };
 // lib/setup-charges-store.ts, lib/quote.ts).
 export type SetupChargeType = { id: string; label: string; price: number };
 
+// Admin-editable override of an admin-dashboard tab's icon/label (the tab's
+// `id` and its position in the menu stay fixed in code — see
+// components/AdminDashboard.tsx — only how it's labeled/iconified is
+// customizable). See lib/admin-tabs-store.ts.
+export type AdminTabOverride = { label: string; icon: string };
+
 // One row of the garment markup matrix (see lib/garment-markup-store.ts,
 // lib/garment-markup.ts): garments whose vendor cost falls in [from, to]
 // get marked up by markupPercent before decoration cost is added. Used only
