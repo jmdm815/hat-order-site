@@ -153,7 +153,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
   return (
     <div>
       {!persistent && (
-        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           No durable storage is connected to this deployment yet, so saved quotes only last until the
           next cold start or redeploy. Connect a Vercel Blob store to this project (Vercel dashboard →
           Storage → Create Database → Blob → Connect to Project) to make them stick.
@@ -172,7 +172,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
             return (
               <div
                 key={r.id}
-                className="border border-white/10 rounded-xl bg-black p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+                className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-4 flex flex-col sm:flex-row sm:items-center gap-3"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -205,25 +205,25 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => onEdit(r)}
-                    className="text-xs px-2.5 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+                    className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => downloadPdf(r.id, "customer", "quote.pdf")}
-                    className="text-xs px-2.5 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+                    className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                   >
                     PDF
                   </button>
                   <button
                     onClick={() => downloadPdf(r.id, "internal", "quote-internal.pdf")}
-                    className="text-xs px-2.5 py-1 rounded-lg border border-red/30 text-red hover:bg-red/5"
+                    className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
                   >
                     Internal
                   </button>
                   <button
                     onClick={() => downloadPdf(r.id, "work-order", "work-order.pdf")}
-                    className="text-xs px-2.5 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+                    className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                   >
                     Work order
                   </button>
@@ -231,7 +231,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                     <button
                       onClick={() => handleConvert(r.id)}
                       disabled={isBusy}
-                      className="text-xs px-2.5 py-1 rounded-lg bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+                      className="text-xs px-2.5 py-1 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
                     >
                       {isBusy ? "…" : "Convert to invoice"}
                     </button>
@@ -239,7 +239,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                     <>
                       <button
                         onClick={() => downloadPdf(r.id, "invoice", `${r.invoiceNumber}.pdf`)}
-                        className="text-xs px-2.5 py-1 rounded-lg border border-green-600/30 text-green-700 hover:bg-green-50"
+                        className="text-xs px-2.5 py-1 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50"
                       >
                         Invoice
                       </button>
@@ -247,7 +247,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                         <button
                           onClick={() => handleCopyPayPageLink(r.id)}
                           title="Copy a link to this site's own branded payment page for this invoice"
-                          className="text-xs px-2.5 py-1 rounded-lg border border-red/30 text-red hover:bg-red/5"
+                          className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
                         >
                           Copy pay page link
                         </button>
@@ -261,14 +261,14 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                               ? "Refresh and copy the Square-hosted checkout link"
                               : "Create a Square-hosted checkout link for the customer"
                           }
-                          className="text-xs px-2.5 py-1 rounded-lg border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                          className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
                         >
                           {isBusy ? "…" : r.paymentLinkUrl ? "Copy Square link" : "Create Square link"}
                         </button>
                       )}
                       <button
                         onClick={() => setPaymentModalRecord(r)}
-                        className={`text-xs px-2.5 py-1 rounded-lg font-medium ${
+                        className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
                           r.invoiceStatus === "paid"
                             ? "border border-green-600/30 text-green-700 hover:bg-green-50"
                             : "bg-navy text-white hover:bg-navy/90"

@@ -50,7 +50,7 @@ const SHAPE_GEOMETRIES: PatchShapeGeometry[] = [
 
 function NotPersistentBanner() {
   return (
-    <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+    <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
       No durable storage is connected to this deployment yet, so changes only
       last until the next cold start or redeploy. Connect a Vercel Blob store
       to this project (Vercel dashboard → Storage → Create Database → Blob →
@@ -135,11 +135,11 @@ function AddNewCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mt-6 border border-dashed border-white/20 rounded-xl">
+    <div className="mt-6 border border-dashed border-white/20 rounded-2xl">
       {!creating ? (
         <button
           onClick={onStart}
-          className="w-full p-4 text-sm font-medium text-white/70 hover:bg-white/5 rounded-xl"
+          className="w-full p-4 text-sm font-medium text-white/70 hover:bg-white/5 rounded-2xl"
         >
           + Add {label}
         </button>
@@ -205,7 +205,7 @@ function materialFields(
             type="text"
             value={draft.name}
             onChange={(e) => apply({ name: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -214,7 +214,7 @@ function materialFields(
             type="text"
             value={draft.internalSku ?? ""}
             onChange={(e) => apply({ internalSku: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -223,7 +223,7 @@ function materialFields(
             type="text"
             value={draft.supplier ?? ""}
             onChange={(e) => apply({ supplier: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -232,7 +232,7 @@ function materialFields(
             type="text"
             value={draft.supplierSku ?? ""}
             onChange={(e) => apply({ supplierSku: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
       </div>
@@ -246,7 +246,7 @@ function materialFields(
               type="text"
               value={draft.surfaceColorHex}
               onChange={(e) => apply({ surfaceColorHex: e.target.value })}
-              className="w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </div>
         </label>
@@ -258,7 +258,7 @@ function materialFields(
               type="text"
               value={draft.engravingColorHex}
               onChange={(e) => apply({ engravingColorHex: e.target.value })}
-              className="w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </div>
         </label>
@@ -270,7 +270,7 @@ function materialFields(
               type="text"
               value={draft.edgeColorHex ?? ""}
               onChange={(e) => apply({ edgeColorHex: e.target.value })}
-              className="w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </div>
         </label>
@@ -282,7 +282,7 @@ function materialFields(
           <select
             value={draft.textureType}
             onChange={(e) => apply({ textureType: e.target.value as PatchTextureType })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           >
             {TEXTURE_TYPES.map((t) => (
               <option key={t} value={t}>
@@ -299,7 +299,7 @@ function materialFields(
             max={100}
             value={draft.textureStrength}
             onChange={(e) => apply({ textureStrength: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
       </div>
@@ -311,7 +311,7 @@ function materialFields(
             type="text"
             value={draft.referenceImageUrl ?? ""}
             onChange={(e) => apply({ referenceImageUrl: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -320,7 +320,7 @@ function materialFields(
             type="text"
             value={draft.swatchImageUrl ?? ""}
             onChange={(e) => apply({ swatchImageUrl: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
       </div>
@@ -352,7 +352,7 @@ function materialFields(
             type="number"
             value={draft.sortOrder}
             onChange={(e) => apply({ sortOrder: Number(e.target.value) || 0 })}
-            className="w-16 border border-white/20 rounded-lg px-2 py-1 text-sm"
+            className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
           />
         </label>
       </div>
@@ -451,7 +451,7 @@ function MaterialsPanel({
           const draft = drafts[m.id] ?? { ...m };
           const isOpen = openId === m.id;
           return (
-            <div key={m.id} className="border border-white/10 rounded-xl bg-black overflow-hidden">
+            <div key={m.id} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <ColorSwatch hex={m.surfaceColorHex} />
                 <div className="flex-1">
@@ -465,7 +465,7 @@ function MaterialsPanel({
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : m.id)}
-                  className="text-sm text-white/70 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
+                  className="text-sm text-white/70 px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
@@ -541,7 +541,7 @@ function shapeFields(draft: ShapeDraft, apply: (patch: Partial<ShapeDraft>) => v
             type="text"
             value={draft.name}
             onChange={(e) => apply({ name: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -549,7 +549,7 @@ function shapeFields(draft: ShapeDraft, apply: (patch: Partial<ShapeDraft>) => v
           <select
             value={draft.geometry}
             onChange={(e) => apply({ geometry: e.target.value as PatchShapeGeometry })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           >
             {SHAPE_GEOMETRIES.map((g) => (
               <option key={g} value={g}>
@@ -569,7 +569,7 @@ function shapeFields(draft: ShapeDraft, apply: (patch: Partial<ShapeDraft>) => v
             max={50}
             value={draft.cornerRadiusPct ?? 0}
             onChange={(e) => apply({ cornerRadiusPct: Math.min(50, Math.max(0, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
       )}
@@ -580,7 +580,7 @@ function shapeFields(draft: ShapeDraft, apply: (patch: Partial<ShapeDraft>) => v
           type="text"
           value={draft.svgPath ?? ""}
           onChange={(e) => apply({ svgPath: e.target.value })}
-          className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm font-mono"
+          className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm font-mono"
         />
       </label>
 
@@ -611,7 +611,7 @@ function shapeFields(draft: ShapeDraft, apply: (patch: Partial<ShapeDraft>) => v
             type="number"
             value={draft.sortOrder}
             onChange={(e) => apply({ sortOrder: Number(e.target.value) || 0 })}
-            className="w-16 border border-white/20 rounded-lg px-2 py-1 text-sm"
+            className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
           />
         </label>
       </div>
@@ -710,7 +710,7 @@ function ShapesPanel({
           const draft = drafts[s.id] ?? { ...s };
           const isOpen = openId === s.id;
           return (
-            <div key={s.id} className="border border-white/10 rounded-xl bg-black overflow-hidden">
+            <div key={s.id} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <ShapeThumbnail geometry={s.geometry} cornerRadiusPct={s.cornerRadiusPct} />
                 <div className="flex-1">
@@ -722,7 +722,7 @@ function ShapesPanel({
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : s.id)}
-                  className="text-sm text-white/70 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
+                  className="text-sm text-white/70 px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
@@ -815,7 +815,7 @@ function sizeFields(
             value={draft.name}
             onChange={(e) => apply({ name: e.target.value })}
             placeholder='e.g. 3" x 2"'
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -826,7 +826,7 @@ function sizeFields(
             min={0.1}
             value={draft.widthIn}
             onChange={(e) => apply({ widthIn: Math.max(0.1, Number(e.target.value) || 0.1) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -837,7 +837,7 @@ function sizeFields(
             min={0.1}
             value={draft.heightIn}
             onChange={(e) => apply({ heightIn: Math.max(0.1, Number(e.target.value) || 0.1) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
       </div>
@@ -890,7 +890,7 @@ function sizeFields(
             type="number"
             value={draft.sortOrder}
             onChange={(e) => apply({ sortOrder: Number(e.target.value) || 0 })}
-            className="w-16 border border-white/20 rounded-lg px-2 py-1 text-sm"
+            className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
           />
         </label>
       </div>
@@ -991,7 +991,7 @@ function SizesPanel({
           const draft = drafts[s.id] ?? { ...s };
           const isOpen = openId === s.id;
           return (
-            <div key={s.id} className="border border-white/10 rounded-xl bg-black overflow-hidden">
+            <div key={s.id} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <div className="flex-1">
                   <div className="font-semibold text-white">{s.name}</div>
@@ -1002,7 +1002,7 @@ function SizesPanel({
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : s.id)}
-                  className="text-sm text-white/70 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
+                  className="text-sm text-white/70 px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
@@ -1102,7 +1102,7 @@ function MethodSettingsPanel({
           max={opts?.max}
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
-          className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+          className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
         />
       </label>
     );
@@ -1242,7 +1242,7 @@ function MockupSettingsPanel({
               type="text"
               value={draft.backgroundColor}
               onChange={(e) => apply({ backgroundColor: e.target.value })}
-              className="w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </div>
         </label>
@@ -1251,7 +1251,7 @@ function MockupSettingsPanel({
           <select
             value={draft.exportResolutionMultiplier}
             onChange={(e) => apply({ exportResolutionMultiplier: Number(e.target.value) as 1 | 2 | 3 })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           >
             <option value={1}>1x</option>
             <option value={2}>2x</option>
@@ -1265,7 +1265,7 @@ function MockupSettingsPanel({
             min={1}
             value={draft.exportWidth}
             onChange={(e) => apply({ exportWidth: Math.max(1, Number(e.target.value) || 1) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -1275,7 +1275,7 @@ function MockupSettingsPanel({
             min={1}
             value={draft.exportHeight}
             onChange={(e) => apply({ exportHeight: Math.max(1, Number(e.target.value) || 1) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -1286,7 +1286,7 @@ function MockupSettingsPanel({
             max={100}
             value={draft.hatScalePct}
             onChange={(e) => apply({ hatScalePct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -1297,7 +1297,7 @@ function MockupSettingsPanel({
             max={50}
             value={draft.hatOffsetYPct}
             onChange={(e) => apply({ hatOffsetYPct: Math.min(50, Math.max(-50, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -1308,7 +1308,7 @@ function MockupSettingsPanel({
             max={100}
             value={draft.bannerWidthPct}
             onChange={(e) => apply({ bannerWidthPct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -1318,7 +1318,7 @@ function MockupSettingsPanel({
             min={1}
             value={draft.bannerHeightPx}
             onChange={(e) => apply({ bannerHeightPx: Math.max(1, Number(e.target.value) || 1) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -1328,7 +1328,7 @@ function MockupSettingsPanel({
             min={0}
             value={draft.bannerSpacingPx}
             onChange={(e) => apply({ bannerSpacingPx: Math.max(0, Number(e.target.value) || 0) })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -1337,7 +1337,7 @@ function MockupSettingsPanel({
             type="text"
             value={draft.defaultHatStyleNumber ?? ""}
             onChange={(e) => apply({ defaultHatStyleNumber: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
         <label className="text-sm text-white/70">
@@ -1345,7 +1345,7 @@ function MockupSettingsPanel({
           <select
             value={draft.defaultMethod}
             onChange={(e) => apply({ defaultMethod: e.target.value as MockupSettings["defaultMethod"] })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           >
             <option value="embroidered">Embroidered</option>
             <option value="engraved">Engraved Patch</option>
@@ -1358,7 +1358,7 @@ function MockupSettingsPanel({
             type="text"
             value={draft.defaultMaterialId ?? ""}
             onChange={(e) => apply({ defaultMaterialId: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
       </div>

@@ -343,7 +343,7 @@ export default function AdminItemConfigEditor({
           })}
         </div>
 
-        <div className="mt-4 border border-white/10 rounded-xl p-4">
+        <div className="mt-4 border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
           <h3 className="font-medium text-white">Homepage catalog</h3>
           <p className="text-xs text-white/60 mt-0.5">
             Choose which category sections show this item on the homepage, and which action
@@ -400,7 +400,7 @@ export default function AdminItemConfigEditor({
           </div>
         </div>
 
-        <div className="mt-4 border border-white/10 rounded-xl p-4">
+        <div className="mt-4 border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
           <h3 className="font-medium text-white">Design canvas photo</h3>
           <p className="text-xs text-white/60 mt-0.5">
             Defaults to SanMar&apos;s photo, or an illustrated shirt if SanMar has
@@ -413,7 +413,7 @@ export default function AdminItemConfigEditor({
             <select
               value={overrideColorName}
               onChange={(e) => setOverrideColorName(e.target.value)}
-              className="border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             >
               {overrideColorOptions.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -434,7 +434,7 @@ export default function AdminItemConfigEditor({
                 const source = photoSource[v];
                 return (
                   <div key={v}>
-                    <div className="relative w-full aspect-square bg-black border border-white/10 rounded-lg overflow-hidden">
+                    <div className="relative w-full aspect-square bg-black border border-white/10 shadow-lg shadow-black/30 rounded-xl overflow-hidden">
                       <GarmentPreview
                         url={currentUrl}
                         view={v}
@@ -501,7 +501,7 @@ export default function AdminItemConfigEditor({
             const info = getDecoration(allDecorations ?? [], type);
             const isExpanded = expandedType === type;
             return (
-              <div key={type} className="border border-white/10 rounded-xl overflow-hidden">
+              <div key={type} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden">
                 <div className="flex items-center gap-3 p-3 bg-white/[0.02]">
                   <input
                     type="checkbox"
@@ -514,7 +514,7 @@ export default function AdminItemConfigEditor({
                   {setting.enabled && (
                     <button
                       onClick={() => setExpandedType(isExpanded ? null : type)}
-                      className="text-sm text-white/70 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
+                      className="text-sm text-white/70 px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
                     >
                       {isExpanded ? "Hide placements" : `Manage placements (${setting.zones.length})`}
                     </button>
@@ -544,7 +544,7 @@ export default function AdminItemConfigEditor({
                     <div className="grid grid-cols-1 sm:grid-cols-[1fr_260px] gap-4">
                       <div
                         ref={imageRef}
-                        className="relative w-full aspect-square bg-black border border-white/10 rounded-lg overflow-hidden"
+                        className="relative w-full aspect-square bg-black border border-white/10 shadow-lg shadow-black/30 rounded-xl overflow-hidden"
                       >
                         <GarmentPreview
                           url={view === "back" ? zoneCanvasBack ?? zoneCanvasFront : zoneCanvasFront}
@@ -579,7 +579,7 @@ export default function AdminItemConfigEditor({
                       <div className="space-y-2">
                         <button
                           onClick={() => addZone(type)}
-                          className="w-full text-sm px-3 py-2 rounded-lg border border-white/20 hover:bg-white/5"
+                          className="w-full text-sm px-3 py-2 rounded-xl border border-white/20 hover:bg-white/5"
                         >
                           + Add zone
                         </button>
@@ -591,7 +591,7 @@ export default function AdminItemConfigEditor({
                                 setSelectedZoneId(z.id);
                                 setView(z.view);
                               }}
-                              className={`p-2 rounded-lg border text-sm cursor-pointer ${
+                              className={`p-2 rounded-xl border text-sm cursor-pointer ${
                                 selectedZoneId === z.id
                                   ? "border-red ring-1 ring-red"
                                   : "border-white/10 hover:border-white/30"

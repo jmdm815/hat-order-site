@@ -133,7 +133,7 @@ function RailButton({
   accept?: string;
   onFile?: (file: File | null) => void;
 }) {
-  const classes = `flex lg:flex-col items-center gap-1 lg:gap-1.5 px-3 py-2 lg:py-3 rounded-none text-xs font-medium transition ${
+  const classes = `flex lg:flex-col items-center gap-1 lg:gap-1.5 px-3 py-2 lg:py-3 rounded-2xl text-xs font-medium transition ${
     active
       ? "bg-red text-navy"
       : disabled
@@ -538,13 +538,13 @@ export default function ShirtCustomizeForm({
       </div>
 
       {step === "design" && (
-        <div className="mt-6 border border-white/10 rounded-none overflow-hidden bg-black">
+        <div className="mt-6 border border-white/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden bg-black">
           {/* Top toolbar */}
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5 bg-white/5">
             <button
               type="button"
               onClick={handleStartOver}
-              className="px-3 py-1.5 text-xs font-heading font-semibold rounded-none border border-white text-white hover:bg-navy hover:text-white transition"
+              className="px-3 py-1.5 text-xs font-heading font-semibold rounded-2xl border border-white text-white hover:bg-navy hover:text-white transition"
             >
               ↺ Start Over
             </button>
@@ -662,12 +662,12 @@ export default function ShirtCustomizeForm({
                         + Add print location
                       </button>
                       {showAddPicker && availableToAdd.length > 0 && (
-                        <div className="absolute z-30 mt-1 w-64 bg-black border border-white/10 rounded-none shadow-lg p-1.5">
+                        <div className="absolute z-30 mt-1 w-64 bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-1.5">
                           {availableToAdd.map((opt) => (
                             <button
                               key={opt.key}
                               onClick={() => handleAddLocation(opt)}
-                              className="w-full text-left px-3 py-2 rounded-none text-sm text-white hover:bg-white/5"
+                              className="w-full text-left px-3 py-2 rounded-2xl text-sm text-white hover:bg-white/5"
                             >
                               {opt.zone.label} · {opt.decoration.shortLabel}
                               {opt.decoration.quoteRequired && (
@@ -693,7 +693,7 @@ export default function ShirtCustomizeForm({
               <div className="w-full">
                 <div
                   ref={imageRef}
-                  className="relative w-full aspect-square rounded-none overflow-hidden bg-black border border-white/10"
+                  className="relative w-full aspect-square rounded-2xl overflow-hidden bg-black border border-white/10 shadow-lg shadow-black/30"
                 >
                   <GarmentPreview
                     url={view === "back" ? selectedColor?.backImageUrl : selectedColor?.imageUrl}
@@ -719,7 +719,7 @@ export default function ShirtCustomizeForm({
                           <div
                             onClick={() => setActiveLocationId(loc.id)}
                             role="button"
-                            className={`absolute rounded-none pointer-events-auto cursor-pointer transition ${
+                            className={`absolute rounded-2xl pointer-events-auto cursor-pointer transition ${
                               isActive
                                 ? "border-2 border-[#22c55e] bg-[#22c55e]/10"
                                 : "border border-[#22c55e]/55 hover:border-[#22c55e] hover:bg-[#22c55e]/5"
@@ -930,7 +930,7 @@ export default function ShirtCustomizeForm({
               <button
                 type="button"
                 onClick={() => setView("front")}
-                className={`w-full rounded-none border p-1.5 transition ${
+                className={`w-full rounded-2xl border p-1.5 transition ${
                   view === "front" ? "border-white ring-1 ring-white" : "border-white/15 hover:border-white/30"
                 }`}
               >
@@ -949,7 +949,7 @@ export default function ShirtCustomizeForm({
                 <button
                   type="button"
                   onClick={() => setView("back")}
-                  className={`w-full rounded-none border p-1.5 transition ${
+                  className={`w-full rounded-2xl border p-1.5 transition ${
                     view === "back" ? "border-white ring-1 ring-white" : "border-white/15 hover:border-white/30"
                   }`}
                 >
@@ -996,7 +996,7 @@ export default function ShirtCustomizeForm({
                   {activeLocation.layers.map((layer) => (
                     <li
                       key={layer.id}
-                      className="flex items-center gap-2 border border-white/10 rounded-none px-3 py-2"
+                      className="flex items-center gap-2 border border-white/10 shadow-lg shadow-black/30 rounded-2xl px-3 py-2"
                     >
                       {layer.kind === "image" ? (
                         <span className="text-sm text-white/70 truncate flex-1">{layer.fileName}</span>
@@ -1034,7 +1034,7 @@ export default function ShirtCustomizeForm({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notes for our design team (colors, sizing, placement details)…"
-                className="mt-3 w-full max-w-xl bg-black border border-white/30 rounded-none p-3 text-sm resize-none h-20 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                className="mt-3 w-full max-w-xl bg-black border border-white/30 rounded-2xl p-3 text-sm resize-none h-20 focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
               />
             </div>
           )}
@@ -1044,7 +1044,7 @@ export default function ShirtCustomizeForm({
             <button
               onClick={() => goToStep("quantity")}
               disabled={!canProceedToQuantity}
-              className="px-6 py-2.5 rounded-none bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 rounded-2xl bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
             >
               Next Step →
             </button>
@@ -1072,7 +1072,7 @@ export default function ShirtCustomizeForm({
                     setSizeQty((q) => ({ ...q, [s.name]: Math.max(0, Number(e.target.value) || 0) }))
                   }
                   placeholder="0"
-                  className="bg-black border border-white/30 rounded-none px-2.5 py-2 text-sm focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                  className="bg-black border border-white/30 rounded-2xl px-2.5 py-2 text-sm focus:outline-none focus:border-red focus:ring-2 focus:ring-red/20"
                 />
               </label>
             ))}
@@ -1111,7 +1111,7 @@ export default function ShirtCustomizeForm({
             </p>
           )}
 
-          <div className="mt-6 border border-white/10 rounded-none bg-black p-4 text-sm text-white/70">
+          <div className="mt-6 border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-4 text-sm text-white/70">
             <div className="flex justify-between">
               <span>{totalQuantity} items · garment subtotal</span>
               <span className="text-white">{formatUSD(sizeBaseTotal)}</span>
@@ -1121,14 +1121,14 @@ export default function ShirtCustomizeForm({
           <div className="mt-6 flex gap-3">
             <button
               onClick={() => goToStep("design")}
-              className="px-5 py-3 rounded-none border border-white text-white font-heading font-semibold hover:bg-navy hover:text-white transition"
+              className="px-5 py-3 rounded-2xl border border-white text-white font-heading font-semibold hover:bg-navy hover:text-white transition"
             >
               ← Back to Design
             </button>
             <button
               onClick={() => goToStep("review")}
               disabled={!canProceedToReview}
-              className="flex-1 py-3 rounded-none bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
+              className="flex-1 py-3 rounded-2xl bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
             >
               Calculate Pricing →
             </button>
@@ -1150,9 +1150,9 @@ export default function ShirtCustomizeForm({
             </span>
           </div>
 
-          <div className="mt-5 border border-white/10 rounded-none bg-black p-5">
+          <div className="mt-5 border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-5">
             <div className="flex gap-4">
-              <div className="relative w-20 h-20 rounded-none overflow-hidden bg-white/5 shrink-0">
+              <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-white/5 shrink-0">
                 <GarmentPreview
                   url={selectedColor?.imageUrl}
                   view="front"
@@ -1231,7 +1231,7 @@ export default function ShirtCustomizeForm({
             <button
               onClick={handleAddToCart}
               disabled={!canAddToCart}
-              className="mt-5 w-full py-3 rounded-none bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
+              className="mt-5 w-full py-3 rounded-2xl bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20 disabled:text-white/60 disabled:cursor-not-allowed"
             >
               Add to Cart →
             </button>
@@ -1239,7 +1239,7 @@ export default function ShirtCustomizeForm({
 
           <button
             onClick={() => goToStep("quantity")}
-            className="mt-4 px-5 py-2.5 rounded-none border border-white text-white font-heading font-semibold hover:bg-navy hover:text-white transition"
+            className="mt-4 px-5 py-2.5 rounded-2xl border border-white text-white font-heading font-semibold hover:bg-navy hover:text-white transition"
           >
             ← Back to Quantity
           </button>

@@ -83,7 +83,7 @@ export default function AdminGarmentMarkupManager() {
   return (
     <div>
       {!persistent && (
-        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           No durable storage is connected to this deployment yet, so changes only last until the
           next cold start or redeploy. Connect a Vercel Blob store to this project (Vercel
           dashboard → Storage → Create Database → Blob → Connect to Project) to make changes
@@ -104,7 +104,7 @@ export default function AdminGarmentMarkupManager() {
       </p>
 
       <div className="mt-5 overflow-x-auto">
-        <table className="min-w-full border border-white/10 rounded-xl overflow-hidden text-sm">
+        <table className="min-w-full border border-white/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden text-sm">
           <thead>
             <tr className="bg-white/[0.03] text-left text-white/70">
               <th className="px-4 py-2.5 font-medium">From</th>
@@ -122,7 +122,7 @@ export default function AdminGarmentMarkupManager() {
                     step="0.01"
                     value={bp.from}
                     onChange={(e) => updateRow(bp.id, { from: Number(e.target.value) || 0 })}
-                    className="w-24 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
                   />
                 </td>
                 <td className="px-4 py-2 border-t border-white/10">
@@ -131,7 +131,7 @@ export default function AdminGarmentMarkupManager() {
                     step="0.01"
                     value={bp.to}
                     onChange={(e) => updateRow(bp.id, { to: Number(e.target.value) || 0 })}
-                    className="w-24 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
                   />
                 </td>
                 <td className="px-4 py-2 border-t border-white/10">
@@ -140,7 +140,7 @@ export default function AdminGarmentMarkupManager() {
                     step="1"
                     value={bp.markupPercent}
                     onChange={(e) => updateRow(bp.id, { markupPercent: Number(e.target.value) || 0 })}
-                    className="w-24 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
                   />
                 </td>
                 <td className="px-4 py-2 border-t border-white/10 text-center">
@@ -167,7 +167,7 @@ export default function AdminGarmentMarkupManager() {
 
       <button
         onClick={addRow}
-        className="mt-3 px-4 py-2 rounded-lg border border-green-600/40 text-green-700 text-sm font-medium hover:bg-green-50"
+        className="mt-3 px-4 py-2 rounded-xl border border-green-600/40 text-green-700 text-sm font-medium hover:bg-green-50"
       >
         + Add New Breakpoint
       </button>

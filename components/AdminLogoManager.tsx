@@ -79,7 +79,7 @@ export default function AdminLogoManager() {
   if (loading) return <p className="text-white/40 text-sm">Loading…</p>;
 
   return (
-    <div className="bg-black border border-white/10 rounded-xl p-4 max-w-xl">
+    <div className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4 max-w-xl">
       <h3 className="text-sm font-semibold text-white">Site logo</h3>
       <p className="mt-1 text-xs text-white/50">
         Shown on the homepage hero and the order-flow header. The built-in default is a tiny
@@ -89,14 +89,14 @@ export default function AdminLogoManager() {
       </p>
 
       {!persistent && (
-        <p className="mt-3 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="mt-3 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           No durable storage is connected to this deployment yet, so an uploaded logo won&apos;t
           survive a redeploy. Connect a Vercel Blob store to make this stick.
         </p>
       )}
 
       <div className="mt-4 flex items-center gap-4">
-        <div className="w-20 h-20 rounded-lg border border-white/10 bg-gray/30 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="w-20 h-20 rounded-xl border border-white/10 shadow-lg shadow-black/30 bg-gray/30 flex items-center justify-center overflow-hidden shrink-0">
           {logoUrl && (
             // Admin preview of an arbitrary uploaded-image URL; next/image
             // would need the Blob host registered in next.config, and this
@@ -121,7 +121,7 @@ export default function AdminLogoManager() {
             <button
               onClick={handleRevert}
               disabled={reverting || uploading}
-              className="self-start text-xs text-white/60 px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5 disabled:opacity-50"
+              className="self-start text-xs text-white/60 px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-50"
             >
               {reverting ? "Reverting…" : "Revert to default"}
             </button>

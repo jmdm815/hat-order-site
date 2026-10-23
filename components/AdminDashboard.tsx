@@ -41,8 +41,8 @@ export default function AdminDashboard() {
                 onClick={() => setTab(t.id)}
                 className={`shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-[3px] -mb-0.5 transition ${
                   tab === t.id
-                    ? "border-red text-white bg-white/[0.04] rounded-t-lg"
-                    : "border-transparent text-white/50 hover:text-white hover:bg-white/[0.02] rounded-t-lg"
+                    ? "border-red text-white bg-white/[0.04] rounded-t-xl"
+                    : "border-transparent text-white/50 hover:text-white hover:bg-white/[0.02] rounded-t-xl"
                 }`}
               >
                 {t.label}

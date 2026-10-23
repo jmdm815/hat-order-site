@@ -253,7 +253,7 @@ export default function AdminCustomProductForm({
                 const productType = e.target.value as ProductType;
                 apply({ productType, category: CATEGORY_SUGGESTIONS[productType][0] ?? "" });
               }}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm disabled:bg-white/5 disabled:text-white/40"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm disabled:bg-white/5 disabled:text-white/40"
             >
               <option value="hat">Hat</option>
               <option value="shirt">Shirt</option>
@@ -268,7 +268,7 @@ export default function AdminCustomProductForm({
               type="text"
               value={draft.category}
               onChange={(e) => apply({ category: e.target.value })}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
             <datalist id="category-suggestions">
               {CATEGORY_SUGGESTIONS[draft.productType].map((c) => (
@@ -285,7 +285,7 @@ export default function AdminCustomProductForm({
               type="text"
               value={draft.productName}
               onChange={(e) => apply({ productName: e.target.value })}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
           <label className="text-sm text-white/70">
@@ -295,7 +295,7 @@ export default function AdminCustomProductForm({
               value={draft.brandName}
               onChange={(e) => apply({ brandName: e.target.value })}
               placeholder="Custom"
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
         </div>
@@ -306,7 +306,7 @@ export default function AdminCustomProductForm({
             value={draft.description}
             onChange={(e) => apply({ description: e.target.value })}
             rows={2}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
 
@@ -318,7 +318,7 @@ export default function AdminCustomProductForm({
             step="0.01"
             value={draft.basePrice}
             onChange={(e) => apply({ basePrice: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
 
@@ -336,7 +336,7 @@ export default function AdminCustomProductForm({
                     placeholder="Size name"
                     value={s.name}
                     onChange={(e) => updateSize(i, { name: e.target.value })}
-                    className="w-32 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                    className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
                   />
                   <input
                     type="number"
@@ -345,7 +345,7 @@ export default function AdminCustomProductForm({
                     placeholder="Price"
                     value={s.price}
                     onChange={(e) => updateSize(i, { price: e.target.value })}
-                    className="w-24 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
                   />
                   <input
                     type="number"
@@ -353,7 +353,7 @@ export default function AdminCustomProductForm({
                     placeholder="Inventory"
                     value={s.inventory}
                     onChange={(e) => updateSize(i, { inventory: e.target.value })}
-                    className="w-24 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
                   />
                   <button
                     onClick={() => removeSize(i)}
@@ -364,7 +364,7 @@ export default function AdminCustomProductForm({
                   </button>
                 </div>
               ))}
-              <button onClick={addSize} className="text-sm px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5">
+              <button onClick={addSize} className="text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5">
                 + Add size
               </button>
             </div>
@@ -375,20 +375,20 @@ export default function AdminCustomProductForm({
           <div className="text-sm font-medium text-white">Colors</div>
           <div className="mt-2 space-y-4">
             {draft.colors.map((c, i) => (
-              <div key={i} className="border border-white/10 rounded-xl p-3">
+              <div key={i} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-3">
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     placeholder="Color name"
                     value={c.colorName}
                     onChange={(e) => updateColor(i, { colorName: e.target.value })}
-                    className="flex-1 border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                    className="flex-1 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                   />
                   <input
                     type="color"
                     value={c.colorHex}
                     onChange={(e) => updateColor(i, { colorHex: e.target.value })}
-                    className="w-9 h-9 border border-white/20 rounded-lg"
+                    className="w-9 h-9 border border-white/20 rounded-xl"
                   />
                   <button
                     onClick={() => removeColor(i)}
@@ -403,7 +403,7 @@ export default function AdminCustomProductForm({
                     <label className="text-xs text-white/60 block mb-1">Front photo</label>
                     {c.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.imageUrl} alt="" className="w-16 h-16 object-contain border border-white/10 rounded-lg bg-black" />
+                      <img src={c.imageUrl} alt="" className="w-16 h-16 object-contain border border-white/10 shadow-lg shadow-black/30 rounded-xl bg-black" />
                     ) : (
                       <input
                         type="file"
@@ -430,7 +430,7 @@ export default function AdminCustomProductForm({
                     <label className="text-xs text-white/60 block mb-1">Back photo (optional)</label>
                     {c.backImageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.backImageUrl} alt="" className="w-16 h-16 object-contain border border-white/10 rounded-lg bg-black" />
+                      <img src={c.backImageUrl} alt="" className="w-16 h-16 object-contain border border-white/10 shadow-lg shadow-black/30 rounded-xl bg-black" />
                     ) : (
                       <input
                         type="file"
@@ -457,7 +457,7 @@ export default function AdminCustomProductForm({
               </div>
             ))}
           </div>
-          <button onClick={addColor} className="mt-3 text-sm px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5">
+          <button onClick={addColor} className="mt-3 text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5">
             + Add color
           </button>
         </div>

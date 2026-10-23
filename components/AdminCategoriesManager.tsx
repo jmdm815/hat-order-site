@@ -93,7 +93,7 @@ export default function AdminCategoriesManager() {
   return (
     <div>
       {!persistent && (
-        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           No durable storage is connected to this deployment yet, so category changes only last
           until the next cold start or redeploy. Connect a Vercel Blob store to make changes stick.
         </p>
@@ -106,7 +106,7 @@ export default function AdminCategoriesManager() {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          className="flex-1 border border-white/20 rounded-lg px-3 py-2 text-sm"
+          className="flex-1 border border-white/20 rounded-xl px-3 py-2 text-sm"
         />
         <button
           onClick={handleAdd}
@@ -124,7 +124,7 @@ export default function AdminCategoriesManager() {
           (&quot;Configure decorations&quot; on any item).
         </p>
       ) : (
-        <div className="mt-6 divide-y divide-white/10 border border-white/10 rounded-xl max-w-md overflow-hidden">
+        <div className="mt-6 divide-y divide-white/10 border border-white/10 shadow-lg shadow-black/30 rounded-2xl max-w-md overflow-hidden">
           {categories.map((c, i) => (
             <div key={c.id} className="flex items-center gap-2 p-3 bg-black">
               <div className="flex flex-col gap-0.5">
@@ -153,7 +153,7 @@ export default function AdminCategoriesManager() {
                   onKeyDown={(e) => e.key === "Enter" && handleRename(c.id)}
                   onBlur={() => handleRename(c.id)}
                   autoFocus
-                  className="flex-1 border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                  className="flex-1 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                 />
               ) : (
                 <span

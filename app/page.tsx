@@ -34,7 +34,7 @@ export default async function HomePage() {
           </p>
           <Link
             href="/quote-builder"
-            className="mt-5 inline-block px-6 py-2.5 rounded-none border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition"
+            className="mt-5 inline-block px-6 py-2.5 rounded-2xl border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition"
           >
             Or build a quote by decoration type →
           </Link>

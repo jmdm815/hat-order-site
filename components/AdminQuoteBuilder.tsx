@@ -770,7 +770,7 @@ export default function AdminQuoteBuilder({
   return (
     <div className="space-y-8">
       {activeRecord && (
-        <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm">
+        <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-2xl px-4 py-2.5 text-sm">
           <div className="text-white/70">
             Editing {activeRecord.status === "invoice" ? `invoice ${activeRecord.invoiceNumber}` : "saved quote"}{" "}
             <span className="text-white/40">
@@ -792,7 +792,7 @@ export default function AdminQuoteBuilder({
           </div>
           <button
             onClick={startNewQuote}
-            className="text-xs text-white/60 px-3 py-1 rounded-lg border border-white/20 hover:bg-black shrink-0"
+            className="text-xs text-white/60 px-3 py-1 rounded-xl border border-white/20 hover:bg-black shrink-0"
           >
             Start a new quote
           </button>
@@ -802,7 +802,7 @@ export default function AdminQuoteBuilder({
       {/* Customer / quote header — skipped entirely in "quick" mode (Quick
           Quote tab): no customer to look up, no payment terms to set. */}
       {mode === "full" && (
-      <section className="bg-black border border-white/10 rounded-xl p-4">
+      <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-white mb-3">Quote details</h3>
 
         {customers.length > 0 && (
@@ -817,12 +817,12 @@ export default function AdminQuoteBuilder({
                 }}
                 onFocus={() => setCustomerSuggestionsOpen(true)}
                 onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 150)}
-                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                 placeholder="Search by name, company, or email…"
               />
             </label>
             {customerSuggestionsOpen && customerSuggestions.length > 0 && (
-              <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-black border border-white/20 rounded-lg shadow-lg text-sm">
+              <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-black border border-white/20 rounded-xl shadow-lg text-sm">
                 {customerSuggestions.map((c) => (
                   <li key={c.id}>
                     <button
@@ -848,7 +848,7 @@ export default function AdminQuoteBuilder({
             <input
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
               placeholder="Jane Smith"
             />
           </label>
@@ -857,7 +857,7 @@ export default function AdminQuoteBuilder({
             <input
               value={customerCompany}
               onChange={(e) => setCustomerCompany(e.target.value)}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
           <label className="text-xs text-white/60">
@@ -865,7 +865,7 @@ export default function AdminQuoteBuilder({
             <input
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
           <label className="text-xs text-white/60">
@@ -874,7 +874,7 @@ export default function AdminQuoteBuilder({
               type="date"
               value={quoteDate}
               onChange={(e) => setQuoteDate(e.target.value)}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
         </div>
@@ -883,7 +883,7 @@ export default function AdminQuoteBuilder({
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             rows={2}
           />
         </label>
@@ -899,7 +899,7 @@ export default function AdminQuoteBuilder({
                 else if (v === "50-50") setDepositPercent(50);
                 else if (depositPercent === 100 || depositPercent === 50) setDepositPercent(25);
               }}
-              className="border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             >
               <option value="full">Pay in full</option>
               <option value="50-50">50% deposit, 50% on pickup</option>
@@ -914,7 +914,7 @@ export default function AdminQuoteBuilder({
                   max={99}
                   value={depositPercent}
                   onChange={(e) => setDepositPercent(Math.min(99, Math.max(1, Number(e.target.value) || 0)))}
-                  className="w-16 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                  className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
                 />
                 %
               </label>
@@ -935,7 +935,7 @@ export default function AdminQuoteBuilder({
           custom one) — applies to every charge in the list, including the
           three seeded defaults (Digitizing, Logo vectorization, Screen
           print screen fee), not just ones added here. */}
-      <section className="bg-black border border-white/10 rounded-xl p-4">
+      <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-white mb-1">Setup charges</h3>
         <p className="text-xs text-white/50 mb-3">
           One-time charges for this quote as a whole — not tied to any garment or decoration.
@@ -945,7 +945,7 @@ export default function AdminQuoteBuilder({
           <button
             type="button"
             onClick={() => setSetupDropdownOpen((o) => !o)}
-            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
+            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
           >
             {selectedSetupChargeIds.length > 0
               ? `${selectedSetupChargeIds.length} setup charge${selectedSetupChargeIds.length === 1 ? "" : "s"} selected`
@@ -954,7 +954,7 @@ export default function AdminQuoteBuilder({
           </button>
 
           {setupDropdownOpen && (
-            <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-xl shadow-xl p-2 max-h-96 overflow-y-auto">
+            <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
               {setupCharges.length === 0 && !creatingCharge && (
                 <p className="text-xs text-white/40 px-2 py-2">No setup charges configured yet.</p>
               )}
@@ -969,7 +969,7 @@ export default function AdminQuoteBuilder({
                         <input
                           value={chargeEditDraft.label}
                           onChange={(e) => setChargeEditDraft((d) => ({ ...d, label: e.target.value }))}
-                          className="w-full border border-white/20 rounded-lg px-2 py-1 text-sm"
+                          className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
                           placeholder="Label"
                         />
                         <input
@@ -980,7 +980,7 @@ export default function AdminQuoteBuilder({
                           onChange={(e) =>
                             setChargeEditDraft((d) => ({ ...d, price: Math.max(0, Number(e.target.value) || 0) }))
                           }
-                          className="w-28 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                          className="w-28 border border-white/20 rounded-xl px-2 py-1 text-sm"
                           placeholder="Price"
                         />
                         <div className="flex items-center gap-3">
@@ -1007,7 +1007,7 @@ export default function AdminQuoteBuilder({
                 return (
                   <div
                     key={c.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5 last:border-b-0"
                   >
                     <label className="flex items-center gap-2 flex-1 min-w-0 text-sm text-white/80 cursor-pointer">
                       <input
@@ -1046,7 +1046,7 @@ export default function AdminQuoteBuilder({
                       setEditingChargeId(null);
                       setChargeError(null);
                     }}
-                    className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-lg hover:bg-white/5"
+                    className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-xl hover:bg-white/5"
                   >
                     + Add custom setup charge
                   </button>
@@ -1056,7 +1056,7 @@ export default function AdminQuoteBuilder({
                       value={newChargeDraft.label}
                       onChange={(e) => setNewChargeDraft((d) => ({ ...d, label: e.target.value }))}
                       placeholder="e.g. Rush digitizing"
-                      className="w-full border border-white/20 rounded-lg px-2 py-1 text-sm"
+                      className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
                       autoFocus
                     />
                     <input
@@ -1068,7 +1068,7 @@ export default function AdminQuoteBuilder({
                         setNewChargeDraft((d) => ({ ...d, price: Math.max(0, Number(e.target.value) || 0) }))
                       }
                       placeholder="Price"
-                      className="w-28 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                      className="w-28 border border-white/20 rounded-xl px-2 py-1 text-sm"
                     />
                     <div className="flex items-center gap-3">
                       <button
@@ -1108,7 +1108,7 @@ export default function AdminQuoteBuilder({
               return (
                 <span
                   key={id}
-                  className="flex items-center gap-1.5 text-xs bg-white/5 border border-white/10 rounded-full pl-3 pr-1.5 py-1 text-white/80"
+                  className="flex items-center gap-1.5 text-xs bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-full pl-3 pr-1.5 py-1 text-white/80"
                 >
                   {c.label} <span className="text-white/40">({formatUSD(c.price)})</span>
                   <button
@@ -1130,7 +1130,7 @@ export default function AdminQuoteBuilder({
           (a rush fee, a shipping surcharge), distinct from the reusable
           Setup Charges above. Only shown in "full" mode. */}
       {mode === "full" && (
-      <section className="bg-black border border-white/10 rounded-xl p-4">
+      <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-white mb-1">Miscellaneous fees</h3>
         <p className="text-xs text-white/50 mb-3">
           One-off charges for this quote only — a rush fee, a shipping surcharge, anything that
@@ -1142,7 +1142,7 @@ export default function AdminQuoteBuilder({
             {miscFees.map((f) => (
               <div
                 key={f.id}
-                className="flex items-center justify-between gap-3 border border-white/10 rounded-lg px-3 py-1.5"
+                className="flex items-center justify-between gap-3 border border-white/10 shadow-lg shadow-black/30 rounded-xl px-3 py-1.5"
               >
                 <span className="text-sm text-white">
                   {f.label} <span className="text-white/40">({formatUSD(f.amount)})</span>
@@ -1164,7 +1164,7 @@ export default function AdminQuoteBuilder({
               value={miscFeeLabel}
               onChange={(e) => setMiscFeeLabel(e.target.value)}
               placeholder="e.g. Rush fee, Shipping"
-              className="mt-1 w-48 border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-48 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
           <label className="text-xs text-white/60">
@@ -1176,13 +1176,13 @@ export default function AdminQuoteBuilder({
               value={miscFeeAmount}
               onChange={(e) => setMiscFeeAmount(e.target.value)}
               placeholder="0.00"
-              className="mt-1 w-28 border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-28 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
           <button
             type="button"
             onClick={addMiscFee}
-            className="text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90"
+            className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90"
           >
             + Add fee
           </button>
@@ -1194,7 +1194,7 @@ export default function AdminQuoteBuilder({
       {/* Add a garment — guided flow: decoration, catalog, product, color,
           sizes, locations, in that order, matching the shop's other
           quoting tool. */}
-      <section className="bg-black border border-white/10 rounded-xl p-4">
+      <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-white mb-3">Add a garment</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
@@ -1206,7 +1206,7 @@ export default function AdminQuoteBuilder({
                 setSelectedDecorationId(e.target.value);
                 setSelectedColumnId("");
               }}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             >
               <option value="">None — garment only</option>
               {decorations.map((d) => (
@@ -1225,7 +1225,7 @@ export default function AdminQuoteBuilder({
             <select
               value={catalogSource}
               onChange={(e) => onCatalogChange(e.target.value as CatalogSource)}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
             >
               {CATALOG_OPTIONS.map((c) => (
                 <option key={c.id} value={c.id} disabled={c.disabled}>
@@ -1244,7 +1244,7 @@ export default function AdminQuoteBuilder({
               <input
                 value={csDescription}
                 onChange={(e) => setCsDescription(e.target.value)}
-                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                 placeholder="e.g. Hat, Shirt, Bag, Custom item"
               />
             </label>
@@ -1278,7 +1278,7 @@ export default function AdminQuoteBuilder({
                   min={0}
                   value={csFlatQuantity}
                   onChange={(e) => setCsFlatQuantity(Math.max(0, Number(e.target.value) || 0))}
-                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                 />
               </label>
             ) : (
@@ -1297,7 +1297,7 @@ export default function AdminQuoteBuilder({
                           setCsSizeRows(next);
                         }}
                         placeholder="Size (e.g. M, OSFA)"
-                        className="w-32 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                        className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
                       />
                       <input
                         type="number"
@@ -1309,7 +1309,7 @@ export default function AdminQuoteBuilder({
                           setCsSizeRows(next);
                         }}
                         placeholder="Qty"
-                        className="w-20 border border-white/20 rounded-lg px-2 py-1 text-sm"
+                        className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
                       />
                       <button
                         type="button"
@@ -1324,7 +1324,7 @@ export default function AdminQuoteBuilder({
                 <button
                   type="button"
                   onClick={() => setCsSizeRows((prev) => [...prev, { size: "", quantity: 0 }])}
-                  className="mt-2 text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+                  className="mt-2 text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                 >
                   + Add size row
                 </button>
@@ -1337,7 +1337,7 @@ export default function AdminQuoteBuilder({
                 <select
                   value={selectedColumnId}
                   onChange={(e) => setSelectedColumnId(e.target.value)}
-                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                 >
                   <option value="">Select…</option>
                   {selectedDecoration.priceColumns.map((c) => (
@@ -1366,7 +1366,7 @@ export default function AdminQuoteBuilder({
 
             <button
               onClick={addCustomerSuppliedLine}
-              className="mt-4 text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90"
+              className="mt-4 text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90"
             >
               Add to quote
             </button>
@@ -1382,7 +1382,7 @@ export default function AdminQuoteBuilder({
                   onFocus={() => productSuggestions.length > 0 && setSuggestionsOpen(true)}
                   onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
                   disabled={catalogSource === "ss"}
-                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-white/5"
+                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-white/5"
                   placeholder={
                     catalogSource === "ss"
                       ? "S&S Activewear isn't connected yet"
@@ -1394,7 +1394,7 @@ export default function AdminQuoteBuilder({
                 <span className="absolute right-2 top-8 text-[11px] text-white/30">searching…</span>
               )}
               {suggestionsOpen && productSuggestions.length > 0 && (
-                <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto bg-black border border-white/20 rounded-lg shadow-lg text-sm">
+                <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto bg-black border border-white/20 rounded-xl shadow-lg text-sm">
                   {productSuggestions.map((r) => (
                     <li key={r.styleNumber}>
                       <button
@@ -1445,7 +1445,7 @@ export default function AdminQuoteBuilder({
                       for (const sz of color?.sizes ?? []) next[sz.name] = 0;
                       setSizeQty(next);
                     }}
-                    className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                    className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                   >
                     {foundProduct.colors.map((c) => (
                       <option key={c.colorName} value={c.colorName}>
@@ -1467,19 +1467,19 @@ export default function AdminQuoteBuilder({
                               ? "Hide item cost and item markup — show only the item price"
                               : "Show item cost and item markup"
                           }
-                          className="text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+                          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                         >
                           {showMarkup ? "Item Markup" : "IM%"}
                         </button>
                         <button
                           onClick={fillOneEach}
-                          className="text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+                          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                         >
                           Fill 1 of each
                         </button>
                         <button
                           onClick={clearQuantities}
-                          className="text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+                          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                         >
                           Clear
                         </button>
@@ -1502,7 +1502,7 @@ export default function AdminQuoteBuilder({
                     <select
                       value={selectedColumnId}
                       onChange={(e) => setSelectedColumnId(e.target.value)}
-                      className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                      className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                     >
                       <option value="">Select…</option>
                       {selectedDecoration.priceColumns.map((c) => (
@@ -1524,7 +1524,7 @@ export default function AdminQuoteBuilder({
 
                 <button
                   onClick={addLine}
-                  className="mt-4 text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90"
+                  className="mt-4 text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90"
                 >
                   Add to quote
                 </button>
@@ -1536,7 +1536,7 @@ export default function AdminQuoteBuilder({
 
       {/* Lines added so far */}
       {lines.length > 0 && (
-        <section className="bg-black border border-white/10 rounded-xl p-4">
+        <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
           <h3 className="text-sm font-semibold text-white mb-3">Quote lines ({lines.length})</h3>
           <div className="space-y-2.5">
             {lines.map((line, idx) => {
@@ -1546,7 +1546,7 @@ export default function AdminQuoteBuilder({
               return (
                 <div
                   key={line.key}
-                  className="flex items-start gap-3 border border-white/15 rounded-lg px-3 py-2.5 bg-white/[0.015]"
+                  className="flex items-start gap-3 border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
                 >
                   <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
                     {idx + 1}
@@ -1589,7 +1589,7 @@ export default function AdminQuoteBuilder({
             <button
               onClick={generateQuote}
               disabled={quoteLoading}
-              className="text-sm px-4 py-1.5 rounded-lg bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+              className="text-sm px-4 py-1.5 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
             >
               {quoteLoading ? "Calculating…" : "Preview quote"}
             </button>
@@ -1598,7 +1598,7 @@ export default function AdminQuoteBuilder({
                 <button
                   onClick={saveQuote}
                   disabled={saving}
-                  className="text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90 disabled:opacity-40"
+                  className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
                 >
                   {saving ? "Saving…" : activeRecord ? "Save changes" : "Save quote"}
                 </button>
@@ -1606,7 +1606,7 @@ export default function AdminQuoteBuilder({
                   <button
                     onClick={convertToInvoice}
                     disabled={converting}
-                    className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/5 disabled:opacity-40"
+                    className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
                   >
                     {converting ? "Converting…" : "Convert to invoice"}
                   </button>
@@ -1616,7 +1616,7 @@ export default function AdminQuoteBuilder({
               <button
                 onClick={() => onCreateQuote?.(lines, selectedSetupChargeIds)}
                 disabled={lines.length === 0}
-                className="text-sm px-4 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90 disabled:opacity-40"
+                className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
                 title="Carry these items into a full quote where you can add the customer's info and save it"
               >
                 Create quote
@@ -1629,21 +1629,21 @@ export default function AdminQuoteBuilder({
               <button
                 onClick={() => downloadPdf("customer")}
                 disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/5 disabled:opacity-40"
+                className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
               >
                 {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
               </button>
               <button
                 onClick={() => downloadPdf("internal")}
                 disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-lg border border-red/30 text-red hover:bg-red/5 disabled:opacity-40"
+                className="text-sm px-4 py-1.5 rounded-xl border border-red/30 text-red hover:bg-red/5 disabled:opacity-40"
               >
                 {pdfLoading === "internal" ? "Generating…" : "Download company PDF (with cost)"}
               </button>
               <button
                 onClick={() => downloadPdf("work-order")}
                 disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-lg border border-white/20 hover:bg-white/5 disabled:opacity-40"
+                className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
               >
                 {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
               </button>
@@ -1651,7 +1651,7 @@ export default function AdminQuoteBuilder({
                 <button
                   onClick={() => downloadPdf("invoice")}
                   disabled={pdfLoading !== null}
-                  className="text-sm px-4 py-1.5 rounded-lg border border-green-600/30 text-green-700 hover:bg-green-50 disabled:opacity-40"
+                  className="text-sm px-4 py-1.5 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50 disabled:opacity-40"
                 >
                   {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
                 </button>
@@ -1683,7 +1683,7 @@ export default function AdminQuoteBuilder({
 
       {/* Computed preview */}
       {quote && (
-        <section className="bg-black border border-white/10 rounded-xl p-4">
+        <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white">Preview</h3>
             <button
@@ -1693,7 +1693,7 @@ export default function AdminQuoteBuilder({
                   ? "Hide item cost and item markup — show only the item price"
                   : "Show item cost and item markup"
               }
-              className="text-xs px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+              className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
             >
               {showMarkup ? "Item Markup" : "IM%"}
             </button>
@@ -1869,7 +1869,7 @@ function SizeGrid({
                     const v = Math.max(0, Number(e.target.value) || 0);
                     setSizeQty((prev) => ({ ...prev, [sz.name]: v }));
                   }}
-                  className="w-16 border border-white/20 rounded-lg px-1.5 py-1 text-center text-sm"
+                  className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
                 />
               </td>
             ))}

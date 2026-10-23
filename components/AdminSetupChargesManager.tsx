@@ -118,7 +118,7 @@ export default function AdminSetupChargesManager() {
   return (
     <div>
       {!persistent && (
-        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           No durable storage is connected to this deployment yet, so changes
           only last until the next cold start or redeploy. Connect a Vercel
           Blob store to this project (Vercel dashboard → Storage → Create
@@ -131,7 +131,7 @@ export default function AdminSetupChargesManager() {
           const draft = drafts[c.id] ?? { label: c.label, price: c.price };
           const isOpen = openId === c.id;
           return (
-            <div key={c.id} className="border border-white/10 rounded-xl bg-black overflow-hidden">
+            <div key={c.id} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <div className="flex-1">
                   <div className="font-semibold text-white">{c.label}</div>
@@ -139,7 +139,7 @@ export default function AdminSetupChargesManager() {
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : c.id)}
-                  className="text-sm text-white/70 px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/5"
+                  className="text-sm text-white/70 px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
@@ -165,7 +165,7 @@ export default function AdminSetupChargesManager() {
                         onChange={(e) =>
                           setDrafts((prev) => ({ ...prev, [c.id]: { ...draft, label: e.target.value } }))
                         }
-                        className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                        className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                       />
                     </label>
                     <label className="text-sm text-white/70">
@@ -181,7 +181,7 @@ export default function AdminSetupChargesManager() {
                             [c.id]: { ...draft, price: Math.max(0, Number(e.target.value) || 0) },
                           }))
                         }
-                        className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                        className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                       />
                     </label>
                   </div>
@@ -201,11 +201,11 @@ export default function AdminSetupChargesManager() {
         })}
       </div>
 
-      <div className="mt-6 border border-dashed border-white/20 rounded-xl">
+      <div className="mt-6 border border-dashed border-white/20 rounded-2xl">
         {!creating ? (
           <button
             onClick={() => setCreating(true)}
-            className="w-full p-4 text-sm font-medium text-white/70 hover:bg-white/5 rounded-xl"
+            className="w-full p-4 text-sm font-medium text-white/70 hover:bg-white/5 rounded-2xl"
           >
             + Add a setup charge
           </button>
@@ -220,7 +220,7 @@ export default function AdminSetupChargesManager() {
                   value={newDraft.label}
                   onChange={(e) => setNewDraft((prev) => ({ ...prev, label: e.target.value }))}
                   placeholder="e.g. Digitizing for embroidery"
-                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                 />
               </label>
               <label className="text-sm text-white/70">
@@ -233,7 +233,7 @@ export default function AdminSetupChargesManager() {
                   onChange={(e) =>
                     setNewDraft((prev) => ({ ...prev, price: Math.max(0, Number(e.target.value) || 0) }))
                   }
-                  className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                 />
               </label>
             </div>

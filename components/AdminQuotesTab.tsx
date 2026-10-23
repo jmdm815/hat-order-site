@@ -53,12 +53,12 @@ export default function AdminQuotesTab({ seed, onSeedConsumed }: Props) {
 
   return (
     <div className="space-y-8">
-      <section className="bg-white/[0.02] border border-white/10 rounded-xl p-4">
+      <section className="bg-white/[0.02] border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h3 className="text-sm font-semibold text-white">Saved quotes &amp; invoices</h3>
           <button
             onClick={openNewQuote}
-            className="text-sm px-3 py-1.5 rounded-lg bg-red text-navy hover:bg-red/90 shrink-0"
+            className="text-sm px-3 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 shrink-0"
           >
             + New quote
           </button>
@@ -83,7 +83,7 @@ export default function AdminQuotesTab({ seed, onSeedConsumed }: Props) {
           onClick={closeBuilder}
         >
           <div
-            className="bg-white/[0.03] rounded-xl shadow-xl w-full max-w-5xl my-6 p-5"
+            className="bg-white/[0.03] rounded-2xl shadow-xl w-full max-w-5xl my-6 p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 mb-4">
@@ -96,7 +96,7 @@ export default function AdminQuotesTab({ seed, onSeedConsumed }: Props) {
               </h2>
               <button
                 onClick={closeBuilder}
-                className="text-xs px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:bg-white/5 shrink-0"
+                className="text-xs px-3 py-1.5 rounded-xl border border-white/20 bg-black hover:bg-white/5 shrink-0"
               >
                 ✕ Close
               </button>

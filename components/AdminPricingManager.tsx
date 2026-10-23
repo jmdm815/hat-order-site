@@ -70,7 +70,7 @@ export default function AdminPricingManager() {
   return (
     <div>
       {!persistent && (
-        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           No durable storage is connected to this deployment yet, so these
           settings only last until the next cold start or redeploy.
         </p>
@@ -87,7 +87,7 @@ export default function AdminPricingManager() {
         ).map((row) => (
           <label
             key={row.key}
-            className="flex items-center justify-between gap-4 border border-white/10 rounded-xl bg-black p-4"
+            className="flex items-center justify-between gap-4 border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-4"
           >
             <span>
               <span className="font-medium text-white">{row.label}</span>

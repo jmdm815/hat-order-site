@@ -251,7 +251,7 @@ export default function AdminCustomersManager() {
   return (
     <div>
       {!persistent && (
-        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           No durable storage is connected to this deployment yet, so customers only last until the
           next cold start or redeploy. Connect a Vercel Blob store to make changes stick.
         </p>
@@ -268,7 +268,7 @@ export default function AdminCustomersManager() {
             placeholder="Search customers by name, company, email, or phone…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 border border-white/20 rounded-lg px-3 py-2 text-sm"
+            className="flex-1 border border-white/20 rounded-xl px-3 py-2 text-sm"
           />
           <button
             onClick={toggleSelectMode}
@@ -300,7 +300,7 @@ export default function AdminCustomersManager() {
       </div>
 
       {selectMode && customers.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2 max-w-2xl">
+        <div className="mt-3 flex flex-wrap items-center gap-3 bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-2xl px-3 py-2 max-w-2xl">
           <label className="flex items-center gap-2 text-sm text-white/70 cursor-pointer">
             <input
               type="checkbox"
@@ -328,7 +328,7 @@ export default function AdminCustomersManager() {
       )}
 
       {showImport && (
-        <section className="mt-4 bg-black border border-white/10 rounded-xl p-4 max-w-2xl">
+        <section className="mt-4 bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4 max-w-2xl">
           <h3 className="text-sm font-semibold text-white mb-1">Import customers</h3>
           <p className="text-xs text-white/50">
             Upload a CSV or Excel (.xls/.xlsx) file with a header row. A <span className="font-medium">Name</span>{" "}
@@ -351,7 +351,7 @@ export default function AdminCustomersManager() {
             />
             <button
               onClick={downloadImportTemplate}
-              className="text-xs text-white/60 px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+              className="text-xs text-white/60 px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
             >
               Download template
             </button>
@@ -361,7 +361,7 @@ export default function AdminCustomersManager() {
           {importError && <p className="mt-3 text-sm text-red-600">{importError}</p>}
 
           {importResult && (
-            <div className="mt-3 text-sm text-white bg-tan/20 border border-tan/40 rounded-lg px-3 py-2">
+            <div className="mt-3 text-sm text-white bg-tan/20 border border-tan/40 rounded-xl px-3 py-2">
               <p>
                 Imported {importResult.totalRows} row{importResult.totalRows === 1 ? "" : "s"}:{" "}
                 <span className="font-semibold">{importResult.created} added</span>,{" "}
@@ -405,7 +405,7 @@ export default function AdminCustomersManager() {
       )}
 
       {showForm && (
-        <section className="mt-4 bg-black border border-white/10 rounded-xl p-4 max-w-2xl">
+        <section className="mt-4 bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4 max-w-2xl">
           <h3 className="text-sm font-semibold text-white mb-3">
             {editingId ? "Edit customer" : "Add a customer"}
           </h3>
@@ -415,7 +415,7 @@ export default function AdminCustomersManager() {
               <input
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                 placeholder="Jane Smith"
                 autoFocus
               />
@@ -425,7 +425,7 @@ export default function AdminCustomersManager() {
               <input
                 value={form.company}
                 onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
-                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
               />
             </label>
             <label className="text-xs text-white/60">
@@ -434,7 +434,7 @@ export default function AdminCustomersManager() {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
               />
             </label>
             <label className="text-xs text-white/60">
@@ -442,7 +442,7 @@ export default function AdminCustomersManager() {
               <input
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
               />
             </label>
             <label className="text-xs text-white/60">
@@ -454,7 +454,7 @@ export default function AdminCustomersManager() {
                 value={form.defaultDepositPercent}
                 onChange={(e) => setForm((f) => ({ ...f, defaultDepositPercent: e.target.value }))}
                 placeholder="e.g. 50"
-                className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
               />
             </label>
           </div>
@@ -463,7 +463,7 @@ export default function AdminCustomersManager() {
             <textarea
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              className="mt-1 w-full border border-white/20 rounded-lg px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
               rows={2}
             />
           </label>
@@ -493,7 +493,7 @@ export default function AdminCustomersManager() {
       ) : filtered.length === 0 ? (
         <p className="mt-4 text-sm text-white/50">No customers match &quot;{search}&quot;.</p>
       ) : (
-        <div className="mt-4 divide-y divide-white/10 border border-white/10 rounded-xl max-w-2xl overflow-hidden">
+        <div className="mt-4 divide-y divide-white/10 border border-white/10 shadow-lg shadow-black/30 rounded-2xl max-w-2xl overflow-hidden">
           {filtered.map((c) => (
             <div
               key={c.id}
@@ -532,13 +532,13 @@ export default function AdminCustomersManager() {
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => startEdit(c)}
-                    className="text-xs text-white/60 px-2 py-1 rounded-lg border border-white/20 hover:bg-white/5"
+                    className="text-xs text-white/60 px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(c.id)}
-                    className="text-xs text-red-600 px-2 py-1 hover:bg-red-50 rounded-lg"
+                    className="text-xs text-red-600 px-2 py-1 hover:bg-red-50 rounded-xl"
                   >
                     Delete
                   </button>

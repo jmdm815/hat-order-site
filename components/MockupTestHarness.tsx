@@ -228,7 +228,7 @@ export default function MockupTestHarness() {
       <div className="flex items-center gap-3 mb-4">
         <button
           onClick={() => setRenderKey((k) => k + 1)}
-          className="text-sm font-medium bg-navy text-white rounded-lg px-4 py-2 hover:bg-navy/90"
+          className="text-sm font-medium bg-navy text-white rounded-xl px-4 py-2 hover:bg-navy/90"
         >
           Re-render
         </button>
@@ -240,16 +240,16 @@ export default function MockupTestHarness() {
       </div>
 
       {error && (
-        <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
           {error}
         </p>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {SLOTS.map((slot) => (
-          <div key={slot.key} className="border border-white/10 rounded-xl bg-black p-3">
+          <div key={slot.key} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-3">
             <h2 className="text-sm font-semibold text-white mb-2">{slot.label}</h2>
-            <div ref={(el) => { containerRefs.current[slot.key] = el; }} className="bg-neutral-100 rounded-lg min-h-[200px]" />
+            <div ref={(el) => { containerRefs.current[slot.key] = el; }} className="bg-neutral-100 rounded-xl min-h-[200px]" />
           </div>
         ))}
       </div>

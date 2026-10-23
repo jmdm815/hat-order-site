@@ -108,7 +108,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
 
   if (notFound || !invoice) {
     return (
-      <div className="bg-black border border-white/10 rounded-xl p-6">
+      <div className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-6">
         <h1 className="text-xl font-bold text-white">Invoice not found</h1>
         <p className="mt-2 text-sm text-white/60">
           This payment link doesn&apos;t match an open invoice. If you think this is a mistake, please
@@ -134,7 +134,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
         <p className="text-sm text-white/60">{invoice.customerName}</p>
       )}
 
-      <div className="mt-6 bg-black border border-white/10 rounded-xl overflow-hidden">
+      <div className="mt-6 bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden">
         <div className="divide-y divide-white/5">
           {invoice.lines.map((line, i) => (
             <div key={i} className="px-4 py-3 flex items-start justify-between gap-4 text-sm">
@@ -186,7 +186,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
       </div>
 
       {successMessage && (
-        <p className="mt-4 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+        <p className="mt-4 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
           {successMessage}
         </p>
       )}
@@ -204,13 +204,13 @@ export default function InvoicePayClient({ id }: { id: string }) {
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
                 inputMode="decimal"
-                className="w-full bg-black border border-white/20 rounded-lg pl-7 pr-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                className="w-full bg-black border border-white/20 rounded-xl pl-7 pr-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
               />
             </div>
             <button
               type="button"
               onClick={() => setAmountInput(invoice.balance.toFixed(2))}
-              className="text-xs px-3 py-2 rounded-lg border border-white/20 text-white/70 hover:bg-white/5 shrink-0"
+              className="text-xs px-3 py-2 rounded-xl border border-white/20 text-white/70 hover:bg-white/5 shrink-0"
             >
               Pay full balance ({money(invoice.balance)})
             </button>
@@ -229,7 +229,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
               placeholder="you@example.com"
-              className="w-full bg-black border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+              className="w-full bg-black border border-white/20 rounded-xl px-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
             />
             {emailInput.trim() !== "" && !EMAIL_RE.test(emailInput.trim()) && (
               <p className="mt-1 text-xs text-red">That doesn&apos;t look like a valid email address.</p>

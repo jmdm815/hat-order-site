@@ -89,7 +89,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
   return (
     <div className="fixed inset-0 z-50 bg-navy/40 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-black rounded-xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto p-5"
+        className="bg-black rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -102,7 +102,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
           </button>
         </div>
 
-        <div className="mt-4 bg-white/5 rounded-lg px-3 py-2.5 space-y-1 text-sm">
+        <div className="mt-4 bg-white/5 rounded-xl px-3 py-2.5 space-y-1 text-sm">
           <div className="flex justify-between">
             <span className="text-white/70">Total</span>
             <span className="font-medium text-white">{money(grandTotal)}</span>
@@ -157,7 +157,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     inputMode="decimal"
-                    className="w-full bg-black border border-white/20 rounded-lg pl-6 pr-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                    className="w-full bg-black border border-white/20 rounded-xl pl-6 pr-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
                   />
                 </div>
               </div>
@@ -169,7 +169,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                   id="payment-tender"
                   value={tender}
                   onChange={(e) => setTender(e.target.value as InvoicePaymentEntry["tender"])}
-                  className="w-full bg-black border border-white/20 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                  className="w-full bg-black border border-white/20 rounded-xl px-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
                 >
                   <option value="cash">Cash</option>
                   <option value="check">Check</option>
@@ -186,7 +186,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="e.g. deposit paid at pickup counter"
-                className="w-full bg-black border border-white/20 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                className="w-full bg-black border border-white/20 rounded-xl px-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
               />
             </div>
             {!amountValid && amount !== "" && (
@@ -196,21 +196,21 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
               <button
                 onClick={() => submit(amountValid ? amountNum : 0)}
                 disabled={busy || !amountValid}
-                className="flex-1 py-2 rounded-lg bg-navy text-white text-sm font-semibold hover:bg-navy/90 disabled:opacity-40"
+                className="flex-1 py-2 rounded-xl bg-navy text-white text-sm font-semibold hover:bg-navy/90 disabled:opacity-40"
               >
                 {busy ? "Saving…" : "Record payment"}
               </button>
               <button
                 onClick={() => submit(balance)}
                 disabled={busy}
-                className="py-2 px-3 rounded-lg border border-green-600/30 text-green-700 text-sm font-semibold hover:bg-green-50 disabled:opacity-40"
+                className="py-2 px-3 rounded-xl border border-green-600/30 text-green-700 text-sm font-semibold hover:bg-green-50 disabled:opacity-40"
               >
                 Mark fully paid
               </button>
             </div>
           </div>
         ) : (
-          <p className="mt-4 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+          <p className="mt-4 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
             This invoice is paid in full.
           </p>
         )}

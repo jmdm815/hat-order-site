@@ -256,7 +256,7 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
 
   if (!SQUARE_CONFIGURED) {
     return (
-      <p className="text-sm text-white/70 bg-white/5 border border-white/10 rounded-lg px-4 py-3">
+      <p className="text-sm text-white/70 bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-xl px-4 py-3">
         Online payment isn&apos;t available right now — please contact us to arrange payment.
       </p>
     );
@@ -290,7 +290,7 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
                 "-apple-pay-button-style": "black",
               } as React.CSSProperties
             }
-            className="w-full h-11 rounded-lg disabled:opacity-40"
+            className="w-full h-11 rounded-xl disabled:opacity-40"
           />
         )}
         <div
@@ -310,7 +310,7 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
       <button
         onClick={handleCardSubmit}
         disabled={!ready || !canPay}
-        className="mt-4 w-full py-3 rounded-lg bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:opacity-40"
+        className="mt-4 w-full py-3 rounded-xl bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:opacity-40"
       >
         {submitting ? "Processing…" : `Pay $${amount.toFixed(2)}`}
       </button>

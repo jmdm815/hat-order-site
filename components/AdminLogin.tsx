@@ -34,7 +34,7 @@ export default function AdminLogin() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-sm border border-white/10 rounded-xl bg-black p-6"
+      className="max-w-sm border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-6"
     >
       <label className="block">
         <span className="text-sm font-medium text-white">Admin password</span>
@@ -43,7 +43,7 @@ export default function AdminLogin() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoFocus
-          className="mt-1 w-full border border-white/20 rounded-lg px-3 py-2 text-sm"
+          className="mt-1 w-full border border-white/20 rounded-xl px-3 py-2 text-sm"
         />
       </label>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}

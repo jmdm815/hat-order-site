@@ -197,7 +197,7 @@ export default function AdminCatalogManager() {
   return (
     <div>
       {!persistent && (
-        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <p className="mb-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           No durable storage is connected to this deployment yet, so
           check/uncheck changes only last until the next cold start or
           redeploy. Connect a Vercel Blob store to this project (Vercel
@@ -212,7 +212,7 @@ export default function AdminCatalogManager() {
           placeholder="Search brand, name, or style #…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-white/20 rounded-lg px-3 py-2 text-sm w-64"
+          className="border border-white/20 rounded-xl px-3 py-2 text-sm w-64"
         />
         <div className="flex gap-1">
           {(["all", "hat", "shirt", "polo", "tumbler"] as const).map((t) => (
@@ -222,7 +222,7 @@ export default function AdminCatalogManager() {
                 setProductType(t);
                 setCategory("All");
               }}
-              className={`px-3 py-2 text-sm rounded-lg border capitalize ${
+              className={`px-3 py-2 text-sm rounded-xl border capitalize ${
                 productType === t
                   ? "bg-navy text-white border-white"
                   : "border-white/20 text-white/70 hover:bg-white/5"
@@ -235,7 +235,7 @@ export default function AdminCatalogManager() {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="border border-white/20 rounded-lg px-3 py-2 text-sm"
+          className="border border-white/20 rounded-xl px-3 py-2 text-sm"
         >
           <option value="All">All</option>
           {categoryOptions.map((c) => (
@@ -247,7 +247,7 @@ export default function AdminCatalogManager() {
         <select
           value={visibilityFilter}
           onChange={(e) => setVisibilityFilter(e.target.value as typeof visibilityFilter)}
-          className="border border-white/20 rounded-lg px-3 py-2 text-sm"
+          className="border border-white/20 rounded-xl px-3 py-2 text-sm"
         >
           <option value="all">All</option>
           <option value="visible">Visible only</option>
@@ -255,7 +255,7 @@ export default function AdminCatalogManager() {
         </select>
         <button
           onClick={() => setCustomProductForm({ mode: "add" })}
-          className="text-sm px-3 py-2 rounded-lg border border-white/20 hover:bg-white/5 font-medium text-white"
+          className="text-sm px-3 py-2 rounded-xl border border-white/20 hover:bg-white/5 font-medium text-white"
         >
           + Add custom product
         </button>
@@ -267,7 +267,7 @@ export default function AdminCatalogManager() {
           <button
             onClick={discardUnsavedChanges}
             disabled={saving}
-            className="text-sm px-3 py-2 rounded-lg border border-white/20 text-white/60 hover:bg-white/5"
+            className="text-sm px-3 py-2 rounded-xl border border-white/20 text-white/60 hover:bg-white/5"
           >
             Discard unsaved changes
           </button>
@@ -295,13 +295,13 @@ export default function AdminCatalogManager() {
         <div className="mt-2 flex gap-2">
           <button
             onClick={() => setAllFiltered(true)}
-            className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+            className="text-xs px-3 py-1.5 rounded-xl border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
           >
             Show all {filtered.length} filtered
           </button>
           <button
             onClick={() => setAllFiltered(false)}
-            className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+            className="text-xs px-3 py-1.5 rounded-xl border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
           >
             Hide all {filtered.length} filtered
           </button>
@@ -314,7 +314,7 @@ export default function AdminCatalogManager() {
           return (
             <div
               key={s.styleNumber}
-              className={`border rounded-xl bg-black overflow-hidden transition ${
+              className={`border rounded-2xl bg-black overflow-hidden transition ${
                 isHidden ? "border-white/10 opacity-45" : "border-white/10 hover:shadow-md"
               }`}
             >
