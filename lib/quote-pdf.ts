@@ -513,7 +513,7 @@ export async function renderQuotePdf(
         .fillColor(GRAY)
         .font("Helvetica-Bold")
         .fontSize(9)
-        .text("MISCELLANEOUS FEES", left, doc.y, { width: pageWidth });
+        .text("OTHER", left, doc.y, { width: pageWidth });
       doc.moveDown(0.2);
       doc.font("Helvetica").fontSize(9.5);
       for (const fee of quote.miscFees) {
@@ -549,7 +549,14 @@ export async function renderQuotePdf(
       // Setup charges and misc fees are already folded into subtotalBeforeTax
       // (see quote.subtotalBeforeTax) — they're itemized above, in their own
       // sections, rather than shown again as a separate addend here.
-      totalRow(`Subtotal (${quote.totalQuantity} units)`, money(quote.subtotalBeforeTax));
+      // Garment quantity alone reads as "0 units" (misleadingly implying an
+      // empty invoice) when a quote/invoice is made up only of misc fees
+      // (shipping, a rush fee, etc.) with no garment lines — fold the misc
+      // fees' own quantities in so the count always reflects everything
+      // actually being billed.
+      const miscFeeQuantity = quote.miscFees.reduce((sum, fee) => sum + fee.quantity, 0);
+      const totalItemCount = quote.totalQuantity + miscFeeQuantity;
+      totalRow(`Subtotal (${totalItemCount} item${totalItemCount === 1 ? "" : "s"})`, money(quote.subtotalBeforeTax));
       if (quote.taxAmount > 0) {
         doc.moveDown(0.4);
         totalRow(`Tax (${quote.taxRatePercent}%)`, money(quote.taxAmount));
