@@ -1207,26 +1207,59 @@ export default function AdminQuoteBuilder({
   // added items after the first save, then navigated away (e.g. "Back to
   // quotes") without a second explicit save, and nothing had actually been
   // persisted. Once a record exists (activeRecord is set — i.e. it's been
-  // saved at least once), every further change to the items themselves is
-  // now pushed to the server automatically on the same short debounce as
-  // the live preview, so leaving the page can never silently drop an edit.
+  // saved at least once, via the "Save & add line item" button above),
+  // every further change to the items themselves is now pushed to the
+  // server automatically on the same short debounce as the live preview.
   // Skipped entirely for a brand-new, not-yet-saved quote (no activeRecord
-  // yet) and for the Quick Quote builder (mode "quick" has no save step at
-  // all) — and skipped on the very first run after a record loads/saves,
-  // so hydrating from the server doesn't immediately re-PUT the same data.
+  // yet — the Items section isn't even shown until then) and for the Quick
+  // Quote builder (mode "quick" has no save step at all) — and skipped on
+  // the very first run after a record loads/saves, so hydrating from the
+  // server doesn't immediately re-PUT the same data.
+  //
+  // autosavePendingRef / saveQuoteRef below exist to close a narrower
+  // version of that exact same bug: this effect's own cleanup
+  // (`clearTimeout(timer)`) also fires on a real unmount — e.g. the admin
+  // adds an item, then clicks "← Back to quotes" within the 800ms debounce
+  // window — which silently cancelled the pending save instead of letting
+  // it go out, so the edit was lost even though autosave was "on." The
+  // dedicated empty-deps effect further down flushes that pending save
+  // immediately when the component actually unmounts, instead of just
+  // cancelling it.
   const skipNextAutosaveRef = useRef(true);
+  const autosavePendingRef = useRef(false);
+  const saveQuoteRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    saveQuoteRef.current = saveQuote;
+  });
   useEffect(() => {
     if (skipNextAutosaveRef.current) {
       skipNextAutosaveRef.current = false;
       return;
     }
     if (mode !== "full" || !activeRecord) return;
+    autosavePendingRef.current = true;
     const timer = setTimeout(() => {
+      autosavePendingRef.current = false;
       saveQuote();
     }, 800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines, selectedSetupChargeIds, miscFees]);
+  // Fires exactly once, on the component's real unmount (empty dep array —
+  // a dependency-change cleanup is a different function instance each time,
+  // this one never changes). If an autosave was debounced and still
+  // pending, send it now as a fire-and-forget request instead of letting it
+  // get silently cancelled — the fetch keeps running after unmount since
+  // it isn't tied to React's lifecycle, it just won't update this
+  // component's own (now-gone) state.
+  useEffect(() => {
+    return () => {
+      if (autosavePendingRef.current) {
+        autosavePendingRef.current = false;
+        saveQuoteRef.current();
+      }
+    };
+  }, []);
 
   async function downloadPdf(mode: PdfMode) {
     setPdfLoading(mode);
