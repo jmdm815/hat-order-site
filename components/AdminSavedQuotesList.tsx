@@ -268,13 +268,26 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                     Work order
                   </button>
                   {r.status === "quote" ? (
-                    <button
-                      onClick={() => handleConvert(r.id)}
-                      disabled={isBusy}
-                      className="text-xs px-2.5 py-1 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
-                    >
-                      {isBusy ? "…" : "Convert to invoice"}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleConvert(r.id)}
+                        disabled={isBusy}
+                        className="text-xs px-2.5 py-1 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+                      >
+                        {isBusy ? "…" : "Convert to invoice"}
+                      </button>
+                      <button
+                        onClick={() => setPaymentModalRecord(r)}
+                        title="Create a deposit payment link, or record a deposit taken another way (cash, check), before converting this to an invoice"
+                        className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
+                          (r.amountPaid ?? 0) > 0
+                            ? "border border-green-600/30 text-green-700 hover:bg-green-50"
+                            : "border border-blue-400 text-blue-700 hover:bg-blue-50"
+                        }`}
+                      >
+                        {(r.amountPaid ?? 0) > 0 ? `Deposit ($${(r.amountPaid ?? 0).toFixed(2)})` : "Deposit"}
+                      </button>
+                    </>
                   ) : (
                     <>
                       <button

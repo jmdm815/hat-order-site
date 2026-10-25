@@ -4,7 +4,9 @@ import { getDecorationTypes } from "@/lib/decoration-types-store";
 import { getSetupCharges } from "@/lib/setup-charges-store";
 import { getGarmentMarkupSettings } from "@/lib/garment-markup-store";
 import { computeQuote, isValidQuoteInput, QuoteInputError } from "@/lib/quote";
-import { deleteQuote, getQuote, updateQuoteContent } from "@/lib/quotes-store";
+import { deleteQuote, getQuote, updateQuoteContent, setInvoicePaymentLink } from "@/lib/quotes-store";
+import { refreshOrCreatePaymentLink } from "@/lib/square-payment-links";
+import { isSquareConfigured } from "@/lib/square-client";
 import { getCatalog } from "@/lib/sanmar";
 import { applyLiveSanmarPricingToProducts } from "@/lib/sanmar-pricing";
 import { Product } from "@/lib/types";
@@ -63,7 +65,48 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!record) {
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     }
-    return NextResponse.json({ ok: true, record, persisted });
+
+    // If this record already has a Square payment link and its amount
+    // auto-tracks the total (kind "full" — an invoice — or "deposit-percent"
+    // — a quote's payment-terms deposit), keep that link in sync with
+    // whatever the edit just changed, reusing the same URL whenever Square
+    // allows it (see refreshOrCreatePaymentLink's comment). A
+    // "deposit-fixed" link (the admin typed a specific dollar figure) is
+    // left untouched — editing the quote shouldn't silently change a
+    // deposit amount the admin chose on purpose. Best-effort: a failure
+    // here never fails the save itself, it just leaves the existing link as
+    // the user's only recourse until they refresh it by hand.
+    let finalRecord = record;
+    if (
+      record.paymentLinkUrl &&
+      record.paymentLinkKind &&
+      record.paymentLinkKind !== "deposit-fixed" &&
+      isSquareConfigured()
+    ) {
+      try {
+        const grandTotal = record.computed.grandTotal;
+        const depositPercent = record.computed.depositPercent;
+        const targetAmount =
+          record.paymentLinkKind === "full"
+            ? grandTotal
+            : depositPercent && depositPercent < 100
+              ? Math.round(grandTotal * (depositPercent / 100) * 100) / 100
+              : grandTotal;
+        if (Math.abs(targetAmount - (record.paymentLinkAmount ?? -1)) > 0.004 && targetAmount > 0) {
+          const link = await refreshOrCreatePaymentLink(record, targetAmount);
+          const { record: withLink } = await setInvoicePaymentLink(id, {
+            ...link,
+            amount: targetAmount,
+            kind: record.paymentLinkKind,
+          });
+          if (withLink) finalRecord = withLink;
+        }
+      } catch (err) {
+        console.error("PUT /api/admin/quotes/[id]: auto-refresh of payment link failed", err);
+      }
+    }
+
+    return NextResponse.json({ ok: true, record: finalRecord, persisted });
   } catch (err) {
     if (err instanceof QuoteInputError) {
       return NextResponse.json({ error: err.message }, { status: 400 });

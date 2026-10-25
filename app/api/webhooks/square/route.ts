@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { WebhooksHelper } from "square";
 import { isSquareWebhookConfigured } from "@/lib/square-client";
-import { findQuoteBySquareOrderId, markInvoicePaidFromSquare } from "@/lib/quotes-store";
+import { findQuoteBySquareOrderId, recordInvoicePayment } from "@/lib/quotes-store";
 
 export const runtime = "nodejs";
 
@@ -48,20 +48,46 @@ export async function POST(req: NextRequest) {
 
   const event = JSON.parse(rawBody) as {
     type?: string;
-    data?: { object?: { payment?: { id?: string; order_id?: string; status?: string } } };
+    data?: {
+      object?: {
+        payment?: {
+          id?: string;
+          order_id?: string;
+          status?: string;
+          amount_money?: { amount?: number; currency?: string };
+        };
+      };
+    };
   };
 
   try {
     if (event.type === "payment.updated") {
       const payment = event.data?.object?.payment;
       if (payment?.status === "COMPLETED" && payment.order_id && payment.id) {
-        const quote = await findQuoteBySquareOrderId(payment.order_id);
-        if (quote) {
-          await markInvoicePaidFromSquare(quote.id, payment.id);
+        const record = await findQuoteBySquareOrderId(payment.order_id);
+        if (record) {
+          // Read the actual amount Square charged rather than assuming the
+          // record's full total — a payment-link order can now represent
+          // just a deposit (see lib/square-payment-links.ts), on a quote
+          // that hasn't even been converted to an invoice yet, so
+          // recordInvoicePayment (which handles both cases and derives
+          // invoiceStatus/partial progress correctly) is what this needs,
+          // not a flat "mark fully paid". Falls back to the record's total
+          // only in the unexpected case Square doesn't echo amount_money.
+          const amountCents = payment.amount_money?.amount;
+          const amount =
+            typeof amountCents === "number" && amountCents > 0
+              ? amountCents / 100
+              : record.computed.grandTotal;
+          await recordInvoicePayment(record.id, {
+            amount,
+            method: "square_card",
+            squarePaymentId: payment.id,
+          });
         } else {
           // Not every Square order on this account is necessarily one of our
-          // invoices (e.g. in-person Storefront sales) — nothing to do.
-          console.warn(`Square webhook: no invoice found for order ${payment.order_id}`);
+          // quotes/invoices (e.g. in-person Storefront sales) — nothing to do.
+          console.warn(`Square webhook: no quote/invoice found for order ${payment.order_id}`);
         }
       }
     }

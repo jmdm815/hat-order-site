@@ -87,23 +87,37 @@ export async function renderQuotePdf(
   mode: QuotePdfMode = "customer",
   invoiceMeta?: InvoiceMeta
 ): Promise<Buffer> {
+  // Which link (if any) this PDF should show as a clickable "Pay online"
+  // line plus a scannable QR code: an invoice not yet paid in full points at
+  // this site's own branded pay page (payPageUrl, which supports partial
+  // payments); a plain quote — not yet converted — has no pay page of its
+  // own, but may have a Square-hosted deposit link an admin created for it
+  // (paymentLinkUrl), which gets shown instead whenever one exists. Set
+  // automatically the moment a link is created or refreshed — no separate
+  // step to remember.
+  const linkForPdf =
+    mode === "invoice"
+      ? invoiceMeta?.invoiceStatus !== "paid"
+        ? invoiceMeta?.payPageUrl
+        : undefined
+      : invoiceMeta?.paymentLinkUrl;
+
   // Generated up front (QRCode.toBuffer is async; pdfkit's drawing calls
   // below are not) so the PNG bytes are ready by the time doc.image() needs
   // them. Scannable on a phone — points straight at the same "Pay online"
   // link already rendered as text. Failing to generate it (should be rare)
   // just means the PDF ships without the QR code, not without the link.
-  const paymentQrPng =
-    mode === "invoice" && invoiceMeta?.payPageUrl && invoiceMeta.invoiceStatus !== "paid"
-      ? await QRCode.toBuffer(invoiceMeta.payPageUrl, {
-          type: "png",
-          margin: 1,
-          width: 240,
-          color: { dark: NAVY, light: "#ffffff" },
-        }).catch((err) => {
-          console.error("renderQuotePdf: failed to generate payment QR code", err);
-          return null;
-        })
-      : null;
+  const paymentQrPng = linkForPdf
+    ? await QRCode.toBuffer(linkForPdf, {
+        type: "png",
+        margin: 1,
+        width: 240,
+        color: { dark: NAVY, light: "#ffffff" },
+      }).catch((err) => {
+        console.error("renderQuotePdf: failed to generate payment QR code", err);
+        return null;
+      })
+    : null;
 
   return new Promise((resolve, reject) => {
     const internal = mode === "internal";
@@ -220,6 +234,35 @@ export async function renderQuotePdf(
         }
         doc.moveDown(0.3);
       }
+    } else if (!workOrder && !internal && invoiceMeta?.paymentLinkUrl) {
+      // A plain quote (not yet converted to an invoice) with a Square
+      // deposit link an admin created for it — see
+      // app/api/admin/quotes/[id]/payment-link/route.ts. No paid/unpaid
+      // banner here (a quote has no invoiceStatus), just the link + QR so
+      // the customer can put a deposit down and get the order started.
+      doc
+        .fillColor(NAVY)
+        .font("Helvetica-Bold")
+        .fontSize(10)
+        .text("Pay deposit online: ", left, doc.y, { continued: true })
+        .font("Helvetica")
+        .fillColor("#1a56cd")
+        .text(invoiceMeta.paymentLinkUrl, { link: invoiceMeta.paymentLinkUrl, underline: true });
+      doc.moveDown(0.5);
+
+      if (paymentQrPng) {
+        const qrSize = 72;
+        const qrY = doc.y;
+        doc.image(paymentQrPng, left, qrY, { width: qrSize, height: qrSize });
+        doc.link(left, qrY, qrSize, qrSize, invoiceMeta.paymentLinkUrl);
+        doc
+          .fillColor(GRAY)
+          .font("Helvetica")
+          .fontSize(7.5)
+          .text("Scan to pay", left, qrY + qrSize + 3, { width: qrSize, align: "center" });
+        doc.y = qrY + qrSize + 14;
+      }
+      doc.moveDown(0.3);
     }
 
     doc

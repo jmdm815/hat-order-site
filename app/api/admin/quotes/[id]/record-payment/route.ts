@@ -4,11 +4,14 @@ import { getQuote, recordInvoicePayment, resetInvoicePayments, InvoicePaymentEnt
 
 const VALID_TENDERS: InvoicePaymentEntry["tender"][] = ["cash", "check", "other"];
 
-// Admin-only: manually record a payment against an invoice (e.g. "customer
-// paid $40 in cash") — the counterpart to the real Square card charges that
-// flow in automatically through app/api/pay/[id]/route.ts. Both paths share
-// lib/quotes-store.ts's recordInvoicePayment(), so amountPaid/invoiceStatus
-// stay in sync regardless of how the money came in. Used by
+// Admin-only: manually record a payment against a quote or an invoice (e.g.
+// "customer paid $40 in cash") — the counterpart to the real Square card
+// charges that flow in automatically through app/api/pay/[id]/route.ts.
+// Allowed on a plain quote too, so a deposit taken before converting to an
+// invoice (cash/check at the counter, or paid off-platform through a Square
+// link) can still be tracked here. Both paths share lib/quotes-store.ts's
+// recordInvoicePayment(), so amountPaid/invoiceStatus stay in sync
+// regardless of how the money came in. Used by
 // components/AdminInvoicePaymentModal.tsx.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) {
@@ -18,9 +21,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const record = await getQuote(id);
   if (!record) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
-  }
-  if (record.status !== "invoice") {
-    return NextResponse.json({ error: "Convert this quote to an invoice first" }, { status: 400 });
   }
 
   const body = await req.json().catch(() => null);

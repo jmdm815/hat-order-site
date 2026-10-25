@@ -300,6 +300,16 @@ export default function AdminQuoteBuilder({
     initialRecord ? linesFromRecord(initialRecord) : initialLines ?? []
   );
 
+  // Which "Add item" panel (if any) is currently open below the unified
+  // Items list — Setup charges / Other charges / Garments stay the three
+  // distinct item types they've always been, just reached through one "+
+  // Add item" dropdown instead of three permanently-open cards. null means
+  // every item type's picker/form is collapsed; the unified list above it
+  // is always visible regardless.
+  const [addItemMode, setAddItemMode] = useState<"setup" | "misc" | "garment" | null>(null);
+  const [addItemMenuOpen, setAddItemMenuOpen] = useState(false);
+  const addItemMenuRef = useRef<HTMLDivElement | null>(null);
+
   const [quote, setQuote] = useState<ComputedQuote | null>(() => initialRecord?.computed ?? null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
@@ -436,6 +446,17 @@ export default function AdminQuoteBuilder({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [setupDropdownOpen]);
+
+  useEffect(() => {
+    if (!addItemMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (addItemMenuRef.current && !addItemMenuRef.current.contains(e.target as Node)) {
+        setAddItemMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [addItemMenuOpen]);
 
   useEffect(() => {
     if (!paymentTermsOpen) return;
@@ -1806,20 +1827,300 @@ export default function AdminQuoteBuilder({
       <div>
         <h2 className="text-lg font-bold text-white mb-1">Items</h2>
         <p className="text-sm text-white/50 mb-4">
-          Everything that adds to this quote&apos;s total — setup charges, garments, and any other
-          one-off charges — organized into its own section below.
+          Everything that adds to this quote&apos;s total — garments, setup charges, and any other
+          one-off charges. Starts blank; use &quot;+ Add item&quot; below to add a garment, a setup
+          charge, or another one-off charge, and it shows up here right away.
         </p>
 
-        <div className="space-y-8">
+        <div className="space-y-6">
+
+        {/* Unified running list of every item on this quote so far — garment
+            lines, selected setup charges, and ad-hoc other charges together,
+            in the order they were added, each removable right from this
+            list. Blank by design until something's added (no empty
+            "Setup charges" / "Garments" cards sitting around with nothing
+            in them), matching the reference quoting tool's single central
+            Items list. */}
+        <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+            <h3 className="text-sm font-semibold text-white">
+              Items ({lines.length + selectedSetupChargeIds.length + miscFees.length})
+            </h3>
+            <div className="relative" ref={addItemMenuRef}>
+              <button
+                type="button"
+                onClick={() => setAddItemMenuOpen((o) => !o)}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-xl bg-red text-navy font-semibold hover:bg-red/90"
+              >
+                + Add item <span className="text-navy/60">{addItemMenuOpen ? "▲" : "▼"}</span>
+              </button>
+              {addItemMenuOpen && (
+                <div className="absolute right-0 z-20 mt-1 w-48 bg-black border border-white/20 rounded-2xl shadow-xl p-1.5">
+                  {(
+                    [
+                      ["garment", "Garment"],
+                      ["setup", "Setup charge"],
+                      ["misc", "Other charge"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setAddItemMode(key);
+                        setAddItemMenuOpen(false);
+                      }}
+                      className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {lines.length === 0 && selectedSetupChargeIds.length === 0 && miscFees.length === 0 ? (
+            <p className="text-sm text-white/40">
+              No items yet — tap &quot;+ Add item&quot; above to add a garment or a charge.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {lines.map((line, idx) => {
+                const decoration = decorations.find((d) => d.id === line.decorationId);
+                const column = decoration?.priceColumns?.find((c) => c.id === line.priceColumnId);
+                const totalQty = line.sizes.reduce((sum, s) => sum + s.quantity, 0);
+                return (
+                  <div
+                    key={line.key}
+                    className="flex items-start gap-3 border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
+                  >
+                    {line.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={productPreviewImageUrl(line.imageUrl, line.imageFallbackUrl)}
+                        alt=""
+                        className="shrink-0 w-10 h-10 rounded-lg object-contain bg-white/5 border border-white/10"
+                      />
+                    ) : (
+                      <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
+                        {idx + 1}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
+                      <div className="text-sm text-white">
+                        {line.customerSupplied ? (
+                          <>
+                            <span className="font-medium">Customer-supplied item</span>{" "}
+                            <span className="text-white/40">({line.itemDescription})</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-medium">
+                              {line.brandName} {line.productName}
+                            </span>{" "}
+                            <span className="text-white/40">
+                              ({line.styleNumber} — {line.colorName})
+                            </span>
+                          </>
+                        )}
+                        <div className="text-xs text-white/60 mt-0.5">
+                          {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
+                          {decoration ? ` · ${decoration.label}${column ? ` (${column.label})` : ""}` : ""}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeLine(line.key)}
+                        className="text-xs text-red-600 hover:underline shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {selectedSetupChargeIds.map((id) => {
+                const c = setupCharges.find((sc) => sc.id === id);
+                if (!c) return null;
+                return (
+                  <div
+                    key={id}
+                    className="flex items-center gap-3 border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
+                  >
+                    <div className="shrink-0 w-6 h-6 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
+                      $
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                      <div className="text-sm text-white">
+                        <span className="font-medium">{c.label}</span>{" "}
+                        <span className="text-white/40">({formatUSD(c.price)}) · Setup charge</span>
+                      </div>
+                      <button
+                        onClick={() => toggleSetupCharge(id, false)}
+                        className="text-xs text-red-600 hover:underline shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {miscFees.map((f) => (
+                <div
+                  key={f.id}
+                  className="flex items-center gap-3 border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
+                >
+                  <div className="shrink-0 w-6 h-6 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
+                    $
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                    <div className="text-sm text-white">
+                      <span className="font-medium">{f.label}</span>{" "}
+                      <span className="text-white/40">
+                        (
+                        {f.quantity > 1
+                          ? `${f.quantity} × ${formatUSD(f.amount)} = ${formatUSD(f.amount * f.quantity)}`
+                          : formatUSD(f.amount)}
+                        ) · Other charge
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => removeMiscFee(f.id)}
+                      className="text-xs text-red-600 hover:underline shrink-0"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-4">
+            <button
+              onClick={generateQuote}
+              disabled={quoteLoading}
+              className="text-sm px-4 py-1.5 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+            >
+              {quoteLoading ? "Calculating…" : "Preview quote"}
+            </button>
+            {mode === "full" ? (
+              <>
+                <button
+                  onClick={saveQuote}
+                  disabled={saving}
+                  className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
+                >
+                  {saving ? "Saving…" : activeRecord ? "Save changes" : "Save quote"}
+                </button>
+                {activeRecord && activeRecord.status === "quote" && (
+                  <button
+                    onClick={convertToInvoice}
+                    disabled={converting}
+                    className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
+                  >
+                    {converting ? "Converting…" : "Convert to invoice"}
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => onCreateQuote?.(lines, selectedSetupChargeIds)}
+                disabled={lines.length === 0}
+                className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
+                title="Carry these items into a full quote where you can add the customer's info and save it"
+              >
+                Create quote
+              </button>
+            )}
+          </div>
+
+          {mode === "full" && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={() => downloadPdf("customer")}
+                disabled={pdfLoading !== null}
+                className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
+              >
+                {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
+              </button>
+              <button
+                onClick={() => downloadPdf("internal")}
+                disabled={pdfLoading !== null}
+                className="text-sm px-4 py-1.5 rounded-xl border border-red/30 text-red hover:bg-red/5 disabled:opacity-40"
+              >
+                {pdfLoading === "internal" ? "Generating…" : "Download company PDF (with cost)"}
+              </button>
+              <button
+                onClick={() => downloadPdf("work-order")}
+                disabled={pdfLoading !== null}
+                className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
+              >
+                {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
+              </button>
+              {activeRecord?.status === "invoice" && (
+                <button
+                  onClick={() => downloadPdf("invoice")}
+                  disabled={pdfLoading !== null}
+                  className="text-sm px-4 py-1.5 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50 disabled:opacity-40"
+                >
+                  {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
+                </button>
+              )}
+              {activeRecord && (
+                <button
+                  onClick={() => setSendModalOpen(true)}
+                  className="text-sm px-4 py-1.5 rounded-xl bg-white/10 text-white hover:bg-white/15"
+                >
+                  Send to customer
+                </button>
+              )}
+            </div>
+          )}
+          <p className="mt-2 text-xs text-white/40">
+            {mode === "full" ? (
+              <>
+                The customer PDF shows only the final unit price and totals. The company PDF adds
+                garment cost and decoration cost columns and is marked &quot;internal use only.&quot;
+                The work order has no pricing at all — just garments, sizes, quantities, and
+                decoration details for production staff. Saving keeps this quote on the &quot;Saved
+                quotes &amp; invoices&quot; list below so it can be reopened, edited, or converted to
+                an invoice later.
+              </>
+            ) : (
+              <>
+                This is just a quick price check — nothing is saved yet. If the customer wants to
+                order, tap &quot;Create quote&quot; to carry these items over to the Quotes tab, where
+                you can add their info and save it for real.
+              </>
+            )}
+          </p>
+          {mode === "full" && saveMessage && <p className="mt-2 text-xs text-green-700">{saveMessage}</p>}
+          {quoteError && <p className="mt-2 text-xs text-red-600">{quoteError}</p>}
+        </section>
 
       {/* Setup charges — flat, quote-wide, independent of any decoration.
           A dropdown picker that also doubles as an inline editor for the
           shared catalog (edit label/price, delete, or add a brand-new
           custom one) — applies to every charge in the list, including the
           three seeded defaults (Digitizing, Logo vectorization, Screen
-          print screen fee), not just ones added here. */}
+          print screen fee), not just ones added here. Only shown while
+          "Setup charge" is the open "+ Add item" panel — the charges
+          already picked live in the unified Items list above, not here. */}
+      {addItemMode === "setup" && (
       <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-white mb-1">Setup charges</h3>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h3 className="text-sm font-semibold text-white">Add a setup charge</h3>
+          <button
+            type="button"
+            onClick={() => setAddItemMode(null)}
+            className="text-xs text-white/40 hover:text-white shrink-0"
+          >
+            ✕ Close
+          </button>
+        </div>
         <p className="text-xs text-white/50 mb-3">
           One-time charges for this quote as a whole — not tied to any garment or decoration.
         </p>
@@ -2026,46 +2327,32 @@ export default function AdminQuoteBuilder({
           </div>
         )}
       </section>
+      )}
 
       {/* Other charges — ad-hoc, one-off charges for this quote only (a rush
           fee, a shipping surcharge), distinct from the reusable Setup
           Charges above. Internally still "misc fees" (lib/quote.ts's
           QuoteInput.miscFees) — only the admin-facing label changed. Only
-          shown in "full" mode. */}
-      {mode === "full" && (
+          shown in "full" mode, and only while "Other charge" is the open
+          "+ Add item" panel — fees already added live in the unified Items
+          list above, not here. */}
+      {mode === "full" && addItemMode === "misc" && (
       <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-white mb-1">Other charges</h3>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h3 className="text-sm font-semibold text-white">Add another charge</h3>
+          <button
+            type="button"
+            onClick={() => setAddItemMode(null)}
+            className="text-xs text-white/40 hover:text-white shrink-0"
+          >
+            ✕ Close
+          </button>
+        </div>
         <p className="text-xs text-white/50 mb-3">
           One-off charges for this quote only — a rush fee, a shipping surcharge, anything that
           isn&apos;t a garment or a reusable setup charge. These aren&apos;t added to the Setup
           Charges list.
         </p>
-        {miscFees.length > 0 && (
-          <div className="space-y-1.5 mb-3">
-            {miscFees.map((f) => (
-              <div
-                key={f.id}
-                className="flex items-center justify-between gap-3 border border-white/10 shadow-lg shadow-black/30 rounded-xl px-3 py-1.5"
-              >
-                <span className="text-sm text-white">
-                  {f.label}{" "}
-                  <span className="text-white/40">
-                    {f.quantity > 1
-                      ? `(${f.quantity} × ${formatUSD(f.amount)} = ${formatUSD(f.amount * f.quantity)})`
-                      : `(${formatUSD(f.amount)})`}
-                  </span>{" "}
-                  <span className="text-white/30 text-xs">{f.taxable ? "· taxable" : "· not taxable"}</span>
-                </span>
-                <button
-                  onClick={() => removeMiscFee(f.id)}
-                  className="text-xs text-red-600 hover:underline shrink-0"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs text-white/60">
             Description
@@ -2115,6 +2402,15 @@ export default function AdminQuoteBuilder({
           >
             + Add fee
           </button>
+          {(() => {
+            const amt = Math.max(0, Number(miscFeeAmount) || 0);
+            const qty = Math.max(1, Number(miscFeeQuantity) || 1);
+            return amt > 0 ? (
+              <span className="text-xs text-white/50 pb-1.5">
+                Total: <span className="font-semibold text-white">{formatUSD(amt * qty)}</span>
+              </span>
+            ) : null;
+          })()}
         </div>
         {miscFeeError && <p className="mt-2 text-xs text-red-600">{miscFeeError}</p>}
       </section>
@@ -2122,9 +2418,22 @@ export default function AdminQuoteBuilder({
 
       {/* Add a garment — guided flow: decoration, catalog, product, color,
           sizes, locations, in that order, matching the shop's other
-          quoting tool. */}
+          quoting tool. Only shown while "Garment" is the open "+ Add item"
+          panel; stays open after each "Add to quote" (rather than
+          auto-closing) since a real order is usually several
+          styles/colors added back-to-back under the same decoration. */}
+      {addItemMode === "garment" && (
       <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-white mb-3">Garments</h3>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <h3 className="text-sm font-semibold text-white">Add a garment</h3>
+          <button
+            type="button"
+            onClick={() => setAddItemMode(null)}
+            className="text-xs text-white/40 hover:text-white shrink-0"
+          >
+            ✕ Close
+          </button>
+        </div>
 
         <label className="flex items-center gap-1.5 text-xs text-white/60 mb-3">
           <input
@@ -2635,177 +2944,6 @@ export default function AdminQuoteBuilder({
           </>
         )}
       </section>
-
-      {/* Lines added so far, plus the Preview/Save/Convert/PDF action bar —
-          the action bar itself stays visible once a quote has been saved
-          (activeRecord set) even with zero lines yet, so a draft quote can
-          still be previewed/re-saved/downloaded while garments are being
-          added one at a time. */}
-      {(lines.length > 0 || activeRecord) && (
-        <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-          {lines.length > 0 && (
-          <>
-          <h3 className="text-sm font-semibold text-white mb-3">Quote lines ({lines.length})</h3>
-          <div className="space-y-2.5">
-            {lines.map((line, idx) => {
-              const decoration = decorations.find((d) => d.id === line.decorationId);
-              const column = decoration?.priceColumns?.find((c) => c.id === line.priceColumnId);
-              const totalQty = line.sizes.reduce((sum, s) => sum + s.quantity, 0);
-              return (
-                <div
-                  key={line.key}
-                  className="flex items-start gap-3 border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
-                >
-                  {line.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={productPreviewImageUrl(line.imageUrl, line.imageFallbackUrl)}
-                      alt=""
-                      className="shrink-0 w-10 h-10 rounded-lg object-contain bg-white/5 border border-white/10"
-                    />
-                  ) : (
-                    <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
-                      {idx + 1}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
-                    <div className="text-sm text-white">
-                      {line.customerSupplied ? (
-                        <>
-                          <span className="font-medium">Customer-supplied item</span>{" "}
-                          <span className="text-white/40">({line.itemDescription})</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-medium">
-                            {line.brandName} {line.productName}
-                          </span>{" "}
-                          <span className="text-white/40">
-                            ({line.styleNumber} — {line.colorName})
-                          </span>
-                        </>
-                      )}
-                      <div className="text-xs text-white/60 mt-0.5">
-                        {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
-                        {decoration ? ` · ${decoration.label}${column ? ` (${column.label})` : ""}` : ""}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeLine(line.key)}
-                      className="text-xs text-red-600 hover:underline shrink-0"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          </>
-          )}
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              onClick={generateQuote}
-              disabled={quoteLoading}
-              className="text-sm px-4 py-1.5 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
-            >
-              {quoteLoading ? "Calculating…" : "Preview quote"}
-            </button>
-            {mode === "full" ? (
-              <>
-                <button
-                  onClick={saveQuote}
-                  disabled={saving}
-                  className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
-                >
-                  {saving ? "Saving…" : activeRecord ? "Save changes" : "Save quote"}
-                </button>
-                {activeRecord && activeRecord.status === "quote" && (
-                  <button
-                    onClick={convertToInvoice}
-                    disabled={converting}
-                    className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
-                  >
-                    {converting ? "Converting…" : "Convert to invoice"}
-                  </button>
-                )}
-              </>
-            ) : (
-              <button
-                onClick={() => onCreateQuote?.(lines, selectedSetupChargeIds)}
-                disabled={lines.length === 0}
-                className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
-                title="Carry these items into a full quote where you can add the customer's info and save it"
-              >
-                Create quote
-              </button>
-            )}
-          </div>
-
-          {mode === "full" && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                onClick={() => downloadPdf("customer")}
-                disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
-              >
-                {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
-              </button>
-              <button
-                onClick={() => downloadPdf("internal")}
-                disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-xl border border-red/30 text-red hover:bg-red/5 disabled:opacity-40"
-              >
-                {pdfLoading === "internal" ? "Generating…" : "Download company PDF (with cost)"}
-              </button>
-              <button
-                onClick={() => downloadPdf("work-order")}
-                disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
-              >
-                {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
-              </button>
-              {activeRecord?.status === "invoice" && (
-                <button
-                  onClick={() => downloadPdf("invoice")}
-                  disabled={pdfLoading !== null}
-                  className="text-sm px-4 py-1.5 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50 disabled:opacity-40"
-                >
-                  {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
-                </button>
-              )}
-              {activeRecord && (
-                <button
-                  onClick={() => setSendModalOpen(true)}
-                  className="text-sm px-4 py-1.5 rounded-xl bg-white/10 text-white hover:bg-white/15"
-                >
-                  Send to customer
-                </button>
-              )}
-            </div>
-          )}
-          <p className="mt-2 text-xs text-white/40">
-            {mode === "full" ? (
-              <>
-                The customer PDF shows only the final unit price and totals. The company PDF adds
-                garment cost and decoration cost columns and is marked &quot;internal use only.&quot;
-                The work order has no pricing at all — just garments, sizes, quantities, and
-                decoration details for production staff. Saving keeps this quote on the &quot;Saved
-                quotes &amp; invoices&quot; list below so it can be reopened, edited, or converted to
-                an invoice later.
-              </>
-            ) : (
-              <>
-                This is just a quick price check — nothing is saved yet. If the customer wants to
-                order, tap &quot;Create quote&quot; to carry these items over to the Quotes tab, where
-                you can add their info and save it for real.
-              </>
-            )}
-          </p>
-          {mode === "full" && saveMessage && <p className="mt-2 text-xs text-green-700">{saveMessage}</p>}
-          {quoteError && <p className="mt-2 text-xs text-red-600">{quoteError}</p>}
-        </section>
       )}
 
         </div>
@@ -2964,19 +3102,24 @@ export default function AdminQuoteBuilder({
       {/* Persistent bottom bar — mirrors the reference quoting tool's
           always-visible Subtotal/Tax/Total strip, so the running total is
           visible without scrolling down to the Preview section, especially
-          on a long quote with many garments. Only shown once there's a
-          computed quote to summarize. */}
-      {quote && (
+          on a long quote with many garments. Always rendered once the
+          Items section itself is showing — starts zeroed out ($0.00
+          everywhere) before anything's been added, same as the reference
+          tool, rather than disappearing entirely; the debounced recompute
+          effect above (see generateQuote's useEffect) keeps it live as
+          items are added, edited, or removed. */}
+      {(mode === "quick" || activeRecord) && (
         <div className="sticky bottom-0 left-0 right-0 -mx-4 sm:mx-0 bg-black/95 backdrop-blur border-t border-white/10 shadow-lg shadow-black/50 px-4 py-3 flex flex-wrap items-center justify-end gap-4 text-sm text-white z-30">
           <span className="text-white/60">
-            Subtotal <span className="text-white font-medium">${quote.subtotalBeforeTax.toFixed(2)}</span>
+            Subtotal{" "}
+            <span className="text-white font-medium">${(quote?.subtotalBeforeTax ?? 0).toFixed(2)}</span>
           </span>
           <span className="text-white/60">
-            Tax{quote.taxRatePercent > 0 ? ` (${quote.taxRatePercent}%)` : ""}{" "}
-            <span className="text-white font-medium">${quote.taxAmount.toFixed(2)}</span>
+            Tax{quote && quote.taxRatePercent > 0 ? ` (${quote.taxRatePercent}%)` : ""}{" "}
+            <span className="text-white font-medium">${(quote?.taxAmount ?? 0).toFixed(2)}</span>
           </span>
           <span className="text-base font-semibold text-red">
-            Total ${quote.grandTotal.toFixed(2)}
+            Total ${(quote?.grandTotal ?? 0).toFixed(2)}
           </span>
         </div>
       )}
@@ -3009,8 +3152,19 @@ function SizeGrid({
   // visible. See AdminQuoteBuilder's showMarkup state/toggle.
   showMarkup: boolean;
 }) {
+  // Live running count across every size column — updates as the admin
+  // types each size's quantity, same idea as ShopVox's inline item count
+  // while building a line, so there's no need to add it all up by hand
+  // before hitting "Add to quote".
+  const totalQty = sizes.reduce((sum, sz) => sum + (sizeQty[sz.name] ?? 0), 0);
+
   return (
     <div className="mt-2 overflow-x-auto">
+      {totalQty > 0 && (
+        <p className="mb-1.5 text-xs font-semibold text-white">
+          Total: <span className="text-red">{totalQty}</span> {totalQty === 1 ? "unit" : "units"}
+        </p>
+      )}
       <table className="text-xs border-collapse w-full min-w-[480px]">
         <thead>
           <tr>

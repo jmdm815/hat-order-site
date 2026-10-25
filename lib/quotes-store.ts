@@ -59,17 +59,27 @@ export type QuoteRecord = {
   invoiceStatus?: InvoicePaymentStatus;
   convertedAt?: string;
   paidAt?: string;
-  // Square "Pay online" link for this invoice (see lib/square-payment-links.ts
-  // and app/api/admin/quotes/[id]/payment-link/route.ts). paymentLinkUrl is
-  // what gets handed to the customer; paymentLinkId and squareOrderId are
-  // kept so a later Square webhook event (app/api/webhooks/square/route.ts)
-  // can be matched back to this record and flip invoiceStatus to "paid"
-  // automatically once Square confirms the charge. squarePaymentId is filled
-  // in once that happens (or once an admin manually enters/confirms one).
+  // Square "Pay online" link — see lib/square-payment-links.ts and
+  // app/api/admin/quotes/[id]/payment-link/route.ts. Available on a plain
+  // quote now too (not just an invoice), so a deposit can be collected
+  // before the order is ever converted — paymentLinkUrl is what gets handed
+  // to the customer; paymentLinkId and squareOrderId are kept so a later
+  // Square webhook event (app/api/webhooks/square/route.ts) can be matched
+  // back to this record and flip invoiceStatus to "paid" automatically once
+  // Square confirms the charge, AND so a later edit to this quote/invoice
+  // can update that same order's line items in place (same URL, new amount)
+  // instead of minting a new link every time — see refreshOrCreatePaymentLink
+  // in lib/square-payment-links.ts. squarePaymentId is filled in once a
+  // charge actually completes (or once an admin manually enters/confirms
+  // one). paymentLinkAmount/paymentLinkKind record what the link's current
+  // amount represents, so app/api/admin/quotes/[id]/route.ts's save handler
+  // knows whether (and to what) to automatically refresh it after an edit.
   paymentLinkUrl?: string;
   paymentLinkId?: string;
   squareOrderId?: string;
   squarePaymentId?: string;
+  paymentLinkAmount?: number;
+  paymentLinkKind?: "full" | "deposit-percent" | "deposit-fixed";
   // Running total actually collected on this invoice (dollars), and a log of
   // each individual payment — populated by real card charges made through
   // the branded /pay/[id] page (app/api/pay/[id]/route.ts,
@@ -328,11 +338,20 @@ export async function convertQuoteToInvoice(
   // separate counter blob for this one rare case.
   const all = await getQuotes();
   const now = new Date().toISOString();
+  // A deposit may already have been collected on this record while it was
+  // still a quote (see recordInvoicePayment's pre-invoice support) — carry
+  // that over into the new invoice's status instead of resetting to
+  // "unpaid" and losing track of money already in hand.
+  const amountPaid = existing.amountPaid ?? 0;
+  const grandTotal = existing.computed.grandTotal;
+  const invoiceStatus: InvoicePaymentStatus =
+    amountPaid <= 0 ? "unpaid" : amountPaid >= grandTotal - 0.005 ? "paid" : "partially_paid";
   const updated: QuoteRecord = {
     ...existing,
     status: "invoice",
     invoiceNumber: nextInvoiceNumber(all),
-    invoiceStatus: "unpaid",
+    invoiceStatus,
+    paidAt: invoiceStatus === "paid" ? now : existing.paidAt,
     convertedAt: now,
     updatedAt: now,
   };
@@ -371,22 +390,30 @@ export async function setInvoicePaymentStatus(
   return { record: updated, persisted };
 }
 
-// Stores a freshly-created Square "Pay online" payment link on an invoice
-// record. Only valid for records already converted to an invoice — a plain
-// quote has no total that's final enough to send a customer a payment link
-// for yet. paymentLinkId/orderId are kept (not just the url) so a later
-// Square webhook event can be matched back to this exact record.
+// Stores a freshly-created (or refreshed-in-place) Square "Pay online"
+// payment link on a record — a quote (for a pre-invoice deposit) or an
+// invoice. paymentLinkId/orderId are kept (not just the url) so a later
+// Square webhook event, or a later edit's auto-refresh, can be matched back
+// to this exact record/order.
 export async function setInvoicePaymentLink(
   id: string,
-  link: { url: string; paymentLinkId: string; orderId?: string }
+  link: {
+    url: string;
+    paymentLinkId: string;
+    orderId?: string;
+    amount: number;
+    kind: "full" | "deposit-percent" | "deposit-fixed";
+  }
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
   const existing = await readRecord(id);
-  if (!existing || existing.status !== "invoice") return { record: null, persisted: true };
+  if (!existing) return { record: null, persisted: true };
   const updated: QuoteRecord = {
     ...existing,
     paymentLinkUrl: link.url,
     paymentLinkId: link.paymentLinkId,
     squareOrderId: link.orderId ?? existing.squareOrderId,
+    paymentLinkAmount: link.amount,
+    paymentLinkKind: link.kind,
     updatedAt: new Date().toISOString(),
   };
   const { persisted } = await writeRecord(updated);
@@ -402,42 +429,19 @@ export async function findQuoteBySquareOrderId(orderId: string): Promise<QuoteRe
   return all.find((r) => r.squareOrderId === orderId);
 }
 
-// Marks an invoice paid as a result of a confirmed Square webhook event
-// (payment.updated with status COMPLETED), as opposed to setInvoicePaymentStatus
-// which is the admin's own manual "Mark paid" action. Idempotent: if the
-// record is already marked paid with this same payment id, it's a no-op so
-// Square's at-least-once webhook delivery can safely retry.
-export async function markInvoicePaidFromSquare(
-  id: string,
-  squarePaymentId: string
-): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
-  const existing = await readRecord(id);
-  if (!existing || existing.status !== "invoice") return { record: null, persisted: true };
-  if (existing.invoiceStatus === "paid" && existing.squarePaymentId === squarePaymentId) {
-    return { record: existing, persisted: true };
-  }
-  const now = new Date().toISOString();
-  const updated: QuoteRecord = {
-    ...existing,
-    invoiceStatus: "paid",
-    squarePaymentId,
-    amountPaid: existing.computed.grandTotal,
-    paidAt: now,
-    updatedAt: now,
-  };
-  const { persisted } = await writeRecord(updated);
-  return { record: updated, persisted };
-}
-
-// Records one real payment against an invoice — used by the branded
+// Records one real payment against a record — used by the branded
 // customer-facing pay page (app/api/pay/[id]/route.ts) right after a Square
-// card charge succeeds, so partial payments/deposits are possible (unlike
-// setInvoicePaymentStatus's manual all-or-nothing buttons). Appends to
+// card charge succeeds, by the admin's manual "Record payment" action, and
+// now also usable on a plain quote (not just an invoice) so a deposit can be
+// collected and tracked before the order is ever converted. Appends to
 // `payments` and bumps `amountPaid`, then derives invoiceStatus from the new
-// running total vs the invoice's grandTotal (a small epsilon avoids floating-
-// point dust leaving a fully-paid invoice stuck at "partially_paid").
-// Idempotent on squarePaymentId: if this exact Square payment was already
-// recorded (e.g. a retried request), it's a no-op rather than double-counted.
+// running total vs the record's grandTotal (a small epsilon avoids floating-
+// point dust leaving a fully-paid invoice stuck at "partially_paid") —
+// invoiceStatus itself is only meaningful once a record is an invoice, so
+// it's left untouched on a quote; amountPaid/payments are what the admin UI
+// and PDFs read for a quote's deposit progress. Idempotent on
+// squarePaymentId: if this exact Square payment was already recorded (e.g. a
+// retried request), it's a no-op rather than double-counted.
 export async function recordInvoicePayment(
   id: string,
   payment: {
@@ -449,7 +453,7 @@ export async function recordInvoicePayment(
   }
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
   const existing = await readRecord(id);
-  if (!existing || existing.status !== "invoice") return { record: null, persisted: true };
+  if (!existing) return { record: null, persisted: true };
 
   if (
     payment.squarePaymentId &&
@@ -470,8 +474,19 @@ export async function recordInvoicePayment(
   };
   const newAmountPaid = Math.round(((existing.amountPaid ?? 0) + payment.amount) * 100) / 100;
   const grandTotal = existing.computed.grandTotal;
-  const invoiceStatus: InvoicePaymentStatus =
-    newAmountPaid <= 0 ? "unpaid" : newAmountPaid >= grandTotal - 0.005 ? "paid" : "partially_paid";
+  // invoiceStatus is only a meaningful concept once a record is an invoice
+  // (it's what the admin "Unpaid/Partially paid/Paid" badge reads) — a
+  // deposit paid on a plain quote still bumps amountPaid/payments above so
+  // the balance is tracked correctly, it just doesn't set this flag until
+  // convertQuoteToInvoice() runs, which starts a fresh invoiceStatus anyway.
+  const invoiceStatus: InvoicePaymentStatus | undefined =
+    existing.status === "invoice"
+      ? newAmountPaid <= 0
+        ? "unpaid"
+        : newAmountPaid >= grandTotal - 0.005
+          ? "paid"
+          : "partially_paid"
+      : existing.invoiceStatus;
 
   const updated: QuoteRecord = {
     ...existing,
@@ -485,19 +500,20 @@ export async function recordInvoicePayment(
   return { record: updated, persisted };
 }
 
-// Clears every recorded payment and resets an invoice back to unpaid — the
+// Clears every recorded payment and resets a record back to unpaid — the
 // "Reset to unpaid" escape hatch in the admin payment modal, for when a
-// manual entry was recorded by mistake. Not exposed anywhere customer-facing.
+// manual entry (including a pre-invoice deposit) was recorded by mistake.
+// Not exposed anywhere customer-facing.
 export async function resetInvoicePayments(
   id: string
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
   const existing = await readRecord(id);
-  if (!existing || existing.status !== "invoice") return { record: null, persisted: true };
+  if (!existing) return { record: null, persisted: true };
   const updated: QuoteRecord = {
     ...existing,
     amountPaid: 0,
     payments: [],
-    invoiceStatus: "unpaid",
+    invoiceStatus: existing.status === "invoice" ? "unpaid" : existing.invoiceStatus,
     paidAt: undefined,
     updatedAt: new Date().toISOString(),
   };
