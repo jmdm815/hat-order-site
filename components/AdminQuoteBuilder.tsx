@@ -1001,6 +1001,13 @@ export default function AdminQuoteBuilder({
   }
 
   const selectedColorRow = foundProduct?.colors.find((c) => c.colorName === selectedColor);
+  // Colors come back from the catalog API in whatever order the feed has
+  // them (not alphabetical) — sort just for display here so the admin can
+  // scan/find a color quickly; doesn't affect selectedColor/selectedColorRow
+  // lookups above, which still match by name regardless of list order.
+  const sortedProductColors = foundProduct
+    ? [...foundProduct.colors].sort((a, b) => a.colorName.localeCompare(b.colorName))
+    : [];
 
   function fillOneEach() {
     if (!selectedColorRow) return;
@@ -1167,6 +1174,35 @@ export default function AdminQuoteBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines, selectedSetupChargeIds, miscFees, taxRatePercent]);
 
+  // Autosave on a saved record: previously, adding/removing a garment,
+  // setup charge, or other charge only updated this component's in-memory
+  // state — nothing reached the server until the admin scrolled back up and
+  // explicitly clicked "Save changes" again. Several reports of a saved
+  // quote reopening with its items missing turned out to be this: the admin
+  // added items after the first save, then navigated away (e.g. "Back to
+  // quotes") without a second explicit save, and nothing had actually been
+  // persisted. Once a record exists (activeRecord is set — i.e. it's been
+  // saved at least once), every further change to the items themselves is
+  // now pushed to the server automatically on the same short debounce as
+  // the live preview, so leaving the page can never silently drop an edit.
+  // Skipped entirely for a brand-new, not-yet-saved quote (no activeRecord
+  // yet) and for the Quick Quote builder (mode "quick" has no save step at
+  // all) — and skipped on the very first run after a record loads/saves,
+  // so hydrating from the server doesn't immediately re-PUT the same data.
+  const skipNextAutosaveRef = useRef(true);
+  useEffect(() => {
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
+    if (mode !== "full" || !activeRecord) return;
+    const timer = setTimeout(() => {
+      saveQuote();
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines, selectedSetupChargeIds, miscFees]);
+
   async function downloadPdf(mode: PdfMode) {
     setPdfLoading(mode);
     setQuoteError(null);
@@ -1329,7 +1365,7 @@ export default function AdminQuoteBuilder({
               />
             </label>
             {customerSuggestionsOpen && customerSuggestions.length > 0 && (
-              <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-black border border-white/20 rounded-xl shadow-lg text-sm">
+              <ul className="absolute z-40 mt-1 w-full max-h-56 overflow-y-auto bg-black border border-white/20 rounded-xl shadow-lg text-sm">
                 {customerSuggestions.map((c) => (
                   <li key={c.id}>
                     <button
@@ -1411,7 +1447,7 @@ export default function AdminQuoteBuilder({
             </button>
 
             {paymentTermsOpen && (
-              <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+              <div className="absolute z-40 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
                 {paymentTerms.map((t) => {
                   const isEditing = editingTermId === t.id;
                   const busy = termBusyId === t.id;
@@ -1613,7 +1649,7 @@ export default function AdminQuoteBuilder({
             </button>
 
             {taxDropdownOpen && (
-              <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+              <div className="absolute z-40 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
                 {taxRates.map((t) => {
                   const isEditing = editingTaxId === t.id;
                   const busy = taxBusyId === t.id;
@@ -1855,7 +1891,7 @@ export default function AdminQuoteBuilder({
                 + Add item <span className="text-navy/60">{addItemMenuOpen ? "▲" : "▼"}</span>
               </button>
               {addItemMenuOpen && (
-                <div className="absolute right-0 z-20 mt-1 w-48 bg-black border border-white/20 rounded-2xl shadow-xl p-1.5">
+                <div className="absolute right-0 z-40 mt-1 w-48 bg-black border border-white/20 rounded-2xl shadow-xl p-1.5">
                   {(
                     [
                       ["garment", "Garment"],
@@ -2138,7 +2174,7 @@ export default function AdminQuoteBuilder({
           </button>
 
           {setupDropdownOpen && (
-            <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+            <div className="absolute z-40 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
               {setupCharges.length === 0 && !creatingCharge && (
                 <p className="text-xs text-white/40 px-2 py-2">No setup charges configured yet.</p>
               )}
@@ -2462,7 +2498,7 @@ export default function AdminQuoteBuilder({
               </button>
 
               {decorationDropdownOpen && (
-                <div className="absolute z-20 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+                <div className="absolute z-40 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
                   <button
                     type="button"
                     onClick={() => {
@@ -2777,7 +2813,7 @@ export default function AdminQuoteBuilder({
                 <span className="absolute right-2 top-8 text-[11px] text-white/30">searching…</span>
               )}
               {suggestionsOpen && productSuggestions.length > 0 && (
-                <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto bg-black border border-white/20 rounded-xl shadow-lg text-sm">
+                <ul className="absolute z-40 mt-1 w-full max-h-64 overflow-y-auto bg-black border border-white/20 rounded-xl shadow-lg text-sm">
                   {productSuggestions.map((r) => (
                     <li key={r.styleNumber}>
                       <button
@@ -2858,7 +2894,7 @@ export default function AdminQuoteBuilder({
                     }}
                     className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
                   >
-                    {foundProduct.colors.map((c) => (
+                    {sortedProductColors.map((c) => (
                       <option key={c.colorName} value={c.colorName}>
                         {c.colorName}
                       </option>
