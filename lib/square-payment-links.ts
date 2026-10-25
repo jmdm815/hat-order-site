@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
-import type { OrderLineItem } from "square";
+import type { OrderLineItem, OrderLineItemDiscount } from "square";
+import { OrderLineItemDiscountScope, OrderLineItemDiscountType } from "square";
 import { getSquareClient, getSquareLocationId, isSquareConfigured } from "./square-client";
 import { QuoteRecord } from "./quotes-store";
 
@@ -37,6 +38,17 @@ export type PaymentLinkKind = "full" | "deposit-percent" | "deposit-fixed";
 // cent or two off the invoice's actual total. Using the line's exact total
 // as a quantity-of-1 "item" means the sum of line items always equals
 // record.computed.grandTotal exactly, with no rounding reconciliation needed.
+//
+// A record has exactly ONE payment link/order for its whole life, no matter
+// how many times its amount is requested as a deposit, a remaining balance,
+// or the full total. Asking for a deposit never spins up a second, smaller
+// order with just a "Deposit" line on it — it's the SAME full itemized
+// order every time, with an ORDER-scoped discount (see depositDiscount)
+// knocking the amount due today down to whatever was requested. The
+// customer always sees the real order; the discount line just tells them
+// how much of it is being held back for later. refreshOrCreatePaymentLink
+// below is what makes this possible: it edits that one order (and keeps its
+// one URL) in place rather than minting a new link each time.
 // ---------------------------------------------------------------------------
 
 export class SquareNotConfiguredError extends Error {
@@ -80,29 +92,54 @@ function buildLineItems(record: QuoteRecord): OrderLineItem[] {
   return items;
 }
 
-// A single line item representing a deposit — used whenever the requested
-// amount doesn't equal the record's current full total (the common case for
-// a quote, paid before conversion to an invoice; also usable on an invoice
-// if ever needed). Kept as a proper itemized `order` (not Square's "quick
-// pay" shape) specifically so it still has a real orderId afterward and can
-// later be updated in place by refreshOrCreatePaymentLink below — quick pay
-// links don't expose an editable order the same way.
-function buildDepositLineItem(record: QuoteRecord, amount: number): OrderLineItem[] {
+// The real itemized order (same thing a full "Pay online" link uses) — or,
+// for a brand-new quote with nothing added to it yet, a single lump-sum
+// line for its current total, so there's still something for a deposit
+// discount (below) to apply against. There is only ever ONE kind of order
+// for a record: a deposit link is never a separate, smaller order — it's
+// this same full order with a discount knocked off the amount due today
+// (see depositDiscount). That's what keeps a record down to a single
+// paymentLinkUrl/squareOrderId no matter how many times the admin asks for
+// a different deposit amount, a different balance, or the full total.
+function buildFullOrderLineItems(record: QuoteRecord): OrderLineItem[] {
+  const items = buildLineItems(record);
+  if (items.length > 0) return items;
   const label = record.invoiceNumber
-    ? `Deposit — Invoice ${record.invoiceNumber}`
+    ? `Invoice ${record.invoiceNumber}`
     : record.quoteNumber
-      ? `Deposit — Quote ${record.quoteNumber}`
-      : "Deposit";
-  return [{ name: label.slice(0, 500), quantity: "1", basePriceMoney: { amount: cents(amount), currency: "USD" } }];
+      ? `Quote ${record.quoteNumber}`
+      : `Order for ${record.computed.customerName || "customer"}`;
+  return [
+    { name: label.slice(0, 500), quantity: "1", basePriceMoney: { amount: cents(record.computed.grandTotal), currency: "USD" } },
+  ];
 }
 
-function lineItemsForAmount(record: QuoteRecord, amount: number): OrderLineItem[] {
-  const isFullTotal = Math.abs(amount - record.computed.grandTotal) < 0.005;
-  if (isFullTotal) {
-    const full = buildLineItems(record);
-    if (full.length > 0) return full;
-  }
-  return buildDepositLineItem(record, amount);
+function lineItemsTotalCents(items: OrderLineItem[]): bigint {
+  return items.reduce((sum, item) => sum + (item.basePriceMoney?.amount ?? BigInt(0)), BigInt(0));
+}
+
+// An ORDER-scoped discount that brings the full order's total down to
+// whatever amount was actually requested (a deposit, a remaining balance,
+// or the full total) — see buildFullOrderLineItems' comment on why the
+// order itself never shrinks to just a "Deposit" line. Computed against the
+// line items' own cent total (not record.computed.grandTotal) so the
+// customer is charged exactly the requested amount even if the order's
+// itemization and the quote's grand total were ever to drift apart (e.g.
+// tax/misc fees that aren't broken out as their own Square line items
+// today). Returns [] — explicitly clearing any discount from a previous,
+// smaller request — once the requested amount covers the whole order.
+function depositDiscount(itemsTotalCents: bigint, amount: number): OrderLineItemDiscount[] {
+  const heldBackCents = itemsTotalCents - cents(amount);
+  if (heldBackCents <= BigInt(0)) return [];
+  return [
+    {
+      uid: "deposit-balance",
+      name: "Balance due later",
+      type: OrderLineItemDiscountType.FixedAmount,
+      amountMoney: { amount: heldBackCents, currency: "USD" },
+      scope: OrderLineItemDiscountScope.Order,
+    },
+  ];
 }
 
 // Creates a brand-new Square payment link (and its backing Order) for the
@@ -124,7 +161,8 @@ async function createPaymentLink(
       ? `Quote ${record.quoteNumber}`
       : `Order for ${record.computed.customerName || "customer"}`;
 
-  const lineItems = lineItemsForAmount(record, amount);
+  const lineItems = buildFullOrderLineItems(record);
+  const discounts = depositDiscount(lineItemsTotalCents(lineItems), amount);
 
   const response = await client.checkout.paymentLinks.create({
     idempotencyKey: randomUUID(),
@@ -133,6 +171,7 @@ async function createPaymentLink(
       locationId,
       referenceId: record.id,
       lineItems,
+      discounts,
     },
     checkoutOptions: {
       askForShippingAddress: false,
@@ -173,12 +212,18 @@ export async function refreshOrCreatePaymentLink(
       const locationId = getSquareLocationId();
       const { order } = await client.orders.get({ orderId: record.squareOrderId });
       if (order && typeof order.version === "number") {
+        const lineItems = buildFullOrderLineItems(record);
         await client.orders.update({
           orderId: record.squareOrderId,
           order: {
             locationId,
             version: order.version,
-            lineItems: lineItemsForAmount(record, amount),
+            lineItems,
+            // Always sent, even as [] — a fully-replace field, not a merge,
+            // so paying off the balance (amount === the full order) clears
+            // out a previous deposit's "Balance due later" line instead of
+            // leaving it stuck on the order.
+            discounts: depositDiscount(lineItemsTotalCents(lineItems), amount),
           },
           idempotencyKey: randomUUID(),
         });

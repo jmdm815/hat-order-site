@@ -243,12 +243,12 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                 : "No deposit payment terms set on this quote — defaults to the full total. Type a smaller amount for a custom deposit."}
             </p>
           )}
-          {isInvoice && (
-            <p className="mt-1.5 text-xs text-white/40">
-              Updating the link keeps the same URL whenever possible — the customer&apos;s copy of
-              the link still works, just for the new amount.
-            </p>
-          )}
+          <p className="mt-1.5 text-xs text-white/40">
+            The link always shows the full, itemized order — a deposit amount just shows a
+            &quot;balance due later&quot; line bringing today&apos;s charge down to that amount.
+            Updating it keeps the same URL whenever possible, so a link already sent to the
+            customer still works, just for the new amount.
+          </p>
           {!linkAmountValid && linkAmount !== "" && (
             <p className="mt-1 text-xs text-red">Enter an amount between $0.01 and {money(grandTotal)}.</p>
           )}
