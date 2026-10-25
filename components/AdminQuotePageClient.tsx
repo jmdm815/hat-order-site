@@ -30,6 +30,10 @@ type Props = {
   // Present when editing a saved quote/invoice; absent for a brand-new one
   // (app/admin/quotes/new/page.tsx vs app/admin/quotes/[id]/page.tsx).
   quoteId?: string;
+  // Brand-new record only (ignored once a record loads): whether the first
+  // save creates a plain quote (the default) or an invoice directly — set
+  // from ?kind=invoice by the "+ New invoice" button on the Invoices tab.
+  createAs?: "quote" | "invoice";
 };
 
 // Full-page quote builder — the quote builder used to live inside a popup
@@ -37,7 +41,7 @@ type Props = {
 // own page per quote/invoice, like most editors in this admin, so creating
 // or editing a quote gets a real URL, full-height layout, and no shared
 // scroll position with the saved-quotes list.
-export default function AdminQuotePageClient({ quoteId }: Props) {
+export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Props) {
   const router = useRouter();
   const [record, setRecord] = useState<QuoteRecord | null>(null);
   const [loading, setLoading] = useState(Boolean(quoteId));
@@ -68,7 +72,9 @@ export default function AdminQuotePageClient({ quoteId }: Props) {
   }, [quoteId]);
 
   const title = !quoteId
-    ? "New quote"
+    ? createAs === "invoice"
+      ? "New invoice"
+      : "New quote"
     : record
       ? record.status === "invoice"
         ? `Editing invoice ${record.invoiceNumber}`
@@ -83,10 +89,16 @@ export default function AdminQuotePageClient({ quoteId }: Props) {
             JM Digital Media · Admin
           </span>
           <Link
-            href="/admin?tab=quotes"
+            href={
+              (record ? record.status === "invoice" : createAs === "invoice")
+                ? "/admin?tab=invoices"
+                : "/admin?tab=quotes"
+            }
             className="shrink-0 text-sm text-white/60 hover:text-white hover:underline"
           >
-            ← Back to quotes
+            {(record ? record.status === "invoice" : createAs === "invoice")
+              ? "← Back to invoices"
+              : "← Back to quotes"}
           </Link>
         </div>
       </header>
@@ -109,6 +121,7 @@ export default function AdminQuotePageClient({ quoteId }: Props) {
           <AdminQuoteBuilder
             key={record?.id ?? "new"}
             initialRecord={record}
+            createAs={createAs}
             initialLines={!record ? seed?.lines : undefined}
             initialSetupChargeIds={!record ? seed?.setupChargeIds : undefined}
             onSaved={(saved) => {

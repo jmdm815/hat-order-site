@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ComputedQuote, QuoteLineInput, QuoteSizeInput } from "@/lib/quote";
 import { QuoteRecord } from "@/lib/quotes-store";
 import { DecorationOption, SetupChargeType, PaymentTermOption, TaxRateOption } from "@/lib/types";
@@ -103,6 +104,11 @@ type Props = {
   // mode "quick" only: called with the current lines + setup charges when
   // the admin taps "Create quote" after a customer decides to order.
   onCreateQuote?: (lines: PendingLine[], setupChargeIds: string[]) => void;
+  // Brand-new record only (ignored once initialRecord is set): whether the
+  // first save creates a plain quote (the default) or an invoice directly —
+  // see AdminQuotesTab's "+ New invoice" button and
+  // app/admin/quotes/new/page.tsx's ?kind=invoice.
+  createAs?: "quote" | "invoice";
 };
 
 function linesFromRecord(record: QuoteRecord): PendingLine[] {
@@ -131,7 +137,9 @@ export default function AdminQuoteBuilder({
   initialLines,
   initialSetupChargeIds,
   onCreateQuote,
+  createAs = "quote",
 }: Props) {
+  const router = useRouter();
   const [decorations, setDecorations] = useState<DecorationOption[]>([]);
   const [decorationsLoaded, setDecorationsLoaded] = useState(false);
   const [setupCharges, setSetupCharges] = useState<SetupChargeType[]>([]);
@@ -333,6 +341,7 @@ export default function AdminQuoteBuilder({
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
+  const [convertingToQuote, setConvertingToQuote] = useState(false);
 
   // Hide/show toggle for the admin-only cost/markup breakdown (the "Item
   // Cost" and "Item Markup" rows in the size grid below, and the matching
@@ -1275,7 +1284,7 @@ export default function AdminQuoteBuilder({
       const res = await fetch(isUpdate ? `/api/admin/quotes/${activeRecord!.id}` : "/api/admin/quotes", {
         method: isUpdate ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildQuoteInput()),
+        body: JSON.stringify(isUpdate ? buildQuoteInput() : { ...buildQuoteInput(), kind: createAs }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1286,7 +1295,7 @@ export default function AdminQuoteBuilder({
       setActiveRecord(record);
       setQuote(record.computed);
       setSaveMessage(
-        (isUpdate ? "Quote updated." : "Quote saved.") +
+        (isUpdate ? "Quote updated." : record.status === "invoice" ? "Invoice saved." : "Quote saved.") +
           (data.persisted === false ? " No durable storage connected yet — see the list below." : "")
       );
       onSaved?.(record);
@@ -1297,6 +1306,12 @@ export default function AdminQuoteBuilder({
     }
   }
 
+  // Creates (or, if this quote was already converted before, just opens)
+  // the linked invoice — a brand-new, separate record (see
+  // lib/quotes-store.ts's convertQuoteToInvoice), not this same one with a
+  // flipped status. Navigates the admin straight there, same as clicking
+  // Edit on it from the Invoices tab, since this builder instance is still
+  // showing the quote.
   async function convertToInvoice() {
     if (!activeRecord) return;
     setConverting(true);
@@ -1309,13 +1324,35 @@ export default function AdminQuoteBuilder({
         return;
       }
       const record = data.record as QuoteRecord;
-      setActiveRecord(record);
-      setSaveMessage(`Converted to invoice ${record.invoiceNumber}.`);
-      onSaved?.(record);
+      router.push(`/admin/quotes/${record.id}`);
     } catch {
       setQuoteError("Failed to convert to invoice — check your connection and try again.");
     } finally {
       setConverting(false);
+    }
+  }
+
+  // The reverse — creates (or opens) a linked quote from this invoice. See
+  // convertInvoiceToQuote's comment: the invoice's own payment/payment-link
+  // state is left untouched, only the pricing content is used for the new
+  // quote.
+  async function convertToQuote() {
+    if (!activeRecord) return;
+    setConvertingToQuote(true);
+    setQuoteError(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${activeRecord.id}/convert-to-quote`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setQuoteError(data.error || "Failed to convert to quote");
+        return;
+      }
+      const record = data.record as QuoteRecord;
+      router.push(`/admin/quotes/${record.id}`);
+    } catch {
+      setQuoteError("Failed to convert to quote — check your connection and try again.");
+    } finally {
+      setConvertingToQuote(false);
     }
   }
 
@@ -1346,6 +1383,24 @@ export default function AdminQuoteBuilder({
               >
                 {activeRecord.invoiceStatus.replace("_", " ")}
               </span>
+            )}
+            {activeRecord.status === "quote" && activeRecord.linkedInvoiceId && (
+              <button
+                onClick={() => router.push(`/admin/quotes/${activeRecord.linkedInvoiceId}`)}
+                className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium border border-white/20 text-white/70 hover:bg-white/5"
+                title="Open the invoice created from this quote"
+              >
+                → Invoice {activeRecord.linkedInvoiceNumber ?? ""}
+              </button>
+            )}
+            {activeRecord.status === "invoice" && activeRecord.linkedQuoteId && (
+              <button
+                onClick={() => router.push(`/admin/quotes/${activeRecord.linkedQuoteId}`)}
+                className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium border border-white/20 text-white/70 hover:bg-white/5"
+                title="Open the quote this invoice was created from"
+              >
+                from Quote {activeRecord.linkedQuoteNumber ?? ""}
+              </button>
             )}
           </div>
           <button
@@ -2073,6 +2128,15 @@ export default function AdminQuoteBuilder({
                     className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
                   >
                     {converting ? "Converting…" : "Convert to invoice"}
+                  </button>
+                )}
+                {activeRecord && activeRecord.status === "invoice" && (
+                  <button
+                    onClick={convertToQuote}
+                    disabled={convertingToQuote}
+                    className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
+                  >
+                    {convertingToQuote ? "Converting…" : "Convert to quote"}
                   </button>
                 )}
               </>

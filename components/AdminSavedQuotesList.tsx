@@ -1,15 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { QuoteRecord, InvoicePaymentStatus } from "@/lib/quotes-store";
+import { QuoteRecord, InvoicePaymentStatus, DELETED_RETENTION_DAYS } from "@/lib/quotes-store";
 import AdminInvoicePaymentModal from "./AdminInvoicePaymentModal";
 import AdminSendDocumentModal from "./AdminSendDocumentModal";
 
+type View = "quotes" | "invoices" | "deleted";
+
 type Props = {
+  // Which slice of the store to show — a dedicated Quotes tab, a dedicated
+  // Invoices tab, or the shared "Recently deleted" view (see
+  // components/AdminQuotesTab.tsx). Quotes and invoices are separate,
+  // linkable records (lib/quotes-store.ts) rather than one record that
+  // flips status in place, so each tab only ever shows its own kind.
+  view: View;
   // Bump this (e.g. a counter) whenever the parent knows the list is stale
   // (a save/update elsewhere) and this component should refetch.
   refreshToken: number;
-  onEdit: (record: QuoteRecord) => void;
+  onEdit: (id: string) => void;
 };
 
 const STATUS_LABEL: Record<InvoicePaymentStatus, string> = {
@@ -52,13 +60,18 @@ async function downloadPdf(id: string, mode: string) {
   }
 }
 
-// Lists every quote/invoice saved from the Quote Builder (see
-// lib/quotes-store.ts) so past quotes live on the site instead of only
-// existing for as long as a browser tab stays open. Handles converting a
-// quote to an invoice, toggling an invoice's payment status, downloading any
-// PDF variant straight from the record's saved pricing snapshot, and
-// deleting a record.
-export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
+function daysLeft(deletedAt: string): number {
+  const purgeAt = new Date(deletedAt).getTime() + DELETED_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  return Math.max(0, Math.ceil((purgeAt - Date.now()) / (24 * 60 * 60 * 1000)));
+}
+
+// Lists quotes, invoices, or recently-deleted records (see the `view` prop)
+// from the Quote Builder (lib/quotes-store.ts). Handles converting between
+// quote/invoice (each direction creates a linked record — see
+// convertQuoteToInvoice/convertInvoiceToQuote), toggling an invoice's
+// payment status, downloading any PDF variant, and deleting (soft, with
+// restore/permanent-delete in the "deleted" view).
+export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Props) {
   const [records, setRecords] = useState<QuoteRecord[]>([]);
   const [persistent, setPersistent] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -70,10 +83,17 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
   const [jobsMessage, setJobsMessage] = useState<string | null>(null);
 
   function load() {
-    fetch("/api/admin/quotes")
+    setLoading(true);
+    const url = view === "deleted" ? "/api/admin/quotes/deleted" : "/api/admin/quotes";
+    fetch(url)
       .then((r) => r.json())
       .then((data: { quotes: QuoteRecord[]; persistent: boolean }) => {
-        setRecords(data.quotes ?? []);
+        const all = data.quotes ?? [];
+        setRecords(
+          view === "deleted"
+            ? all
+            : all.filter((r) => r.status === (view === "invoices" ? "invoice" : "quote"))
+        );
         setPersistent(data.persistent);
       })
       .catch(() => setError("Failed to load saved quotes."))
@@ -81,9 +101,17 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
   }
 
   useEffect(() => {
+    // load() calls setLoading(true) synchronously so switching `view` (or a
+    // refreshToken bump) shows the spinner immediately instead of flashing
+    // the previous view's stale rows for one frame.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
-  }, [refreshToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshToken, view]);
 
+  // Converts a quote into a (new, linked) invoice, or reuses the existing
+  // one if this quote was already converted before — either way, jumps the
+  // admin straight to that invoice's page, same as clicking Edit on it.
   async function handleConvert(id: string) {
     setBusyId(id);
     setError(null);
@@ -91,7 +119,24 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
       const res = await fetch(`/api/admin/quotes/${id}/convert`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to convert");
-      load();
+      onEdit(data.record.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // The reverse — creates (or reuses) a linked quote from an invoice, for
+  // an invoice that was created directly rather than from a quote.
+  async function handleConvertToQuote(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}/convert-to-quote`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to convert");
+      onEdit(data.record.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -169,8 +214,11 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
     }
   }
 
+  // Soft delete — moves the record into "Recently deleted" instead of
+  // removing it outright. See handlePermanentDelete/handleRestore below for
+  // the trash view's own actions.
   async function handleDelete(id: string) {
-    if (!confirm("Delete this saved quote/invoice? This can't be undone.")) return;
+    if (!confirm(`Move this to Recently deleted? It'll be permanently deleted automatically after ${DELETED_RETENTION_DAYS} days, or you can delete it sooner from there.`)) return;
     setBusyId(id);
     setError(null);
     try {
@@ -185,9 +233,47 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
     }
   }
 
+  async function handleRestore(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}/restore`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to restore");
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handlePermanentDelete(id: string) {
+    if (!confirm("Permanently delete this? This can't be undone.")) return;
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}/permanent-delete`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to delete");
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (loading) {
     return <p className="text-white/40 text-sm">Loading…</p>;
   }
+
+  const emptyMessage =
+    view === "deleted"
+      ? "Nothing in Recently deleted."
+      : view === "invoices"
+        ? "No invoices yet — convert a quote, or create one directly above."
+        : "No saved quotes yet — build one above and hit “Save quote.”";
 
   return (
     <div>
@@ -203,7 +289,7 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
       {jobsMessage && <p className="mb-3 text-sm text-green-700">{jobsMessage}</p>}
 
       {records.length === 0 ? (
-        <p className="text-sm text-white/40">No saved quotes yet — build one above and hit &quot;Save quote.&quot;</p>
+        <p className="text-sm text-white/40">{emptyMessage}</p>
       ) : (
         <div className="space-y-2">
           {records.map((r) => {
@@ -222,12 +308,30 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                         r.status === "invoice" ? "bg-white/10 text-white" : "bg-white/5 text-white/60"
                       }`}
                     >
-                      {r.status === "invoice" ? r.invoiceNumber : "Quote"}
+                      {r.status === "invoice" ? r.invoiceNumber : r.quoteNumber ?? "Quote"}
                     </span>
                     {r.status === "invoice" && r.invoiceStatus && (
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS[r.invoiceStatus]}`}>
                         {STATUS_LABEL[r.invoiceStatus]}
                       </span>
+                    )}
+                    {view !== "deleted" && r.status === "quote" && r.linkedInvoiceId && (
+                      <button
+                        onClick={() => onEdit(r.linkedInvoiceId!)}
+                        className="px-2 py-0.5 rounded-full text-xs font-medium border border-white/20 text-white/70 hover:bg-white/5"
+                        title="Open the invoice created from this quote"
+                      >
+                        → Invoice {r.linkedInvoiceNumber ?? ""}
+                      </button>
+                    )}
+                    {view !== "deleted" && r.status === "invoice" && r.linkedQuoteId && (
+                      <button
+                        onClick={() => onEdit(r.linkedQuoteId!)}
+                        className="px-2 py-0.5 rounded-full text-xs font-medium border border-white/20 text-white/70 hover:bg-white/5"
+                        title="Open the quote this invoice was created from"
+                      >
+                        from Quote {r.linkedQuoteNumber ?? ""}
+                      </button>
                     )}
                   </div>
                   <div className="text-xs text-white/50 mt-0.5">
@@ -239,120 +343,154 @@ export default function AdminSavedQuotesList({ refreshToken, onEdit }: Props) {
                       r.amountPaid < r.computed.grandTotal && (
                         <> · ${r.amountPaid.toFixed(2)} paid, ${(r.computed.grandTotal - r.amountPaid).toFixed(2)} remaining</>
                       )}
+                    {view === "deleted" && r.deletedAt && (
+                      <>
+                        {" "}
+                        · deleted {new Date(r.deletedAt).toLocaleDateString()} · auto-deletes in{" "}
+                        {daysLeft(r.deletedAt)} day{daysLeft(r.deletedAt) === 1 ? "" : "s"}
+                      </>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                  <button
-                    onClick={() => onEdit(r)}
-                    className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => downloadPdf(r.id, "customer")}
-                    className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
-                  >
-                    PDF
-                  </button>
-                  <button
-                    onClick={() => downloadPdf(r.id, "internal")}
-                    className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
-                  >
-                    Internal
-                  </button>
-                  <button
-                    onClick={() => downloadPdf(r.id, "work-order")}
-                    className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
-                  >
-                    Work order
-                  </button>
-                  {r.status === "quote" ? (
-                    <>
-                      <button
-                        onClick={() => handleConvert(r.id)}
-                        disabled={isBusy}
-                        className="text-xs px-2.5 py-1 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
-                      >
-                        {isBusy ? "…" : "Convert to invoice"}
-                      </button>
-                      <button
-                        onClick={() => setPaymentModalRecord(r)}
-                        title="Create a deposit payment link, or record a deposit taken another way (cash, check), before converting this to an invoice"
-                        className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
-                          (r.amountPaid ?? 0) > 0
-                            ? "border border-green-600/30 text-green-700 hover:bg-green-50"
-                            : "border border-blue-400 text-blue-700 hover:bg-blue-50"
-                        }`}
-                      >
-                        {(r.amountPaid ?? 0) > 0 ? `Deposit ($${(r.amountPaid ?? 0).toFixed(2)})` : "Deposit"}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => downloadPdf(r.id, "invoice")}
-                        className="text-xs px-2.5 py-1 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50"
-                      >
-                        Invoice
-                      </button>
-                      {r.invoiceStatus !== "paid" && (
+                {view === "deleted" ? (
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => handleRestore(r.id)}
+                      disabled={isBusy}
+                      className="text-xs px-2.5 py-1 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+                    >
+                      {isBusy ? "…" : "Restore"}
+                    </button>
+                    <button
+                      onClick={() => handlePermanentDelete(r.id)}
+                      disabled={isBusy}
+                      className="text-xs px-2.5 py-1 rounded-xl border border-red-600/40 text-red-600 hover:bg-red-50 disabled:opacity-40"
+                    >
+                      Delete permanently
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => onEdit(r.id)}
+                      className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => downloadPdf(r.id, "customer")}
+                      className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                    >
+                      PDF
+                    </button>
+                    <button
+                      onClick={() => downloadPdf(r.id, "internal")}
+                      className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
+                    >
+                      Internal
+                    </button>
+                    <button
+                      onClick={() => downloadPdf(r.id, "work-order")}
+                      className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                    >
+                      Work order
+                    </button>
+                    {r.status === "quote" ? (
+                      <>
                         <button
-                          onClick={() => handleCopyPayPageLink(r.id)}
-                          title="Copy a link to this site's own branded payment page for this invoice"
-                          className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
-                        >
-                          Copy pay page link
-                        </button>
-                      )}
-                      {r.invoiceStatus !== "paid" && (
-                        <button
-                          onClick={() => handlePaymentLink(r.id)}
+                          onClick={() => handleConvert(r.id)}
                           disabled={isBusy}
-                          title={
-                            r.paymentLinkUrl
-                              ? "Refresh and copy the Square-hosted checkout link"
-                              : "Create a Square-hosted checkout link for the customer"
-                          }
-                          className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                          className="text-xs px-2.5 py-1 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
                         >
-                          {isBusy ? "…" : r.paymentLinkUrl ? "Copy Square link" : "Create Square link"}
+                          {isBusy ? "…" : r.linkedInvoiceId ? "View invoice" : "Convert to invoice"}
                         </button>
-                      )}
-                      <button
-                        onClick={() => setPaymentModalRecord(r)}
-                        className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
-                          r.invoiceStatus === "paid"
-                            ? "border border-green-600/30 text-green-700 hover:bg-green-50"
-                            : "bg-navy text-white hover:bg-navy/90"
-                        }`}
-                      >
-                        Payment
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => setSendModalRecord(r)}
-                    className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
-                  >
-                    Send
-                  </button>
-                  <button
-                    onClick={() => handleSendToJobs(r.id)}
-                    disabled={isBusy}
-                    title="Create a production job per line item, assigned to each item's decoration type"
-                    className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
-                  >
-                    {isBusy ? "…" : "Send to Jobs"}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(r.id)}
-                    disabled={isBusy}
-                    className="text-xs px-2.5 py-1 text-red-600 hover:underline disabled:text-white/20"
-                  >
-                    Delete
-                  </button>
-                </div>
+                        <button
+                          onClick={() => setPaymentModalRecord(r)}
+                          title="Create a deposit payment link, or record a deposit taken another way (cash, check), before converting this to an invoice"
+                          className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
+                            (r.amountPaid ?? 0) > 0
+                              ? "border border-green-600/30 text-green-700 hover:bg-green-50"
+                              : "border border-blue-400 text-blue-700 hover:bg-blue-50"
+                          }`}
+                        >
+                          {(r.amountPaid ?? 0) > 0 ? `Deposit ($${(r.amountPaid ?? 0).toFixed(2)})` : "Deposit"}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleConvertToQuote(r.id)}
+                          disabled={isBusy}
+                          className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
+                          title="Create (or open) a quote linked to this invoice"
+                        >
+                          {isBusy ? "…" : r.linkedQuoteId ? "View quote" : "Convert to quote"}
+                        </button>
+                        <button
+                          onClick={() => downloadPdf(r.id, "invoice")}
+                          className="text-xs px-2.5 py-1 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50"
+                        >
+                          Invoice
+                        </button>
+                        {r.invoiceStatus !== "paid" && (
+                          <button
+                            onClick={() => handleCopyPayPageLink(r.id)}
+                            title="Copy a link to this site's own branded payment page for this invoice"
+                            className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
+                          >
+                            Copy pay page link
+                          </button>
+                        )}
+                        {r.invoiceStatus !== "paid" && (
+                          <button
+                            onClick={() => handlePaymentLink(r.id)}
+                            disabled={isBusy}
+                            title={
+                              r.paymentLinkUrl
+                                ? "Refresh and copy the Square-hosted checkout link"
+                                : "Create a Square-hosted checkout link for the customer"
+                            }
+                            className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                          >
+                            {isBusy ? "…" : r.paymentLinkUrl ? "Copy Square link" : "Create Square link"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setPaymentModalRecord(r)}
+                          className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
+                            r.invoiceStatus === "paid"
+                              ? "border border-green-600/30 text-green-700 hover:bg-green-50"
+                              : "bg-navy text-white hover:bg-navy/90"
+                          }`}
+                        >
+                          Payment
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => setSendModalRecord(r)}
+                      className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                    >
+                      Send
+                    </button>
+                    <button
+                      onClick={() => handleSendToJobs(r.id)}
+                      disabled={isBusy}
+                      title="Create a production job per line item, assigned to each item's decoration type"
+                      className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                    >
+                      {isBusy ? "…" : "Send to Jobs"}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(r.id)}
+                      disabled={isBusy}
+                      className="text-xs px-2.5 py-1 text-red-600 hover:underline disabled:text-white/20"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

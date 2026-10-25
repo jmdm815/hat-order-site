@@ -4,7 +4,7 @@ import { getDecorationTypes } from "@/lib/decoration-types-store";
 import { getSetupCharges } from "@/lib/setup-charges-store";
 import { getGarmentMarkupSettings } from "@/lib/garment-markup-store";
 import { computeQuote, isValidQuoteInput, QuoteInputError } from "@/lib/quote";
-import { createQuote, getQuotes } from "@/lib/quotes-store";
+import { createQuote, createInvoice, getQuotes } from "@/lib/quotes-store";
 import { getCatalog } from "@/lib/sanmar";
 import { applyLiveSanmarPricingToProducts } from "@/lib/sanmar-pricing";
 import { Product } from "@/lib/types";
@@ -54,7 +54,13 @@ export async function POST(req: NextRequest) {
     );
 
     const computed = computeQuote(body, productsByStyle, decorations, setupCharges, garmentMarkup.breakpoints);
-    const { record, persisted } = await createQuote(body, computed);
+    // Optional "kind": "invoice" in the request body (not part of QuoteInput
+    // itself — isValidQuoteInput ignores unknown fields) lets the admin's
+    // "+ New invoice" button create a record that starts life as an invoice
+    // directly, instead of always starting as a quote (the default, and the
+    // only option before quotes/invoices became separate linkable records).
+    const kind = (body as { kind?: unknown }).kind === "invoice" ? "invoice" : "quote";
+    const { record, persisted } = kind === "invoice" ? await createInvoice(body, computed) : await createQuote(body, computed);
     return NextResponse.json({ ok: true, record, persisted });
   } catch (err) {
     if (err instanceof QuoteInputError) {

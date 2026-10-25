@@ -93,7 +93,36 @@ export type QuoteRecord = {
   // to pay" on the customer-facing pay page.
   amountPaid?: number;
   payments?: InvoicePaymentEntry[];
+  // Soft delete — set by deleteQuote() ("Move to Recently deleted" in the
+  // admin UI) instead of removing the blob outright, so a mis-click doesn't
+  // instantly lose a quote/invoice. getQuotes() excludes anything with this
+  // set; getDeletedQuotes() returns only records with this set, for the
+  // admin's "Recently deleted" view. purgeExpiredDeletedQuotes() hard-deletes
+  // (permanentlyDeleteQuote) anything that's been sitting here more than
+  // DELETED_RETENTION_DAYS — called opportunistically from getDeletedQuotes()
+  // and from the scheduled app/api/cron/purge-deleted-quotes route, so it
+  // happens on a real cadence even if nobody opens that admin tab.
+  deletedAt?: string;
+  // Quote <-> invoice linking. A quote and the invoice made from it (or vice
+  // versa) are now two separate records, each with its own full life in its
+  // own tab (see AdminQuotesTab), rather than one record that flips its
+  // `status` field in place — that let an invoice's own history erase the
+  // quote it came from. convertQuoteToInvoice()/convertInvoiceToQuote() set
+  // these on both sides. The *Number fields are denormalized copies of the
+  // linked record's quoteNumber/invoiceNumber, purely so the admin list/
+  // builder can show "from quote QT-1001" without an extra fetch — they're
+  // not re-synced if the linked record is later renumbered (never happens
+  // today) or deleted (the admin UI treats a dangling link as informational
+  // only and doesn't try to navigate to a 404).
+  linkedInvoiceId?: string;
+  linkedInvoiceNumber?: string;
+  linkedQuoteId?: string;
+  linkedQuoteNumber?: string;
 };
+
+// How long a soft-deleted quote/invoice stays in "Recently deleted" before
+// it's purged for good.
+export const DELETED_RETENTION_DAYS = 5;
 
 export type InvoicePaymentEntry = {
   id: string;
@@ -222,7 +251,11 @@ async function removeRecord(id: string): Promise<{ persisted: boolean }> {
   }
 }
 
-export async function getQuotes(): Promise<QuoteRecord[]> {
+// Every record, soft-deleted or not — the shared fetch-all used by
+// getQuotes() (live records), getDeletedQuotes() ("Recently deleted"), and
+// purgeExpiredDeletedQuotes(). Not exported: callers always want one of
+// those three, which make the "what counts as visible" decision explicit.
+async function getAllRecordsRaw(): Promise<QuoteRecord[]> {
   await migrateLegacyIfNeeded();
   if (!isPersistent()) {
     return memoryList().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -249,6 +282,48 @@ export async function getQuotes(): Promise<QuoteRecord[]> {
     console.error("quotes-store: blob list failed", err);
     return memoryList().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
+}
+
+// Live quotes/invoices — what every existing list/number-assignment call
+// expects (anything soft-deleted via deleteQuote() is hidden here, same as
+// if it had actually been removed).
+export async function getQuotes(): Promise<QuoteRecord[]> {
+  const all = await getAllRecordsRaw();
+  return all.filter((r) => !r.deletedAt);
+}
+
+// "Recently deleted" admin view — opportunistically purges anything past
+// DELETED_RETENTION_DAYS first (see purgeExpiredDeletedQuotes), so simply
+// opening this list is enough to keep it tidy even if the scheduled cron
+// route never fires for some reason.
+export async function getDeletedQuotes(): Promise<QuoteRecord[]> {
+  await purgeExpiredDeletedQuotes();
+  const all = await getAllRecordsRaw();
+  return all
+    .filter((r): r is QuoteRecord & { deletedAt: string } => Boolean(r.deletedAt))
+    .sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+}
+
+// Hard-deletes every soft-deleted record older than DELETED_RETENTION_DAYS.
+// Called from getDeletedQuotes() (so the admin's own "Recently deleted" tab
+// self-cleans) and from the scheduled app/api/cron/purge-deleted-quotes
+// route (so it also happens on a real daily cadence without anyone opening
+// that tab). Best-effort per record — one failed delete doesn't block the
+// rest.
+export async function purgeExpiredDeletedQuotes(): Promise<{ purged: number }> {
+  const all = await getAllRecordsRaw();
+  const cutoff = Date.now() - DELETED_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const expired = all.filter((r) => r.deletedAt && new Date(r.deletedAt).getTime() <= cutoff);
+  let purged = 0;
+  for (const r of expired) {
+    try {
+      await removeRecord(r.id);
+      purged++;
+    } catch (err) {
+      console.error(`quotes-store: purge failed for ${r.id}`, err);
+    }
+  }
+  return { purged };
 }
 
 export async function getQuote(id: string): Promise<QuoteRecord | undefined> {
@@ -288,6 +363,31 @@ export async function createQuote(
   return { record, persisted };
 }
 
+// Creates a brand-new INVOICE directly — no quote step first. Used by the
+// admin's "+ New invoice" button (as opposed to "+ New quote", which calls
+// createQuote above), so a record can start life as an invoice the same way
+// convertQuoteToInvoice's output does, just without a linked quote. The
+// admin can still link one after the fact with convertInvoiceToQuote.
+export async function createInvoice(
+  input: QuoteInput,
+  computed: ComputedQuote
+): Promise<{ record: QuoteRecord; persisted: boolean }> {
+  const all = await getQuotes();
+  const now = new Date().toISOString();
+  const record: QuoteRecord = {
+    id: uuid(),
+    createdAt: now,
+    updatedAt: now,
+    input,
+    computed,
+    status: "invoice",
+    invoiceNumber: nextInvoiceNumber(all),
+    invoiceStatus: "unpaid",
+  };
+  const { persisted } = await writeRecord(record);
+  return { record, persisted };
+}
+
 export async function updateQuoteContent(
   id: string,
   input: QuoteInput,
@@ -305,7 +405,36 @@ export async function updateQuoteContent(
   return { record: updated, persisted };
 }
 
+// Soft delete — "Move to Recently deleted" in the admin UI. The record
+// still exists (readRecord/getQuote can still find it) but drops out of
+// getQuotes(), so it's gone from the normal Quotes/Invoices tabs. See
+// restoreQuote() to undo this and permanentlyDeleteQuote() to actually
+// remove it — purgeExpiredDeletedQuotes() calls the latter automatically
+// after DELETED_RETENTION_DAYS.
 export async function deleteQuote(id: string): Promise<{ deleted: boolean; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { deleted: false, persisted: true };
+  const updated: QuoteRecord = { ...existing, deletedAt: new Date().toISOString() };
+  const { persisted } = await writeRecord(updated);
+  return { deleted: true, persisted };
+}
+
+// Pulls a record back out of "Recently deleted". A no-op (but still
+// succeeds) if it wasn't deleted in the first place.
+export async function restoreQuote(id: string): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { record: null, persisted: true };
+  const updated: QuoteRecord = { ...existing, deletedAt: undefined, updatedAt: new Date().toISOString() };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+// Actually removes the blob — the "Delete permanently" button in
+// "Recently deleted", and what purgeExpiredDeletedQuotes() calls once a
+// soft-deleted record ages out. Unlike deleteQuote(), this works whether or
+// not the record is currently soft-deleted (the admin can always hard-delete
+// something from Recently deleted, which by definition already is).
+export async function permanentlyDeleteQuote(id: string): Promise<{ deleted: boolean; persisted: boolean }> {
   const existing = await readRecord(id);
   if (!existing) return { deleted: false, persisted: true };
   const { persisted } = await removeRecord(id);
@@ -321,15 +450,38 @@ function nextInvoiceNumber(all: QuoteRecord[]): string {
   return `INV-${String(max + 1).padStart(4, "0")}`;
 }
 
+// Converts a quote into an invoice by creating a brand-new, separate invoice
+// record (rather than flipping `status` on the same one) and linking the two
+// — see the QuoteRecord.linkedInvoiceId/linkedQuoteId comment. This is what
+// lets "Quotes" and "Invoices" live as genuinely separate admin tabs: the
+// original quote keeps existing (and keeps showing up under Quotes) even
+// after it's been invoiced, instead of disappearing into the invoice.
+//
+// Any Square payment-link/payment state already on the quote (a pre-invoice
+// deposit — see recordInvoicePayment's comment) MOVES to the new invoice
+// rather than being copied: the invoice is now the live financial document
+// for this order, and leaving the same squareOrderId on two records would
+// make findQuoteBySquareOrderId's webhook lookup ambiguous. The quote record
+// is left with the garment/pricing content and the link back to its
+// invoice, but no payment data of its own once this runs.
+//
+// Idempotent: calling this again on a quote that's already been converted
+// just returns the existing linked invoice (unless that invoice was itself
+// since deleted, in which case a new one is created, same as the first
+// time) rather than minting a second invoice or erroring.
 export async function convertQuoteToInvoice(
   id: string
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
   const existing = await readRecord(id);
   if (!existing) return { record: null, persisted: true };
-  if (existing.status === "invoice") {
-    // Already converted — no-op, just return it as-is.
-    return { record: existing, persisted: true };
+
+  if (existing.linkedInvoiceId) {
+    const linked = await readRecord(existing.linkedInvoiceId);
+    if (linked && !linked.deletedAt) {
+      return { record: linked, persisted: true };
+    }
   }
+
   // Scanning every quote for the current max invoice number (rather than a
   // dedicated counter) means two quotes converted at the exact same instant
   // could theoretically land on the same number — a narrow edge case, and
@@ -346,17 +498,92 @@ export async function convertQuoteToInvoice(
   const grandTotal = existing.computed.grandTotal;
   const invoiceStatus: InvoicePaymentStatus =
     amountPaid <= 0 ? "unpaid" : amountPaid >= grandTotal - 0.005 ? "paid" : "partially_paid";
-  const updated: QuoteRecord = {
-    ...existing,
+
+  const invoice: QuoteRecord = {
+    id: uuid(),
+    createdAt: now,
+    updatedAt: now,
+    input: existing.input,
+    computed: existing.computed,
     status: "invoice",
     invoiceNumber: nextInvoiceNumber(all),
     invoiceStatus,
-    paidAt: invoiceStatus === "paid" ? now : existing.paidAt,
     convertedAt: now,
+    paidAt: invoiceStatus === "paid" ? now : existing.paidAt,
+    amountPaid: existing.amountPaid,
+    payments: existing.payments,
+    paymentLinkUrl: existing.paymentLinkUrl,
+    paymentLinkId: existing.paymentLinkId,
+    squareOrderId: existing.squareOrderId,
+    squarePaymentId: existing.squarePaymentId,
+    paymentLinkAmount: existing.paymentLinkAmount,
+    paymentLinkKind: existing.paymentLinkKind,
+    linkedQuoteId: existing.id,
+    linkedQuoteNumber: existing.quoteNumber,
+  };
+  const updatedQuote: QuoteRecord = {
+    ...existing,
+    linkedInvoiceId: invoice.id,
+    linkedInvoiceNumber: invoice.invoiceNumber,
+    amountPaid: undefined,
+    payments: undefined,
+    paymentLinkUrl: undefined,
+    paymentLinkId: undefined,
+    squareOrderId: undefined,
+    squarePaymentId: undefined,
+    paymentLinkAmount: undefined,
+    paymentLinkKind: undefined,
     updatedAt: now,
   };
-  const { persisted } = await writeRecord(updated);
-  return { record: updated, persisted };
+
+  const [invoiceWrite, quoteWrite] = await Promise.all([writeRecord(invoice), writeRecord(updatedQuote)]);
+  return { record: invoice, persisted: invoiceWrite.persisted && quoteWrite.persisted };
+}
+
+// The reverse of convertQuoteToInvoice — creates a brand-new quote record
+// from an invoice's current content and links the two, without touching the
+// invoice's own payment/payment-link state (an invoice that already has
+// real money or a live Square link against it keeps that; the new quote
+// starts as a clean pricing document, same as any other brand-new quote).
+// Exists so an invoice created directly (never from a quote in the first
+// place) can still get a linked quote/estimate after the fact — mirrors
+// convertQuoteToInvoice's idempotency: calling it again on an invoice that
+// already has a live linked quote just returns that quote.
+export async function convertInvoiceToQuote(
+  id: string
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { record: null, persisted: true };
+
+  if (existing.linkedQuoteId) {
+    const linked = await readRecord(existing.linkedQuoteId);
+    if (linked && !linked.deletedAt) {
+      return { record: linked, persisted: true };
+    }
+  }
+
+  const all = await getQuotes();
+  const now = new Date().toISOString();
+  const quote: QuoteRecord = {
+    id: uuid(),
+    quoteNumber: nextQuoteNumber(all),
+    createdAt: now,
+    updatedAt: now,
+    input: existing.input,
+    computed: existing.computed,
+    status: "quote",
+    linkedInvoiceId: existing.id,
+    linkedInvoiceNumber: existing.invoiceNumber,
+  };
+  const updatedInvoice: QuoteRecord = {
+    ...existing,
+    linkedQuoteId: quote.id,
+    linkedQuoteNumber: quote.quoteNumber,
+    updatedAt: now,
+  };
+
+  const [quoteWrite, invoiceWrite] = await Promise.all([writeRecord(quote), writeRecord(updatedInvoice)]);
+  return { record: quote, persisted: quoteWrite.persisted && invoiceWrite.persisted };
 }
 
 export async function setInvoicePaymentStatus(

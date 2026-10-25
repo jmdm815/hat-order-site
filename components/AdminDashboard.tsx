@@ -27,6 +27,7 @@ const DEFAULT_TABS = [
   { id: "settings", label: "Settings", icon: "⚙️" },
   { id: "quick-quote", label: "Quick Quote", icon: "⚡" },
   { id: "quotes", label: "Quotes", icon: "📝" },
+  { id: "invoices", label: "Invoices", icon: "💵" },
   { id: "jobs", label: "Jobs", icon: "🧵" },
   { id: "tasks", label: "Tasks", icon: "✅" },
   { id: "customers", label: "Customers", icon: "👥" },
@@ -367,10 +368,21 @@ export default function AdminDashboard() {
             <p className="mb-4 text-white/60 text-sm">
               Build a customer quote from live SanMar pricing plus your decoration pricing chart
               (quantity price-breaks apply across the whole quote), save it, and download it as a
-              PDF. Saved quotes can be reopened, edited, and converted to invoices on their own
-              page. Nothing here touches the customer-facing catalog or cart.
+              PDF. Converting a quote to an invoice creates a separate, linked invoice over on the
+              Invoices tab — the quote stays right here. Nothing here touches the customer-facing
+              catalog or cart.
             </p>
-            <AdminQuotesTab />
+            <AdminQuotesTab kind="quote" />
+          </>
+        )}
+        {tab === "invoices" && (
+          <>
+            <p className="mb-4 text-white/60 text-sm">
+              Invoices live separately from quotes — one converted from a quote stays linked back to
+              it (and vice versa, via &quot;Convert to quote&quot;), but each has its own life here:
+              payment tracking, Square checkout links, and its own PDF.
+            </p>
+            <AdminQuotesTab kind="invoice" />
           </>
         )}
         {tab === "jobs" && <AdminJobsTab />}
