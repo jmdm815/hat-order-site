@@ -541,6 +541,38 @@ export async function convertQuoteToInvoice(
   return { record: invoice, persisted: invoiceWrite.persisted && quoteWrite.persisted };
 }
 
+// Creates an independent copy of a quote/invoice as a brand-new record of
+// the requested kind — not a conversion and not a link back to the
+// original (see convertQuoteToInvoice above for that); this is a plain
+// "Create a copy" admin action for a repeat order or a near-duplicate quote
+// for a different customer. The copy carries over the garments/pricing
+// (input + computed) as a starting point the admin can then edit freely,
+// but starts completely clean otherwise: its own new quote/invoice number,
+// no payment history, no payment link, and no soft-delete state.
+export async function duplicateQuote(
+  id: string,
+  kind: QuoteRecordStatus
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const source = await readRecord(id);
+  if (!source) return { record: null, persisted: true };
+
+  const all = await getQuotes();
+  const now = new Date().toISOString();
+  const record: QuoteRecord = {
+    id: uuid(),
+    createdAt: now,
+    updatedAt: now,
+    input: source.input,
+    computed: source.computed,
+    status: kind,
+    ...(kind === "invoice"
+      ? { invoiceNumber: nextInvoiceNumber(all), invoiceStatus: "unpaid" as InvoicePaymentStatus }
+      : { quoteNumber: nextQuoteNumber(all) }),
+  };
+  const { persisted } = await writeRecord(record);
+  return { record, persisted };
+}
+
 export async function setInvoicePaymentStatus(
   id: string,
   invoiceStatus: InvoicePaymentStatus

@@ -341,6 +341,8 @@ export default function AdminQuoteBuilder({
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const [copyMenuOpen, setCopyMenuOpen] = useState(false);
 
   // Hide/show toggle for the admin-only cost/markup breakdown (the "Item
   // Cost" and "Item Markup" rows in the size grid below, and the matching
@@ -1331,6 +1333,36 @@ export default function AdminQuoteBuilder({
     }
   }
 
+  // Creates an independent copy of this record as a brand-new quote or
+  // invoice (lib/quotes-store.ts's duplicateQuote) — not a conversion, no
+  // link back to this one — then jumps straight to editing the copy. See
+  // copyMenuOpen/handleDuplicate's twin in AdminSavedQuotesList.tsx for the
+  // same action from the saved-list rows.
+  async function handleDuplicate(kind: "quote" | "invoice") {
+    if (!activeRecord) return;
+    setCopyMenuOpen(false);
+    setDuplicating(true);
+    setQuoteError(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${activeRecord.id}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setQuoteError(data.error || "Failed to create a copy");
+        return;
+      }
+      const record = data.record as QuoteRecord;
+      router.push(`/admin/quotes/${record.id}`);
+    } catch {
+      setQuoteError("Failed to create a copy — check your connection and try again.");
+    } finally {
+      setDuplicating(false);
+    }
+  }
+
   return (
     <>
     <div className="space-y-8">
@@ -2105,6 +2137,41 @@ export default function AdminQuoteBuilder({
                     {converting ? "Converting…" : "Convert to invoice"}
                   </button>
                 )}
+                {activeRecord &&
+                  (copyMenuOpen ? (
+                    <span className="inline-flex items-center gap-1.5 bg-white/5 rounded-xl px-1.5 py-1">
+                      <span className="text-sm text-white/50 pl-1.5">Copy as:</span>
+                      <button
+                        onClick={() => handleDuplicate("quote")}
+                        disabled={duplicating}
+                        className="text-sm px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                      >
+                        {duplicating ? "…" : "Quote"}
+                      </button>
+                      <button
+                        onClick={() => handleDuplicate("invoice")}
+                        disabled={duplicating}
+                        className="text-sm px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                      >
+                        {duplicating ? "…" : "Invoice"}
+                      </button>
+                      <button
+                        onClick={() => setCopyMenuOpen(false)}
+                        className="text-sm px-2 py-1 text-white/40 hover:text-white"
+                        title="Cancel"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setCopyMenuOpen(true)}
+                      title="Create an independent copy of this as a new quote or invoice"
+                      className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+                    >
+                      Create a copy
+                    </button>
+                  ))}
               </>
             ) : (
               <button

@@ -81,6 +81,9 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
   const [paymentModalRecord, setPaymentModalRecord] = useState<QuoteRecord | null>(null);
   const [sendModalRecord, setSendModalRecord] = useState<QuoteRecord | null>(null);
   const [jobsMessage, setJobsMessage] = useState<string | null>(null);
+  // Which row's "Create a copy" quote-vs-invoice picker is open, if any —
+  // see handleDuplicate below.
+  const [copyMenuId, setCopyMenuId] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -209,6 +212,31 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to delete");
       load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // Creates an independent copy of this quote/invoice as a brand-new record
+  // (lib/quotes-store.ts's duplicateQuote) — not a conversion, no link back
+  // to this one — then jumps straight to editing the copy, same as Edit.
+  // `kind` is whichever option the admin picked from the "Create a copy"
+  // menu (see copyMenuId above).
+  async function handleDuplicate(id: string, kind: "quote" | "invoice") {
+    setCopyMenuId(null);
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to create a copy");
+      onEdit(data.record.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -379,6 +407,40 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     >
                       Work order
                     </button>
+                    {copyMenuId === r.id ? (
+                      <span className="inline-flex items-center gap-1.5 bg-white/5 rounded-xl px-1.5 py-0.5">
+                        <span className="text-xs text-white/50 pl-1">Copy as:</span>
+                        <button
+                          onClick={() => handleDuplicate(r.id, "quote")}
+                          disabled={isBusy}
+                          className="text-xs px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                        >
+                          {isBusy ? "…" : "Quote"}
+                        </button>
+                        <button
+                          onClick={() => handleDuplicate(r.id, "invoice")}
+                          disabled={isBusy}
+                          className="text-xs px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                        >
+                          {isBusy ? "…" : "Invoice"}
+                        </button>
+                        <button
+                          onClick={() => setCopyMenuId(null)}
+                          className="text-xs px-1.5 py-1 text-white/40 hover:text-white"
+                          title="Cancel"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setCopyMenuId(r.id)}
+                        title="Create an independent copy of this as a new quote or invoice"
+                        className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                      >
+                        Create a copy
+                      </button>
+                    )}
                     {r.status === "quote" ? (
                       <>
                         <button
