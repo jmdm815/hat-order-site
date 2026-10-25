@@ -341,7 +341,6 @@ export default function AdminQuoteBuilder({
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
-  const [convertingToQuote, setConvertingToQuote] = useState(false);
 
   // Hide/show toggle for the admin-only cost/markup breakdown (the "Item
   // Cost" and "Item Markup" rows in the size grid below, and the matching
@@ -1332,30 +1331,6 @@ export default function AdminQuoteBuilder({
     }
   }
 
-  // The reverse — creates (or opens) a linked quote from this invoice. See
-  // convertInvoiceToQuote's comment: the invoice's own payment/payment-link
-  // state is left untouched, only the pricing content is used for the new
-  // quote.
-  async function convertToQuote() {
-    if (!activeRecord) return;
-    setConvertingToQuote(true);
-    setQuoteError(null);
-    try {
-      const res = await fetch(`/api/admin/quotes/${activeRecord.id}/convert-to-quote`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setQuoteError(data.error || "Failed to convert to quote");
-        return;
-      }
-      const record = data.record as QuoteRecord;
-      router.push(`/admin/quotes/${record.id}`);
-    } catch {
-      setQuoteError("Failed to convert to quote — check your connection and try again.");
-    } finally {
-      setConvertingToQuote(false);
-    }
-  }
-
   return (
     <>
     <div className="space-y-8">
@@ -2128,15 +2103,6 @@ export default function AdminQuoteBuilder({
                     className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
                   >
                     {converting ? "Converting…" : "Convert to invoice"}
-                  </button>
-                )}
-                {activeRecord && activeRecord.status === "invoice" && (
-                  <button
-                    onClick={convertToQuote}
-                    disabled={convertingToQuote}
-                    className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
-                  >
-                    {convertingToQuote ? "Converting…" : "Convert to quote"}
                   </button>
                 )}
               </>

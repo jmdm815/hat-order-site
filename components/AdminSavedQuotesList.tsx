@@ -66,11 +66,11 @@ function daysLeft(deletedAt: string): number {
 }
 
 // Lists quotes, invoices, or recently-deleted records (see the `view` prop)
-// from the Quote Builder (lib/quotes-store.ts). Handles converting between
-// quote/invoice (each direction creates a linked record — see
-// convertQuoteToInvoice/convertInvoiceToQuote), toggling an invoice's
-// payment status, downloading any PDF variant, and deleting (soft, with
-// restore/permanent-delete in the "deleted" view).
+// from the Quote Builder (lib/quotes-store.ts). Handles converting a quote
+// to a (new, linked) invoice — see convertQuoteToInvoice; there's no
+// reverse conversion — toggling an invoice's payment status, downloading
+// any PDF variant, and deleting (soft, with restore/permanent-delete in the
+// "deleted" view).
 export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Props) {
   const [records, setRecords] = useState<QuoteRecord[]>([]);
   const [persistent, setPersistent] = useState(true);
@@ -117,23 +117,6 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
     setError(null);
     try {
       const res = await fetch(`/api/admin/quotes/${id}/convert`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to convert");
-      onEdit(data.record.id);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  // The reverse — creates (or reuses) a linked quote from an invoice, for
-  // an invoice that was created directly rather than from a quote.
-  async function handleConvertToQuote(id: string) {
-    setBusyId(id);
-    setError(null);
-    try {
-      const res = await fetch(`/api/admin/quotes/${id}/convert-to-quote`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to convert");
       onEdit(data.record.id);
@@ -419,14 +402,15 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                       </>
                     ) : (
                       <>
-                        <button
-                          onClick={() => handleConvertToQuote(r.id)}
-                          disabled={isBusy}
-                          className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
-                          title="Create (or open) a quote linked to this invoice"
-                        >
-                          {isBusy ? "…" : r.linkedQuoteId ? "View quote" : "Convert to quote"}
-                        </button>
+                        {r.linkedQuoteId && (
+                          <button
+                            onClick={() => onEdit(r.linkedQuoteId!)}
+                            className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                            title="Open the quote this invoice was created from"
+                          >
+                            View quote
+                          </button>
+                        )}
                         <button
                           onClick={() => downloadPdf(r.id, "invoice")}
                           className="text-xs px-2.5 py-1 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50"

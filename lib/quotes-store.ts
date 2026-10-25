@@ -103,17 +103,18 @@ export type QuoteRecord = {
   // and from the scheduled app/api/cron/purge-deleted-quotes route, so it
   // happens on a real cadence even if nobody opens that admin tab.
   deletedAt?: string;
-  // Quote <-> invoice linking. A quote and the invoice made from it (or vice
-  // versa) are now two separate records, each with its own full life in its
-  // own tab (see AdminQuotesTab), rather than one record that flips its
-  // `status` field in place — that let an invoice's own history erase the
-  // quote it came from. convertQuoteToInvoice()/convertInvoiceToQuote() set
-  // these on both sides. The *Number fields are denormalized copies of the
-  // linked record's quoteNumber/invoiceNumber, purely so the admin list/
-  // builder can show "from quote QT-1001" without an extra fetch — they're
-  // not re-synced if the linked record is later renumbered (never happens
-  // today) or deleted (the admin UI treats a dangling link as informational
-  // only and doesn't try to navigate to a 404).
+  // Quote -> invoice linking. A quote and the invoice made from it are now
+  // two separate records, each with its own full life in its own tab (see
+  // AdminQuotesTab), rather than one record that flips its `status` field
+  // in place — that let an invoice's own history erase the quote it came
+  // from. Conversion is one-directional (quotes convert to invoices, never
+  // the reverse) — convertQuoteToInvoice() sets these on both sides. The
+  // *Number fields are denormalized copies of the linked record's
+  // quoteNumber/invoiceNumber, purely so the admin list/builder can show
+  // "from quote QT-1001" without an extra fetch — they're not re-synced if
+  // the linked record is later renumbered (never happens today) or deleted
+  // (the admin UI treats a dangling link as informational only and doesn't
+  // try to navigate to a 404).
   linkedInvoiceId?: string;
   linkedInvoiceNumber?: string;
   linkedQuoteId?: string;
@@ -366,8 +367,8 @@ export async function createQuote(
 // Creates a brand-new INVOICE directly — no quote step first. Used by the
 // admin's "+ New invoice" button (as opposed to "+ New quote", which calls
 // createQuote above), so a record can start life as an invoice the same way
-// convertQuoteToInvoice's output does, just without a linked quote. The
-// admin can still link one after the fact with convertInvoiceToQuote.
+// convertQuoteToInvoice's output does, just without a linked quote. There's
+// no way back to a quote — conversion only runs quote -> invoice.
 export async function createInvoice(
   input: QuoteInput,
   computed: ComputedQuote
@@ -538,52 +539,6 @@ export async function convertQuoteToInvoice(
 
   const [invoiceWrite, quoteWrite] = await Promise.all([writeRecord(invoice), writeRecord(updatedQuote)]);
   return { record: invoice, persisted: invoiceWrite.persisted && quoteWrite.persisted };
-}
-
-// The reverse of convertQuoteToInvoice — creates a brand-new quote record
-// from an invoice's current content and links the two, without touching the
-// invoice's own payment/payment-link state (an invoice that already has
-// real money or a live Square link against it keeps that; the new quote
-// starts as a clean pricing document, same as any other brand-new quote).
-// Exists so an invoice created directly (never from a quote in the first
-// place) can still get a linked quote/estimate after the fact — mirrors
-// convertQuoteToInvoice's idempotency: calling it again on an invoice that
-// already has a live linked quote just returns that quote.
-export async function convertInvoiceToQuote(
-  id: string
-): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
-  const existing = await readRecord(id);
-  if (!existing) return { record: null, persisted: true };
-
-  if (existing.linkedQuoteId) {
-    const linked = await readRecord(existing.linkedQuoteId);
-    if (linked && !linked.deletedAt) {
-      return { record: linked, persisted: true };
-    }
-  }
-
-  const all = await getQuotes();
-  const now = new Date().toISOString();
-  const quote: QuoteRecord = {
-    id: uuid(),
-    quoteNumber: nextQuoteNumber(all),
-    createdAt: now,
-    updatedAt: now,
-    input: existing.input,
-    computed: existing.computed,
-    status: "quote",
-    linkedInvoiceId: existing.id,
-    linkedInvoiceNumber: existing.invoiceNumber,
-  };
-  const updatedInvoice: QuoteRecord = {
-    ...existing,
-    linkedQuoteId: quote.id,
-    linkedQuoteNumber: quote.quoteNumber,
-    updatedAt: now,
-  };
-
-  const [quoteWrite, invoiceWrite] = await Promise.all([writeRecord(quote), writeRecord(updatedInvoice)]);
-  return { record: quote, persisted: quoteWrite.persisted && invoiceWrite.persisted };
 }
 
 export async function setInvoicePaymentStatus(
