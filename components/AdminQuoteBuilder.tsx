@@ -58,6 +58,16 @@ function todayIso(): string {
 // only (localStorage), which is fine here — it's a UI preference, not data.
 const SHOW_MARKUP_STORAGE_KEY = "admin-quote-builder-show-markup";
 
+// A garment color with no per-size pricing (e.g. a one-size hat like
+// Richardson 112) has an empty `sizes` array from the catalog — there's
+// nothing to build a SizeGrid out of. This is the synthetic size key used
+// for a plain quantity input in that case instead. computeQuote (lib/quote.ts)
+// looks up `color.sizes?.find((sz) => sz.name === s.size)` and falls back to
+// the product's base price whenever that lookup misses, so this label is
+// purely cosmetic for pricing purposes — it just has to be a non-empty,
+// stable string so the line round-trips through save/reload correctly.
+const ONE_SIZE_LABEL = "One Size";
+
 function loadShowMarkup(): boolean {
   if (typeof window === "undefined") return true;
   try {
@@ -991,7 +1001,12 @@ export default function AdminQuoteBuilder({
       setFoundProductLive(Boolean(data.livePricingApplied));
       setSelectedColor(product.colors[0]?.colorName ?? "");
       const initialQty: Record<string, number> = {};
-      for (const sz of product.colors[0]?.sizes ?? []) initialQty[sz.name] = 0;
+      const initialSizes = product.colors[0]?.sizes ?? [];
+      if (initialSizes.length > 0) {
+        for (const sz of initialSizes) initialQty[sz.name] = 0;
+      } else {
+        initialQty[ONE_SIZE_LABEL] = 0;
+      }
       setSizeQty(initialQty);
     } catch {
       setLookupError("Failed to load that product — check your connection and try again.");
@@ -2889,7 +2904,12 @@ export default function AdminQuoteBuilder({
                       setSelectedColor(e.target.value);
                       const color = foundProduct.colors.find((c) => c.colorName === e.target.value);
                       const next: Record<string, number> = {};
-                      for (const sz of color?.sizes ?? []) next[sz.name] = 0;
+                      const nextSizes = color?.sizes ?? [];
+                      if (nextSizes.length > 0) {
+                        for (const sz of nextSizes) next[sz.name] = 0;
+                      } else {
+                        next[ONE_SIZE_LABEL] = 0;
+                      }
                       setSizeQty(next);
                     }}
                     className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
@@ -2940,7 +2960,20 @@ export default function AdminQuoteBuilder({
                     />
                   </div>
                 ) : (
-                  <p className="mt-3 text-xs text-white/40">This item has no size-based pricing (one-size item).</p>
+                  <div className="mt-3 max-w-[10rem]">
+                    <label className="text-xs text-white/60">
+                      Quantity (one-size item)
+                      <input
+                        type="number"
+                        min={0}
+                        value={sizeQty[ONE_SIZE_LABEL] ?? 0}
+                        onChange={(e) =>
+                          setSizeQty({ [ONE_SIZE_LABEL]: Math.max(0, Number(e.target.value) || 0) })
+                        }
+                        className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                  </div>
                 )}
 
                 {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
