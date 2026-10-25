@@ -23,15 +23,15 @@ function money(n: number): string {
 // AdminSavedQuotesList.tsx — one place that shows the full picture (total,
 // paid, balance, payment terms, payment history), lets the admin manually
 // record a real payment (e.g. "$40 cash") instead of only flipping a status
-// flag, and create/refresh a Square-hosted "Pay online" link. Works on a
-// plain quote (a pre-invoice deposit) just as well as an invoice — see
-// lib/quotes-store.ts's recordInvoicePayment/setInvoicePaymentLink, which
-// both dropped their old invoice-only restriction for exactly this. Calls
+// flag, and set the deposit amount that pre-fills this record's permanent,
+// branded pay page (app/pay/[id]) — the single link always handed to the
+// customer now, for a plain quote's pre-invoice deposit just as well as an
+// invoice's balance (see lib/quotes-store.ts's recordInvoicePayment /
+// setSuggestedPaymentAmount, which both support any record). Calls
 // app/api/admin/quotes/[id]/record-payment/route.ts, which shares
 // recordInvoicePayment() with the real Square card charges collected
-// through the customer-facing /pay/[id] page (invoices only) and through a
-// Square-hosted deposit link's webhook (any record), so amountPaid stays
-// consistent no matter how the money came in.
+// through that same customer-facing page, so amountPaid stays consistent no
+// matter how the money came in.
 export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }: Props) {
   const isInvoice = record.status === "invoice";
   const grandTotal = record.computed.grandTotal;
@@ -40,13 +40,15 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
   const depositPercent = record.computed.depositPercent;
   const depositAmount =
     depositPercent && depositPercent < 100 ? Math.round(grandTotal * (depositPercent / 100) * 100) / 100 : undefined;
-  // What the "Create/refresh link" button defaults to: an invoice defaults
-  // to the full balance; a quote defaults to its payment-terms deposit (or
-  // the full total if "pay in full"/no terms set) — same defaulting logic as
+  // What the deposit-amount input below defaults to: an invoice defaults to
+  // the full balance; a quote defaults to its payment-terms deposit (or the
+  // full total if "pay in full"/no terms set) — same defaulting logic as
   // app/api/admin/quotes/[id]/payment-link/route.ts uses server-side when no
   // amount is sent at all, just mirrored here so the input starts prefilled
   // with what would happen anyway.
   const suggestedLinkAmount = isInvoice ? balance : (depositAmount ?? grandTotal);
+  const payPageUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/pay/${record.id}` : `/pay/${record.id}`;
 
   const [amount, setAmount] = useState(balance > 0 ? balance.toFixed(2) : "0.00");
   const [tender, setTender] = useState<InvoicePaymentEntry["tender"]>("cash");
@@ -103,7 +105,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
     }
   }
 
-  async function handleCreateLink() {
+  async function handleSaveDepositAmount() {
     if (!linkAmountValid) return;
     setLinkBusy(true);
     setLinkMessage(null);
@@ -115,14 +117,13 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
         body: JSON.stringify({ amount: linkAmountNum }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to create payment link");
+      if (!res.ok) throw new Error(data.error ?? "Failed to save the deposit amount");
       onUpdated(data.record);
-      const url: string | undefined = data.record?.paymentLinkUrl;
-      if (url && navigator.clipboard) {
-        await navigator.clipboard.writeText(url).catch(() => {});
-        setLinkMessage(data.reused ? "Link updated (same URL) and copied." : "Link created and copied.");
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(payPageUrl).catch(() => {});
+        setLinkMessage("Deposit amount saved and pay page link copied.");
       } else {
-        setLinkMessage(url ?? "Link created.");
+        setLinkMessage("Deposit amount saved.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -132,9 +133,9 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
   }
 
   function handleCopyLink() {
-    if (!record.paymentLinkUrl || !navigator.clipboard) return;
+    if (!navigator.clipboard) return;
     navigator.clipboard
-      .writeText(record.paymentLinkUrl)
+      .writeText(payPageUrl)
       .then(() => setLinkMessage("Link copied."))
       .catch(() => {});
   }
@@ -198,24 +199,20 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
         )}
 
         <div className="mt-4 border-t border-white/10 pt-4">
-          <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-2">
-            {isInvoice ? "Payment link" : "Deposit link"}
-          </p>
-          {record.paymentLinkUrl && (
-            <div className="flex items-center gap-2 mb-2 bg-white/5 rounded-xl px-3 py-2">
-              <span className="text-xs text-white/70 truncate flex-1">{record.paymentLinkUrl}</span>
-              <button
-                onClick={handleCopyLink}
-                className="shrink-0 text-xs text-blue-400 hover:underline"
-              >
-                Copy
-              </button>
-            </div>
-          )}
+          <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-2">Pay page link</p>
+          <div className="flex items-center gap-2 mb-2 bg-white/5 rounded-xl px-3 py-2">
+            <span className="text-xs text-white/70 truncate flex-1">{payPageUrl}</span>
+            <button
+              onClick={handleCopyLink}
+              className="shrink-0 text-xs text-blue-400 hover:underline"
+            >
+              Copy
+            </button>
+          </div>
           <div className="flex items-end gap-2">
             <div>
               <label className="block text-xs text-white/60 mb-1" htmlFor="link-amount">
-                Amount
+                Amount to pre-fill
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 text-sm">$</span>
@@ -229,11 +226,11 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
               </div>
             </div>
             <button
-              onClick={handleCreateLink}
+              onClick={handleSaveDepositAmount}
               disabled={linkBusy || !linkAmountValid}
               className="py-1.5 px-3 rounded-xl border border-blue-400 text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-40"
             >
-              {linkBusy ? "…" : record.paymentLinkUrl ? "Update link" : "Create link"}
+              {linkBusy ? "…" : record.paymentLinkAmount !== undefined ? "Update amount" : "Save deposit amount"}
             </button>
           </div>
           {!isInvoice && (
@@ -244,10 +241,10 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
             </p>
           )}
           <p className="mt-1.5 text-xs text-white/40">
-            The link always shows the full, itemized order — a deposit amount just shows a
-            &quot;balance due later&quot; line bringing today&apos;s charge down to that amount.
-            Updating it keeps the same URL whenever possible, so a link already sent to the
-            customer still works, just for the new amount.
+            This is always the same single link — it never changes. The amount above just
+            pre-fills &quot;Amount to pay&quot; when the customer opens it (they can still change
+            it up to the current balance); it&apos;s not a separate link for the deposit vs. the
+            rest.
           </p>
           {!linkAmountValid && linkAmount !== "" && (
             <p className="mt-1 text-xs text-red">Enter an amount between $0.01 and {money(grandTotal)}.</p>

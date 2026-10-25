@@ -59,21 +59,24 @@ export type QuoteRecord = {
   invoiceStatus?: InvoicePaymentStatus;
   convertedAt?: string;
   paidAt?: string;
-  // Square "Pay online" link — see lib/square-payment-links.ts and
-  // app/api/admin/quotes/[id]/payment-link/route.ts. Available on a plain
-  // quote now too (not just an invoice), so a deposit can be collected
-  // before the order is ever converted — paymentLinkUrl is what gets handed
-  // to the customer; paymentLinkId and squareOrderId are kept so a later
-  // Square webhook event (app/api/webhooks/square/route.ts) can be matched
-  // back to this record and flip invoiceStatus to "paid" automatically once
-  // Square confirms the charge, AND so a later edit to this quote/invoice
-  // can update that same order's line items in place (same URL, new amount)
-  // instead of minting a new link every time — see refreshOrCreatePaymentLink
-  // in lib/square-payment-links.ts. squarePaymentId is filled in once a
-  // charge actually completes (or once an admin manually enters/confirms
-  // one). paymentLinkAmount/paymentLinkKind record what the link's current
-  // amount represents, so app/api/admin/quotes/[id]/route.ts's save handler
-  // knows whether (and to what) to automatically refresh it after an edit.
+  // paymentLinkUrl/paymentLinkId/squareOrderId: legacy Square-hosted "Pay
+  // online" checkout link fields (lib/square-payment-links.ts). The admin UI
+  // no longer creates these — every record now hands the customer this
+  // site's own permanent, branded /pay/[id] page instead (see
+  // app/api/pay/[id]/route.ts and the "Copy pay page link" buttons in
+  // AdminSavedQuotesList.tsx / AdminInvoicePaymentModal.tsx), which supports
+  // both quotes and invoices and never changes URL. These three fields are
+  // kept only so a record that already had a Square link from before this
+  // change keeps working: squareOrderId still lets a Square webhook event
+  // (app/api/webhooks/square/route.ts) match back to the record and record
+  // the payment, and paymentLinkUrl/paymentLinkId are otherwise inert.
+  // squarePaymentId is filled in once a charge actually completes (or once
+  // an admin manually enters/confirms one). paymentLinkAmount/
+  // paymentLinkKind now record the admin's chosen "amount to pay" for the
+  // /pay/[id] page's pre-fill (see setSuggestedPaymentAmount below) — "full"
+  // auto-tracks the record's current total, "deposit-percent" auto-tracks
+  // the quote's payment-terms deposit, "deposit-fixed" is a specific dollar
+  // figure the admin typed by hand and is never silently recalculated.
   paymentLinkUrl?: string;
   paymentLinkId?: string;
   squareOrderId?: string;
@@ -628,6 +631,33 @@ export async function setInvoicePaymentLink(
     squareOrderId: link.orderId ?? existing.squareOrderId,
     paymentLinkAmount: link.amount,
     paymentLinkKind: link.kind,
+    updatedAt: new Date().toISOString(),
+  };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+// Persists the admin's chosen "amount to pay" for this record's permanent,
+// branded pay page (app/pay/[id]) — called from
+// app/api/admin/quotes/[id]/payment-link/route.ts (the admin's "Save
+// deposit amount" action) and from this record's own save handler
+// (app/api/admin/quotes/[id]/route.ts) when a "full"/"deposit-percent"
+// suggestion needs to track an edit. Reuses the paymentLinkAmount/
+// paymentLinkKind fields a Square-hosted link used to use (see the comment
+// on those fields above) but never creates or touches a Square Payment
+// Link/Order — the customer-facing link is always this one permanent URL,
+// and this amount only pre-fills its "Amount to pay" field; the customer
+// can still type a different amount there, up to the current balance.
+export async function setSuggestedPaymentAmount(
+  id: string,
+  suggestion: { amount: number; kind: "full" | "deposit-percent" | "deposit-fixed" }
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { record: null, persisted: true };
+  const updated: QuoteRecord = {
+    ...existing,
+    paymentLinkAmount: suggestion.amount,
+    paymentLinkKind: suggestion.kind,
     updatedAt: new Date().toISOString(),
   };
   const { persisted } = await writeRecord(updated);

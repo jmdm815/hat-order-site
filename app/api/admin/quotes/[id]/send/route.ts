@@ -72,7 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       customerName: record.computed.customerName,
       customerCompany: record.computed.customerCompany,
       grandTotal: record.computed.grandTotal,
-      payPageUrl: record.status === "invoice" ? `${req.nextUrl.origin}/pay/${record.id}` : undefined,
+      payPageUrl: `${req.nextUrl.origin}/pay/${record.id}`,
       pdf: {
         filename: `${filePrefix}-${fileNameSafe}-${record.computed.quoteDate}.pdf`,
         content: pdfBuffer,

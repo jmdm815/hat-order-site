@@ -38,17 +38,19 @@ export type QuotePdfMode = "customer" | "internal" | "work-order" | "invoice";
 export type InvoiceMeta = {
   invoiceNumber?: string;
   invoiceStatus?: InvoicePaymentStatus;
-  // Square-hosted "Pay online" checkout link (lib/square-payment-links.ts).
-  // No longer rendered on the PDF itself (see payPageUrl below) — kept here
-  // because the admin UI still independently offers a "Create/Copy Square
-  // link" action elsewhere, unrelated to what shows on the PDF.
+  // Legacy Square-hosted "Pay online" checkout link
+  // (lib/square-payment-links.ts) — no longer created by the admin UI and no
+  // longer rendered on the PDF (see payPageUrl below, and
+  // lib/quotes-store.ts's comment on QuoteRecord.paymentLinkUrl). Kept in
+  // this type only so old callers/snapshots that still pass it don't error.
   paymentLinkUrl?: string;
-  // The site's own branded pay page (/pay/[id]) — always computable for any
-  // invoice record regardless of whether a Square link has ever been
-  // created, and always reflects the invoice's current total/line items
-  // since the page reads the record fresh on every load. This is what's
-  // rendered as the clickable "Pay online" line + QR code on the invoice
-  // PDF when present and the invoice isn't already paid in full.
+  // The site's own permanent, branded pay page (/pay/[id]) — always
+  // computable for ANY record, quote or invoice, regardless of whether a
+  // deposit amount has ever been set, and always reflects the record's
+  // current total/line items/balance since the page reads it fresh on
+  // every load. This is what's rendered as the clickable "Pay online" (or
+  // "Pay deposit online" for a plain quote) line + QR code on the PDF, once
+  // the record isn't already paid off in full.
   payPageUrl?: string;
   // Running total already collected (dollars) — see lib/quotes-store.ts's
   // QuoteRecord.amountPaid. Used to show "Paid to date" / "Balance
@@ -88,19 +90,17 @@ export async function renderQuotePdf(
   invoiceMeta?: InvoiceMeta
 ): Promise<Buffer> {
   // Which link (if any) this PDF should show as a clickable "Pay online"
-  // line plus a scannable QR code: an invoice not yet paid in full points at
-  // this site's own branded pay page (payPageUrl, which supports partial
-  // payments); a plain quote — not yet converted — has no pay page of its
-  // own, but may have a Square-hosted deposit link an admin created for it
-  // (paymentLinkUrl), which gets shown instead whenever one exists. Set
-  // automatically the moment a link is created or refreshed — no separate
-  // step to remember.
-  const linkForPdf =
+  // line plus a scannable QR code: this site's own permanent, branded pay
+  // page (payPageUrl) — same URL for a plain quote's pre-invoice deposit as
+  // for a converted invoice's balance, which supports both (see
+  // app/api/pay/[id]/route.ts). Hidden once the record is fully paid off
+  // (an "invoice" PDF already has invoiceStatus to check; any other mode
+  // falls back to comparing amountPaid against the quote's own grandTotal).
+  const paidInFull =
     mode === "invoice"
-      ? invoiceMeta?.invoiceStatus !== "paid"
-        ? invoiceMeta?.payPageUrl
-        : undefined
-      : invoiceMeta?.paymentLinkUrl;
+      ? invoiceMeta?.invoiceStatus === "paid"
+      : (invoiceMeta?.amountPaid ?? 0) >= quote.grandTotal - 0.005;
+  const linkForPdf = paidInFull ? undefined : invoiceMeta?.payPageUrl;
 
   // Generated up front (QRCode.toBuffer is async; pdfkit's drawing calls
   // below are not) so the PNG bytes are ready by the time doc.image() needs
@@ -234,12 +234,12 @@ export async function renderQuotePdf(
         }
         doc.moveDown(0.3);
       }
-    } else if (!workOrder && !internal && invoiceMeta?.paymentLinkUrl) {
-      // A plain quote (not yet converted to an invoice) with a Square
-      // deposit link an admin created for it — see
-      // app/api/admin/quotes/[id]/payment-link/route.ts. No paid/unpaid
-      // banner here (a quote has no invoiceStatus), just the link + QR so
-      // the customer can put a deposit down and get the order started.
+    } else if (!workOrder && !internal && linkForPdf) {
+      // A plain quote (not yet converted to an invoice) — the same branded
+      // pay page an invoice uses, just reached before conversion so a
+      // deposit can be collected and the order gotten started. No
+      // paid/unpaid banner here (a quote has no invoiceStatus), just the
+      // link + QR.
       doc
         .fillColor(NAVY)
         .font("Helvetica-Bold")
@@ -247,14 +247,14 @@ export async function renderQuotePdf(
         .text("Pay deposit online: ", left, doc.y, { continued: true })
         .font("Helvetica")
         .fillColor("#1a56cd")
-        .text(invoiceMeta.paymentLinkUrl, { link: invoiceMeta.paymentLinkUrl, underline: true });
+        .text(linkForPdf, { link: linkForPdf, underline: true });
       doc.moveDown(0.5);
 
       if (paymentQrPng) {
         const qrSize = 72;
         const qrY = doc.y;
         doc.image(paymentQrPng, left, qrY, { width: qrSize, height: qrSize });
-        doc.link(left, qrY, qrSize, qrSize, invoiceMeta.paymentLinkUrl);
+        doc.link(left, qrY, qrSize, qrSize, linkForPdf);
         doc
           .fillColor(GRAY)
           .font("Helvetica")

@@ -130,39 +130,15 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
     }
   }
 
-  // Creates (or refreshes) a Square-hosted "Pay online" link for this
-  // invoice's current total, then copies it to the clipboard so the admin
-  // can drop it straight into an email/text — the link is also saved onto
-  // the record (lib/quotes-store.ts) and appears on the invoice PDF itself.
-  async function handlePaymentLink(id: string) {
-    setBusyId(id);
-    setError(null);
-    setLinkMessage(null);
-    try {
-      const res = await fetch(`/api/admin/quotes/${id}/payment-link`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to create payment link");
-      const url: string | undefined = data.record?.paymentLinkUrl;
-      if (url && navigator.clipboard) {
-        await navigator.clipboard.writeText(url).catch(() => {});
-        setLinkMessage("Payment link copied to clipboard.");
-      } else {
-        setLinkMessage(url ?? "Payment link created.");
-      }
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  // Copies this site's own branded invoice-payment page link
+  // Copies this site's own permanent, branded pay page link
   // (app/pay/[id]/page.tsx) to the clipboard — no API call needed, since the
   // page is reached by the record's own id. The customer sees a JM Digital
   // Media-styled summary of their order and pays (in full or partially)
   // right there via Square's card form, with no redirect to a Square-hosted
-  // checkout page — unlike the "Square checkout link" button below.
+  // checkout page. Works the same for a plain quote's pre-invoice deposit
+  // as for a converted invoice's balance — it's always the one single link,
+  // which is also what the "Deposit"/"Payment" modal's "Save deposit
+  // amount" action pre-fills with a saved amount.
   function handleCopyPayPageLink(id: string) {
     const url = `${window.location.origin}/pay/${id}`;
     setLinkMessage(null);
@@ -452,7 +428,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                         </button>
                         <button
                           onClick={() => setPaymentModalRecord(r)}
-                          title="Create a deposit payment link, or record a deposit taken another way (cash, check), before converting this to an invoice"
+                          title="Set a deposit amount for the pay page link, or record a deposit taken another way (cash, check), before converting this to an invoice"
                           className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
                             (r.amountPaid ?? 0) > 0
                               ? "border border-green-600/30 text-green-700 hover:bg-green-50"
@@ -461,6 +437,15 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                         >
                           {(r.amountPaid ?? 0) > 0 ? `Deposit ($${(r.amountPaid ?? 0).toFixed(2)})` : "Deposit"}
                         </button>
+                        {(r.amountPaid ?? 0) < r.computed.grandTotal - 0.005 && (
+                          <button
+                            onClick={() => handleCopyPayPageLink(r.id)}
+                            title="Copy a link to this site's own branded pay page for this quote's deposit"
+                            className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
+                          >
+                            Copy pay page link
+                          </button>
+                        )}
                       </>
                     ) : (
                       <>
@@ -486,20 +471,6 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                             className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
                           >
                             Copy pay page link
-                          </button>
-                        )}
-                        {r.invoiceStatus !== "paid" && (
-                          <button
-                            onClick={() => handlePaymentLink(r.id)}
-                            disabled={isBusy}
-                            title={
-                              r.paymentLinkUrl
-                                ? "Refresh and copy the Square-hosted checkout link"
-                                : "Create a Square-hosted checkout link for the customer"
-                            }
-                            className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
-                          >
-                            {isBusy ? "…" : r.paymentLinkUrl ? "Copy Square link" : "Create Square link"}
                           </button>
                         )}
                         <button

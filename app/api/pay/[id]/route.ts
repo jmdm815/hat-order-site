@@ -12,21 +12,24 @@ export const runtime = "nodejs";
 
 // ---------------------------------------------------------------------------
 // Public, customer-facing — intentionally NOT behind isAdminAuthed(). Reached
-// only by knowing the invoice's id (a random uuid in the URL), the same
-// unguessable-link security model already used by the Square-hosted payment
-// links this complements (see lib/square-payment-links.ts). The admin hands
-// this URL to the customer via the "Copy pay page link" button in
-// AdminSavedQuotesList.tsx, instead of (or alongside) a Square-hosted
-// checkout link, so the customer sees a JM Digital Media-branded summary of
-// what they ordered (app/pay/[id]/page.tsx) and can pay all or part of the
-// balance with a card — charged directly through Square's Web Payments SDK
-// client-side (components/InvoicePayForm.tsx), no redirect to Square's own
-// checkout page.
+// only by knowing the record's id (a random uuid in the URL) — one single,
+// permanent URL per quote or invoice that never changes, handed to the
+// customer via the "Copy pay page link" button in AdminSavedQuotesList.tsx /
+// AdminInvoicePaymentModal.tsx. Works on a plain quote (a pre-invoice
+// deposit) just as well as a converted invoice — see
+// lib/quotes-store.ts's recordInvoicePayment, which already supports both —
+// so the customer sees a JM Digital Media-branded summary of what they
+// ordered (app/pay/[id]/page.tsx) and can pay all or part of the balance
+// with a card — charged directly through Square's Web Payments SDK
+// client-side (components/InvoicePayForm.tsx), no redirect to a
+// Square-hosted checkout page.
 // ---------------------------------------------------------------------------
 
 type CustomerInvoiceSummary = {
   id: string;
+  status: "quote" | "invoice";
   invoiceNumber?: string;
+  quoteNumber?: string;
   invoiceStatus?: string;
   customerName?: string;
   customerCompany?: string;
@@ -45,15 +48,28 @@ type CustomerInvoiceSummary = {
   grandTotal: number;
   amountPaid: number;
   balance: number;
+  // The admin's saved "amount to pay" (lib/quotes-store.ts's
+  // paymentLinkAmount — see setSuggestedPaymentAmount), clamped to the
+  // current balance — what InvoicePayClient.tsx pre-fills "Amount to pay"
+  // with, instead of always defaulting to the full balance. Undefined if
+  // the admin never set one, in which case the client falls back to the
+  // full balance like before.
+  suggestedAmount?: number;
 };
 
 function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
   const grandTotal = record.computed.grandTotal;
   const amountPaid = Math.round((record.amountPaid ?? 0) * 100) / 100;
   const balance = Math.max(0, Math.round((grandTotal - amountPaid) * 100) / 100);
+  const suggestedAmount =
+    typeof record.paymentLinkAmount === "number" && record.paymentLinkAmount > 0
+      ? Math.min(record.paymentLinkAmount, balance)
+      : undefined;
   return {
     id: record.id,
+    status: record.status,
     invoiceNumber: record.invoiceNumber,
+    quoteNumber: record.quoteNumber,
     invoiceStatus: record.invoiceStatus,
     customerName: record.computed.customerName,
     customerCompany: record.computed.customerCompany,
@@ -74,14 +90,15 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
     grandTotal,
     amountPaid,
     balance,
+    suggestedAmount,
   };
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const record = await getQuote(id);
-  if (!record || record.status !== "invoice") {
-    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  if (!record) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ invoice: toCustomerSummary(record) });
 }
@@ -89,8 +106,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const record = await getQuote(id);
-  if (!record || record.status !== "invoice") {
-    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  if (!record) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const body = await req.json().catch(() => null);
@@ -144,7 +161,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       amountMoney: { amount: BigInt(Math.round(amount * 100)), currency: "USD" },
       locationId: getSquareLocationId(),
       referenceId: id,
-      note: record.invoiceNumber ? `Invoice ${record.invoiceNumber}` : `Invoice payment ${id.slice(0, 8)}`,
+      note: record.invoiceNumber
+        ? `Invoice ${record.invoiceNumber}`
+        : record.quoteNumber
+          ? `Quote ${record.quoteNumber} deposit`
+          : `Payment ${id.slice(0, 8)}`,
     });
 
     if (!result.payment?.id) {
@@ -188,9 +209,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // reflects this payment's updated paid/balance status.
       try {
         const payPageUrl = `${req.nextUrl.origin}/pay/${id}`;
-        const pdfBuffer = await renderQuotePdf(updated.computed, "invoice", {
+        const pdfBuffer = await renderQuotePdf(updated.computed, updated.status === "invoice" ? "invoice" : "customer", {
           invoiceNumber: updated.invoiceNumber,
           invoiceStatus: updated.invoiceStatus,
+          quoteNumber: updated.quoteNumber,
           paymentLinkUrl: updated.paymentLinkUrl,
           payPageUrl,
           amountPaid: updated.amountPaid,

@@ -214,7 +214,7 @@ export type SendQuoteDocumentEmail = {
   customerName?: string;
   customerCompany?: string;
   grandTotal: number;
-  payPageUrl?: string; // only meaningful for an invoice (see /pay/[id])
+  payPageUrl?: string; // this record's permanent pay page (/pay/[id]) — works for a quote's deposit or an invoice's balance alike
   pdf: { filename: string; content: Buffer };
 };
 

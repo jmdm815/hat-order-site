@@ -5,7 +5,9 @@ import InvoicePayForm, { InvoicePaymentMethod } from "./InvoicePayForm";
 
 type InvoiceSummary = {
   id: string;
+  status: "quote" | "invoice";
   invoiceNumber?: string;
+  quoteNumber?: string;
   invoiceStatus?: string;
   customerName?: string;
   customerCompany?: string;
@@ -24,6 +26,11 @@ type InvoiceSummary = {
   grandTotal: number;
   amountPaid: number;
   balance: number;
+  // The admin's saved "amount to pay" (see app/api/pay/[id]/route.ts) —
+  // what pre-fills "Amount to pay" below instead of always defaulting to
+  // the full balance, matching how a ShopVox-style order page pre-fills a
+  // deposit. Still just a starting point — the customer can change it.
+  suggestedAmount?: number;
 };
 
 function money(n: number): string {
@@ -35,13 +42,17 @@ function money(n: number): string {
 // used.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Client half of the public invoice pay page (app/pay/[id]/page.tsx) — loads
-// the invoice's customer-safe summary from /api/pay/[id], renders a
+// Client half of the public, permanent pay page (app/pay/[id]/page.tsx) —
+// one single URL per quote or invoice that never changes. Loads the
+// record's customer-safe summary from /api/pay/[id], renders a
 // shopVOX/competitor-style "Total / Paid / Balance" box plus an itemized
-// breakdown so the customer sees roughly what they got on the invoice PDF,
-// an editable "amount to pay" field (defaults to the full balance, but can
-// be lowered for a deposit/partial payment), and the card form
-// (InvoicePayForm) that actually runs the charge through Square.
+// breakdown so the customer sees roughly what they got on the quote/invoice
+// PDF, an editable "amount to pay" field (pre-filled from whatever deposit
+// amount the admin saved, or the full balance if none was set — see
+// InvoiceSummary.suggestedAmount above — and still freely editable by the
+// customer), and the card form (InvoicePayForm) that actually runs the
+// charge through Square. Works the same whether the record is still a
+// plain quote (a pre-invoice deposit) or has been converted to an invoice.
 export default function InvoicePayClient({ id }: { id: string }) {
   const [invoice, setInvoice] = useState<InvoiceSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,7 +79,14 @@ export default function InvoicePayClient({ id }: { id: string }) {
       .then((data: { invoice: InvoiceSummary } | null) => {
         if (data?.invoice) {
           setInvoice(data.invoice);
-          setAmountInput(data.invoice.balance > 0 ? data.invoice.balance.toFixed(2) : "0.00");
+          // Pre-fill from the admin's saved deposit/suggested amount when
+          // there is one (clamped server-side to the current balance),
+          // falling back to the full balance like before when there isn't.
+          const prefill =
+            data.invoice.suggestedAmount && data.invoice.suggestedAmount > 0
+              ? data.invoice.suggestedAmount
+              : data.invoice.balance;
+          setAmountInput(prefill > 0 ? prefill.toFixed(2) : "0.00");
           if (data.invoice.customerEmail) setEmailInput(data.invoice.customerEmail);
         }
       })
@@ -171,10 +189,10 @@ export default function InvoicePayClient({ id }: { id: string }) {
   if (notFound || !invoice) {
     return (
       <div className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-6">
-        <h1 className="text-xl font-bold text-white">Invoice not found</h1>
+        <h1 className="text-xl font-bold text-white">Not found</h1>
         <p className="mt-2 text-sm text-white/60">
-          This payment link doesn&apos;t match an open invoice. If you think this is a mistake, please
-          contact us.
+          This payment link doesn&apos;t match an open quote or invoice. If you think this is a mistake,
+          please contact us.
         </p>
       </div>
     );
@@ -187,7 +205,13 @@ export default function InvoicePayClient({ id }: { id: string }) {
   return (
     <div>
       <p className="text-xs font-medium text-white/50 uppercase tracking-wide">
-        {invoice.invoiceNumber ? `Invoice ${invoice.invoiceNumber}` : "Invoice"}
+        {invoice.invoiceNumber
+          ? `Invoice ${invoice.invoiceNumber}`
+          : invoice.quoteNumber
+            ? `Quote ${invoice.quoteNumber} — deposit`
+            : invoice.status === "invoice"
+              ? "Invoice"
+              : "Quote"}
       </p>
       <h1 className="text-2xl font-bold text-white mt-1">
         {invoice.customerCompany || invoice.customerName || "Your invoice"}

@@ -4,9 +4,7 @@ import { getDecorationTypes } from "@/lib/decoration-types-store";
 import { getSetupCharges } from "@/lib/setup-charges-store";
 import { getGarmentMarkupSettings } from "@/lib/garment-markup-store";
 import { computeQuote, isValidQuoteInput, QuoteInputError } from "@/lib/quote";
-import { deleteQuote, getQuote, updateQuoteContent, setInvoicePaymentLink } from "@/lib/quotes-store";
-import { refreshOrCreatePaymentLink } from "@/lib/square-payment-links";
-import { isSquareConfigured } from "@/lib/square-client";
+import { deleteQuote, getQuote, updateQuoteContent, setSuggestedPaymentAmount } from "@/lib/quotes-store";
 import { getCatalog } from "@/lib/sanmar";
 import { applyLiveSanmarPricingToProducts } from "@/lib/sanmar-pricing";
 import { Product } from "@/lib/types";
@@ -66,23 +64,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     }
 
-    // If this record already has a Square payment link and its amount
+    // If this record already has a suggested pay-page amount that
     // auto-tracks the total (kind "full" — an invoice — or "deposit-percent"
-    // — a quote's payment-terms deposit), keep that link in sync with
-    // whatever the edit just changed, reusing the same URL whenever Square
-    // allows it (see refreshOrCreatePaymentLink's comment). A
-    // "deposit-fixed" link (the admin typed a specific dollar figure) is
-    // left untouched — editing the quote shouldn't silently change a
-    // deposit amount the admin chose on purpose. Best-effort: a failure
-    // here never fails the save itself, it just leaves the existing link as
-    // the user's only recourse until they refresh it by hand.
+    // — a quote's payment-terms deposit), keep that figure in sync with
+    // whatever the edit just changed — the pay page itself always reflects
+    // the record's current total/balance regardless, this only keeps its
+    // pre-filled "Amount to pay" accurate. A "deposit-fixed" amount (the
+    // admin typed a specific dollar figure) is left untouched — editing the
+    // quote shouldn't silently change a deposit amount the admin chose on
+    // purpose. Best-effort: a failure here never fails the save itself.
     let finalRecord = record;
-    if (
-      record.paymentLinkUrl &&
-      record.paymentLinkKind &&
-      record.paymentLinkKind !== "deposit-fixed" &&
-      isSquareConfigured()
-    ) {
+    if (record.paymentLinkKind && record.paymentLinkKind !== "deposit-fixed") {
       try {
         const grandTotal = record.computed.grandTotal;
         const depositPercent = record.computed.depositPercent;
@@ -93,16 +85,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               ? Math.round(grandTotal * (depositPercent / 100) * 100) / 100
               : grandTotal;
         if (Math.abs(targetAmount - (record.paymentLinkAmount ?? -1)) > 0.004 && targetAmount > 0) {
-          const link = await refreshOrCreatePaymentLink(record, targetAmount);
-          const { record: withLink } = await setInvoicePaymentLink(id, {
-            ...link,
+          const { record: withAmount } = await setSuggestedPaymentAmount(id, {
             amount: targetAmount,
             kind: record.paymentLinkKind,
           });
-          if (withLink) finalRecord = withLink;
+          if (withAmount) finalRecord = withAmount;
         }
       } catch (err) {
-        console.error("PUT /api/admin/quotes/[id]: auto-refresh of payment link failed", err);
+        console.error("PUT /api/admin/quotes/[id]: auto-refresh of suggested payment amount failed", err);
       }
     }
 
