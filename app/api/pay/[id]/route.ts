@@ -8,6 +8,12 @@ import { renderQuotePdf } from "@/lib/quote-pdf";
 // bothering Resend with it; not trying to be a full RFC 5322 validator.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const TENDER_LABEL: Record<string, string> = {
+  cash: "Cash",
+  check: "Check",
+  other: "Other",
+};
+
 export const runtime = "nodejs";
 
 // ---------------------------------------------------------------------------
@@ -55,6 +61,18 @@ type CustomerInvoiceSummary = {
   // the admin never set one, in which case the client falls back to the
   // full balance like before.
   suggestedAmount?: number;
+  // Every payment recorded against this record so far, oldest first — lets
+  // the customer see (and get a standalone receipt for) each individual
+  // transaction, not just today's running total/balance. See
+  // app/api/pay/[id]/payments/[paymentId]/receipt-pdf/route.ts, linked from
+  // each row in InvoicePayClient.tsx's payment-history list.
+  payments: Array<{
+    id: string;
+    amount: number;
+    methodLabel: string;
+    createdAt: string;
+    note?: string;
+  }>;
 };
 
 function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
@@ -91,6 +109,13 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
     amountPaid,
     balance,
     suggestedAmount,
+    payments: (record.payments ?? []).map((p) => ({
+      id: p.id,
+      amount: p.amount,
+      methodLabel: p.method === "square_card" ? "Card" : TENDER_LABEL[p.tender ?? "other"],
+      createdAt: p.createdAt,
+      note: p.note,
+    })),
   };
 }
 

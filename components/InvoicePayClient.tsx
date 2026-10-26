@@ -31,6 +31,20 @@ type InvoiceSummary = {
   // the full balance, matching how a ShopVox-style order page pre-fills a
   // deposit. Still just a starting point — the customer can change it.
   suggestedAmount?: number;
+  // Every payment recorded so far, oldest first — see
+  // app/api/pay/[id]/route.ts's toCustomerSummary. Rendered as its own
+  // "Payment history" list below, each row linking to a standalone receipt
+  // for just that transaction (app/api/pay/[id]/payments/[paymentId]/
+  // receipt-pdf/route.ts) — distinct from the "Get a PDF receipt" section's
+  // single document, which always reflects the order's current overall
+  // state rather than one specific payment.
+  payments: Array<{
+    id: string;
+    amount: number;
+    methodLabel: string;
+    createdAt: string;
+    note?: string;
+  }>;
 };
 
 function money(n: number): string {
@@ -66,6 +80,8 @@ export default function InvoicePayClient({ id }: { id: string }) {
   const [receiptSending, setReceiptSending] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptSentTo, setReceiptSentTo] = useState<string[]>([]);
+  const [paymentReceiptLoadingId, setPaymentReceiptLoadingId] = useState<string | null>(null);
+  const [paymentReceiptError, setPaymentReceiptError] = useState<string | null>(null);
 
   function load() {
     fetch(`/api/pay/${id}`)
@@ -154,6 +170,39 @@ export default function InvoicePayClient({ id }: { id: string }) {
       tab?.close();
     } finally {
       setReceiptDownloading(false);
+    }
+  }
+
+  // Same open-tab-synchronously pattern as downloadReceipt above, but for
+  // one specific entry in the payment-history list below — produces a
+  // standalone receipt for just that transaction (see
+  // app/api/pay/[id]/payments/[paymentId]/receipt-pdf/route.ts) instead of
+  // the whole order's current state.
+  async function downloadPaymentReceipt(paymentId: string) {
+    setPaymentReceiptLoadingId(paymentId);
+    setPaymentReceiptError(null);
+    const tab = window.open("", "_blank");
+    try {
+      const res = await fetch(`/api/pay/${id}/payments/${paymentId}/receipt-pdf`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setPaymentReceiptError(data.error || "Failed to load the receipt");
+        tab?.close();
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (tab) {
+        tab.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setPaymentReceiptError("Failed to load the receipt — check your connection and try again.");
+      tab?.close();
+    } finally {
+      setPaymentReceiptLoadingId(null);
     }
   }
 
@@ -280,9 +329,44 @@ export default function InvoicePayClient({ id }: { id: string }) {
         </p>
       )}
 
+      {invoice.payments.length > 0 && (
+        <div className="mt-4 bg-black border border-white/10 rounded-2xl p-4">
+          <p className="text-sm font-medium text-white">Payment history</p>
+          <p className="mt-1 text-xs text-white/40">
+            Each payment below is its own transaction — get a receipt for just that one.
+          </p>
+          <div className="mt-3 space-y-2">
+            {invoice.payments.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 bg-white/5 rounded-xl px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm text-white font-medium">{money(p.amount)}</p>
+                  <p className="text-xs text-white/50 truncate">
+                    {new Date(p.createdAt).toLocaleDateString()} · {p.methodLabel}
+                    {p.note ? ` · ${p.note}` : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => downloadPaymentReceipt(p.id)}
+                  disabled={paymentReceiptLoadingId === p.id}
+                  className="shrink-0 text-xs px-3 py-1.5 rounded-xl border border-white/20 text-white hover:bg-white/5 disabled:opacity-40"
+                >
+                  {paymentReceiptLoadingId === p.id ? "Loading…" : "Receipt"}
+                </button>
+              </div>
+            ))}
+          </div>
+          {paymentReceiptError && <p className="mt-2 text-xs text-red font-medium">{paymentReceiptError}</p>}
+        </div>
+      )}
+
       {invoice.amountPaid > 0 && (
         <div className="mt-4 bg-black border border-white/10 rounded-2xl p-4">
           <p className="text-sm font-medium text-white">Get a PDF receipt</p>
+          <p className="mt-1 text-xs text-white/40">
+            One document reflecting the order&apos;s current overall total, paid-to-date, and
+            balance — not a specific payment (see &quot;Payment history&quot; above for that).
+          </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"

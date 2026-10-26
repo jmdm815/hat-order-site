@@ -658,3 +658,159 @@ export async function renderQuotePdf(
     doc.end();
   });
 }
+
+// ---------------------------------------------------------------------------
+// A standalone receipt for ONE payment — distinct from renderQuotePdf's
+// "invoice"/"customer" modes above, which always render the record's
+// current, whole-order snapshot (every line item, the running total paid,
+// etc.) rather than a single transaction. That's the right document once
+// something is paid in full, but it means a customer who put down a 50%
+// deposit and comes back later for a record of *that* payment specifically
+// — e.g. for their own bookkeeping — had nothing to point at: downloading
+// "the receipt" always produced the same whole-order document no matter
+// which payment they meant. This renders a small, dedicated receipt for
+// exactly one entry in QuoteRecord.payments, used by
+// app/api/pay/[id]/payments/[paymentId]/receipt-pdf/route.ts and linked
+// from each row of the payment-history list in InvoicePayClient.tsx /
+// AdminInvoicePaymentModal.tsx.
+// ---------------------------------------------------------------------------
+
+export type PaymentReceiptData = {
+  docLabel: string; // e.g. "Quote QT-1004" or "Invoice INV-0002"
+  customerName?: string;
+  customerCompany?: string;
+  payment: {
+    amount: number;
+    methodLabel: string; // already resolved to a display string — "Card", "Cash", "Check", "Other"
+    createdAt: string; // ISO datetime
+    note?: string;
+  };
+  // Cumulative total paid THROUGH this payment (i.e. including it), and the
+  // balance remaining as of right after it — not necessarily today's
+  // current balance, so a receipt for an old payment stays historically
+  // accurate even if more has been paid (or the order total has changed)
+  // since.
+  paidToDate: number;
+  grandTotal: number;
+  balanceAfter: number;
+  payPageUrl: string;
+};
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+
+export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise<Buffer> {
+  const paidInFull = data.balanceAfter <= 0.005;
+
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "LETTER", margin: 50 });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const left = doc.page.margins.left;
+
+    // --- Header -----------------------------------------------------------
+    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(20).text("JM Digital Media", left, doc.y);
+    doc.fillColor(GRAY).font("Helvetica").fontSize(9).text("Look the Part. Mean Business.", left, doc.y + 2);
+    doc.moveDown(0.3);
+    doc.fillColor(GRAY).fontSize(9).text("buyjmmedia.com", left, doc.y);
+    const leftColumnEndY = doc.y;
+
+    doc
+      .fillColor(RED)
+      .font("Helvetica-Bold")
+      .fontSize(22)
+      .text("PAYMENT RECEIPT", left, 50, { width: pageWidth, align: "right" });
+    doc
+      .fillColor(GRAY)
+      .font("Helvetica")
+      .fontSize(9)
+      .text(formatDateTime(data.payment.createdAt), { width: pageWidth, align: "right" });
+    doc.text(`For: ${data.docLabel}`, { width: pageWidth, align: "right" });
+
+    doc.y = Math.max(doc.y, leftColumnEndY);
+    doc.moveDown(1.2);
+
+    doc
+      .strokeColor(NAVY)
+      .lineWidth(1.5)
+      .moveTo(left, doc.y)
+      .lineTo(left + pageWidth, doc.y)
+      .stroke();
+    doc.moveDown(0.8);
+
+    // --- Billed to ----------------------------------------------------------
+    if (data.customerName || data.customerCompany) {
+      doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("RECEIVED FROM", left, doc.y);
+      doc
+        .fillColor(NAVY)
+        .font("Helvetica")
+        .fontSize(10)
+        .text([data.customerName, data.customerCompany].filter(Boolean).join(" — "), left, doc.y);
+      doc.moveDown(1);
+    }
+
+    // --- Amount paid, front and center ------------------------------------
+    doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("AMOUNT PAID", left, doc.y);
+    doc.fillColor(GREEN).font("Helvetica-Bold").fontSize(28).text(money(data.payment.amount), left, doc.y);
+    doc.moveDown(0.6);
+
+    doc.fillColor(CREAM);
+    const boxY = doc.y;
+    doc.rect(left, boxY, pageWidth, 70).fill(CREAM);
+    doc.fillColor(NAVY).font("Helvetica").fontSize(10);
+    let rowY = boxY + 10;
+    const col2 = left + pageWidth / 2;
+    doc.text("Payment method", left + 12, rowY);
+    doc.font("Helvetica-Bold").text(data.payment.methodLabel, col2, rowY, { width: pageWidth / 2 - 24, align: "right" });
+    rowY += 18;
+    doc.font("Helvetica").text("Paid to date", left + 12, rowY);
+    doc
+      .font("Helvetica-Bold")
+      .text(`${money(data.paidToDate)} of ${money(data.grandTotal)}`, col2, rowY, {
+        width: pageWidth / 2 - 24,
+        align: "right",
+      });
+    rowY += 18;
+    doc.font("Helvetica").text("Balance after this payment", left + 12, rowY);
+    doc
+      .fillColor(paidInFull ? GREEN : NAVY)
+      .font("Helvetica-Bold")
+      .text(paidInFull ? "Paid in full" : money(data.balanceAfter), col2, rowY, {
+        width: pageWidth / 2 - 24,
+        align: "right",
+      });
+    doc.y = boxY + 70;
+    doc.moveDown(1);
+
+    if (data.payment.note) {
+      doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("NOTE", left, doc.y);
+      doc.fillColor(NAVY).font("Helvetica").fontSize(9.5).text(data.payment.note, left, doc.y, { width: pageWidth });
+      doc.moveDown(1);
+    }
+
+    doc
+      .fillColor(NAVY)
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text("View online: ", left, doc.y, { continued: true })
+      .font("Helvetica")
+      .fillColor("#1a56cd")
+      .text(data.payPageUrl, { link: data.payPageUrl, underline: true });
+
+    doc.moveDown(2);
+    doc
+      .fillColor(GRAY)
+      .font("Helvetica")
+      .fontSize(8)
+      .text("Thank you for your business! Keep this receipt for your records.", left, doc.y, { width: pageWidth });
+
+    doc.end();
+  });
+}

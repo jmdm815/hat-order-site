@@ -185,13 +185,23 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
             <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1.5">Payment history</p>
             <div className="space-y-1.5 max-h-32 overflow-y-auto">
               {payments.map((p) => (
-                <div key={p.id} className="flex justify-between items-baseline text-xs text-white/70">
-                  <span>
+                <div key={p.id} className="flex justify-between items-baseline gap-2 text-xs text-white/70">
+                  <span className="truncate">
                     {new Date(p.createdAt).toLocaleDateString()} —{" "}
                     {p.method === "square_card" ? "Card" : TENDER_LABEL[p.tender ?? "other"]}
                     {p.note ? ` (${p.note})` : ""}
                   </span>
-                  <span className="font-medium shrink-0 ml-2">{money(p.amount)}</span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="font-medium">{money(p.amount)}</span>
+                    <a
+                      href={`/api/pay/${record.id}/payments/${p.id}/receipt-pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline"
+                    >
+                      Receipt
+                    </a>
+                  </span>
                 </div>
               ))}
             </div>
