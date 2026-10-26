@@ -16,9 +16,20 @@ type SquareCardInstance = {
 // attach() (it renders Square/Google's own branded button); Apple Pay uses a
 // custom button instead, so it never calls attach().
 type SquareDigitalWalletInstance = {
-  attach?: (element: HTMLElement | null) => Promise<void>;
+  attach?: (element: HTMLElement | null, options?: SquareGooglePayButtonOptions) => Promise<void>;
   destroy?: () => Promise<void>;
   tokenize: () => Promise<SquareTokenizeResult>;
+};
+// Google Pay's button is rendered entirely by the SDK (unlike Apple Pay's
+// CSS-only button below), so matching Apple Pay's size/shape — 44px tall,
+// 12px corners (Tailwind's rounded-xl), stretched to fill its half of the
+// row — has to go through these attach() options instead of a className.
+type SquareGooglePayButtonOptions = {
+  buttonColor?: "black" | "white";
+  buttonType?: "buy" | "long" | "plain" | "book" | "checkout" | "donate" | "order" | "pay" | "subscribe";
+  buttonSizeMode?: "static" | "fill";
+  buttonHeight?: number;
+  buttonRadius?: number;
 };
 type SquarePaymentRequestOptions = {
   countryCode: string;
@@ -159,7 +170,13 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
           googlePay.destroy?.();
           return;
         }
-        await googlePay.attach?.(googlePayContainerRef.current);
+        await googlePay.attach?.(googlePayContainerRef.current, {
+          buttonColor: "black",
+          buttonType: "buy",
+          buttonSizeMode: "fill",
+          buttonHeight: 44,
+          buttonRadius: 12,
+        });
         if (cancelled) {
           googlePay.destroy?.();
           return;
@@ -303,7 +320,7 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
             id={`google-pay-button-${googlePayButtonId}`}
             ref={googlePayContainerRef}
             onClick={handleGooglePayClick}
-            className={googlePayReady ? "flex-1 min-h-[48px]" : "hidden"}
+            className={googlePayReady ? "flex-1 h-11" : "hidden"}
           />
         </div>
         <div className="flex items-center gap-2 pt-1">
