@@ -122,6 +122,40 @@ export type QuoteRecord = {
   linkedInvoiceNumber?: string;
   linkedQuoteId?: string;
   linkedQuoteNumber?: string;
+  // "Job folder" — a 2-page production packet the admin can generate for
+  // this quote/invoice (see lib/quote-pdf.ts's renderJobFolderPdf): page 1
+  // is the existing no-pricing "work order" PDF, page 2 is a garment
+  // mock-up image plus a list of where to find each print file (e.g. on a
+  // mounted Google Drive), so a production employee has everything in one
+  // handout. Both pieces are optional/independent — a record can have
+  // print files with no mock-up yet, or vice versa — and persist across
+  // edits until the admin changes them again.
+  jobFolder?: JobFolderData;
+};
+
+export type JobFolderPrintFile = {
+  id: string;
+  // Freeform — "Front", "Back", "Left Sleeve", "Right Sleeve", or whatever
+  // the admin types (AdminJobFolderModal.tsx suggests the common ones via a
+  // <datalist> but never restricts to them).
+  label: string;
+  // Where to find the actual print file — a plain string the admin pastes
+  // in themselves (e.g. a path copied from Finder's "Copy as Pathname" on a
+  // mounted Google Drive folder, or a Google Drive share link). A website
+  // cannot read a real OS file path back from a file picker for security
+  // reasons in any browser, so this is intentionally just text instead of
+  // a true file reference — see AdminJobFolderModal.tsx's "Browse…" helper,
+  // which can still fill in the filename portion for convenience.
+  path: string;
+};
+
+export type JobFolderData = {
+  // The raw, private Vercel Blob URL (never shown to the client directly —
+  // see lib/item-photo.ts's itemPhotoUrl(), reused here as-is since it's
+  // just a generic "serve a private blob" proxy). Undefined once no
+  // mock-up has been uploaded (or after one's removed).
+  mockupImageBlobUrl?: string;
+  printFiles: JobFolderPrintFile[];
 };
 
 // How long a soft-deleted quote/invoice stays in "Recently deleted" before
@@ -658,6 +692,51 @@ export async function setSuggestedPaymentAmount(
     ...existing,
     paymentLinkAmount: suggestion.amount,
     paymentLinkKind: suggestion.kind,
+    updatedAt: new Date().toISOString(),
+  };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+// Replaces this record's uploaded job-folder mock-up image (or clears it,
+// passing null) — called from app/api/admin/quotes/[id]/job-folder/mockup
+// after the file's been uploaded to Blob. Leaves printFiles untouched.
+export async function setJobFolderMockupImage(
+  id: string,
+  mockupImageBlobUrl: string | null
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { record: null, persisted: true };
+  const updated: QuoteRecord = {
+    ...existing,
+    jobFolder: {
+      printFiles: existing.jobFolder?.printFiles ?? [],
+      ...existing.jobFolder,
+      mockupImageBlobUrl: mockupImageBlobUrl ?? undefined,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+// Replaces this record's full job-folder print-file list — called from
+// app/api/admin/quotes/[id]/job-folder (the admin's "Save" in
+// AdminJobFolderModal.tsx). The whole list is sent and replaced each time
+// (not a single add/remove) since it's a short, admin-edited list with no
+// concurrent-edit concern. Leaves mockupImageBlobUrl untouched.
+export async function setJobFolderPrintFiles(
+  id: string,
+  printFiles: JobFolderPrintFile[]
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { record: null, persisted: true };
+  const updated: QuoteRecord = {
+    ...existing,
+    jobFolder: {
+      ...existing.jobFolder,
+      printFiles,
+    },
     updatedAt: new Date().toISOString(),
   };
   const { persisted } = await writeRecord(updated);

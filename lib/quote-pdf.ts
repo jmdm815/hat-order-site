@@ -22,6 +22,7 @@
 
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
+import { PDFDocument as PdfLibDocument } from "pdf-lib";
 import { ComputedQuote } from "./quote";
 import { InvoicePaymentStatus } from "./quotes-store";
 
@@ -813,4 +814,168 @@ export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise
 
     doc.end();
   });
+}
+
+// ---------------------------------------------------------------------------
+// Job folder — a production packet handed to the floor: page 1 is the
+// existing no-pricing "work order" rendering above (mode "work-order",
+// unchanged), page 2 is a garment mock-up image plus a plain-text list of
+// where to find each print file (e.g. a path on a mounted Google Drive
+// folder, or a Drive share link — see
+// lib/quotes-store.ts's JobFolderPrintFile doc comment for why this is just
+// text rather than a true file reference). Built as two independent pdfkit
+// documents merged with pdf-lib rather than one shared PDFDocument instance,
+// so this never has to duplicate (or risk drifting from) the work-order
+// layout above — renderQuotePdf's full multi-page item-list logic runs
+// exactly as it does for the existing "Download work order" button.
+// ---------------------------------------------------------------------------
+
+export type JobFolderPdfPrintFile = {
+  label: string;
+  path: string;
+};
+
+export type JobFolderPdfData = {
+  docLabel: string; // e.g. "Quote QT-1004" or "Invoice INV-0002"
+  customerName?: string;
+  customerCompany?: string;
+  // Pre-fetched bytes of the uploaded mock-up image (the route handler
+  // fetches these from Blob before calling in — this module doesn't know
+  // about Blob/network at all). pdfkit's doc.image() auto-detects
+  // PNG/JPEG from the buffer itself, so no content-type is needed here.
+  mockupImageBuffer?: Buffer;
+  printFiles: JobFolderPdfPrintFile[];
+};
+
+async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "LETTER", margin: 50 });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const left = doc.page.margins.left;
+
+    // --- Header -------------------------------------------------------------
+    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(20).text("JM Digital Media", left, doc.y);
+    doc.fillColor(GRAY).font("Helvetica").fontSize(9).text("Look the Part. Mean Business.", left, doc.y + 2);
+    const leftColumnEndY = doc.y;
+
+    doc
+      .fillColor(RED)
+      .font("Helvetica-Bold")
+      .fontSize(20)
+      .text("MOCK-UP & PRINT FILES", left, 50, { width: pageWidth, align: "right" });
+    doc.fillColor(GRAY).font("Helvetica").fontSize(9).text(`For: ${data.docLabel}`, { width: pageWidth, align: "right" });
+    if (data.customerName || data.customerCompany) {
+      doc.text([data.customerName, data.customerCompany].filter(Boolean).join(" — "), { width: pageWidth, align: "right" });
+    }
+
+    doc.y = Math.max(doc.y, leftColumnEndY);
+    doc.moveDown(0.8);
+    doc.strokeColor(NAVY).lineWidth(1.5).moveTo(left, doc.y).lineTo(left + pageWidth, doc.y).stroke();
+    doc.moveDown(0.8);
+
+    // --- Mock-up image --------------------------------------------------
+    doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("GARMENT MOCK-UP", left, doc.y);
+    doc.moveDown(0.4);
+
+    const maxImageHeight = 320;
+    if (data.mockupImageBuffer) {
+      try {
+        // fit keeps aspect ratio within the box; pdfkit centers neither
+        // axis by default, so an explicit x/width + a centered y below
+        // mimics a basic "fit and center" without pre-measuring the image.
+        doc.image(data.mockupImageBuffer, left, doc.y, {
+          fit: [pageWidth, maxImageHeight],
+          align: "center",
+        });
+        doc.y += maxImageHeight + 12;
+      } catch (err) {
+        console.error("renderJobFolderExtrasPdf: failed to embed mock-up image", err);
+        doc
+          .fillColor(RED)
+          .font("Helvetica")
+          .fontSize(9)
+          .text("(The uploaded mock-up image couldn't be rendered.)", left, doc.y);
+        doc.moveDown(1);
+      }
+    } else {
+      doc
+        .fillColor(GRAY)
+        .font("Helvetica-Oblique")
+        .fontSize(9)
+        .text("No mock-up image has been uploaded for this job.", left, doc.y);
+      doc.moveDown(1);
+    }
+
+    // --- Print file locations --------------------------------------------
+    doc.moveDown(0.4);
+    doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("PRINT FILE LOCATIONS", left, doc.y);
+    doc.moveDown(0.5);
+
+    if (data.printFiles.length === 0) {
+      doc
+        .fillColor(GRAY)
+        .font("Helvetica-Oblique")
+        .fontSize(9)
+        .text("No print file locations have been added for this job.", left, doc.y);
+    } else {
+      const rowPadding = 8;
+      for (const file of data.printFiles) {
+        // Keep each row's label+path together — pdfkit has no native
+        // "don't break this block across pages" so this just checks the
+        // (generously estimated) block height against the remaining page
+        // space first and adds a page if it won't fit.
+        const estimatedHeight = rowPadding * 2 + 14 + 12;
+        if (doc.y + estimatedHeight > doc.page.height - doc.page.margins.bottom) {
+          doc.addPage();
+        }
+        const rowTop = doc.y;
+        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(10).text(file.label || "Untitled", left + rowPadding, rowTop + rowPadding, {
+          width: pageWidth - rowPadding * 2,
+        });
+        doc
+          .fillColor(GRAY)
+          .font("Helvetica")
+          .fontSize(9)
+          .text(file.path || "(no path entered)", left + rowPadding, doc.y + 2, {
+            width: pageWidth - rowPadding * 2,
+          });
+        const rowBottom = doc.y + rowPadding;
+        doc.strokeColor(BORDER).lineWidth(1).rect(left, rowTop, pageWidth, rowBottom - rowTop).stroke();
+        doc.y = rowBottom + 8;
+      }
+    }
+
+    doc.end();
+  });
+}
+
+async function mergePdfBuffers(buffers: Buffer[]): Promise<Buffer> {
+  const merged = await PdfLibDocument.create();
+  for (const buf of buffers) {
+    const src = await PdfLibDocument.load(buf);
+    const pages = await merged.copyPages(src, src.getPageIndices());
+    pages.forEach((p) => merged.addPage(p));
+  }
+  const bytes = await merged.save();
+  return Buffer.from(bytes);
+}
+
+// Public entry point — app/api/admin/quotes/[id]/job-folder/pdf/route.ts.
+// Page 1 is produced by the unmodified work-order renderer above; page 2 (or
+// more, if the print-file list runs long) is the mock-up/print-files page
+// built just above. workOrderMeta is passed straight through to
+// renderQuotePdf — same shape the existing work-order download already uses.
+export async function renderJobFolderPdf(
+  quote: ComputedQuote,
+  workOrderMeta: InvoiceMeta | undefined,
+  jobFolderData: JobFolderPdfData
+): Promise<Buffer> {
+  const workOrderPdf = await renderQuotePdf(quote, "work-order", workOrderMeta);
+  const extrasPdf = await renderJobFolderExtrasPdf(jobFolderData);
+  return mergePdfBuffers([workOrderPdf, extrasPdf]);
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { QuoteRecord, InvoicePaymentStatus, DELETED_RETENTION_DAYS } from "@/lib/quotes-store";
 import AdminInvoicePaymentModal from "./AdminInvoicePaymentModal";
 import AdminSendDocumentModal from "./AdminSendDocumentModal";
+import AdminJobFolderModal from "./AdminJobFolderModal";
 
 type View = "quotes" | "invoices" | "deleted";
 
@@ -80,6 +81,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
   const [linkMessage, setLinkMessage] = useState<string | null>(null);
   const [paymentModalRecord, setPaymentModalRecord] = useState<QuoteRecord | null>(null);
   const [sendModalRecord, setSendModalRecord] = useState<QuoteRecord | null>(null);
+  const [jobFolderModalRecord, setJobFolderModalRecord] = useState<QuoteRecord | null>(null);
   const [jobsMessage, setJobsMessage] = useState<string | null>(null);
   // Which row's "Create a copy" quote-vs-invoice picker is open, if any —
   // see handleDuplicate below.
@@ -383,6 +385,13 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     >
                       Work order
                     </button>
+                    <button
+                      onClick={() => setJobFolderModalRecord(r)}
+                      title="Attach a garment mock-up and print-file locations, then download a 2-page job folder PDF"
+                      className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50"
+                    >
+                      Job Folder
+                    </button>
                     {copyMenuId === r.id ? (
                       <span className="inline-flex items-center gap-1.5 bg-white/5 rounded-xl px-1.5 py-0.5">
                         <span className="text-xs text-white/50 pl-1">Copy as:</span>
@@ -527,6 +536,17 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
 
       {sendModalRecord && (
         <AdminSendDocumentModal record={sendModalRecord} onClose={() => setSendModalRecord(null)} />
+      )}
+
+      {jobFolderModalRecord && (
+        <AdminJobFolderModal
+          record={jobFolderModalRecord}
+          onClose={() => setJobFolderModalRecord(null)}
+          onUpdated={(updated) => {
+            setJobFolderModalRecord(updated);
+            setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+          }}
+        />
       )}
     </div>
   );
