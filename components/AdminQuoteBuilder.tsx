@@ -6,7 +6,11 @@ import { ComputedQuote, QuoteLineInput, QuoteSizeInput } from "@/lib/quote";
 import { QuoteRecord } from "@/lib/quotes-store";
 import { DecorationOption, SetupChargeType, PaymentTermOption, TaxRateOption } from "@/lib/types";
 import { formatUSD } from "@/lib/pricing";
-import { ManualQuoteProduct, ManualQuoteSizeRow } from "@/app/api/admin/quote/manual-product/route";
+import {
+  ManualQuoteProduct,
+  ManualQuoteSizeRow,
+  ManualQuoteColor,
+} from "@/app/api/admin/quote/manual-product/route";
 import { ManualQuoteSearchResult } from "@/app/api/admin/quote/search-products/route";
 import { Customer } from "@/lib/types";
 import { productPreviewImageUrl } from "@/lib/product-image";
@@ -31,6 +35,15 @@ export type PendingLine = QuoteLineInput & {
   // added this session, not ones loaded back from a saved quote.
   imageUrl?: string;
   imageFallbackUrl?: string;
+  // Which catalog this line's styleNumber came from — set when a line is
+  // added via the guided picker (see addLine) so "Copy Style" and inline
+  // color-editing (see startEditLine) know which API to re-query for this
+  // style's other colors, without the admin having to re-pick a catalog.
+  // Not persisted with the saved quote record (same as imageUrl above), so
+  // a line loaded back from a saved quote won't have it — inline color
+  // editing falls back to trying every catalog in that case (see
+  // fetchColorsForEdit).
+  catalogSource?: CatalogSource;
 };
 
 // A one-off, ad-hoc charge added directly to this quote — e.g. a rush fee
@@ -1074,6 +1087,7 @@ export default function AdminQuoteBuilder({
       taxable: lineTaxable,
       imageUrl: colorRow?.imageUrl,
       imageFallbackUrl: colorRow?.imageFallbackUrl,
+      catalogSource,
     };
     setLines((prev) => [...prev, line]);
     // Reset the product picker for the next garment, but keep the chosen
@@ -1129,6 +1143,160 @@ export default function AdminQuoteBuilder({
   function removeLine(key: string) {
     setLines((prev) => prev.filter((l) => l.key !== key));
     setQuote(null);
+    if (editingLineKey === key) setEditingLineKey(null);
+  }
+
+  // "Copy Style" — duplicates an already-added garment line as a new line
+  // with the same catalog/product/decoration/color, right after the
+  // original. The point (per the admin's request) isn't to create an exact
+  // duplicate to keep as-is; it's a quick starting point for adding the
+  // *same* garment in a *different* color — the admin is expected to open
+  // the new line's inline editor right after and change its color. Works
+  // for customer-supplied lines too (nothing color-specific to change,
+  // but still a handy way to duplicate a repeated description/size
+  // breakdown).
+  function duplicateLine(key: string) {
+    setLines((prev) => {
+      const idx = prev.findIndex((l) => l.key === key);
+      if (idx === -1) return prev;
+      const source = prev[idx];
+      const copy: PendingLine = {
+        ...source,
+        key: `${source.customerSupplied ? "cs" : source.styleNumber}-${source.colorName ?? ""}-copy-${Date.now()}`,
+        sizes: source.sizes.map((s) => ({ ...s })),
+      };
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
+    setQuote(null);
+  }
+
+  // Inline editing of an already-added garment line's color and/or
+  // size/quantity breakdown, directly in the Items list — without removing
+  // and re-adding it through the "Add a garment" picker. See
+  // editingLineKey/editDraft state and the render block in the Items list
+  // below.
+  const [editingLineKey, setEditingLineKey] = useState<string | null>(null);
+  const [editDraftColorName, setEditDraftColorName] = useState("");
+  const [editDraftSizes, setEditDraftSizes] = useState<QuoteSizeInput[]>([]);
+  const [editColors, setEditColors] = useState<ManualQuoteColor[] | null>(null);
+  const [editColorsLoading, setEditColorsLoading] = useState(false);
+  const [editColorsError, setEditColorsError] = useState<string | null>(null);
+
+  // Tries each catalog in turn until one returns this style — used when a
+  // line's catalogSource isn't known (e.g. it was loaded back from a saved
+  // quote rather than added this session; see PendingLine.catalogSource).
+  // Starts with the line's own catalogSource when it is known, so the
+  // common case (editing a line added this session) is a single request.
+  async function fetchColorsForEdit(line: PendingLine): Promise<{ colors: ManualQuoteColor[]; catalog: CatalogSource } | null> {
+    const tryOrder: CatalogSource[] = line.catalogSource
+      ? [line.catalogSource, ...(["sanmar", "ss", "custom"] as CatalogSource[]).filter((c) => c !== line.catalogSource)]
+      : ["sanmar", "ss", "custom"];
+    for (const catalog of tryOrder) {
+      try {
+        const res = await fetch(
+          `/api/admin/quote/manual-product?catalog=${catalog}&style=${encodeURIComponent(line.styleNumber ?? "")}`
+        );
+        if (!res.ok) continue;
+        const data = await res.json();
+        const product = data.product as ManualQuoteProduct | undefined;
+        if (product && product.colors.length > 0) {
+          return { colors: product.colors, catalog };
+        }
+      } catch {
+        // try the next catalog
+      }
+    }
+    return null;
+  }
+
+  async function startEditLine(line: PendingLine) {
+    setEditingLineKey(line.key);
+    setEditDraftColorName(line.colorName ?? "");
+    setEditDraftSizes(line.sizes.map((s) => ({ ...s })));
+    setEditColors(null);
+    setEditColorsError(null);
+    if (line.customerSupplied) return; // no catalog colors to fetch
+    setEditColorsLoading(true);
+    const result = await fetchColorsForEdit(line);
+    setEditColorsLoading(false);
+    if (!result) {
+      setEditColorsError("Couldn't load this style's other colors — you can still edit quantities below.");
+      return;
+    }
+    setEditColors(result.colors);
+    // Now that we know which catalog this style actually lives in, remember
+    // it on the line so a later edit/Copy Style skips the fallback search.
+    if (!line.catalogSource) {
+      setLines((prev) => prev.map((l) => (l.key === line.key ? { ...l, catalogSource: result.catalog } : l)));
+    }
+  }
+
+  function cancelEditLine() {
+    setEditingLineKey(null);
+    setEditColors(null);
+    setEditColorsError(null);
+  }
+
+  // Changing color while editing re-maps the quantity breakdown onto the
+  // new color's size list — carrying over a quantity wherever the size name
+  // matches (the normal case: colors of the same style share the same size
+  // run), dropping sizes the new color doesn't have, and adding any of the
+  // new color's sizes not already present at quantity 0.
+  function editDraftChangeColor(newColorName: string) {
+    setEditDraftColorName(newColorName);
+    const color = editColors?.find((c) => c.colorName === newColorName);
+    if (!color) return;
+    setEditDraftSizes((prev) => {
+      const prevByName = new Map(prev.map((s) => [s.size, s.quantity]));
+      if (color.sizes.length === 0) {
+        return [{ size: ONE_SIZE_LABEL, quantity: prevByName.get(ONE_SIZE_LABEL) ?? 0 }];
+      }
+      return color.sizes.map((sz) => ({ size: sz.name, quantity: prevByName.get(sz.name) ?? 0 }));
+    });
+  }
+
+  function editDraftSetQty(sizeName: string, quantity: number) {
+    setEditDraftSizes((prev) => prev.map((s) => (s.size === sizeName ? { ...s, quantity } : s)));
+  }
+
+  function editDraftAddCustomSizeRow() {
+    setEditDraftSizes((prev) => [...prev, { size: "", quantity: 0 }]);
+  }
+
+  function editDraftUpdateCustomSizeRow(index: number, patch: Partial<QuoteSizeInput>) {
+    setEditDraftSizes((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+  }
+
+  function editDraftRemoveCustomSizeRow(index: number) {
+    setEditDraftSizes((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function saveEditLine() {
+    if (!editingLineKey) return;
+    const cleanedSizes = editDraftSizes.filter((s) => s.size.trim() && s.quantity > 0);
+    if (cleanedSizes.length === 0) {
+      setEditColorsError("Enter a quantity for at least one size before saving.");
+      return;
+    }
+    setLines((prev) =>
+      prev.map((l) => {
+        if (l.key !== editingLineKey) return l;
+        const color = editColors?.find((c) => c.colorName === editDraftColorName);
+        return {
+          ...l,
+          colorName: l.customerSupplied ? l.colorName : editDraftColorName,
+          sizes: cleanedSizes,
+          imageUrl: color?.imageUrl ?? l.imageUrl,
+          imageFallbackUrl: color?.imageFallbackUrl ?? l.imageFallbackUrl,
+        };
+      })
+    );
+    setQuote(null);
+    setEditingLineKey(null);
+    setEditColors(null);
+    setEditColorsError(null);
   }
 
   function buildQuoteInput() {
@@ -2044,51 +2212,169 @@ export default function AdminQuoteBuilder({
                 // them up in). See the matching offsets on
                 // selectedSetupChargeIds/miscFees below.
                 const itemNumber = idx + 1;
+                const isEditing = editingLineKey === line.key;
                 return (
                   <div
                     key={line.key}
-                    className="flex items-start gap-3 border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
+                    className="border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
                   >
-                    <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
-                      {itemNumber}
-                    </div>
-                    {line.imageUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={productPreviewImageUrl(line.imageUrl, line.imageFallbackUrl)}
-                        alt=""
-                        className="shrink-0 w-10 h-10 rounded-lg object-contain bg-white/5 border border-white/10"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
-                      <div className="text-sm text-white">
-                        {line.customerSupplied ? (
-                          <>
-                            <span className="font-medium">Customer-supplied item</span>{" "}
-                            <span className="text-white/40">({line.itemDescription})</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="font-medium">
-                              {line.brandName} {line.productName}
-                            </span>{" "}
-                            <span className="text-white/40">
-                              ({line.styleNumber} — {line.colorName})
-                            </span>
-                          </>
-                        )}
-                        <div className="text-xs text-white/60 mt-0.5">
-                          {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
-                          {decoration ? ` · ${decoration.label}${column ? ` (${column.label})` : ""}` : ""}
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
+                        {itemNumber}
+                      </div>
+                      {line.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={productPreviewImageUrl(line.imageUrl, line.imageFallbackUrl)}
+                          alt=""
+                          className="shrink-0 w-10 h-10 rounded-lg object-contain bg-white/5 border border-white/10"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
+                        <div className="text-sm text-white">
+                          {line.customerSupplied ? (
+                            <>
+                              <span className="font-medium">Customer-supplied item</span>{" "}
+                              <span className="text-white/40">({line.itemDescription})</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-medium">
+                                {line.brandName} {line.productName}
+                              </span>{" "}
+                              <span className="text-white/40">
+                                ({line.styleNumber} — {line.colorName})
+                              </span>
+                            </>
+                          )}
+                          <div className="text-xs text-white/60 mt-0.5">
+                            {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
+                            {decoration ? ` · ${decoration.label}${column ? ` (${column.label})` : ""}` : ""}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <button
+                            onClick={() => (isEditing ? cancelEditLine() : startEditLine(line))}
+                            className="text-xs text-white/70 hover:underline"
+                          >
+                            {isEditing ? "Cancel" : "Edit"}
+                          </button>
+                          <button
+                            onClick={() => duplicateLine(line.key)}
+                            title="Add a copy of this garment line — handy for adding the same item in a different color"
+                            className="text-xs text-white/70 hover:underline"
+                          >
+                            Copy Style
+                          </button>
+                          <button
+                            onClick={() => removeLine(line.key)}
+                            className="text-xs text-red-600 hover:underline"
+                          >
+                            Delete Style
+                          </button>
                         </div>
                       </div>
-                      <button
-                        onClick={() => removeLine(line.key)}
-                        className="text-xs text-red-600 hover:underline shrink-0"
-                      >
-                        Remove
-                      </button>
                     </div>
+
+                    {isEditing && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        {!line.customerSupplied && (
+                          <label className="block text-xs text-white/60 max-w-xs">
+                            Color
+                            {editColorsLoading ? (
+                              <p className="mt-1 text-xs text-white/40">Loading colors…</p>
+                            ) : editColors && editColors.length > 0 ? (
+                              <select
+                                value={editDraftColorName}
+                                onChange={(e) => editDraftChangeColor(e.target.value)}
+                                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                              >
+                                {[...editColors]
+                                  .sort((a, b) => a.colorName.localeCompare(b.colorName))
+                                  .map((c) => (
+                                    <option key={c.colorName} value={c.colorName}>
+                                      {c.colorName}
+                                    </option>
+                                  ))}
+                              </select>
+                            ) : (
+                              <p className="mt-1 text-xs text-white/40">
+                                {editDraftColorName || "—"} (color list unavailable — quantities below can still be
+                                edited)
+                              </p>
+                            )}
+                          </label>
+                        )}
+
+                        <div className="mt-3">
+                          <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
+                            Quantities
+                          </span>
+                          <div className="mt-1.5 space-y-1.5">
+                            {editDraftSizes.map((s, i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                {line.customerSupplied ? (
+                                  <input
+                                    value={s.size}
+                                    onChange={(e) => editDraftUpdateCustomSizeRow(i, { size: e.target.value })}
+                                    placeholder="Size / label"
+                                    className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                                  />
+                                ) : (
+                                  <span className="w-20 text-sm text-white/70">{s.size}</span>
+                                )}
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={s.quantity}
+                                  onChange={(e) =>
+                                    line.customerSupplied
+                                      ? editDraftUpdateCustomSizeRow(i, {
+                                          quantity: Math.max(0, Number(e.target.value) || 0),
+                                        })
+                                      : editDraftSetQty(s.size, Math.max(0, Number(e.target.value) || 0))
+                                  }
+                                  className="w-20 border border-white/20 rounded-xl px-2 py-1 text-center text-sm"
+                                />
+                                {line.customerSupplied && (
+                                  <button
+                                    onClick={() => editDraftRemoveCustomSizeRow(i)}
+                                    className="text-xs text-red-600 hover:underline"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            {line.customerSupplied && (
+                              <button
+                                onClick={editDraftAddCustomSizeRow}
+                                className="text-xs text-white/60 hover:underline"
+                              >
+                                + Add size row
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {editColorsError && <p className="mt-2 text-xs text-red-600">{editColorsError}</p>}
+
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            onClick={saveEditLine}
+                            className="text-sm px-3 py-1.5 rounded-xl bg-red text-navy font-semibold hover:bg-red/90"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditLine}
+                            className="text-sm px-3 py-1.5 rounded-xl border border-white/20 text-white/70 hover:bg-white/5"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
