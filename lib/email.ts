@@ -127,6 +127,11 @@ export async function sendInvoicePaymentNotification(notice: InvoicePaymentNotif
 export type InvoiceReceiptEmail = {
   to: string;
   invoiceNumber?: string;
+  // Set instead of invoiceNumber for a payment/receipt on a still-unconverted
+  // quote (a pre-invoice deposit) — see app/api/pay/[id]/route.ts and
+  // app/api/pay/[id]/receipt-email/route.ts, both of which now support a
+  // plain quote just as well as an invoice.
+  quoteNumber?: string;
   customerName?: string;
   customerCompany?: string;
   amount: number; // this payment, dollars
@@ -158,7 +163,11 @@ export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Pro
     throw new Error("Email isn't configured yet (RESEND_API_KEY is not set).");
   }
 
-  const label = receipt.invoiceNumber ? `Invoice ${receipt.invoiceNumber}` : "your invoice";
+  const label = receipt.invoiceNumber
+    ? `Invoice ${receipt.invoiceNumber}`
+    : receipt.quoteNumber
+      ? `Quote ${receipt.quoteNumber}`
+      : "your order";
   const methodLabel = METHOD_LABEL[receipt.method] ?? receipt.method;
   const paidInFull = receipt.balance <= 0.01;
   const greetingName = receipt.customerName || receipt.customerCompany || "there";
@@ -177,7 +186,7 @@ export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Pro
         <tr><td style="padding: 4px 0; color: #666;">Paid to date</td><td style="padding: 4px 0; text-align: right;">${money(receipt.amountPaid)} of ${money(receipt.grandTotal)}</td></tr>
         <tr><td style="padding: 4px 0; color: #666;">Balance remaining</td><td style="padding: 4px 0; text-align: right;">${paidInFull ? "Paid in full" : money(receipt.balance)}</td></tr>
       </table>
-      <p style="margin: 20px 0 0;"><a href="${receipt.payPageUrl}" style="color: #1a56cd;">View your invoice online</a></p>
+      <p style="margin: 20px 0 0;"><a href="${receipt.payPageUrl}" style="color: #1a56cd;">View it online</a></p>
       <p style="margin: 20px 0 0; color: #999; font-size: 12px;">JM Digital Media — buyjmmedia.com</p>
     </div>
   `.trim();
