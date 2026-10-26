@@ -35,9 +35,9 @@ type InvoiceSummary = {
   // app/api/pay/[id]/route.ts's toCustomerSummary. Rendered as its own
   // "Payment history" list below, each row linking to a standalone receipt
   // for just that transaction (app/api/pay/[id]/payments/[paymentId]/
-  // receipt-pdf/route.ts) — distinct from the "Get a PDF receipt" section's
-  // single document, which always reflects the order's current overall
-  // state rather than one specific payment.
+  // receipt-pdf/route.ts) — this is the only receipt UI on this page now;
+  // there's no separate "whole order" receipt button anymore (it used to
+  // just re-render the quote/invoice PDF, which isn't an actual receipt).
   payments: Array<{
     id: string;
     amount: number;
@@ -50,11 +50,6 @@ type InvoiceSummary = {
 function money(n: number): string {
   return `$${n.toFixed(2)}`;
 }
-
-// Same loose check as the server (app/api/pay/[id]/route.ts) — just UI
-// feedback, the server is the real gate on whether an email actually gets
-// used.
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Client half of the public, permanent pay page (app/pay/[id]/page.tsx) —
 // one single URL per quote or invoice that never changes. Loads the
@@ -74,11 +69,6 @@ export default function InvoicePayClient({ id }: { id: string }) {
   const [amountInput, setAmountInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [receiptDownloading, setReceiptDownloading] = useState(false);
-  const [receiptEmailInput, setReceiptEmailInput] = useState("");
-  const [receiptSending, setReceiptSending] = useState(false);
-  const [receiptError, setReceiptError] = useState<string | null>(null);
-  const [receiptSentTo, setReceiptSentTo] = useState<string[]>([]);
   const [paymentReceiptLoadingId, setPaymentReceiptLoadingId] = useState<string | null>(null);
   const [paymentReceiptError, setPaymentReceiptError] = useState<string | null>(null);
 
@@ -127,10 +117,8 @@ export default function InvoicePayClient({ id }: { id: string }) {
       if (!res.ok) throw new Error(data.error ?? "Payment failed");
       setInvoice(data.invoice);
       setAmountInput(data.invoice.balance > 0 ? data.invoice.balance.toFixed(2) : "0.00");
-      // No email is collected pre-payment anymore — once this payment lands,
-      // the "Get a PDF receipt" section below (gated on amountPaid > 0) lets
-      // the customer type an email and get it sent then, instead of asking
-      // for one up front before they've even paid.
+      // No email is collected pre-payment anymore — this payment's own
+      // receipt is now available right below, in "Payment history".
       setSuccessMessage(
         data.invoice.balance <= 0
           ? "Payment received — this invoice is now paid in full. Thank you!"
@@ -144,40 +132,9 @@ export default function InvoicePayClient({ id }: { id: string }) {
   // Opens a blank tab synchronously (before the fetch's `await`) so the
   // browser treats it as a direct result of the click rather than blocking
   // it as a popup — same fix applied to the admin PDF buttons
-  // (components/AdminQuoteBuilder.tsx's downloadPdf).
-  async function downloadReceipt() {
-    setReceiptDownloading(true);
-    setReceiptError(null);
-    const tab = window.open("", "_blank");
-    try {
-      const res = await fetch(`/api/pay/${id}/receipt-pdf`);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setReceiptError(data.error || "Failed to load the receipt");
-        tab?.close();
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      if (tab) {
-        tab.location.href = url;
-      } else {
-        window.open(url, "_blank");
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
-      setReceiptError("Failed to load the receipt — check your connection and try again.");
-      tab?.close();
-    } finally {
-      setReceiptDownloading(false);
-    }
-  }
-
-  // Same open-tab-synchronously pattern as downloadReceipt above, but for
-  // one specific entry in the payment-history list below — produces a
-  // standalone receipt for just that transaction (see
-  // app/api/pay/[id]/payments/[paymentId]/receipt-pdf/route.ts) instead of
-  // the whole order's current state.
+  // (components/AdminQuoteBuilder.tsx's downloadPdf). Produces a standalone
+  // receipt for one specific entry in the payment-history list below (see
+  // app/api/pay/[id]/payments/[paymentId]/receipt-pdf/route.ts).
   async function downloadPaymentReceipt(paymentId: string) {
     setPaymentReceiptLoadingId(paymentId);
     setPaymentReceiptError(null);
@@ -203,31 +160,6 @@ export default function InvoicePayClient({ id }: { id: string }) {
       tab?.close();
     } finally {
       setPaymentReceiptLoadingId(null);
-    }
-  }
-
-  async function emailReceipt() {
-    const email = receiptEmailInput.trim().toLowerCase();
-    if (!email || !EMAIL_RE.test(email)) {
-      setReceiptError("Enter a valid email address.");
-      return;
-    }
-    setReceiptSending(true);
-    setReceiptError(null);
-    try {
-      const res = await fetch(`/api/pay/${id}/receipt-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to send receipt");
-      setReceiptSentTo((prev) => [...prev, email]);
-      setReceiptEmailInput("");
-    } catch (e) {
-      setReceiptError(e instanceof Error ? e.message : "Failed to send receipt");
-    } finally {
-      setReceiptSending(false);
     }
   }
 
@@ -357,63 +289,6 @@ export default function InvoicePayClient({ id }: { id: string }) {
             ))}
           </div>
           {paymentReceiptError && <p className="mt-2 text-xs text-red font-medium">{paymentReceiptError}</p>}
-        </div>
-      )}
-
-      {invoice.amountPaid > 0 && (
-        <div className="mt-4 bg-black border border-white/10 rounded-2xl p-4">
-          <p className="text-sm font-medium text-white">Get a PDF receipt</p>
-          <p className="mt-1 text-xs text-white/40">
-            One document reflecting the order&apos;s current overall total, paid-to-date, and
-            balance — not a specific payment (see &quot;Payment history&quot; above for that).
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={downloadReceipt}
-              disabled={receiptDownloading}
-              className="text-sm px-4 py-1.5 rounded-xl border border-white/20 text-white hover:bg-white/5 disabled:opacity-40"
-            >
-              {receiptDownloading ? "Loading…" : "Download receipt"}
-            </button>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <input
-              type="email"
-              value={receiptEmailInput}
-              onChange={(e) => {
-                setReceiptEmailInput(e.target.value);
-                setReceiptError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  emailReceipt();
-                }
-              }}
-              placeholder="you@example.com"
-              className="flex-1 min-w-[200px] bg-black border border-white/20 rounded-xl px-3 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
-            />
-            <button
-              type="button"
-              onClick={emailReceipt}
-              disabled={receiptSending}
-              className="shrink-0 text-sm px-4 py-1.5 rounded-xl bg-white text-navy hover:bg-white/90 disabled:opacity-40"
-            >
-              {receiptSending ? "Sending…" : "Email receipt"}
-            </button>
-          </div>
-          <p className="mt-1.5 text-xs text-white/40">
-            Enter one address at a time — add more after each send.
-          </p>
-
-          {receiptError && <p className="mt-2 text-xs text-red font-medium">{receiptError}</p>}
-          {receiptSentTo.length > 0 && (
-            <p className="mt-2 text-xs text-green-700">
-              Receipt sent to {receiptSentTo.join(", ")}.
-            </p>
-          )}
         </div>
       )}
 
