@@ -61,6 +61,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         customerName: record.computed.customerName,
         customerCompany: record.computed.customerCompany,
         mockupImageBuffer,
+        mockupLineItemLabel: record.jobFolder?.mockupLineItemLabel,
         printFiles: record.jobFolder?.printFiles ?? [],
       }
     );

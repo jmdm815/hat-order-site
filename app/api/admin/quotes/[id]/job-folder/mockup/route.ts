@@ -50,6 +50,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (file.size > MAX_UPLOAD_BYTES) {
     return NextResponse.json({ error: "Image is too large (12MB max)" }, { status: 400 });
   }
+  // Which line item this mock-up is for — AdminJobFolderModal.tsx always
+  // prompts for this before uploading (a picker of the order's current line
+  // items, plus "For reference only"), so a missing/blank value here should
+  // only happen from some other caller; default rather than hard-reject so
+  // the upload itself never fails over it.
+  const rawLineItemLabel = form.get("lineItemLabel");
+  const lineItemLabel =
+    typeof rawLineItemLabel === "string" && rawLineItemLabel.trim()
+      ? rawLineItemLabel.trim().slice(0, 200)
+      : "For reference only";
 
   try {
     const inputBuffer = Buffer.from(await file.arrayBuffer());
@@ -76,7 +86,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       del(previousUrl).catch(() => {});
     }
 
-    const { record: updated, persisted } = await setJobFolderMockupImage(id, blob.url);
+    const { record: updated, persisted } = await setJobFolderMockupImage(id, blob.url, lineItemLabel);
     if (!updated) {
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     }
@@ -106,7 +116,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (previousUrl) {
     del(previousUrl).catch(() => {});
   }
-  const { record: updated, persisted } = await setJobFolderMockupImage(id, null);
+  const { record: updated, persisted } = await setJobFolderMockupImage(id, null, null);
   if (!updated) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }

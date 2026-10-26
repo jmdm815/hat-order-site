@@ -844,6 +844,10 @@ export type JobFolderPdfData = {
   // about Blob/network at all). pdfkit's doc.image() auto-detects
   // PNG/JPEG from the buffer itself, so no content-type is needed here.
   mockupImageBuffer?: Buffer;
+  // See lib/quotes-store.ts's JobFolderData.mockupLineItemLabel — which
+  // line item this mock-up depicts, or "For reference only". Only shown
+  // when an image is actually present.
+  mockupLineItemLabel?: string;
   printFiles: JobFolderPdfPrintFile[];
 };
 
@@ -892,7 +896,16 @@ async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<Buffer>
           fit: [pageWidth, maxImageHeight],
           align: "center",
         });
-        doc.y += maxImageHeight + 12;
+        doc.y += maxImageHeight + 6;
+        doc
+          .fillColor(GRAY)
+          .font("Helvetica-Oblique")
+          .fontSize(9)
+          .text(`For: ${data.mockupLineItemLabel || "For reference only"}`, left, doc.y, {
+            width: pageWidth,
+            align: "center",
+          });
+        doc.moveDown(0.6);
       } catch (err) {
         console.error("renderJobFolderExtrasPdf: failed to embed mock-up image", err);
         doc

@@ -155,6 +155,18 @@ export type JobFolderData = {
   // just a generic "serve a private blob" proxy). Undefined once no
   // mock-up has been uploaded (or after one's removed).
   mockupImageBlobUrl?: string;
+  // Which line item this mock-up actually depicts — a quote/invoice can
+  // have several garments, so a single mock-up image needs to say which one
+  // it's for rather than leaving staff to guess. Set at upload time
+  // (AdminJobFolderModal.tsx prompts for this whenever the order has line
+  // items) to either a line item's own label (see QuoteRecord's
+  // computed.lines — the same text shown in the picker, e.g. "24 x Gildan
+  // 5000 - Navy", not re-derived or re-validated against the order later)
+  // or the literal string "For reference only" when it doesn't represent
+  // any specific line (a general layout mock-up, a style reference, etc.)
+  // or the order has no line items to assign to. Undefined only for a
+  // mock-up uploaded before this field existed.
+  mockupLineItemLabel?: string;
   printFiles: JobFolderPrintFile[];
 };
 
@@ -703,7 +715,14 @@ export async function setSuggestedPaymentAmount(
 // after the file's been uploaded to Blob. Leaves printFiles untouched.
 export async function setJobFolderMockupImage(
   id: string,
-  mockupImageBlobUrl: string | null
+  mockupImageBlobUrl: string | null,
+  // Passed together with the URL (not a separate call) since the admin
+  // picks "which line item is this for?" as part of the same upload step
+  // in AdminJobFolderModal.tsx — see JobFolderData.mockupLineItemLabel.
+  // Omit to leave whatever label is already stored untouched (used by the
+  // DELETE route, which clears the image but has no new label to set);
+  // pass null explicitly to clear it (e.g. alongside clearing the image).
+  mockupLineItemLabel?: string | null
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
   const existing = await readRecord(id);
   if (!existing) return { record: null, persisted: true };
@@ -713,6 +732,10 @@ export async function setJobFolderMockupImage(
       printFiles: existing.jobFolder?.printFiles ?? [],
       ...existing.jobFolder,
       mockupImageBlobUrl: mockupImageBlobUrl ?? undefined,
+      mockupLineItemLabel:
+        mockupLineItemLabel === undefined
+          ? existing.jobFolder?.mockupLineItemLabel
+          : (mockupLineItemLabel ?? undefined),
     },
     updatedAt: new Date().toISOString(),
   };

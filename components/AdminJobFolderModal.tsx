@@ -24,6 +24,19 @@ type Props = {
 type EditableRow = { id: string; label: string; path: string };
 
 const LABEL_SUGGESTIONS = ["Front", "Back", "Left Sleeve", "Right Sleeve", "Left Chest", "Nape"];
+const FOR_REFERENCE_ONLY = "For reference only";
+
+// Same label text shown to the customer for each line item (see
+// app/api/pay/[id]/route.ts's toCustomerSummary), plus the quantity, so the
+// admin can tell apart two lines of the same garment in different colors —
+// e.g. "24 x Gildan 5000 - Navy". Used for the "which line item is this
+// mock-up for?" picker below.
+function lineItemLabel(line: QuoteRecord["computed"]["lines"][number]): string {
+  const desc = line.customerSupplied
+    ? line.itemDescription || "Customer-supplied item"
+    : [line.brandName, line.productName, line.colorName].filter(Boolean).join(" ");
+  return `${line.quantity} × ${desc}`;
+}
 
 // If `path` already ends in a folder separator (or is empty), just
 // append/set the filename. Otherwise, swap out everything after the last
@@ -68,6 +81,17 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   // handler knows which row to fill in.
   const browseRowIdRef = useRef<string | null>(null);
   const browseInputRef = useRef<HTMLInputElement>(null);
+
+  const lineItems = current.computed.lines;
+  // A file picked from "Upload mock-up image"/"Replace image" waits here
+  // until the admin says which line item it's for — the upload itself
+  // doesn't fire until that's answered (see the "assign a line item" panel
+  // below). When the order has no line items at all, there's nothing to
+  // ask, so the upload goes straight through as "For reference only".
+  const [pendingMockupFile, setPendingMockupFile] = useState<File | null>(null);
+  const [pendingLineItemChoice, setPendingLineItemChoice] = useState<string>(
+    lineItems.length > 0 ? "0" : "reference"
+  );
 
   const [downloading, setDownloading] = useState(false);
 
@@ -133,12 +157,13 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     }
   }
 
-  async function uploadMockup(file: File) {
+  async function uploadMockup(file: File, lineItemLabelText: string) {
     setUploading(true);
     setMockupError(null);
     try {
       const form = new FormData();
       form.append("file", file);
+      form.append("lineItemLabel", lineItemLabelText);
       const res = await fetch(`/api/admin/quotes/${record.id}/job-folder/mockup`, { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
@@ -150,6 +175,37 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       setUploading(false);
       if (mockupInputRef.current) mockupInputRef.current.value = "";
     }
+  }
+
+  // Fires when a file's picked from "Upload mock-up image"/"Replace image".
+  // An order with line items always pauses for the admin to say which one
+  // this mock-up is for (or "For reference only") before actually
+  // uploading — see the pendingMockupFile panel in the JSX below; an order
+  // with none skips straight to uploading as "For reference only" since
+  // there's nothing to choose between.
+  function handleMockupFileChosen(file: File) {
+    if (lineItems.length === 0) {
+      uploadMockup(file, FOR_REFERENCE_ONLY);
+      return;
+    }
+    setMockupError(null);
+    setPendingLineItemChoice("0");
+    setPendingMockupFile(file);
+  }
+
+  function confirmPendingMockupUpload() {
+    if (!pendingMockupFile) return;
+    const label =
+      pendingLineItemChoice === "reference"
+        ? FOR_REFERENCE_ONLY
+        : lineItemLabel(lineItems[Number(pendingLineItemChoice)]);
+    uploadMockup(pendingMockupFile, label);
+    setPendingMockupFile(null);
+  }
+
+  function cancelPendingMockupUpload() {
+    setPendingMockupFile(null);
+    if (mockupInputRef.current) mockupInputRef.current.value = "";
   }
 
   async function removeMockup() {
@@ -220,10 +276,15 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
         <div className="mt-4 border-t border-white/10 pt-4">
           <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-2">Garment mock-up</p>
           {mockupImageUrl ? (
-            <div className="bg-white rounded-xl p-2 flex items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={mockupImageUrl} alt="Garment mock-up" className="max-h-48 object-contain" />
-            </div>
+            <>
+              <div className="bg-white rounded-xl p-2 flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={mockupImageUrl} alt="Garment mock-up" className="max-h-48 object-contain" />
+              </div>
+              <p className="mt-1.5 text-xs text-white/40">
+                For: <span className="text-white/70">{current.jobFolder?.mockupLineItemLabel || FOR_REFERENCE_ONLY}</span>
+              </p>
+            </>
           ) : (
             <p className="text-sm text-white/40 italic">No mock-up uploaded yet.</p>
           )}
@@ -234,14 +295,53 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) uploadMockup(file);
+              if (file) handleMockupFileChosen(file);
             }}
           />
+
+          {pendingMockupFile && (
+            <div className="mt-2 bg-white/5 rounded-xl p-3">
+              <p className="text-xs text-white/70">
+                Which line item is <span className="font-medium text-white">{pendingMockupFile.name}</span> for?
+              </p>
+              <select
+                value={pendingLineItemChoice}
+                onChange={(e) => setPendingLineItemChoice(e.target.value)}
+                className="mt-2 w-full bg-black border border-white/20 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+              >
+                {lineItems.map((line, i) => (
+                  <option key={i} value={String(i)}>
+                    {lineItemLabel(line)}
+                  </option>
+                ))}
+                <option value="reference">{FOR_REFERENCE_ONLY}</option>
+              </select>
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={confirmPendingMockupUpload}
+                  disabled={uploading}
+                  className="text-xs px-3 py-1.5 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+                >
+                  {uploading ? "Uploading…" : "Upload"}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelPendingMockupUpload}
+                  disabled={uploading}
+                  className="text-xs text-white/50 hover:text-white disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
               onClick={() => mockupInputRef.current?.click()}
-              disabled={uploading}
+              disabled={uploading || !!pendingMockupFile}
               className="text-xs px-3 py-1.5 rounded-xl border border-white/20 text-white hover:bg-white/5 disabled:opacity-40"
             >
               {uploading ? "Uploading…" : mockupImageUrl ? "Replace image" : "Upload mock-up image"}
