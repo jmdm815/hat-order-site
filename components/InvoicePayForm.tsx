@@ -271,34 +271,41 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
           so attach() (called once, during init) has something to render
           into — it's hidden with CSS, not left unmounted, until it's ready. */}
       <div className={walletsAvailable ? "mb-4 space-y-2" : "hidden"}>
-        {applePayReady && (
-          <button
-            id="apple-pay-button"
-            onClick={handleApplePayClick}
-            disabled={!canPay}
-            aria-label="Pay with Apple Pay"
-            // Apple renders its own label/logo entirely via these CSS
-            // appearance properties (supported wherever payments.applePay()
-            // successfully initializes, which is the only time this button
-            // renders at all) — no text/children here, since any would sit
-            // on top of Apple's own rendered graphic instead of being a
-            // fallback for it.
-            style={
-              {
-                WebkitAppearance: "-apple-pay-button",
-                "-apple-pay-button-type": "plain",
-                "-apple-pay-button-style": "black",
-              } as React.CSSProperties
-            }
-            className="w-full h-11 rounded-xl disabled:opacity-40"
+        {/* Side by side — Apple Pay on the left, Google Pay on the right —
+            rather than stacked, so the two take up one row instead of two.
+            Each is flex-1 so they split the width evenly; when only one of
+            the two is actually available on this browser/device, it's the
+            only flex item left and naturally fills the row on its own. */}
+        <div className="flex gap-2">
+          {applePayReady && (
+            <button
+              id="apple-pay-button"
+              onClick={handleApplePayClick}
+              disabled={!canPay}
+              aria-label="Pay with Apple Pay"
+              // Apple renders its own label/logo entirely via these CSS
+              // appearance properties (supported wherever payments.applePay()
+              // successfully initializes, which is the only time this button
+              // renders at all) — no text/children here, since any would sit
+              // on top of Apple's own rendered graphic instead of being a
+              // fallback for it.
+              style={
+                {
+                  WebkitAppearance: "-apple-pay-button",
+                  "-apple-pay-button-type": "plain",
+                  "-apple-pay-button-style": "black",
+                } as React.CSSProperties
+              }
+              className="flex-1 h-11 rounded-xl disabled:opacity-40"
+            />
+          )}
+          <div
+            id={`google-pay-button-${googlePayButtonId}`}
+            ref={googlePayContainerRef}
+            onClick={handleGooglePayClick}
+            className={googlePayReady ? "flex-1 min-h-[48px]" : "hidden"}
           />
-        )}
-        <div
-          id={`google-pay-button-${googlePayButtonId}`}
-          ref={googlePayContainerRef}
-          onClick={handleGooglePayClick}
-          className={googlePayReady ? "min-h-[48px]" : "hidden"}
-        />
+        </div>
         <div className="flex items-center gap-2 pt-1">
           <div className="h-px flex-1 bg-white/10" />
           <span className="text-xs text-white/50">Or pay with card</span>
