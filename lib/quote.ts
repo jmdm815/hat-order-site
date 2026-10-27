@@ -67,6 +67,18 @@ export type QuoteLineInput = {
   // catalog brand lookup for one of these) — styleNumber/colorName above
   // hold the rest of a hat's identity (style + color) as plain text.
   brandNameInput?: string;
+  // Which ad-hoc entry flow created this manual (customerSupplied) line:
+  // "customer-supplied" — the customer brought the item in themselves, so
+  // the garment is never charged for (garmentCost/garmentMarkupPercent are
+  // ignored/forced to 0 regardless of what's on the size rows) and it shows
+  // with the generic "Customer-supplied item" label (unless itemType is
+  // "hat", which always gets the catalog-style brand/style/color label).
+  // "custom" — a shop-priced ad-hoc item (the admin's own one-off garment,
+  // not something the customer brought in) — full garmentCost/markup
+  // pricing applies and it's labeled just like a real catalog garment
+  // everywhere (Items list, Preview, PDF), with no "customer-supplied"
+  // wording. Undefined behaves like "customer-supplied" (old saved quotes).
+  manualSource?: "customer-supplied" | "custom";
   // Whether this line counts toward the quote's taxable subtotal — defaults
   // to true (taxable) when absent. See QuoteInput.taxRatePercent.
   taxable?: boolean;
@@ -136,6 +148,8 @@ export type QuoteLineResult = {
   itemDescription?: string;
   // See QuoteLineInput.itemType.
   itemType?: "apparel" | "hat" | "other";
+  // See QuoteLineInput.manualSource.
+  manualSource?: "customer-supplied" | "custom";
   // See QuoteLineInput.taxable — resolved to a concrete true/false here
   // (defaults true when the input left it unset).
   taxable: boolean;
@@ -233,6 +247,12 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
     if (l.customerSupplied === true) {
       if (typeof l.itemDescription !== "string" || !l.itemDescription.trim()) return false;
       if (l.itemType !== undefined && !["apparel", "hat", "other"].includes(l.itemType as string)) return false;
+      if (
+        l.manualSource !== undefined &&
+        !["customer-supplied", "custom"].includes(l.manualSource as string)
+      ) {
+        return false;
+      }
       if (l.brandNameInput !== undefined && typeof l.brandNameInput !== "string") return false;
       if (l.styleNumber !== undefined && typeof l.styleNumber !== "string") return false;
       if (l.colorName !== undefined && typeof l.colorName !== "string") return false;
@@ -335,10 +355,16 @@ export function computeQuote(
     // decoration's per-unit price (if any, pooled into the same groupQty
     // tier as every other line above).
     if (line.customerSupplied) {
+      // "customer-supplied" (free) items never carry a garment charge — the
+      // customer brought the item in, so no garmentCost/markup ever applies
+      // even if a size row has one set from an older save. Only the "custom"
+      // flow (the shop's own priced ad-hoc item) uses the typed cost/markup.
+      const isCustomPriced = line.manualSource === "custom";
+
       const sizes: QuoteSizeResult[] = line.sizes.map((s) => {
         const roundedDecorationUnitPrice = money(decorationUnitPrice);
-        const garmentCost = money(s.garmentCost ?? 0);
-        const markupPercent = s.garmentMarkupPercent ?? 0;
+        const garmentCost = isCustomPriced ? money(s.garmentCost ?? 0) : 0;
+        const markupPercent = isCustomPriced ? s.garmentMarkupPercent ?? 0 : 0;
         const garmentUnitPrice = money(garmentCost * (1 + markupPercent / 100));
         const garmentMarkupAmount = money(garmentUnitPrice - garmentCost);
         const unitPrice = money(garmentUnitPrice + roundedDecorationUnitPrice);
@@ -360,18 +386,26 @@ export function computeQuote(
       // A "hat" line carries its own free-text brand/style/color (typed by
       // the admin, no catalog lookup) — show those instead of the generic
       // "Customer-supplied item" label so it renders just like a catalog
-      // garment card everywhere (Items list, Preview, PDFs). Any other
-      // customer-supplied type keeps the original generic label.
+      // garment card everywhere (Items list, Preview, PDFs). A priced
+      // "custom" (non-hat) item is also labeled like a catalog garment, but
+      // with no style/color (just the product name) — no "customer-supplied"
+      // wording anywhere. Only a free, non-hat customer-supplied item keeps
+      // the original generic label.
       const isHat = line.itemType === "hat";
 
       return {
         styleNumber: isHat ? (line.styleNumber ?? "") : "",
-        brandName: isHat ? line.brandNameInput?.trim() || "Hat" : "Customer-supplied item",
+        brandName: isHat
+          ? line.brandNameInput?.trim() || "Hat"
+          : isCustomPriced
+            ? ""
+            : "Customer-supplied item",
         productName: line.itemDescription ?? "Item",
         colorName: isHat ? (line.colorName ?? "") : "",
         customerSupplied: true,
         itemDescription: line.itemDescription,
         itemType: line.itemType,
+        manualSource: line.manualSource,
         decorationId: line.decorationId,
         decorationLabel: decoration?.label,
         priceColumnId: line.priceColumnId,

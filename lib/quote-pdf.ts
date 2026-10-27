@@ -318,23 +318,43 @@ export async function renderQuotePdf(
       // named the product (same style throughout), otherwise the full
       // brand/style/color so a mixed-style group stays unambiguous.
       if (sameStyle) {
-        doc
-          .fillColor(NAVY)
-          .font("Helvetica-Bold")
-          .fontSize(9.5)
-          .text(line.colorName, left, cardTop, { width: CARD_TEXT_WIDTH });
+        if (line.colorName) {
+          doc
+            .fillColor(NAVY)
+            .font("Helvetica-Bold")
+            .fontSize(9.5)
+            .text(line.colorName, left, cardTop, { width: CARD_TEXT_WIDTH });
+        } else {
+          // Nothing to show above the grid (e.g. a Custom non-hat item with
+          // no style/color) — still need doc.y to land at cardTop so the
+          // grid rows below start at the right height.
+          doc.y = cardTop;
+        }
       } else {
         doc
           .fillColor(NAVY)
           .font("Helvetica-Bold")
           .fontSize(9.5)
-          .text(`${line.brandName} ${line.productName}`, left, cardTop, { width: CARD_TEXT_WIDTH });
-        doc
-          .fillColor(GRAY)
-          .font("Helvetica")
-          .fontSize(8)
-          .text(`Style ${line.styleNumber}`, left, doc.y, { width: CARD_TEXT_WIDTH });
-        doc.text(line.colorName, left, doc.y, { width: CARD_TEXT_WIDTH });
+          .text(
+            [line.brandName, line.productName].filter(Boolean).join(" ") || line.productName,
+            left,
+            cardTop,
+            { width: CARD_TEXT_WIDTH }
+          );
+        if (line.styleNumber) {
+          doc
+            .fillColor(GRAY)
+            .font("Helvetica")
+            .fontSize(8)
+            .text(`Style ${line.styleNumber}`, left, doc.y, { width: CARD_TEXT_WIDTH });
+        }
+        if (line.colorName) {
+          doc
+            .fillColor(GRAY)
+            .font("Helvetica")
+            .fontSize(8)
+            .text(line.colorName, left, doc.y, { width: CARD_TEXT_WIDTH });
+        }
       }
       const textBottom = doc.y;
 
