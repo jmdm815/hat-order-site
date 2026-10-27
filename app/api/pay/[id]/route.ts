@@ -54,6 +54,10 @@ type CustomerInvoiceSummary = {
   grandTotal: number;
   amountPaid: number;
   balance: number;
+  // See lib/quote.ts's QuoteInput.depositPercent — undefined/100 means this
+  // quote is on "pay in full" terms, so the pay page shouldn't call this a
+  // "deposit" anywhere; only a real partial-deposit quote (< 100) should.
+  depositPercent?: number;
   // The admin's saved "amount to pay" (lib/quotes-store.ts's
   // paymentLinkAmount — see setSuggestedPaymentAmount), clamped to the
   // current balance — what InvoicePayClient.tsx pre-fills "Amount to pay"
@@ -108,6 +112,7 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
     grandTotal,
     amountPaid,
     balance,
+    depositPercent: record.computed.depositPercent,
     suggestedAmount,
     payments: (record.payments ?? []).map((p) => ({
       id: p.id,
@@ -189,7 +194,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       note: record.invoiceNumber
         ? `Invoice ${record.invoiceNumber}`
         : record.quoteNumber
-          ? `Quote ${record.quoteNumber} deposit`
+          ? `Quote ${record.quoteNumber}${
+              record.computed.depositPercent && record.computed.depositPercent < 100 ? " deposit" : ""
+            }`
           : `Payment ${id.slice(0, 8)}`,
     });
 

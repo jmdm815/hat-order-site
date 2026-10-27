@@ -237,15 +237,18 @@ export async function renderQuotePdf(
       }
     } else if (!workOrder && !internal && linkForPdf) {
       // A plain quote (not yet converted to an invoice) — the same branded
-      // pay page an invoice uses, just reached before conversion so a
-      // deposit can be collected and the order gotten started. No
-      // paid/unpaid banner here (a quote has no invoiceStatus), just the
-      // link + QR.
+      // pay page an invoice uses, just reached before conversion so an order
+      // can be gotten started. No paid/unpaid banner here (a quote has no
+      // invoiceStatus), just the link + QR. Only call it a "deposit" when
+      // the quote actually has a partial depositPercent set — a quote on
+      // "pay in full" terms (depositPercent undefined/100) is paid in full
+      // through this same link, so it says just "Pay online" instead.
+      const isPartialDeposit = Boolean(quote.depositPercent && quote.depositPercent < 100);
       doc
         .fillColor(NAVY)
         .font("Helvetica-Bold")
         .fontSize(10)
-        .text("Pay deposit online: ", left, doc.y, { continued: true })
+        .text(isPartialDeposit ? "Pay deposit online: " : "Pay online: ", left, doc.y, { continued: true })
         .font("Helvetica")
         .fillColor("#1a56cd")
         .text(linkForPdf, { link: linkForPdf, underline: true });

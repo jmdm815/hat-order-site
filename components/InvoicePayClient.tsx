@@ -26,6 +26,10 @@ type InvoiceSummary = {
   grandTotal: number;
   amountPaid: number;
   balance: number;
+  // See app/api/pay/[id]/route.ts's CustomerInvoiceSummary.depositPercent —
+  // undefined/100 means "pay in full", so the heading below shouldn't call
+  // this a "deposit".
+  depositPercent?: number;
   // The admin's saved "amount to pay" (see app/api/pay/[id]/route.ts) —
   // what pre-fills "Amount to pay" below instead of always defaulting to
   // the full balance, matching how a ShopVox-style order page pre-fills a
@@ -189,7 +193,9 @@ export default function InvoicePayClient({ id }: { id: string }) {
         {invoice.invoiceNumber
           ? `Invoice ${invoice.invoiceNumber}`
           : invoice.quoteNumber
-            ? `Quote ${invoice.quoteNumber} — deposit`
+            ? `Quote ${invoice.quoteNumber}${
+                invoice.depositPercent && invoice.depositPercent < 100 ? " — deposit" : ""
+              }`
             : invoice.status === "invoice"
               ? "Invoice"
               : "Quote"}
