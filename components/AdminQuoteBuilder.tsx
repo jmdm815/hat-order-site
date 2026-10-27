@@ -61,6 +61,110 @@ type PendingMiscFee = {
 
 type PdfMode = "customer" | "internal" | "work-order" | "invoice";
 
+// A size row for a customer-supplied "Apparel" or "Hat" item — unlike the
+// catalog's SizeGrid (read-only columns pulled from the vendor feed), the
+// admin types the size name themselves (so an arbitrary apparel size chart,
+// or a hat's "One Size" row, can be added/renamed/removed freely) along
+// with a manual cost and markup %; price is derived live from those two
+// (see csRowPrice below), matching QuoteSizeInput.garmentCost/
+// garmentMarkupPercent's cost -> markup -> price relationship in
+// lib/quote.ts's computeQuote.
+type CsPricedSizeRow = { size: string; quantity: number; cost: number; markupPercent: number };
+
+const CS_APPAREL_SIZE_CHART = ["S", "M", "L", "XL", "2XL", "3XL"];
+
+function csRowPrice(row: { cost: number; markupPercent: number }): number {
+  return Math.round(row.cost * (1 + (row.markupPercent || 0) / 100) * 100) / 100;
+}
+
+function csDefaultRowsForType(itemType: "apparel" | "hat" | "other"): CsPricedSizeRow[] {
+  if (itemType === "apparel") {
+    return CS_APPAREL_SIZE_CHART.map((size) => ({ size, quantity: 0, cost: 0, markupPercent: 0 }));
+  }
+  if (itemType === "hat") {
+    return [{ size: "One Size", quantity: 0, cost: 0, markupPercent: 0 }];
+  }
+  return [];
+}
+
+// Editable size/cost/markup rows, shared by the "Add a garment" panel's
+// customer-supplied Apparel/Hat forms and the Items list's inline Edit view
+// for an already-added line of either type (see AdminQuoteBuilder's
+// csPricedSizeRows state and startEditLine/saveEditLine's editDraftSizes
+// adapter).
+function CsPricedSizeRows({
+  rows,
+  onChange,
+}: {
+  rows: CsPricedSizeRow[];
+  onChange: (next: CsPricedSizeRow[]) => void;
+}) {
+  function updateRow(i: number, patch: Partial<CsPricedSizeRow>) {
+    onChange(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      {rows.map((row, i) => (
+        <div key={i} className="flex items-center gap-2 flex-wrap">
+          <input
+            value={row.size}
+            onChange={(e) => updateRow(i, { size: e.target.value })}
+            placeholder="Size (e.g. M, One Size)"
+            className="w-28 border border-white/20 rounded-xl px-2 py-1 text-sm"
+          />
+          <label className="flex items-center gap-1 text-[11px] text-white/50">
+            Qty
+            <input
+              type="number"
+              min={0}
+              value={row.quantity}
+              onChange={(e) => updateRow(i, { quantity: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[11px] text-white/50">
+            Cost $
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={row.cost}
+              onChange={(e) => updateRow(i, { cost: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-20 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[11px] text-white/50">
+            Markup %
+            <input
+              type="number"
+              min={0}
+              step="1"
+              value={row.markupPercent}
+              onChange={(e) => updateRow(i, { markupPercent: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+            />
+          </label>
+          <span className="text-xs text-white/70 w-16 text-right shrink-0">${csRowPrice(row).toFixed(2)}</span>
+          <button
+            type="button"
+            onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
+            className="text-xs text-red-600 hover:underline"
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...rows, { size: "", quantity: 0, cost: 0, markupPercent: 0 }])}
+        className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+      >
+        + Add size row
+      </button>
+    </div>
+  );
+}
+
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -136,6 +240,8 @@ function linesFromRecord(record: QuoteRecord): PendingLine[] {
       priceColumnId: l.priceColumnId,
       customerSupplied: l.customerSupplied,
       itemDescription: l.itemDescription,
+      itemType: l.itemType,
+      brandNameInput: l.brandNameInput,
       taxable: l.taxable ?? true,
       brandName: computedLine?.brandName ?? "",
       productName: computedLine?.productName ?? "",
@@ -326,6 +432,18 @@ export default function AdminQuoteBuilder({
     { size: "", quantity: 0 },
   ]);
   const [csError, setCsError] = useState<string | null>(null);
+  // Which kind of customer-supplied item this is — "other" (the original
+  // free-form description above) is the default/unchanged behavior; the
+  // admin can instead pick "Apparel" (a sizes/cost/markup grid, no
+  // description required) or "Hat" (free-text brand/style/color plus the
+  // same grid, defaulting to a single "One Size" row). See
+  // csDefaultRowsForType/CsPricedSizeRows above and
+  // resetCustomerSuppliedForm/addCustomerSuppliedLine below.
+  const [csItemType, setCsItemType] = useState<"apparel" | "hat" | "other">("other");
+  const [csBrand, setCsBrand] = useState("");
+  const [csStyleNumber, setCsStyleNumber] = useState("");
+  const [csColor, setCsColor] = useState("");
+  const [csPricedSizeRows, setCsPricedSizeRows] = useState<CsPricedSizeRow[]>([]);
 
   const [lines, setLines] = useState<PendingLine[]>(() =>
     initialRecord ? linesFromRecord(initialRecord) : initialLines ?? []
@@ -963,18 +1081,31 @@ export default function AdminQuoteBuilder({
     setLookupError(null);
   }
 
-  function resetCustomerSuppliedForm() {
+  // `itemType` defaults to the admin's current selection (csItemType) —
+  // pass it explicitly to also reset the type itself (see
+  // onCustomerSuppliedItemTypeChange/onCatalogChange below).
+  function resetCustomerSuppliedForm(itemType: "apparel" | "hat" | "other" = csItemType) {
     setCsDescription("");
     setCsQuantityMode("flat");
     setCsFlatQuantity(0);
     setCsSizeRows([{ size: "", quantity: 0 }]);
+    setCsBrand("");
+    setCsStyleNumber("");
+    setCsColor("");
+    setCsPricedSizeRows(csDefaultRowsForType(itemType));
     setCsError(null);
+  }
+
+  function onCustomerSuppliedItemTypeChange(next: "apparel" | "hat" | "other") {
+    setCsItemType(next);
+    resetCustomerSuppliedForm(next);
   }
 
   function onCatalogChange(next: CatalogSource) {
     setCatalogSource(next);
     resetProductPicker();
-    resetCustomerSuppliedForm();
+    setCsItemType("other");
+    resetCustomerSuppliedForm("other");
   }
 
   function onProductQueryChange(value: string) {
@@ -1098,9 +1229,60 @@ export default function AdminQuoteBuilder({
   }
 
   // "Add to quote" for a customer-supplied item (see CatalogSource ===
-  // "customer-supplied" above) — no product/color lookup, just a
-  // description plus either a flat quantity or a size-by-size breakdown.
+  // "customer-supplied" above) — no product/color lookup. "Apparel" and
+  // "Hat" (csItemType) use the editable sizes/cost/markup grid
+  // (csPricedSizeRows) so the admin can price it like a catalog garment;
+  // "Hat" additionally carries a free-text brand/style/color. "Other" (the
+  // default/original behavior) keeps the plain description plus flat-or-
+  // size-breakdown quantity, with no garment cost.
   function addCustomerSuppliedLine() {
+    if (csItemType === "apparel" || csItemType === "hat") {
+      const rowsWithQty = csPricedSizeRows.filter((r) => r.size.trim() && r.quantity > 0);
+      if (rowsWithQty.length === 0) {
+        setCsError("Add a quantity for at least one size before adding.");
+        return;
+      }
+
+      const typedDescription = csDescription.trim();
+      // For a hat, the default (when left blank) is just the style number —
+      // not brand + style, since brandName is already shown on its own in
+      // every "{brandName} {productName}" display (Items list, Preview,
+      // PDFs); including the brand in both would duplicate it there.
+      const description =
+        typedDescription || (csItemType === "hat" ? csStyleNumber.trim() || "Hat" : "");
+      if (!description) {
+        setCsError("Enter an item description before adding.");
+        return;
+      }
+
+      const sizes: QuoteSizeInput[] = rowsWithQty.map((r) => ({
+        size: r.size.trim(),
+        quantity: r.quantity,
+        garmentCost: r.cost,
+        garmentMarkupPercent: r.markupPercent,
+      }));
+
+      const line: PendingLine = {
+        key: `customer-supplied-${Date.now()}`,
+        customerSupplied: true,
+        itemDescription: description,
+        itemType: csItemType,
+        brandNameInput: csItemType === "hat" ? csBrand.trim() || undefined : undefined,
+        styleNumber: csItemType === "hat" ? csStyleNumber.trim() || undefined : undefined,
+        colorName: csItemType === "hat" ? csColor.trim() || undefined : undefined,
+        sizes,
+        decorationId: selectedDecorationId || undefined,
+        priceColumnId: selectedColumnId || undefined,
+        brandName: csItemType === "hat" ? csBrand.trim() || "Hat" : "Customer-supplied item",
+        productName: description,
+        taxable: lineTaxable,
+      };
+      setLines((prev) => [...prev, line]);
+      resetCustomerSuppliedForm(csItemType);
+      setQuote(null);
+      return;
+    }
+
     const description = csDescription.trim();
     if (!description) {
       setCsError("Enter an item description before adding.");
@@ -1128,6 +1310,7 @@ export default function AdminQuoteBuilder({
       key: `customer-supplied-${Date.now()}`,
       customerSupplied: true,
       itemDescription: description,
+      itemType: "other",
       sizes,
       decorationId: selectedDecorationId || undefined,
       priceColumnId: selectedColumnId || undefined,
@@ -1136,7 +1319,7 @@ export default function AdminQuoteBuilder({
       taxable: lineTaxable,
     };
     setLines((prev) => [...prev, line]);
-    resetCustomerSuppliedForm();
+    resetCustomerSuppliedForm("other");
     setQuote(null);
   }
 
@@ -1183,6 +1366,12 @@ export default function AdminQuoteBuilder({
   const [editColors, setEditColors] = useState<ManualQuoteColor[] | null>(null);
   const [editColorsLoading, setEditColorsLoading] = useState(false);
   const [editColorsError, setEditColorsError] = useState<string | null>(null);
+  // Customer-supplied "hat" lines only — free-text brand/style/color
+  // (editDraftColorName above is only used for a catalog line's dropdown,
+  // so a hat's color gets its own draft field here alongside brand/style).
+  const [editDraftBrand, setEditDraftBrand] = useState("");
+  const [editDraftStyleText, setEditDraftStyleText] = useState("");
+  const [editDraftColorText, setEditDraftColorText] = useState("");
 
   // Tries each catalog in turn until one returns this style — used when a
   // line's catalogSource isn't known (e.g. it was loaded back from a saved
@@ -1215,6 +1404,9 @@ export default function AdminQuoteBuilder({
     setEditingLineKey(line.key);
     setEditDraftColorName(line.colorName ?? "");
     setEditDraftSizes(line.sizes.map((s) => ({ ...s })));
+    setEditDraftBrand(line.brandNameInput ?? "");
+    setEditDraftStyleText(line.styleNumber ?? "");
+    setEditDraftColorText(line.colorName ?? "");
     setEditColors(null);
     setEditColorsError(null);
     if (line.customerSupplied) return; // no catalog colors to fetch
@@ -1284,9 +1476,17 @@ export default function AdminQuoteBuilder({
       prev.map((l) => {
         if (l.key !== editingLineKey) return l;
         const color = editColors?.find((c) => c.colorName === editDraftColorName);
+        const isHat = l.customerSupplied && l.itemType === "hat";
         return {
           ...l,
-          colorName: l.customerSupplied ? l.colorName : editDraftColorName,
+          colorName: !l.customerSupplied
+            ? editDraftColorName
+            : isHat
+              ? editDraftColorText.trim() || undefined
+              : l.colorName,
+          styleNumber: isHat ? editDraftStyleText.trim() || undefined : l.styleNumber,
+          brandNameInput: isHat ? editDraftBrand.trim() || undefined : l.brandNameInput,
+          brandName: isHat ? editDraftBrand.trim() || "Hat" : l.brandName,
           sizes: cleanedSizes,
           imageUrl: color?.imageUrl ?? l.imageUrl,
           imageFallbackUrl: color?.imageFallbackUrl ?? l.imageFallbackUrl,
@@ -1316,6 +1516,8 @@ export default function AdminQuoteBuilder({
         priceColumnId: l.priceColumnId,
         customerSupplied: l.customerSupplied,
         itemDescription: l.itemDescription,
+        itemType: l.itemType,
+        brandNameInput: l.brandNameInput,
         taxable: l.taxable,
       })),
       setupChargeIds: selectedSetupChargeIds,
@@ -2232,7 +2434,7 @@ export default function AdminQuoteBuilder({
                       )}
                       <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
                         <div className="text-sm text-white">
-                          {line.customerSupplied ? (
+                          {line.customerSupplied && line.itemType !== "hat" ? (
                             <>
                               <span className="font-medium">Customer-supplied item</span>{" "}
                               <span className="text-white/40">({line.itemDescription})</span>
@@ -2306,55 +2508,107 @@ export default function AdminQuoteBuilder({
                           </label>
                         )}
 
+                        {line.customerSupplied && line.itemType === "hat" && (
+                          <div className="flex flex-wrap gap-2">
+                            <label className="block text-xs text-white/60">
+                              Brand
+                              <input
+                                value={editDraftBrand}
+                                onChange={(e) => setEditDraftBrand(e.target.value)}
+                                className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs text-white/60">
+                              Style number
+                              <input
+                                value={editDraftStyleText}
+                                onChange={(e) => setEditDraftStyleText(e.target.value)}
+                                className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                              />
+                            </label>
+                            <label className="block text-xs text-white/60">
+                              Color
+                              <input
+                                value={editDraftColorText}
+                                onChange={(e) => setEditDraftColorText(e.target.value)}
+                                className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                              />
+                            </label>
+                          </div>
+                        )}
+
                         <div className="mt-3">
                           <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
-                            Quantities
+                            {line.customerSupplied && (line.itemType === "apparel" || line.itemType === "hat")
+                              ? "Sizes, cost & pricing"
+                              : "Quantities"}
                           </span>
-                          <div className="mt-1.5 space-y-1.5">
-                            {editDraftSizes.map((s, i) => (
-                              <div key={i} className="flex items-center gap-2">
-                                {line.customerSupplied ? (
+                          {line.customerSupplied && (line.itemType === "apparel" || line.itemType === "hat") ? (
+                            <CsPricedSizeRows
+                              rows={editDraftSizes.map((s) => ({
+                                size: s.size,
+                                quantity: s.quantity,
+                                cost: s.garmentCost ?? 0,
+                                markupPercent: s.garmentMarkupPercent ?? 0,
+                              }))}
+                              onChange={(next) =>
+                                setEditDraftSizes(
+                                  next.map((r) => ({
+                                    size: r.size,
+                                    quantity: r.quantity,
+                                    garmentCost: r.cost,
+                                    garmentMarkupPercent: r.markupPercent,
+                                  }))
+                                )
+                              }
+                            />
+                          ) : (
+                            <div className="mt-1.5 space-y-1.5">
+                              {editDraftSizes.map((s, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                  {line.customerSupplied ? (
+                                    <input
+                                      value={s.size}
+                                      onChange={(e) => editDraftUpdateCustomSizeRow(i, { size: e.target.value })}
+                                      placeholder="Size / label"
+                                      className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                                    />
+                                  ) : (
+                                    <span className="w-20 text-sm text-white/70">{s.size}</span>
+                                  )}
                                   <input
-                                    value={s.size}
-                                    onChange={(e) => editDraftUpdateCustomSizeRow(i, { size: e.target.value })}
-                                    placeholder="Size / label"
-                                    className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                                    type="number"
+                                    min={0}
+                                    value={s.quantity}
+                                    onChange={(e) =>
+                                      line.customerSupplied
+                                        ? editDraftUpdateCustomSizeRow(i, {
+                                            quantity: Math.max(0, Number(e.target.value) || 0),
+                                          })
+                                        : editDraftSetQty(s.size, Math.max(0, Number(e.target.value) || 0))
+                                    }
+                                    className="w-20 border border-white/20 rounded-xl px-2 py-1 text-center text-sm"
                                   />
-                                ) : (
-                                  <span className="w-20 text-sm text-white/70">{s.size}</span>
-                                )}
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={s.quantity}
-                                  onChange={(e) =>
-                                    line.customerSupplied
-                                      ? editDraftUpdateCustomSizeRow(i, {
-                                          quantity: Math.max(0, Number(e.target.value) || 0),
-                                        })
-                                      : editDraftSetQty(s.size, Math.max(0, Number(e.target.value) || 0))
-                                  }
-                                  className="w-20 border border-white/20 rounded-xl px-2 py-1 text-center text-sm"
-                                />
-                                {line.customerSupplied && (
-                                  <button
-                                    onClick={() => editDraftRemoveCustomSizeRow(i)}
-                                    className="text-xs text-red-600 hover:underline"
-                                  >
-                                    ✕
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                            {line.customerSupplied && (
-                              <button
-                                onClick={editDraftAddCustomSizeRow}
-                                className="text-xs text-white/60 hover:underline"
-                              >
-                                + Add size row
-                              </button>
-                            )}
-                          </div>
+                                  {line.customerSupplied && (
+                                    <button
+                                      onClick={() => editDraftRemoveCustomSizeRow(i)}
+                                      className="text-xs text-red-600 hover:underline"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              {line.customerSupplied && (
+                                <button
+                                  onClick={editDraftAddCustomSizeRow}
+                                  className="text-xs text-white/60 hover:underline"
+                                >
+                                  + Add size row
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {editColorsError && <p className="mt-2 text-xs text-red-600">{editColorsError}</p>}
@@ -2969,96 +3223,179 @@ export default function AdminQuoteBuilder({
 
         {catalogSource === "customer-supplied" ? (
           <div className="mt-4 border-t border-white/10 pt-4 max-w-xl">
-            <label className="block text-xs text-white/60">
-              Item description
+            <span className="text-xs font-medium text-white/60 uppercase tracking-wide">Garment type</span>
+            <div className="mt-1.5 flex flex-wrap gap-4 text-sm text-white/70">
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="csItemType"
+                  checked={csItemType === "apparel"}
+                  onChange={() => onCustomerSuppliedItemTypeChange("apparel")}
+                />
+                Apparel
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="csItemType"
+                  checked={csItemType === "hat"}
+                  onChange={() => onCustomerSuppliedItemTypeChange("hat")}
+                />
+                Hat
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="csItemType"
+                  checked={csItemType === "other"}
+                  onChange={() => onCustomerSuppliedItemTypeChange("other")}
+                />
+                Other
+              </label>
+            </div>
+
+            {csItemType === "hat" && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <label className="block text-xs text-white/60">
+                  Brand
+                  <input
+                    value={csBrand}
+                    onChange={(e) => setCsBrand(e.target.value)}
+                    className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                    placeholder="e.g. New Era"
+                  />
+                </label>
+                <label className="block text-xs text-white/60">
+                  Style number
+                  <input
+                    value={csStyleNumber}
+                    onChange={(e) => setCsStyleNumber(e.target.value)}
+                    className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                  />
+                </label>
+                <label className="block text-xs text-white/60">
+                  Color
+                  <input
+                    value={csColor}
+                    onChange={(e) => setCsColor(e.target.value)}
+                    className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                  />
+                </label>
+              </div>
+            )}
+
+            <label className="block text-xs text-white/60 mt-3">
+              {csItemType === "other" ? "Item description" : "Description / notes (optional)"}
               <input
                 value={csDescription}
                 onChange={(e) => setCsDescription(e.target.value)}
                 className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
-                placeholder="e.g. Hat, Shirt, Bag, Custom item"
+                placeholder={
+                  csItemType === "apparel"
+                    ? "e.g. Customer-supplied hoodie"
+                    : csItemType === "hat"
+                      ? "Defaults to the brand + style number above if left blank"
+                      : "e.g. Hat, Shirt, Bag, Custom item"
+                }
               />
             </label>
 
-            <div className="mt-3 flex flex-wrap gap-4 text-sm text-white/70">
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  name="csQuantityMode"
-                  checked={csQuantityMode === "flat"}
-                  onChange={() => setCsQuantityMode("flat")}
-                />
-                Just a total quantity
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  name="csQuantityMode"
-                  checked={csQuantityMode === "sizes"}
-                  onChange={() => setCsQuantityMode("sizes")}
-                />
-                Break down by size
-              </label>
-            </div>
-
-            {csQuantityMode === "flat" ? (
-              <label className="block text-xs text-white/60 mt-3 max-w-[160px]">
-                Number of items
-                <input
-                  type="number"
-                  min={0}
-                  value={csFlatQuantity}
-                  onChange={(e) => setCsFlatQuantity(Math.max(0, Number(e.target.value) || 0))}
-                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
-                />
-              </label>
-            ) : (
+            {csItemType === "apparel" || csItemType === "hat" ? (
               <div className="mt-3">
                 <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
-                  Sizes &amp; quantities
+                  Sizes, cost &amp; pricing
                 </span>
-                <div className="mt-1.5 space-y-1.5">
-                  {csSizeRows.map((row, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <input
-                        value={row.size}
-                        onChange={(e) => {
-                          const next = [...csSizeRows];
-                          next[i] = { ...next[i], size: e.target.value };
-                          setCsSizeRows(next);
-                        }}
-                        placeholder="Size (e.g. M, OSFA)"
-                        className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        value={row.quantity}
-                        onChange={(e) => {
-                          const next = [...csSizeRows];
-                          next[i] = { ...next[i], quantity: Math.max(0, Number(e.target.value) || 0) };
-                          setCsSizeRows(next);
-                        }}
-                        placeholder="Qty"
-                        className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setCsSizeRows((prev) => prev.filter((_, idx) => idx !== i))}
-                        className="text-xs text-red-600 hover:underline"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCsSizeRows((prev) => [...prev, { size: "", quantity: 0 }])}
-                  className="mt-2 text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
-                >
-                  + Add size row
-                </button>
+                <p className="mt-1 text-xs text-white/40">
+                  Optional — leave a size&apos;s quantity at 0 to skip it. Cost and markup are both optional
+                  too (a blank cost means no garment charge, same as before); the Price column shown is cost
+                  marked up by that percentage.
+                </p>
+                <CsPricedSizeRows rows={csPricedSizeRows} onChange={setCsPricedSizeRows} />
               </div>
+            ) : (
+              <>
+                <div className="mt-3 flex flex-wrap gap-4 text-sm text-white/70">
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="csQuantityMode"
+                      checked={csQuantityMode === "flat"}
+                      onChange={() => setCsQuantityMode("flat")}
+                    />
+                    Just a total quantity
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="csQuantityMode"
+                      checked={csQuantityMode === "sizes"}
+                      onChange={() => setCsQuantityMode("sizes")}
+                    />
+                    Break down by size
+                  </label>
+                </div>
+
+                {csQuantityMode === "flat" ? (
+                  <label className="block text-xs text-white/60 mt-3 max-w-[160px]">
+                    Number of items
+                    <input
+                      type="number"
+                      min={0}
+                      value={csFlatQuantity}
+                      onChange={(e) => setCsFlatQuantity(Math.max(0, Number(e.target.value) || 0))}
+                      className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                ) : (
+                  <div className="mt-3">
+                    <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
+                      Sizes &amp; quantities
+                    </span>
+                    <div className="mt-1.5 space-y-1.5">
+                      {csSizeRows.map((row, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input
+                            value={row.size}
+                            onChange={(e) => {
+                              const next = [...csSizeRows];
+                              next[i] = { ...next[i], size: e.target.value };
+                              setCsSizeRows(next);
+                            }}
+                            placeholder="Size (e.g. M, OSFA)"
+                            className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={row.quantity}
+                            onChange={(e) => {
+                              const next = [...csSizeRows];
+                              next[i] = { ...next[i], quantity: Math.max(0, Number(e.target.value) || 0) };
+                              setCsSizeRows(next);
+                            }}
+                            placeholder="Qty"
+                            className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setCsSizeRows((prev) => prev.filter((_, idx) => idx !== i))}
+                            className="text-xs text-red-600 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCsSizeRows((prev) => [...prev, { size: "", quantity: 0 }])}
+                      className="mt-2 text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                    >
+                      + Add size row
+                    </button>
+                  </div>
+                )}
+              </>
             )}
 
             {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
@@ -3087,10 +3424,13 @@ export default function AdminQuoteBuilder({
               </p>
             )}
 
-            <p className="mt-2 text-xs text-white/40">
-              No garment cost is charged for a customer-supplied item — only decoration pricing (if a
-              decoration type is selected above) applies.
-            </p>
+            {csItemType === "other" && (
+              <p className="mt-2 text-xs text-white/40">
+                No garment cost is charged for a customer-supplied item — only decoration pricing (if a
+                decoration type is selected above) applies. Switch the garment type above to Apparel or Hat
+                to add a cost/markup/price instead.
+              </p>
+            )}
 
             {csError && <p className="mt-2 text-xs text-red-600">{csError}</p>}
 
@@ -3334,7 +3674,7 @@ export default function AdminQuoteBuilder({
           {quote.lines.map((line, i) => (
             <div key={i} className="mb-4">
               <p className="text-sm font-medium text-white">
-                {line.customerSupplied ? (
+                {line.customerSupplied && line.itemType !== "hat" ? (
                   <>
                     Customer-supplied item{" "}
                     <span className="text-white/40 font-normal">

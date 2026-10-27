@@ -19,7 +19,22 @@ function money(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export type QuoteSizeInput = { size: string; quantity: number };
+export type QuoteSizeInput = {
+  size: string;
+  quantity: number;
+  // Manual cost + markup for a customer-supplied line only (see
+  // QuoteLineInput.customerSupplied) — there's no catalog/vendor cost to
+  // look up for one of these, so the admin types both directly (mirroring
+  // the Item Cost / Item Markup (%) / Item Price columns the catalog
+  // picker shows) and garmentUnitPrice is derived from them:
+  // garmentCost * (1 + garmentMarkupPercent / 100). Both default to 0 when
+  // absent, which reproduces the old customer-supplied behavior (no
+  // garment charge — only decoration pricing, if any). Ignored for a
+  // catalog line, whose garment price always comes from the looked-up
+  // product/color + the admin's garment-markup breakpoint table instead.
+  garmentCost?: number;
+  garmentMarkupPercent?: number;
+};
 
 // One row the admin builds in the UI: a specific style + color, a set of
 // sizes/quantities, and the decoration applied to all of them.
@@ -39,6 +54,19 @@ export type QuoteLineInput = {
   priceColumnId?: string; // e.g. a stitch-count band, when the decoration has priceColumns
   customerSupplied?: boolean;
   itemDescription?: string; // required when customerSupplied is true
+  // Customer-supplied only: which kind of item this is, so the UI/PDF can
+  // show the right fields — "apparel" gets a sizes/cost/markup grid (see
+  // QuoteSizeInput), "hat" additionally gets a free-text brand/style/color
+  // (styleNumber/colorName above double as that brand's style + color; see
+  // brandNameInput below for the brand itself), and "other"/undefined is
+  // the original free-form description + flat-or-size-breakdown quantity
+  // with no garment cost — unchanged default behavior for backward
+  // compatibility with lines saved before this field existed.
+  itemType?: "apparel" | "hat" | "other";
+  // Customer-supplied "hat" line only: the brand typed by the admin (no
+  // catalog brand lookup for one of these) — styleNumber/colorName above
+  // hold the rest of a hat's identity (style + color) as plain text.
+  brandNameInput?: string;
   // Whether this line counts toward the quote's taxable subtotal — defaults
   // to true (taxable) when absent. See QuoteInput.taxRatePercent.
   taxable?: boolean;
@@ -106,6 +134,8 @@ export type QuoteLineResult = {
   // is what should actually be shown for this line.
   customerSupplied?: boolean;
   itemDescription?: string;
+  // See QuoteLineInput.itemType.
+  itemType?: "apparel" | "hat" | "other";
   // See QuoteLineInput.taxable — resolved to a concrete true/false here
   // (defaults true when the input left it unset).
   taxable: boolean;
@@ -202,18 +232,23 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
     const l = line as Record<string, unknown>;
     if (l.customerSupplied === true) {
       if (typeof l.itemDescription !== "string" || !l.itemDescription.trim()) return false;
+      if (l.itemType !== undefined && !["apparel", "hat", "other"].includes(l.itemType as string)) return false;
+      if (l.brandNameInput !== undefined && typeof l.brandNameInput !== "string") return false;
+      if (l.styleNumber !== undefined && typeof l.styleNumber !== "string") return false;
+      if (l.colorName !== undefined && typeof l.colorName !== "string") return false;
     } else if (typeof l.styleNumber !== "string" || typeof l.colorName !== "string") {
       return false;
     }
     if (l.taxable !== undefined && typeof l.taxable !== "boolean") return false;
     if (!Array.isArray(l.sizes)) return false;
-    return l.sizes.every(
-      (s) =>
-        typeof s === "object" &&
-        s !== null &&
-        typeof (s as Record<string, unknown>).size === "string" &&
-        typeof (s as Record<string, unknown>).quantity === "number"
-    );
+    return l.sizes.every((s) => {
+      if (typeof s !== "object" || s === null) return false;
+      const sz = s as Record<string, unknown>;
+      if (typeof sz.size !== "string" || typeof sz.quantity !== "number") return false;
+      if (sz.garmentCost !== undefined && typeof sz.garmentCost !== "number") return false;
+      if (sz.garmentMarkupPercent !== undefined && typeof sz.garmentMarkupPercent !== "number") return false;
+      return true;
+    });
   });
 }
 
@@ -292,34 +327,51 @@ export function computeQuote(
       ? decoration?.priceColumns?.find((c) => c.id === line.priceColumnId)?.label
       : undefined;
 
-    // Customer-supplied item: no catalog garment, no vendor cost, no
-    // garment markup — only the decoration's per-unit price (if any, pooled
-    // into the same groupQty tier as every other line above) applies.
+    // Customer-supplied item: no catalog garment to look up, so the garment
+    // price comes from whatever manual cost/markup the admin typed on each
+    // size (QuoteSizeInput.garmentCost/garmentMarkupPercent — both default
+    // to 0, reproducing the original "no garment charge, decoration only"
+    // behavior for a plain "other" item with no price entered) plus the
+    // decoration's per-unit price (if any, pooled into the same groupQty
+    // tier as every other line above).
     if (line.customerSupplied) {
       const sizes: QuoteSizeResult[] = line.sizes.map((s) => {
         const roundedDecorationUnitPrice = money(decorationUnitPrice);
+        const garmentCost = money(s.garmentCost ?? 0);
+        const markupPercent = s.garmentMarkupPercent ?? 0;
+        const garmentUnitPrice = money(garmentCost * (1 + markupPercent / 100));
+        const garmentMarkupAmount = money(garmentUnitPrice - garmentCost);
+        const unitPrice = money(garmentUnitPrice + roundedDecorationUnitPrice);
         return {
           size: s.size,
           quantity: s.quantity,
-          garmentCost: 0,
-          garmentMarkupAmount: 0,
-          garmentUnitPrice: 0,
+          garmentCost,
+          garmentMarkupAmount,
+          garmentUnitPrice,
           decorationUnitPrice: roundedDecorationUnitPrice,
-          unitPrice: roundedDecorationUnitPrice,
-          lineTotal: money(roundedDecorationUnitPrice * s.quantity),
+          unitPrice,
+          lineTotal: money(unitPrice * s.quantity),
         };
       });
 
       const quantity = sizes.reduce((sum, s) => sum + s.quantity, 0);
       const subtotal = money(sizes.reduce((sum, s) => sum + s.lineTotal, 0));
 
+      // A "hat" line carries its own free-text brand/style/color (typed by
+      // the admin, no catalog lookup) — show those instead of the generic
+      // "Customer-supplied item" label so it renders just like a catalog
+      // garment card everywhere (Items list, Preview, PDFs). Any other
+      // customer-supplied type keeps the original generic label.
+      const isHat = line.itemType === "hat";
+
       return {
-        styleNumber: "",
-        brandName: "Customer-supplied item",
+        styleNumber: isHat ? (line.styleNumber ?? "") : "",
+        brandName: isHat ? line.brandNameInput?.trim() || "Hat" : "Customer-supplied item",
         productName: line.itemDescription ?? "Item",
-        colorName: "",
+        colorName: isHat ? (line.colorName ?? "") : "",
         customerSupplied: true,
         itemDescription: line.itemDescription,
+        itemType: line.itemType,
         decorationId: line.decorationId,
         decorationLabel: decoration?.label,
         priceColumnId: line.priceColumnId,
