@@ -373,22 +373,23 @@ export function computeQuote(
       // A "hat" line carries its own free-text brand/style/color (typed by
       // the admin, no catalog lookup) — show those instead of the generic
       // "Customer-supplied item" label so it renders just like a catalog
-      // garment card everywhere (Items list, Preview, PDFs). A priced
-      // "custom" (non-hat) item is also labeled like a catalog garment, but
-      // with no style/color (just the product name) — no "customer-supplied"
-      // wording anywhere. Only a free, non-hat customer-supplied item keeps
-      // the original generic label.
+      // garment card everywhere (Items list, Preview, PDFs). Every "custom"
+      // (shop-priced) item shows its own brand/style/color the same way,
+      // whatever its itemType — each custom item is its own fully-described
+      // product (e.g. a tumbler or koozie), not just a size of one shared
+      // description — no "customer-supplied" wording anywhere for these.
+      // Only a free, non-hat customer-supplied item keeps the original
+      // generic label.
       const isHat = line.itemType === "hat";
+      const showIdentity = isHat || isCustomPriced;
 
       return {
-        styleNumber: isHat ? (line.styleNumber ?? "") : "",
-        brandName: isHat
-          ? line.brandNameInput?.trim() || "Hat"
-          : isCustomPriced
-            ? ""
-            : "Customer-supplied item",
+        styleNumber: showIdentity ? (line.styleNumber ?? "") : "",
+        brandName: showIdentity
+          ? line.brandNameInput?.trim() || (isHat ? "Hat" : "")
+          : "Customer-supplied item",
         productName: line.itemDescription ?? "Item",
-        colorName: isHat ? (line.colorName ?? "") : "",
+        colorName: showIdentity ? (line.colorName ?? "") : "",
         customerSupplied: true,
         itemDescription: line.itemDescription,
         itemType: line.itemType,

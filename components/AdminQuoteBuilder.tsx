@@ -96,6 +96,39 @@ function csDefaultRowsForType(itemType: "apparel" | "hat" | "other"): CsPricedSi
   return [{ size: "Item", quantity: 0, cost: 0, markupPercent: 0 }];
 }
 
+// A row for the Custom catalog's "Add a garment" panel only (see
+// CsCustomItemRows below) — unlike CsPricedSizeRow above (used for
+// Customer-Supplied's apparel/hat/other grid, and for editing an
+// already-added line's sizes), each row here is a fully independent item:
+// its own Brand / Style number / Color, not just a size of whatever the
+// admin picked at the top of the form. That's what lets "+ Add item
+// row"/"Copy" build several totally different custom items (e.g. a tumbler
+// and a koozie) in one go, sharing only the decoration/location settings
+// chosen below the grid. Rows sharing the same brand+style+color (trimmed,
+// case-insensitive — see csCustomItemGroupKey) are grouped into ONE quote
+// line with multiple sizes when "Add to quote" runs, exactly like a real
+// catalog line's multi-size grid — so same-item/different-size quantities
+// still combine for the decoration's quantity price-break tier, while
+// different items never do (each line prices off its own quantity — see
+// lib/quote.ts's computeQuote).
+type CsCustomItemRow = {
+  brand: string;
+  styleNumber: string;
+  colorName: string;
+  size: string;
+  quantity: number;
+  cost: number;
+  markupPercent: number;
+};
+
+function csDefaultCustomItemRow(): CsCustomItemRow {
+  return { brand: "", styleNumber: "", colorName: "", size: "", quantity: 0, cost: 0, markupPercent: 0 };
+}
+
+function csCustomItemGroupKey(r: CsCustomItemRow): string {
+  return `${r.brand.trim().toLowerCase()}::${r.styleNumber.trim().toLowerCase()}::${r.colorName.trim().toLowerCase()}`;
+}
+
 // Editable size/cost/markup rows, shared by the "Add a garment" panel's
 // Apparel/Hat/Other forms (both the free "Customer-Supplied Item" and the
 // priced "Custom" catalog options — see CatalogSource) and the Items list's
@@ -238,6 +271,153 @@ function CsPricedSizeRows({
             {manualMarkup ? "Use automatic markup" : "Set markup manually"}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+// The Custom catalog's "Add a garment" grid — see CsCustomItemRow's comment
+// above for why each row carries its own Brand/Style/Color instead of
+// sharing one set across the whole panel. Always priced (a Custom item is
+// always the shop's own charged item, never "free" like a Customer-Supplied
+// one), so there's no showPricing toggle here the way CsPricedSizeRows has.
+function CsCustomItemRows({
+  rows,
+  onChange,
+  markupBreakpoints = [],
+}: {
+  rows: CsCustomItemRow[];
+  onChange: (next: CsCustomItemRow[]) => void;
+  markupBreakpoints?: GarmentMarkupBreakpoint[];
+}) {
+  const [manualMarkup, setManualMarkup] = useState(false);
+
+  function updateRow(i: number, patch: Partial<CsCustomItemRow>) {
+    onChange(
+      rows.map((r, idx) => {
+        if (idx !== i) return r;
+        const next = { ...r, ...patch };
+        if (!manualMarkup && "cost" in patch) {
+          next.markupPercent = getMarkupPercentForCost(markupBreakpoints, next.cost);
+        }
+        return next;
+      })
+    );
+  }
+
+  function copyRow(i: number) {
+    const next = [...rows];
+    next.splice(i + 1, 0, { ...rows[i] });
+    onChange(next);
+  }
+
+  function toggleManualMarkup() {
+    if (manualMarkup) {
+      onChange(rows.map((r) => ({ ...r, markupPercent: getMarkupPercentForCost(markupBreakpoints, r.cost) })));
+    }
+    setManualMarkup((v) => !v);
+  }
+
+  return (
+    <div className="mt-1.5 space-y-2">
+      {rows.map((row, i) => (
+        <div key={i} className="flex items-center gap-2 flex-wrap border border-white/10 rounded-xl px-2 py-2">
+          <label className="flex items-center gap-1 text-[11px] text-white/50">
+            Brand
+            <input
+              value={row.brand}
+              onChange={(e) => updateRow(i, { brand: e.target.value })}
+              placeholder="e.g. Yeti"
+              className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[11px] text-white/50">
+            Style / item
+            <input
+              value={row.styleNumber}
+              onChange={(e) => updateRow(i, { styleNumber: e.target.value })}
+              placeholder="e.g. 20oz Tumbler"
+              className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[11px] text-white/50">
+            Color
+            <input
+              value={row.colorName}
+              onChange={(e) => updateRow(i, { colorName: e.target.value })}
+              placeholder="e.g. Black"
+              className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[11px] text-white/50">
+            Size
+            <input
+              value={row.size}
+              onChange={(e) => updateRow(i, { size: e.target.value })}
+              placeholder="One Size"
+              className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[11px] text-white/50">
+            Qty
+            <input
+              type="number"
+              min={0}
+              value={row.quantity}
+              onChange={(e) => updateRow(i, { quantity: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[11px] text-white/50">
+            Cost $
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={row.cost}
+              onChange={(e) => updateRow(i, { cost: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-20 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+            />
+          </label>
+          {manualMarkup ? (
+            <label className="flex items-center gap-1 text-[11px] text-white/50">
+              Markup %
+              <input
+                type="number"
+                min={0}
+                step="1"
+                value={row.markupPercent}
+                onChange={(e) => updateRow(i, { markupPercent: Math.max(0, Number(e.target.value) || 0) })}
+                className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+              />
+            </label>
+          ) : (
+            <span className="text-[11px] text-white/40">({row.markupPercent}% markup)</span>
+          )}
+          <span className="text-xs text-white/70 w-16 text-right shrink-0">${csRowPrice(row).toFixed(2)}</span>
+          <button type="button" onClick={() => copyRow(i)} className="text-xs text-white/60 hover:underline">
+            Copy
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
+            className="text-xs text-red-600 hover:underline"
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onChange([...rows, csDefaultCustomItemRow()])}
+          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+        >
+          + Add item row
+        </button>
+        <button type="button" onClick={toggleManualMarkup} className="text-xs text-white/40 hover:underline">
+          {manualMarkup ? "Use automatic markup" : "Set markup manually"}
+        </button>
       </div>
     </div>
   );
@@ -519,6 +699,10 @@ export default function AdminQuoteBuilder({
   const [csStyleNumber, setCsStyleNumber] = useState("");
   const [csColor, setCsColor] = useState("");
   const [csPricedSizeRows, setCsPricedSizeRows] = useState<CsPricedSizeRow[]>([]);
+  // Custom catalog only — see CsCustomItemRows/CsCustomItemRow above. Kept
+  // separate from csPricedSizeRows (which Customer-Supplied still uses)
+  // since each row here carries its own brand/style/color.
+  const [csCustomItemRows, setCsCustomItemRows] = useState<CsCustomItemRow[]>([csDefaultCustomItemRow()]);
 
   const [lines, setLines] = useState<PendingLine[]>(() =>
     initialRecord ? linesFromRecord(initialRecord) : initialLines ?? []
@@ -1171,6 +1355,7 @@ export default function AdminQuoteBuilder({
     setCsStyleNumber("");
     setCsColor("");
     setCsPricedSizeRows(csDefaultRowsForType(itemType));
+    setCsCustomItemRows([csDefaultCustomItemRow()]);
     setCsError(null);
   }
 
@@ -1316,6 +1501,67 @@ export default function AdminQuoteBuilder({
   // and how the line is labeled (see manualSource in lib/quote.ts).
   function addCustomerSuppliedLine() {
     const isCustomPriced = catalogSource === "custom";
+
+    if (isCustomPriced) {
+      // Each row is its own item (brand/style/color/size) — see
+      // CsCustomItemRow's comment. Only quantity gates whether a row counts
+      // (a blank Size defaults to "One Size" rather than silently dropping
+      // the row's cost — that's what was causing costs to go missing when
+      // a row's Size/Style text was left blank).
+      const rowsWithQty = csCustomItemRows.filter((r) => r.quantity > 0);
+      if (rowsWithQty.length === 0) {
+        setCsError("Add a quantity for at least one item before adding.");
+        return;
+      }
+
+      const order: string[] = [];
+      const groups = new Map<string, CsCustomItemRow[]>();
+      for (const r of rowsWithQty) {
+        const key = csCustomItemGroupKey(r);
+        if (!groups.has(key)) {
+          groups.set(key, []);
+          order.push(key);
+        }
+        groups.get(key)!.push(r);
+      }
+
+      const newLines: PendingLine[] = order.map((key, idx) => {
+        const groupRows = groups.get(key)!;
+        const first = groupRows[0];
+        const brand = first.brand.trim();
+        const styleNumber = first.styleNumber.trim();
+        const colorName = first.colorName.trim();
+        const sizes: QuoteSizeInput[] = groupRows.map((r) => ({
+          size: r.size.trim() || "One Size",
+          quantity: r.quantity,
+          garmentCost: r.cost,
+          garmentMarkupPercent: r.markupPercent,
+        }));
+        const description = styleNumber || brand || "Custom item";
+        return {
+          key: `custom-${Date.now()}-${idx}`,
+          customerSupplied: true,
+          itemDescription: description,
+          itemType: "other",
+          manualSource: "custom",
+          brandNameInput: brand || undefined,
+          styleNumber: styleNumber || undefined,
+          colorName: colorName || undefined,
+          sizes,
+          decorationId: selectedDecorationId || undefined,
+          priceColumnId: selectedColumnId || undefined,
+          brandName: brand,
+          productName: description,
+          taxable: lineTaxable,
+        };
+      });
+
+      setLines((prev) => [...prev, ...newLines]);
+      resetCustomerSuppliedForm(csItemType);
+      setQuote(null);
+      return;
+    }
+
     const isHat = csItemType === "hat";
 
     const rowsWithQty = csPricedSizeRows.filter((r) => r.size.trim() && r.quantity > 0);
@@ -1338,7 +1584,6 @@ export default function AdminQuoteBuilder({
     const sizes: QuoteSizeInput[] = rowsWithQty.map((r) => ({
       size: r.size.trim(),
       quantity: r.quantity,
-      ...(isCustomPriced ? { garmentCost: r.cost, garmentMarkupPercent: r.markupPercent } : {}),
     }));
 
     const line: PendingLine = {
@@ -1346,14 +1591,14 @@ export default function AdminQuoteBuilder({
       customerSupplied: true,
       itemDescription: description,
       itemType: csItemType,
-      manualSource: isCustomPriced ? "custom" : "customer-supplied",
+      manualSource: "customer-supplied",
       brandNameInput: isHat ? csBrand.trim() || undefined : undefined,
       styleNumber: isHat ? csStyleNumber.trim() || undefined : undefined,
       colorName: isHat ? csColor.trim() || undefined : undefined,
       sizes,
       decorationId: selectedDecorationId || undefined,
       priceColumnId: selectedColumnId || undefined,
-      brandName: isHat ? csBrand.trim() || "Hat" : isCustomPriced ? "" : "Customer-supplied item",
+      brandName: isHat ? csBrand.trim() || "Hat" : "Customer-supplied item",
       productName: description,
       taxable: lineTaxable,
     };
@@ -1516,16 +1761,17 @@ export default function AdminQuoteBuilder({
         if (l.key !== editingLineKey) return l;
         const color = editColors?.find((c) => c.colorName === editDraftColorName);
         const isHat = l.customerSupplied && l.itemType === "hat";
+        const showIdentity = l.customerSupplied && (l.itemType === "hat" || l.manualSource === "custom");
         return {
           ...l,
           colorName: !l.customerSupplied
             ? editDraftColorName
-            : isHat
+            : showIdentity
               ? editDraftColorText.trim() || undefined
               : l.colorName,
-          styleNumber: isHat ? editDraftStyleText.trim() || undefined : l.styleNumber,
-          brandNameInput: isHat ? editDraftBrand.trim() || undefined : l.brandNameInput,
-          brandName: isHat ? editDraftBrand.trim() || "Hat" : l.brandName,
+          styleNumber: showIdentity ? editDraftStyleText.trim() || undefined : l.styleNumber,
+          brandNameInput: showIdentity ? editDraftBrand.trim() || undefined : l.brandNameInput,
+          brandName: showIdentity ? editDraftBrand.trim() || (isHat ? "Hat" : "") : l.brandName,
           sizes: cleanedSizes,
           imageUrl: color?.imageUrl ?? l.imageUrl,
           imageFallbackUrl: color?.imageFallbackUrl ?? l.imageFallbackUrl,
@@ -2474,23 +2720,22 @@ export default function AdminQuoteBuilder({
                       )}
                       <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
                         <div className="text-sm text-white">
-                          {line.customerSupplied && line.itemType !== "hat" ? (
-                            line.manualSource === "custom" ? (
-                              <span className="font-medium">{line.productName}</span>
-                            ) : (
-                              <>
-                                <span className="font-medium">Customer-supplied item</span>{" "}
-                                <span className="text-white/40">({line.itemDescription})</span>
-                              </>
-                            )
+                          {line.customerSupplied && line.itemType !== "hat" && line.manualSource !== "custom" ? (
+                            <>
+                              <span className="font-medium">Customer-supplied item</span>{" "}
+                              <span className="text-white/40">({line.itemDescription})</span>
+                            </>
                           ) : (
                             <>
                               <span className="font-medium">
-                                {line.brandName} {line.productName}
-                              </span>{" "}
-                              <span className="text-white/40">
-                                ({line.styleNumber} — {line.colorName})
+                                {[line.brandName, line.productName].filter(Boolean).join(" ")}
                               </span>
+                              {(line.styleNumber || line.colorName) && (
+                                <span className="text-white/40">
+                                  {" "}
+                                  ({[line.styleNumber, line.colorName].filter(Boolean).join(" — ")})
+                                </span>
+                              )}
                             </>
                           )}
                           <div className="text-xs text-white/60 mt-0.5">
@@ -2552,7 +2797,7 @@ export default function AdminQuoteBuilder({
                           </label>
                         )}
 
-                        {line.customerSupplied && line.itemType === "hat" && (
+                        {line.customerSupplied && (line.itemType === "hat" || line.manualSource === "custom") && (
                           <div className="flex flex-wrap gap-2">
                             <label className="block text-xs text-white/60">
                               Brand
@@ -3275,100 +3520,114 @@ export default function AdminQuoteBuilder({
 
         {catalogSource === "customer-supplied" || catalogSource === "custom" ? (
           <div className="mt-4 border-t border-white/10 pt-4 max-w-xl">
-            <span className="text-xs font-medium text-white/60 uppercase tracking-wide">Garment type</span>
-            <div className="mt-1.5 flex flex-wrap gap-4 text-sm text-white/70">
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  name="csItemType"
-                  checked={csItemType === "apparel"}
-                  onChange={() => onCustomerSuppliedItemTypeChange("apparel")}
-                />
-                Apparel
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  name="csItemType"
-                  checked={csItemType === "hat"}
-                  onChange={() => onCustomerSuppliedItemTypeChange("hat")}
-                />
-                Hat
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  name="csItemType"
-                  checked={csItemType === "other"}
-                  onChange={() => onCustomerSuppliedItemTypeChange("other")}
-                />
-                Other
-              </label>
-            </div>
+            {catalogSource === "customer-supplied" && (
+              <>
+                <span className="text-xs font-medium text-white/60 uppercase tracking-wide">Garment type</span>
+                <div className="mt-1.5 flex flex-wrap gap-4 text-sm text-white/70">
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="csItemType"
+                      checked={csItemType === "apparel"}
+                      onChange={() => onCustomerSuppliedItemTypeChange("apparel")}
+                    />
+                    Apparel
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="csItemType"
+                      checked={csItemType === "hat"}
+                      onChange={() => onCustomerSuppliedItemTypeChange("hat")}
+                    />
+                    Hat
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="csItemType"
+                      checked={csItemType === "other"}
+                      onChange={() => onCustomerSuppliedItemTypeChange("other")}
+                    />
+                    Other
+                  </label>
+                </div>
 
-            {csItemType === "hat" && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <label className="block text-xs text-white/60">
-                  Brand
+                {csItemType === "hat" && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <label className="block text-xs text-white/60">
+                      Brand
+                      <input
+                        value={csBrand}
+                        onChange={(e) => setCsBrand(e.target.value)}
+                        className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                        placeholder="e.g. New Era"
+                      />
+                    </label>
+                    <label className="block text-xs text-white/60">
+                      Style number
+                      <input
+                        value={csStyleNumber}
+                        onChange={(e) => setCsStyleNumber(e.target.value)}
+                        className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs text-white/60">
+                      Color
+                      <input
+                        value={csColor}
+                        onChange={(e) => setCsColor(e.target.value)}
+                        className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <label className="block text-xs text-white/60 mt-3">
+                  {csItemType === "other" ? "Item description" : "Description / notes (optional)"}
                   <input
-                    value={csBrand}
-                    onChange={(e) => setCsBrand(e.target.value)}
-                    className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
-                    placeholder="e.g. New Era"
+                    value={csDescription}
+                    onChange={(e) => setCsDescription(e.target.value)}
+                    className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                    placeholder={
+                      csItemType === "apparel"
+                        ? "e.g. Customer-supplied hoodie"
+                        : csItemType === "hat"
+                          ? "Defaults to the brand + style number above if left blank"
+                          : "e.g. Hat, Shirt, Bag, Custom item"
+                    }
                   />
                 </label>
-                <label className="block text-xs text-white/60">
-                  Style number
-                  <input
-                    value={csStyleNumber}
-                    onChange={(e) => setCsStyleNumber(e.target.value)}
-                    className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
-                  />
-                </label>
-                <label className="block text-xs text-white/60">
-                  Color
-                  <input
-                    value={csColor}
-                    onChange={(e) => setCsColor(e.target.value)}
-                    className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
-                  />
-                </label>
-              </div>
+              </>
             )}
 
-            <label className="block text-xs text-white/60 mt-3">
-              {csItemType === "other" ? "Item description" : "Description / notes (optional)"}
-              <input
-                value={csDescription}
-                onChange={(e) => setCsDescription(e.target.value)}
-                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
-                placeholder={
-                  csItemType === "apparel"
-                    ? "e.g. Customer-supplied hoodie"
-                    : csItemType === "hat"
-                      ? "Defaults to the brand + style number above if left blank"
-                      : "e.g. Hat, Shirt, Bag, Custom item"
-                }
-              />
-            </label>
-
             <div className="mt-3">
-              <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
-                {catalogSource === "custom" ? "Items, cost & pricing" : "Sizes & quantities"}
-              </span>
-              <p className="mt-1 text-xs text-white/40">
-                {catalogSource === "custom"
-                  ? "Each row can be a totally different item, not just a size — use Copy to duplicate a row's cost. Markup auto-fills from the Garment Markup table based on cost; quantity is optional too (leave it at 0 to skip a row)."
-                  : "Optional — leave a size's quantity at 0 to skip it."}
-              </p>
-              <CsPricedSizeRows
-                rows={csPricedSizeRows}
-                onChange={setCsPricedSizeRows}
-                showPricing={catalogSource === "custom"}
-                markupBreakpoints={garmentMarkupBreakpoints}
-                itemPlaceholder={catalogSource === "custom" ? "Item (e.g. S, Tumbler, Keychain)" : undefined}
-                addRowLabel={catalogSource === "custom" ? "+ Add item row" : undefined}
-              />
+              {catalogSource === "custom" ? (
+                <>
+                  <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
+                    Items, cost & pricing
+                  </span>
+                  <p className="mt-1 text-xs text-white/40">
+                    Each row is its own item — Brand, Style/item name, Color, and Size are all free text
+                    (nothing to look up), then Qty and Cost. Rows with the same Brand + Style + Color become
+                    one quote line with multiple sizes; use Copy to start the next row from the same
+                    Brand/Style/Color/Cost. Markup auto-fills from the Garment Markup table based on cost.
+                  </p>
+                  <CsCustomItemRows
+                    rows={csCustomItemRows}
+                    onChange={setCsCustomItemRows}
+                    markupBreakpoints={garmentMarkupBreakpoints}
+                  />
+                </>
+              ) : (
+                <>
+                  <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
+                    Sizes & quantities
+                  </span>
+                  <p className="mt-1 text-xs text-white/40">Optional — leave a size&apos;s quantity at 0 to skip it.</p>
+                  <CsPricedSizeRows rows={csPricedSizeRows} onChange={setCsPricedSizeRows} showPricing={false} />
+                </>
+              )}
             </div>
 
             {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
@@ -3656,19 +3915,12 @@ export default function AdminQuoteBuilder({
                       {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
                     </span>
                   </>
-                ) : line.customerSupplied && line.itemType !== "hat" && line.manualSource === "custom" ? (
-                  <>
-                    {line.productName}{" "}
-                    <span className="text-white/40 font-normal">
-                      {line.decorationLabel ? ` · ${line.decorationLabel}` : ""}
-                      {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
-                    </span>
-                  </>
                 ) : (
                   <>
-                    {line.brandName} {line.productName}{" "}
+                    {[line.brandName, line.productName].filter(Boolean).join(" ")}{" "}
                     <span className="text-white/40 font-normal">
-                      ({line.styleNumber} — {line.colorName})
+                      {(line.styleNumber || line.colorName) &&
+                        `(${[line.styleNumber, line.colorName].filter(Boolean).join(" — ")})`}
                       {line.decorationLabel ? ` · ${line.decorationLabel}` : ""}
                       {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
                     </span>
