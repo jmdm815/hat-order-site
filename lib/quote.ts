@@ -42,10 +42,9 @@ export type QuoteSizeInput = {
 // A line can instead be "customer-supplied" (customerSupplied: true) — the
 // customer brought the item(s) in themselves, so there's no catalog garment
 // to look up, no vendor cost, and no garment markup; only decoration pricing
-// (if any) applies, pooled into the usual quantity price-break groups right
-// alongside every other line via groupKey() below. itemDescription (e.g.
-// "Hat", "Shirt", "Bag", "Custom item") replaces styleNumber/colorName as
-// the line's label in that case, and styleNumber/colorName are omitted.
+// (if any) applies, priced off this line's own quantity. itemDescription
+// (e.g. "Hat", "Shirt", "Bag", "Custom item") replaces styleNumber/colorName
+// as the line's label in that case, and styleNumber/colorName are omitted.
 export type QuoteLineInput = {
   styleNumber?: string;
   colorName?: string;
@@ -282,16 +281,6 @@ export function findProductColor(product: Product, colorName: string) {
   return color;
 }
 
-// Groups quote lines by (decorationId + priceColumnId) so the quantity
-// price-break tier and the one-time setup fee are computed against the
-// *combined* quantity across every line sharing that same decoration +
-// pricing column — e.g. 7 units of one style and 6 of another, both
-// embroidered at the same stitch-count band, share one 13-unit tier rather
-// than each falling back to the "1 unit" tier on its own.
-function groupKey(decorationId?: string, priceColumnId?: string): string {
-  return `${decorationId ?? ""}::${priceColumnId ?? ""}`;
-}
-
 export function computeQuote(
   input: QuoteInput,
   productsByStyle: Map<string, Product>,
@@ -319,14 +308,6 @@ export function computeQuote(
     return { id: match.id, label: match.label, price: money(match.price), taxable: match.taxable ?? true };
   });
 
-  // Pass 1: resolve garment prices and combined quantity per decoration group.
-  const groupQuantity = new Map<string, number>();
-  for (const line of cleanedLines) {
-    const qty = line.sizes.reduce((sum, s) => sum + s.quantity, 0);
-    const key = groupKey(line.decorationId, line.priceColumnId);
-    groupQuantity.set(key, (groupQuantity.get(key) ?? 0) + qty);
-  }
-
   const lines: QuoteLineResult[] = cleanedLines.map((line) => {
     const decoration = line.decorationId
       ? decorations.find((d) => d.id === line.decorationId)
@@ -335,12 +316,18 @@ export function computeQuote(
       throw new QuoteInputError(`Unknown decoration type "${line.decorationId}"`);
     }
 
-    const key = groupKey(line.decorationId, line.priceColumnId);
-    const groupQty = groupQuantity.get(key) ?? 0;
+    // Each line's decoration quantity price-break tier is resolved purely
+    // from that line's OWN total quantity — two separately-added 24-unit
+    // lines sharing the same decoration + price column each price at their
+    // own 24-unit tier rather than being pooled into a combined 48-unit
+    // tier. (Previously this pooled quantity across every line sharing the
+    // same decorationId + priceColumnId; that pooling was removed per the
+    // admin's request so each added line always reflects its own quantity.)
+    const lineQty = line.sizes.reduce((sum, s) => sum + s.quantity, 0);
     const decorationUnitPrice = decoration
       ? decoration.quoteRequired
         ? 0
-        : getUnitPriceForQuantity(decoration, groupQty, line.priceColumnId)
+        : getUnitPriceForQuantity(decoration, lineQty, line.priceColumnId)
       : 0;
 
     const priceColumnLabel = line.priceColumnId
@@ -352,8 +339,8 @@ export function computeQuote(
     // size (QuoteSizeInput.garmentCost/garmentMarkupPercent — both default
     // to 0, reproducing the original "no garment charge, decoration only"
     // behavior for a plain "other" item with no price entered) plus the
-    // decoration's per-unit price (if any, pooled into the same groupQty
-    // tier as every other line above).
+    // decoration's per-unit price (if any, priced off this line's own
+    // quantity — see decorationUnitPrice/lineQty above).
     if (line.customerSupplied) {
       // "customer-supplied" (free) items never carry a garment charge — the
       // customer brought the item in, so no garmentCost/markup ever applies

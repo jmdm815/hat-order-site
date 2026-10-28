@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ComputedQuote, QuoteLineInput, QuoteSizeInput } from "@/lib/quote";
 import { QuoteRecord } from "@/lib/quotes-store";
-import { DecorationOption, SetupChargeType, PaymentTermOption, TaxRateOption } from "@/lib/types";
+import {
+  DecorationOption,
+  SetupChargeType,
+  PaymentTermOption,
+  TaxRateOption,
+  GarmentMarkupBreakpoint,
+} from "@/lib/types";
+import { getMarkupPercentForCost } from "@/lib/garment-markup";
 import { formatUSD } from "@/lib/pricing";
 import {
   ManualQuoteProduct,
@@ -97,18 +104,64 @@ function csDefaultRowsForType(itemType: "apparel" | "hat" | "other"): CsPricedSi
 // adapter). showPricing hides the Cost $/Markup %/Price columns for a free
 // customer-supplied item, where the garment is never charged for — only
 // the size/quantity columns show in that case.
+//
+// Each row doesn't have to be a different SIZE of the same item — typing a
+// different description into the row's text field (and using "Copy" to
+// start the next row from the same cost/markup) lets several distinct
+// custom items ride under one quote line, the same way a catalog line's
+// size grid already lets several sizes of one product ride under it.
+//
+// markupBreakpoints wires in the admin's existing cost -> markup % table
+// (lib/garment-markup.ts, same one SanMar/S&S items use) so a priced row's
+// markup fills in automatically from its cost — the admin only has to type
+// a cost, not a markup, for the common case. "Set markup manually" reveals
+// a per-row override for the rare item that needs something different;
+// hidden by default.
 function CsPricedSizeRows({
   rows,
   onChange,
   showPricing = true,
+  markupBreakpoints = [],
+  itemPlaceholder = "Size (e.g. M, One Size)",
+  addRowLabel = "+ Add size row",
 }: {
   rows: CsPricedSizeRow[];
   onChange: (next: CsPricedSizeRow[]) => void;
   showPricing?: boolean;
+  markupBreakpoints?: GarmentMarkupBreakpoint[];
+  itemPlaceholder?: string;
+  addRowLabel?: string;
 }) {
+  const [manualMarkup, setManualMarkup] = useState(false);
+
   function updateRow(i: number, patch: Partial<CsPricedSizeRow>) {
-    onChange(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+    onChange(
+      rows.map((r, idx) => {
+        if (idx !== i) return r;
+        const next = { ...r, ...patch };
+        if (showPricing && !manualMarkup && "cost" in patch) {
+          next.markupPercent = getMarkupPercentForCost(markupBreakpoints, next.cost);
+        }
+        return next;
+      })
+    );
   }
+
+  function copyRow(i: number) {
+    const next = [...rows];
+    next.splice(i + 1, 0, { ...rows[i] });
+    onChange(next);
+  }
+
+  function toggleManualMarkup() {
+    if (manualMarkup) {
+      // Switching back to automatic — recompute every row from its current
+      // cost so the grid immediately reflects the breakpoint table again.
+      onChange(rows.map((r) => ({ ...r, markupPercent: getMarkupPercentForCost(markupBreakpoints, r.cost) })));
+    }
+    setManualMarkup((v) => !v);
+  }
+
   return (
     <div className="mt-1.5 space-y-1.5">
       {rows.map((row, i) => (
@@ -116,8 +169,8 @@ function CsPricedSizeRows({
           <input
             value={row.size}
             onChange={(e) => updateRow(i, { size: e.target.value })}
-            placeholder="Size (e.g. M, One Size)"
-            className="w-28 border border-white/20 rounded-xl px-2 py-1 text-sm"
+            placeholder={itemPlaceholder}
+            className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
           />
           <label className="flex items-center gap-1 text-[11px] text-white/50">
             Qty
@@ -142,20 +195,27 @@ function CsPricedSizeRows({
                   className="w-20 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
                 />
               </label>
-              <label className="flex items-center gap-1 text-[11px] text-white/50">
-                Markup %
-                <input
-                  type="number"
-                  min={0}
-                  step="1"
-                  value={row.markupPercent}
-                  onChange={(e) => updateRow(i, { markupPercent: Math.max(0, Number(e.target.value) || 0) })}
-                  className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
-                />
-              </label>
+              {manualMarkup ? (
+                <label className="flex items-center gap-1 text-[11px] text-white/50">
+                  Markup %
+                  <input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={row.markupPercent}
+                    onChange={(e) => updateRow(i, { markupPercent: Math.max(0, Number(e.target.value) || 0) })}
+                    className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+                  />
+                </label>
+              ) : (
+                <span className="text-[11px] text-white/40">({row.markupPercent}% markup)</span>
+              )}
               <span className="text-xs text-white/70 w-16 text-right shrink-0">${csRowPrice(row).toFixed(2)}</span>
             </>
           )}
+          <button type="button" onClick={() => copyRow(i)} className="text-xs text-white/60 hover:underline">
+            Copy
+          </button>
           <button
             type="button"
             onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
@@ -165,13 +225,20 @@ function CsPricedSizeRows({
           </button>
         </div>
       ))}
-      <button
-        type="button"
-        onClick={() => onChange([...rows, { size: "", quantity: 0, cost: 0, markupPercent: 0 }])}
-        className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
-      >
-        + Add size row
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onChange([...rows, { size: "", quantity: 0, cost: 0, markupPercent: 0 }])}
+          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+        >
+          {addRowLabel}
+        </button>
+        {showPricing && (
+          <button type="button" onClick={toggleManualMarkup} className="text-xs text-white/40 hover:underline">
+            {manualMarkup ? "Use automatic markup" : "Set markup manually"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -273,6 +340,11 @@ export default function AdminQuoteBuilder({
   const router = useRouter();
   const [decorations, setDecorations] = useState<DecorationOption[]>([]);
   const [decorationsLoaded, setDecorationsLoaded] = useState(false);
+  // Cost → markup % breakpoints from the shared Garment Markup settings
+  // (same table used for SanMar/S&S) — used to auto-fill each Custom-catalog
+  // row's markup from its typed cost, so the admin never has to type a
+  // markup by hand unless they flip on the manual override.
+  const [garmentMarkupBreakpoints, setGarmentMarkupBreakpoints] = useState<GarmentMarkupBreakpoint[]>([]);
   const [setupCharges, setSetupCharges] = useState<SetupChargeType[]>([]);
   const [selectedSetupChargeIds, setSelectedSetupChargeIds] = useState<string[]>(
     () => initialRecord?.input.setupChargeIds ?? initialSetupChargeIds ?? []
@@ -505,6 +577,12 @@ export default function AdminQuoteBuilder({
       .then((r) => r.json())
       .then((d: { setupCharges: SetupChargeType[] }) => setSetupCharges(d.setupCharges ?? []))
       .catch(() => setSetupCharges([]));
+    fetch("/api/admin/garment-markup")
+      .then((r) => r.json())
+      .then((d: { settings: { breakpoints: GarmentMarkupBreakpoint[] } }) =>
+        setGarmentMarkupBreakpoints(d.settings?.breakpoints ?? [])
+      )
+      .catch(() => setGarmentMarkupBreakpoints([]));
     fetch("/api/admin/payment-terms")
       .then((r) => r.json())
       .then((d: { paymentTerms: PaymentTermOption[] }) => {
@@ -2507,7 +2585,7 @@ export default function AdminQuoteBuilder({
                           <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
                             {line.customerSupplied
                               ? line.manualSource === "custom"
-                                ? "Sizes, cost & pricing"
+                                ? "Items, cost & pricing"
                                 : "Sizes & quantities"
                               : "Quantities"}
                           </span>
@@ -2530,6 +2608,11 @@ export default function AdminQuoteBuilder({
                                 )
                               }
                               showPricing={line.manualSource === "custom"}
+                              markupBreakpoints={garmentMarkupBreakpoints}
+                              itemPlaceholder={
+                                line.manualSource === "custom" ? "Item (e.g. S, Tumbler, Keychain)" : undefined
+                              }
+                              addRowLabel={line.manualSource === "custom" ? "+ Add item row" : undefined}
                             />
                           ) : (
                             <div className="mt-1.5 space-y-1.5">
@@ -3271,17 +3354,20 @@ export default function AdminQuoteBuilder({
 
             <div className="mt-3">
               <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
-                {catalogSource === "custom" ? "Sizes, cost & pricing" : "Sizes & quantities"}
+                {catalogSource === "custom" ? "Items, cost & pricing" : "Sizes & quantities"}
               </span>
               <p className="mt-1 text-xs text-white/40">
                 {catalogSource === "custom"
-                  ? "Optional — leave a size's quantity at 0 to skip it. Cost and markup are both optional too (a blank cost means no garment charge); the Price column shown is cost marked up by that percentage."
+                  ? "Each row can be a totally different item, not just a size — use Copy to duplicate a row's cost. Markup auto-fills from the Garment Markup table based on cost; quantity is optional too (leave it at 0 to skip a row)."
                   : "Optional — leave a size's quantity at 0 to skip it."}
               </p>
               <CsPricedSizeRows
                 rows={csPricedSizeRows}
                 onChange={setCsPricedSizeRows}
                 showPricing={catalogSource === "custom"}
+                markupBreakpoints={garmentMarkupBreakpoints}
+                itemPlaceholder={catalogSource === "custom" ? "Item (e.g. S, Tumbler, Keychain)" : undefined}
+                addRowLabel={catalogSource === "custom" ? "+ Add item row" : undefined}
               />
             </div>
 
