@@ -363,7 +363,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                 </div>
 
                 {view === "deleted" ? (
-                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                  <div className="flex flex-wrap items-center gap-1.5 min-w-0 sm:justify-end">
                     <button
                       onClick={() => handleRestore(r.id)}
                       disabled={isBusy}
@@ -380,7 +380,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     </button>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                  <div className="flex flex-wrap items-center gap-1.5 min-w-0 sm:justify-end">
                     <button
                       onClick={() => onEdit(r.id)}
                       className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
