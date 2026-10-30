@@ -23,8 +23,12 @@
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { PDFDocument as PdfLibDocument } from "pdf-lib";
+import sharp from "sharp";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { ComputedQuote } from "./quote";
 import { InvoicePaymentStatus } from "./quotes-store";
+import { getBrandSettings } from "./pricing-store";
 
 const NAVY = "#292e45";
 const RED = "#cd2229";
@@ -33,6 +37,176 @@ const AMBER = "#b8860b";
 const CREAM = "#f7f5f1";
 const GRAY = "#666666";
 const BORDER = "#c7c2b8";
+// Light gray-cream bar/box background used by the letterhead's info bar,
+// the ordered-by/contact box, and the totals box — matches the shaded
+// boxes in the "ShopBox"-style reference invoice layout this file's
+// renderQuotePdf header/footer/totals are modeled on.
+const BAR_BG = "#eeece5";
+
+// ---------------------------------------------------------------------------
+// Letterhead — company info (left) + logo (right), shared by every PDF this
+// module renders (quote/invoice, payment receipt, job-folder extras) so they
+// all read as one consistent branded document set.
+// ---------------------------------------------------------------------------
+const COMPANY_NAME = "JM Digital Media LLC";
+const COMPANY_ADDRESS = "815 2nd St Rosenberg, TX 77471-2505";
+const COMPANY_EMAIL = "purchasing@buyjmmedia.com";
+const COMPANY_PHONE = "(281) 344-1772";
+const COMPANY_WEBSITE = "www.buyjmmedia.com";
+
+// Fetches the admin-uploaded logo (same private Vercel Blob /api/logo
+// streams from — see lib/pricing-store.ts's BrandSettings/publicLogoUrl),
+// falling back to the bundled placeholder file when nothing's uploaded yet
+// or the fetch fails. Downsized with sharp since the uploaded original can
+// be several thousand pixels wide (fine for a web <img>, wasteful to embed
+// at full resolution in a PDF). SVG uploads are skipped — pdfkit's
+// doc.image() can't embed them — rather than rendering with no logo at all
+// callers still fall back to the static file in that case... actually a
+// skipped SVG just means no logo image this render; that's acceptable
+// since SVG uploads aren't common via the admin's PNG/JPG/WebP/SVG picker.
+// Cached at module scope for the lifetime of a warm serverless instance —
+// the logo changes rarely, so re-fetching/re-resizing on every PDF is
+// wasted work.
+let cachedLogoBuffer: Promise<Buffer | null> | null = null;
+
+async function loadLogoBuffer(): Promise<Buffer | null> {
+  if (cachedLogoBuffer) return cachedLogoBuffer;
+  cachedLogoBuffer = (async () => {
+    let raw: Buffer | null = null;
+    try {
+      const brand = await getBrandSettings();
+      if (brand.logoUrl) {
+        const res = await fetch(brand.logoUrl, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
+        });
+        if (res.ok) raw = Buffer.from(await res.arrayBuffer());
+        else console.error(`quote-pdf: uploaded logo fetch returned ${res.status}`);
+      }
+    } catch (err) {
+      console.error("quote-pdf: failed to fetch uploaded logo", err);
+    }
+    if (!raw) {
+      try {
+        raw = await fs.readFile(path.join(process.cwd(), "public", "brand", "jm-logo.png"));
+      } catch (err) {
+        console.error("quote-pdf: failed to read fallback logo file", err);
+        return null;
+      }
+    }
+    const looksLikeSvg =
+      raw.slice(0, 5).toString("utf8").trim().startsWith("<?xml") ||
+      raw.slice(0, 4).toString("utf8").trim().startsWith("<svg");
+    if (looksLikeSvg) return null;
+    try {
+      return await sharp(raw).resize({ width: 300, height: 300, fit: "inside" }).png().toBuffer();
+    } catch (err) {
+      console.error("quote-pdf: failed to resize logo, embedding original bytes", err);
+      return raw;
+    }
+  })();
+  return cachedLogoBuffer;
+}
+
+// Company block on the left, logo flush right — returns the y position
+// where it's safe to continue drawing (the lower of the two columns'
+// bottoms).
+function drawCompanyBlock(
+  doc: PDFKit.PDFDocument,
+  left: number,
+  pageWidth: number,
+  logoBuffer: Buffer | null
+): number {
+  const topY = doc.y;
+  const textWidth = pageWidth - 100;
+  doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(14).text(COMPANY_NAME, left, topY, { width: textWidth });
+  doc.fillColor(GRAY).font("Helvetica").fontSize(8.5);
+  doc.text(COMPANY_ADDRESS, left, doc.y + 2, { width: textWidth });
+  doc.text(COMPANY_EMAIL, left, doc.y, { width: textWidth });
+  doc.text(COMPANY_PHONE, left, doc.y, { width: textWidth });
+  doc.moveDown(0.5);
+  doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(8.5).text(COMPANY_WEBSITE, left, doc.y, { width: textWidth });
+  const leftBottom = doc.y;
+
+  const logoSize = 72;
+  if (logoBuffer) {
+    try {
+      doc.image(logoBuffer, left + pageWidth - logoSize, topY, { fit: [logoSize, logoSize], align: "center", valign: "center" });
+    } catch (err) {
+      console.error("quote-pdf: failed to embed logo image", err);
+    }
+  }
+  return Math.max(leftBottom, topY + logoSize);
+}
+
+// Big document-type heading + a light-gray 3-column info bar underneath
+// (date / terms / document number, mode-dependent) — the "Invoice 1655"
+// heading-plus-metadata-bar pattern from the reference layout.
+function drawTitleBar(
+  doc: PDFKit.PDFDocument,
+  left: number,
+  pageWidth: number,
+  title: string,
+  columns: { label: string; value: string }[]
+): void {
+  doc.moveDown(0.9);
+  doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(22).text(title, left, doc.y, { width: pageWidth });
+  doc.moveDown(0.5);
+
+  const barY = doc.y;
+  const barH = 34;
+  doc.rect(left, barY, pageWidth, barH).fill(BAR_BG);
+  const colW = pageWidth / columns.length;
+  columns.forEach((col, i) => {
+    const cx = left + i * colW;
+    if (i > 0) {
+      doc.strokeColor(BORDER).lineWidth(0.5).moveTo(cx, barY + 6).lineTo(cx, barY + barH - 6).stroke();
+    }
+    doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7).text(col.label.toUpperCase(), cx + 10, barY + 6, { width: colW - 20 });
+    doc.fillColor(NAVY).font("Helvetica").fontSize(9.5).text(col.value, cx + 10, barY + 17, { width: colW - 20 });
+  });
+  doc.y = barY + barH;
+  doc.moveDown(0.7);
+}
+
+// Boxed, bordered two-column block (ordered-by / contact info) that
+// replaces the old plain-text "PREPARED FOR"/"BILL TO"/"ORDER FOR" line.
+// Returns without drawing anything if both columns are empty.
+function drawOrderedByBox(
+  doc: PDFKit.PDFDocument,
+  left: number,
+  pageWidth: number,
+  labelLeft: string,
+  labelRight: string,
+  leftLines: string[],
+  rightLines: string[]
+): void {
+  if (leftLines.length === 0 && rightLines.length === 0) return;
+  const boxTop = doc.y;
+  const colW = pageWidth / 2;
+
+  doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(8).text(labelLeft.toUpperCase(), left + 10, boxTop + 8, { width: colW - 30 });
+  doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(8).text(labelRight.toUpperCase(), left + colW + 10, boxTop + 8, { width: colW - 30 });
+
+  doc.fillColor(NAVY).font("Helvetica").fontSize(9.5);
+  let ly = boxTop + 20;
+  for (const line of leftLines) {
+    doc.text(line, left + 10, ly, { width: colW - 30 });
+    ly = doc.y;
+  }
+  let ry = boxTop + 20;
+  for (const line of rightLines) {
+    doc.text(line, left + colW + 10, ry, { width: colW - 30 });
+    ry = doc.y;
+  }
+
+  const boxBottom = Math.max(ly, ry) + 10;
+  doc.strokeColor(BORDER).lineWidth(0.75);
+  doc.rect(left, boxTop, pageWidth, boxBottom - boxTop).stroke();
+  doc.moveTo(left + colW, boxTop).lineTo(left + colW, boxBottom).stroke();
+  doc.y = boxBottom;
+  doc.moveDown(0.7);
+}
 
 export type QuotePdfMode = "customer" | "internal" | "work-order" | "invoice";
 
@@ -78,13 +252,6 @@ function formatDate(iso: string): string {
   });
 }
 
-const TITLE: Record<QuotePdfMode, string> = {
-  customer: "QUOTE",
-  internal: "INTERNAL QUOTE",
-  "work-order": "WORK ORDER",
-  invoice: "INVOICE",
-};
-
 export async function renderQuotePdf(
   quote: ComputedQuote,
   mode: QuotePdfMode = "customer",
@@ -120,6 +287,8 @@ export async function renderQuotePdf(
       })
     : null;
 
+  const logoBuffer = await loadLogoBuffer();
+
   return new Promise((resolve, reject) => {
     const internal = mode === "internal";
     const workOrder = mode === "work-order";
@@ -127,7 +296,7 @@ export async function renderQuotePdf(
     const showPricing = !workOrder;
     const showCostColumns = internal;
 
-    const doc = new PDFDocument({ size: "LETTER", margin: 50 });
+    const doc = new PDFDocument({ size: "LETTER", margin: 50, bufferPages: true });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
@@ -136,46 +305,65 @@ export async function renderQuotePdf(
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const left = doc.page.margins.left;
 
-    // --- Header ---------------------------------------------------------
-    doc
-      .fillColor(NAVY)
-      .font("Helvetica-Bold")
-      .fontSize(20)
-      .text("JM Digital Media", left, doc.y, { continued: false });
-    doc
-      .fillColor(GRAY)
-      .font("Helvetica")
-      .fontSize(9)
-      .text("Look the Part. Mean Business.", left, doc.y + 2);
-    doc.moveDown(0.3);
-    doc
-      .fillColor(GRAY)
-      .fontSize(9)
-      .text("buyjmmedia.com", left, doc.y);
-    const leftColumnEndY = doc.y;
+    // --- Header / letterhead ---------------------------------------------
+    doc.y = 50;
+    drawCompanyBlock(doc, left, pageWidth, logoBuffer);
 
-    doc
-      .fillColor(RED)
-      .font("Helvetica-Bold")
-      .fontSize(internal ? 18 : 22)
-      .text(TITLE[mode], left, 50, { width: pageWidth, align: "right" });
-    doc
-      .fillColor(GRAY)
-      .font("Helvetica")
-      .fontSize(9)
-      .text(`Date: ${formatDate(quote.quoteDate)}`, { width: pageWidth, align: "right" });
-    if (invoice && invoiceMeta?.invoiceNumber) {
-      doc.text(`Invoice #: ${invoiceMeta.invoiceNumber}`, { width: pageWidth, align: "right" });
-    } else if (!invoice && invoiceMeta?.quoteNumber) {
-      doc.text(`Quote #: ${invoiceMeta.quoteNumber}`, { width: pageWidth, align: "right" });
-    }
+    const isPartialDeposit = Boolean(quote.depositPercent && quote.depositPercent < 100);
+    const titleText = internal
+      ? `Internal Quote${invoiceMeta?.quoteNumber ? ` ${invoiceMeta.quoteNumber}` : ""}`
+      : workOrder
+        ? `Work Order${invoiceMeta?.quoteNumber ? ` ${invoiceMeta.quoteNumber}` : ""}`
+        : invoice
+          ? `Invoice${invoiceMeta?.invoiceNumber ? ` ${invoiceMeta.invoiceNumber}` : ""}`
+          : `Quote${invoiceMeta?.quoteNumber ? ` ${invoiceMeta.quoteNumber}` : ""}`;
 
-    // The header has two independently-flowing columns (brand block on the
-    // left, title/date on the right, the latter drawn at a fixed y=50) — use
-    // whichever column ended lower so the banner/rule below never overlaps
-    // the taller of the two.
-    doc.y = Math.max(doc.y, leftColumnEndY);
-    doc.moveDown(1.2);
+    const barColumns = workOrder
+      ? [
+          { label: "Order Date", value: formatDate(quote.quoteDate) },
+          { label: "Status", value: "Production" },
+          { label: "Order #", value: invoiceMeta?.quoteNumber || "—" },
+        ]
+      : invoice
+        ? [
+            { label: "Invoice Date", value: formatDate(quote.quoteDate) },
+            {
+              label: "Terms",
+              value:
+                invoiceMeta?.invoiceStatus === "paid"
+                  ? "Paid"
+                  : invoiceMeta?.invoiceStatus === "partially_paid"
+                    ? "Balance due"
+                    : "Due on receipt",
+            },
+            { label: "Invoice #", value: invoiceMeta?.invoiceNumber || "—" },
+          ]
+        : [
+            { label: "Quote Date", value: formatDate(quote.quoteDate) },
+            { label: "Terms", value: isPartialDeposit ? `${quote.depositPercent}% deposit` : "Due in full" },
+            { label: "Quote #", value: invoiceMeta?.quoteNumber || "—" },
+          ];
+
+    drawTitleBar(doc, left, pageWidth, titleText, barColumns);
+
+    // --- Ordered by / contact info ----------------------------------------
+    const identityLine =
+      quote.customerName && quote.customerCompany
+        ? `${quote.customerName}(${quote.customerCompany})`
+        : quote.customerName || quote.customerCompany || "";
+    const orderedByLines = identityLine ? [identityLine] : [];
+    const contactLines = identityLine ? [identityLine] : [];
+    if (!workOrder && quote.customerEmail) contactLines.push(quote.customerEmail);
+
+    drawOrderedByBox(
+      doc,
+      left,
+      pageWidth,
+      workOrder ? "ORDER FOR" : invoice ? "BILL TO" : "ORDERED BY",
+      "CONTACT INFO",
+      orderedByLines,
+      contactLines
+    );
 
     if (internal || workOrder) {
       const bannerText = internal
@@ -276,20 +464,6 @@ export async function renderQuotePdf(
       .lineTo(left + pageWidth, doc.y)
       .stroke();
     doc.moveDown(0.8);
-
-    // --- Customer block ---------------------------------------------------
-    if (quote.customerName || quote.customerCompany || (!workOrder && quote.customerEmail)) {
-      doc
-        .fillColor(GRAY)
-        .font("Helvetica-Bold")
-        .fontSize(9)
-        .text(workOrder ? "ORDER FOR" : invoice ? "BILL TO" : "PREPARED FOR");
-      doc.font("Helvetica").fontSize(10).fillColor(NAVY);
-      if (quote.customerName) doc.text(quote.customerName);
-      if (quote.customerCompany) doc.text(quote.customerCompany);
-      if (!workOrder && quote.customerEmail) doc.fillColor(GRAY).fontSize(9).text(quote.customerEmail);
-      doc.moveDown(1);
-    }
 
     // --- Line items ---------------------------------------------------------
     // Compact "card" per garment/color — a small brand/style/color label on
@@ -591,7 +765,7 @@ export async function renderQuotePdf(
     }
 
     // --- Totals -------------------------------------------------------
-    if (doc.y > doc.page.height - doc.page.margins.bottom - 120) {
+    if (doc.y > doc.page.height - doc.page.margins.bottom - 150) {
       doc.addPage();
     }
     doc
@@ -600,18 +774,12 @@ export async function renderQuotePdf(
       .moveTo(left, doc.y)
       .lineTo(left + pageWidth, doc.y)
       .stroke();
-    doc.moveDown(0.5);
+    doc.moveDown(0.6);
 
-    const totalsX = left + pageWidth - 220;
-    function totalRow(label: string, value: string, bold = false) {
-      doc
-        .font(bold ? "Helvetica-Bold" : "Helvetica")
-        .fontSize(bold ? 12 : 10)
-        .fillColor(bold ? RED : NAVY)
-        .text(label, totalsX, doc.y, { width: 130 })
-        .text(value, totalsX + 130, doc.y - doc.currentLineHeight(), { width: 80, align: "right" });
-    }
-
+    // Build the row list first, then size a single bordered/shaded box to
+    // fit them — the "boxed totals, bottom-right" look from the reference
+    // layout — rather than the old plain right-aligned rows with no box.
+    const totalsRows: { label: string; value: string; bold?: boolean }[] = [];
     if (showPricing) {
       // Setup charges and misc fees are already folded into subtotalBeforeTax
       // (see quote.subtotalBeforeTax) — they're itemized above, in their own
@@ -623,34 +791,59 @@ export async function renderQuotePdf(
       // actually being billed.
       const miscFeeQuantity = quote.miscFees.reduce((sum, fee) => sum + fee.quantity, 0);
       const totalItemCount = quote.totalQuantity + miscFeeQuantity;
-      totalRow(`Subtotal (${totalItemCount} item${totalItemCount === 1 ? "" : "s"})`, money(quote.subtotalBeforeTax));
+      totalsRows.push({
+        label: `Subtotal (${totalItemCount} item${totalItemCount === 1 ? "" : "s"})`,
+        value: money(quote.subtotalBeforeTax),
+      });
       if (quote.taxAmount > 0) {
-        doc.moveDown(0.4);
-        totalRow(`Tax (${quote.taxRatePercent}%)`, money(quote.taxAmount));
+        totalsRows.push({ label: `Tax (${quote.taxRatePercent}%)`, value: money(quote.taxAmount) });
       }
-      doc.moveDown(0.4);
-      totalRow(invoice ? "Amount Due" : "Grand Total", money(quote.grandTotal), true);
+      totalsRows.push({ label: invoice ? "Amount Due" : "Grand Total", value: money(quote.grandTotal), bold: true });
 
       const amountPaid = invoice ? invoiceMeta?.amountPaid ?? 0 : 0;
       if (invoice && amountPaid > 0) {
         const remaining = Math.max(0, quote.grandTotal - amountPaid);
-        doc.moveDown(0.4);
-        totalRow("Paid to date", money(amountPaid));
-        doc.moveDown(0.2);
-        totalRow("Balance remaining", money(remaining), true);
+        totalsRows.push({ label: "Paid to date", value: money(amountPaid) });
+        totalsRows.push({ label: "Balance remaining", value: money(remaining), bold: true });
       } else if (quote.depositPercent && quote.depositPercent < 100) {
         const depositAmount = quote.grandTotal * (quote.depositPercent / 100);
         const balanceAmount = quote.grandTotal - depositAmount;
-        doc.moveDown(0.4);
-        totalRow(`Deposit due now (${quote.depositPercent}%)`, money(depositAmount));
-        doc.moveDown(0.2);
-        totalRow("Balance due at pickup", money(balanceAmount));
+        totalsRows.push({ label: `Deposit due now (${quote.depositPercent}%)`, value: money(depositAmount) });
+        totalsRows.push({ label: "Balance due at pickup", value: money(balanceAmount) });
       }
     } else {
-      totalRow("Total units", String(quote.totalQuantity), true);
+      totalsRows.push({ label: "Total units", value: String(quote.totalQuantity), bold: true });
     }
 
+    const totalsBoxWidth = 240;
+    const totalsBoxX = left + pageWidth - totalsBoxWidth;
+    const totalsRowH = 20;
+    const totalsBoxTop = doc.y;
+    const totalsBoxHeight = totalsRows.length * totalsRowH + 16;
+    doc.rect(totalsBoxX, totalsBoxTop, totalsBoxWidth, totalsBoxHeight).fill(BAR_BG);
+    doc.strokeColor(BORDER).lineWidth(0.75).rect(totalsBoxX, totalsBoxTop, totalsBoxWidth, totalsBoxHeight).stroke();
+
+    let totalsRowY = totalsBoxTop + 8;
+    for (const row of totalsRows) {
+      doc
+        .font(row.bold ? "Helvetica-Bold" : "Helvetica")
+        .fontSize(row.bold ? 12 : 10)
+        .fillColor(row.bold ? RED : NAVY)
+        .text(row.label, totalsBoxX + 12, totalsRowY, { width: totalsBoxWidth - 120 })
+        .text(row.value, totalsBoxX + totalsBoxWidth - 108, totalsRowY, { width: 96, align: "right" });
+      totalsRowY += totalsRowH;
+    }
+    doc.y = totalsBoxTop + totalsBoxHeight;
+
     // --- Notes + footer -------------------------------------------------
+    // Reserve enough room for the notes block plus the closing disclaimer
+    // paragraph above the fixed page-footer stamp drawn below — otherwise
+    // a quote with enough line items/fees to push doc.y down near the
+    // bottom margin can land this text right on top of that stamp.
+    if (doc.y > doc.page.height - doc.page.margins.bottom - 90) {
+      doc.addPage();
+    }
+
     if (quote.notes) {
       doc.moveDown(1.5);
       doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("NOTES", left, doc.y, { width: pageWidth });
@@ -659,6 +852,10 @@ export async function renderQuotePdf(
         .fontSize(9.5)
         .fillColor(NAVY)
         .text(quote.notes, left, doc.y, { width: pageWidth });
+
+      if (doc.y > doc.page.height - doc.page.margins.bottom - 50) {
+        doc.addPage();
+      }
     }
 
     doc.moveDown(2);
@@ -678,6 +875,31 @@ export async function renderQuotePdf(
         doc.y,
         { width: pageWidth }
       );
+
+    // --- Page-footer stamp (every page) ------------------------------------
+    const pageRange = doc.bufferedPageRange();
+    const printedStamp = `PRINTED ON ${new Date()
+      .toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+      .toUpperCase()} — JM DIGITAL MEDIA`;
+    for (let i = pageRange.start; i < pageRange.start + pageRange.count; i++) {
+      doc.switchToPage(i);
+      // Stay inside the printable area (above the bottom margin) — pdfkit
+      // auto-inserts a new page for any text() call positioned past the
+      // margin boundary, even with an explicit y, which would otherwise
+      // spawn extra blank trailing pages just from stamping the footer.
+      const stampY = doc.page.height - doc.page.margins.bottom - 18;
+      doc
+        .fillColor(GRAY)
+        .font("Helvetica")
+        .fontSize(7)
+        .text(printedStamp, left, stampY, { width: pageWidth / 2, align: "left" })
+        .text(
+          `PAGE ${i - pageRange.start + 1} OF ${pageRange.count}`,
+          left + pageWidth / 2,
+          stampY,
+          { width: pageWidth / 2, align: "right" }
+        );
+    }
 
     doc.end();
   });
@@ -728,6 +950,7 @@ function formatDateTime(iso: string): string {
 
 export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise<Buffer> {
   const paidInFull = data.balanceAfter <= 0.005;
+  const logoBuffer = await loadLogoBuffer();
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "LETTER", margin: 50 });
@@ -740,26 +963,14 @@ export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise
     const left = doc.page.margins.left;
 
     // --- Header -----------------------------------------------------------
-    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(20).text("JM Digital Media", left, doc.y);
-    doc.fillColor(GRAY).font("Helvetica").fontSize(9).text("Look the Part. Mean Business.", left, doc.y + 2);
+    doc.y = 50;
+    drawCompanyBlock(doc, left, pageWidth, logoBuffer);
+    drawTitleBar(doc, left, pageWidth, "Payment Receipt", [
+      { label: "Date", value: formatDateTime(data.payment.createdAt) },
+      { label: "For", value: data.docLabel },
+      { label: "Method", value: data.payment.methodLabel },
+    ]);
     doc.moveDown(0.3);
-    doc.fillColor(GRAY).fontSize(9).text("buyjmmedia.com", left, doc.y);
-    const leftColumnEndY = doc.y;
-
-    doc
-      .fillColor(RED)
-      .font("Helvetica-Bold")
-      .fontSize(22)
-      .text("PAYMENT RECEIPT", left, 50, { width: pageWidth, align: "right" });
-    doc
-      .fillColor(GRAY)
-      .font("Helvetica")
-      .fontSize(9)
-      .text(formatDateTime(data.payment.createdAt), { width: pageWidth, align: "right" });
-    doc.text(`For: ${data.docLabel}`, { width: pageWidth, align: "right" });
-
-    doc.y = Math.max(doc.y, leftColumnEndY);
-    doc.moveDown(1.2);
 
     doc
       .strokeColor(NAVY)
@@ -875,6 +1086,8 @@ export type JobFolderPdfData = {
 };
 
 async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<Buffer> {
+  const logoBuffer = await loadLogoBuffer();
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "LETTER", margin: 50 });
     const chunks: Buffer[] = [];
@@ -886,24 +1099,16 @@ async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<Buffer>
     const left = doc.page.margins.left;
 
     // --- Header -------------------------------------------------------------
-    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(20).text("JM Digital Media", left, doc.y);
-    doc.fillColor(GRAY).font("Helvetica").fontSize(9).text("Look the Part. Mean Business.", left, doc.y + 2);
-    const leftColumnEndY = doc.y;
-
-    doc
-      .fillColor(RED)
-      .font("Helvetica-Bold")
-      .fontSize(20)
-      .text("MOCK-UP & PRINT FILES", left, 50, { width: pageWidth, align: "right" });
-    doc.fillColor(GRAY).font("Helvetica").fontSize(9).text(`For: ${data.docLabel}`, { width: pageWidth, align: "right" });
-    if (data.customerName || data.customerCompany) {
-      doc.text([data.customerName, data.customerCompany].filter(Boolean).join(" — "), { width: pageWidth, align: "right" });
-    }
-
-    doc.y = Math.max(doc.y, leftColumnEndY);
-    doc.moveDown(0.8);
-    doc.strokeColor(NAVY).lineWidth(1.5).moveTo(left, doc.y).lineTo(left + pageWidth, doc.y).stroke();
-    doc.moveDown(0.8);
+    doc.y = 50;
+    drawCompanyBlock(doc, left, pageWidth, logoBuffer);
+    drawTitleBar(doc, left, pageWidth, "Mock-Up & Print Files", [
+      { label: "For", value: data.docLabel },
+      {
+        label: "Customer",
+        value: [data.customerName, data.customerCompany].filter(Boolean).join(" — ") || "—",
+      },
+    ]);
+    doc.moveDown(0.3);
 
     // --- Mock-up image --------------------------------------------------
     doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("GARMENT MOCK-UP", left, doc.y);
