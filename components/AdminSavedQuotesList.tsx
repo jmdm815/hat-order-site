@@ -304,6 +304,27 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                         {STATUS_LABEL[r.invoiceStatus]}
                       </span>
                     )}
+                    {/* A plain quote (never converted to an invoice) has no
+                        invoiceStatus field — that only exists on "invoice"
+                        records — but it still tracks amountPaid/payments
+                        whenever someone pays through its pay page before
+                        conversion (e.g. paying the full amount up front
+                        instead of a deposit). Without this, a fully- or
+                        partially-paid quote showed no payment indicator
+                        anywhere in this list. */}
+                    {r.status === "quote" && (r.amountPaid ?? 0) > 0 && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          r.amountPaid! >= r.computed.grandTotal - 0.005
+                            ? STATUS_CLASS.paid
+                            : STATUS_CLASS.partially_paid
+                        }`}
+                      >
+                        {r.amountPaid! >= r.computed.grandTotal - 0.005
+                          ? "Paid in full"
+                          : `$${r.amountPaid!.toFixed(2)} paid`}
+                      </span>
+                    )}
                     {view !== "deleted" && r.status === "quote" && r.linkedInvoiceId && (
                       <button
                         onClick={() => onEdit(r.linkedInvoiceId!)}
@@ -326,10 +347,9 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                   <div className="text-xs text-white/50 mt-0.5">
                     {r.computed.totalQuantity} units · ${r.computed.grandTotal.toFixed(2)} · saved{" "}
                     {new Date(r.updatedAt).toLocaleDateString()}
-                    {r.status === "invoice" &&
-                      typeof r.amountPaid === "number" &&
+                    {typeof r.amountPaid === "number" &&
                       r.amountPaid > 0 &&
-                      r.amountPaid < r.computed.grandTotal && (
+                      r.amountPaid < r.computed.grandTotal - 0.005 && (
                         <> · ${r.amountPaid.toFixed(2)} paid, ${(r.computed.grandTotal - r.amountPaid).toFixed(2)} remaining</>
                       )}
                     {view === "deleted" && r.deletedAt && (
@@ -444,7 +464,11 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                               : "border border-blue-400 text-blue-700 hover:bg-blue-50"
                           }`}
                         >
-                          {(r.amountPaid ?? 0) > 0 ? `Deposit ($${(r.amountPaid ?? 0).toFixed(2)})` : "Deposit"}
+                          {(r.amountPaid ?? 0) >= r.computed.grandTotal - 0.005
+                            ? `Paid ($${(r.amountPaid ?? 0).toFixed(2)})`
+                            : (r.amountPaid ?? 0) > 0
+                              ? `Deposit ($${(r.amountPaid ?? 0).toFixed(2)})`
+                              : "Deposit"}
                         </button>
                         {(r.amountPaid ?? 0) < r.computed.grandTotal - 0.005 && (
                           <button
