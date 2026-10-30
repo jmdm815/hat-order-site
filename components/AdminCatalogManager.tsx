@@ -191,7 +191,7 @@ export default function AdminCatalogManager() {
   }
 
   if (loading) {
-    return <p className="text-white/40 text-sm">Loading catalog…</p>;
+    return <p className="text-admin-ink/62 text-sm">Loading catalog…</p>;
   }
 
   return (
@@ -206,13 +206,13 @@ export default function AdminCatalogManager() {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 sticky top-[57px] bg-black/95 backdrop-blur py-3 z-10 border-b border-white/10">
+      <div className="flex flex-wrap items-center gap-3 sticky top-[57px] bg-admin-card/95 backdrop-blur py-3 z-10 border-b border-admin-ink/10">
         <input
           type="text"
           placeholder="Search brand, name, or style #…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-white/20 rounded-xl px-3 py-2 text-sm w-64"
+          className="border border-admin-ink/20 rounded-xl px-3 py-2 text-sm w-64"
         />
         <div className="flex gap-1">
           {(["all", "hat", "shirt", "polo", "tumbler"] as const).map((t) => (
@@ -224,8 +224,8 @@ export default function AdminCatalogManager() {
               }}
               className={`px-3 py-2 text-sm rounded-xl border capitalize ${
                 productType === t
-                  ? "bg-navy text-white border-white"
-                  : "border-white/20 text-white/70 hover:bg-white/5"
+                  ? "bg-admin-bg text-admin-ink border-admin-ink"
+                  : "border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
               }`}
             >
               {productTypeLabel(t)}
@@ -235,7 +235,7 @@ export default function AdminCatalogManager() {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="border border-white/20 rounded-xl px-3 py-2 text-sm"
+          className="border border-admin-ink/20 rounded-xl px-3 py-2 text-sm"
         >
           <option value="All">All</option>
           {categoryOptions.map((c) => (
@@ -247,7 +247,7 @@ export default function AdminCatalogManager() {
         <select
           value={visibilityFilter}
           onChange={(e) => setVisibilityFilter(e.target.value as typeof visibilityFilter)}
-          className="border border-white/20 rounded-xl px-3 py-2 text-sm"
+          className="border border-admin-ink/20 rounded-xl px-3 py-2 text-sm"
         >
           <option value="all">All</option>
           <option value="visible">Visible only</option>
@@ -255,11 +255,11 @@ export default function AdminCatalogManager() {
         </select>
         <button
           onClick={() => setCustomProductForm({ mode: "add" })}
-          className="text-sm px-3 py-2 rounded-xl border border-white/20 hover:bg-white/5 font-medium text-white"
+          className="text-sm px-3 py-2 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5 font-medium text-admin-ink"
         >
           + Add custom product
         </button>
-        <span className="text-sm text-white/60 ml-auto">
+        <span className="text-sm text-admin-ink/80 ml-auto">
           {filtered.length} shown · {styles.length - hidden.size} visible of{" "}
           {styles.length} total
         </span>
@@ -267,7 +267,7 @@ export default function AdminCatalogManager() {
           <button
             onClick={discardUnsavedChanges}
             disabled={saving}
-            className="text-sm px-3 py-2 rounded-xl border border-white/20 text-white/60 hover:bg-white/5"
+            className="text-sm px-3 py-2 rounded-xl border border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/5"
           >
             Discard unsaved changes
           </button>
@@ -275,13 +275,13 @@ export default function AdminCatalogManager() {
         <button
           onClick={handleSave}
           disabled={!dirty || saving}
-          className="px-5 py-2 rounded-full bg-red text-navy font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+          className="px-5 py-2 rounded-full bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
         >
           {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
         </button>
       </div>
       {saveMessage && (
-        <p className="mt-2 text-sm text-white/70">{saveMessage}</p>
+        <p className="mt-2 text-sm text-admin-ink/88">{saveMessage}</p>
       )}
 
       {/* Bulk show/hide — deliberately set apart from the search/filter
@@ -289,7 +289,7 @@ export default function AdminCatalogManager() {
           confirmation dialog in setAllFiltered(), so a stray click can't
           silently blow away curation someone already saved. */}
       <details className="mt-3 group">
-        <summary className="text-xs text-white/40 cursor-pointer select-none hover:text-white/60 w-fit">
+        <summary className="text-xs text-admin-ink/62 cursor-pointer select-none hover:text-admin-ink/80 w-fit">
           Bulk show/hide for the current filter…
         </summary>
         <div className="mt-2 flex gap-2">
@@ -314,12 +314,12 @@ export default function AdminCatalogManager() {
           return (
             <div
               key={s.styleNumber}
-              className={`border rounded-2xl bg-black overflow-hidden transition ${
-                isHidden ? "border-white/10 opacity-45" : "border-white/10 hover:shadow-md"
+              className={`border rounded-2xl bg-admin-card overflow-hidden transition ${
+                isHidden ? "border-admin-ink/10 opacity-45" : "border-admin-ink/10 hover:shadow-md"
               }`}
             >
               <label className="block cursor-pointer">
-                <div className="relative w-full aspect-square bg-black p-3">
+                <div className="relative w-full aspect-square bg-admin-card p-3">
                   <Image
                     src={
                       s.heroImageIsOverride
@@ -340,44 +340,44 @@ export default function AdminCatalogManager() {
                   />
                   <span className="absolute top-2 right-2 flex gap-1">
                     {s.isCustom && (
-                      <span className="text-[10px] uppercase tracking-wide bg-red text-navy px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] uppercase tracking-wide bg-admin-accent text-admin-accent-ink px-1.5 py-0.5 rounded">
                         Custom
                       </span>
                     )}
-                    <span className="text-[10px] uppercase tracking-wide bg-navy/80 text-white px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] uppercase tracking-wide bg-admin-bg/80 text-admin-ink px-1.5 py-0.5 rounded">
                       {s.productType}
                     </span>
                   </span>
                 </div>
                 <div className="p-2.5 pb-1.5">
-                  <div className="text-[11px] uppercase tracking-wide text-white/40 truncate">
+                  <div className="text-[11px] uppercase tracking-wide text-admin-ink/62 truncate">
                     {s.brandName} · {s.styleNumber}
                   </div>
-                  <div className="text-xs font-semibold text-white leading-tight line-clamp-2 mt-0.5">
+                  <div className="text-xs font-semibold text-admin-ink leading-tight line-clamp-2 mt-0.5">
                     {s.productName}
                   </div>
-                  <div className="text-xs text-white/60 mt-1">
+                  <div className="text-xs text-admin-ink/80 mt-1">
                     {formatUSD(s.basePrice)} · {s.category}
                   </div>
                 </div>
               </label>
               <button
                 onClick={() => setConfigTarget(s)}
-                className="w-full text-[11px] font-medium text-white/70 border-t border-white/10 py-1.5 hover:bg-white/5"
+                className="w-full text-[11px] font-medium text-admin-ink/88 border-t border-admin-ink/10 py-1.5 hover:bg-admin-ink/5"
               >
                 Configure decorations
               </button>
               {s.isCustom && (
-                <div className="flex border-t border-white/10">
+                <div className="flex border-t border-admin-ink/10">
                   <button
                     onClick={() => setCustomProductForm({ mode: "edit", product: s })}
-                    className="flex-1 text-[11px] font-medium text-white/70 py-1.5 hover:bg-white/5"
+                    className="flex-1 text-[11px] font-medium text-admin-ink/88 py-1.5 hover:bg-admin-ink/5"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteCustomProduct(s)}
-                    className="flex-1 text-[11px] font-medium text-red-600 border-l border-white/10 py-1.5 hover:bg-red-50"
+                    className="flex-1 text-[11px] font-medium text-red-600 border-l border-admin-ink/10 py-1.5 hover:bg-red-50"
                   >
                     Delete
                   </button>

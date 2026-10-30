@@ -77,7 +77,7 @@ export default function AdminGarmentMarkupManager() {
   }
 
   if (loading) {
-    return <p className="text-white/40 text-sm">Loading…</p>;
+    return <p className="text-admin-ink/62 text-sm">Loading…</p>;
   }
 
   return (
@@ -91,22 +91,22 @@ export default function AdminGarmentMarkupManager() {
         </p>
       )}
 
-      <h3 className="font-semibold text-white text-base">Markups</h3>
-      <p className="mt-2 text-sm text-white/70 max-w-2xl">
+      <h3 className="font-semibold text-admin-ink text-base">Markups</h3>
+      <p className="mt-2 text-sm text-admin-ink/88 max-w-2xl">
         Markups are required. Markups are applied to the cost of the blank garment from your
         vendor. If a garment costs you $2.00 and your markup is 100%, the selling price for the
         blank garment would be $2.00 + (100% * $2.00) = $4.00.
       </p>
-      <p className="mt-3 text-sm text-white/70 max-w-2xl">
+      <p className="mt-3 text-sm text-admin-ink/88 max-w-2xl">
         Breakpoints are matched against each garment&apos;s vendor cost — the first row whose
         &quot;From&quot;/&quot;To $&quot; range contains that cost sets its markup. You can edit
         all values directly in the table.
       </p>
 
       <div className="mt-5 overflow-x-auto">
-        <table className="min-w-full border border-white/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden text-sm">
+        <table className="min-w-full border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden text-sm">
           <thead>
-            <tr className="bg-white/[0.03] text-left text-white/70">
+            <tr className="bg-admin-ink/[0.03] text-left text-admin-ink/88">
               <th className="px-4 py-2.5 font-medium">From</th>
               <th className="px-4 py-2.5 font-medium">To $</th>
               <th className="px-4 py-2.5 font-medium">Markup (%)</th>
@@ -115,35 +115,35 @@ export default function AdminGarmentMarkupManager() {
           </thead>
           <tbody>
             {breakpoints.map((bp, i) => (
-              <tr key={bp.id} className={i % 2 === 0 ? "bg-black" : "bg-white/[0.015]"}>
-                <td className="px-4 py-2 border-t border-white/10">
+              <tr key={bp.id} className={i % 2 === 0 ? "bg-admin-card" : "bg-admin-ink/[0.015]"}>
+                <td className="px-4 py-2 border-t border-admin-ink/10">
                   <input
                     type="number"
                     step="0.01"
                     value={bp.from}
                     onChange={(e) => updateRow(bp.id, { from: Number(e.target.value) || 0 })}
-                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                    className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                   />
                 </td>
-                <td className="px-4 py-2 border-t border-white/10">
+                <td className="px-4 py-2 border-t border-admin-ink/10">
                   <input
                     type="number"
                     step="0.01"
                     value={bp.to}
                     onChange={(e) => updateRow(bp.id, { to: Number(e.target.value) || 0 })}
-                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                    className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                   />
                 </td>
-                <td className="px-4 py-2 border-t border-white/10">
+                <td className="px-4 py-2 border-t border-admin-ink/10">
                   <input
                     type="number"
                     step="1"
                     value={bp.markupPercent}
                     onChange={(e) => updateRow(bp.id, { markupPercent: Number(e.target.value) || 0 })}
-                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                    className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                   />
                 </td>
-                <td className="px-4 py-2 border-t border-white/10 text-center">
+                <td className="px-4 py-2 border-t border-admin-ink/10 text-center">
                   <button
                     onClick={() => removeRow(bp.id)}
                     aria-label="Delete breakpoint"
@@ -156,7 +156,7 @@ export default function AdminGarmentMarkupManager() {
             ))}
             {breakpoints.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-white/40 border-t border-white/10">
+                <td colSpan={4} className="px-4 py-6 text-center text-admin-ink/62 border-t border-admin-ink/10">
                   No breakpoints yet — garments will sell at raw vendor cost with no markup.
                 </td>
               </tr>
@@ -173,9 +173,9 @@ export default function AdminGarmentMarkupManager() {
       </button>
 
       <div className="mt-8">
-        <h3 className="font-semibold text-white text-base">Look up markup rates</h3>
+        <h3 className="font-semibold text-admin-ink text-base">Look up markup rates</h3>
         <div className="mt-3 space-y-2">
-          <label className="flex items-center gap-2 text-sm text-white/80">
+          <label className="flex items-center gap-2 text-sm text-admin-ink/94">
             <input
               type="radio"
               name="lookupMode"
@@ -188,7 +188,7 @@ export default function AdminGarmentMarkupManager() {
             Apply markup based on the total quantity of apparel items (regardless of the number
             of different styles)
           </label>
-          <label className="flex items-center gap-2 text-sm text-white/80">
+          <label className="flex items-center gap-2 text-sm text-admin-ink/94">
             <input
               type="radio"
               name="lookupMode"
@@ -201,7 +201,7 @@ export default function AdminGarmentMarkupManager() {
             Apply markup based on quantities for each specific style of apparel item
           </label>
         </div>
-        <p className="mt-2 text-xs text-white/40 max-w-2xl">
+        <p className="mt-2 text-xs text-admin-ink/62 max-w-2xl">
           This table&apos;s breakpoints are matched by garment cost, not quantity, so this setting
           isn&apos;t used by pricing yet — it&apos;s saved here for a future quantity-based markup
           mode.
@@ -212,11 +212,11 @@ export default function AdminGarmentMarkupManager() {
         <button
           onClick={save}
           disabled={saving || !dirty}
-          className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+          className="px-5 py-2 rounded-full bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
-        {message && <p className="text-sm text-white/70">{message}</p>}
+        {message && <p className="text-sm text-admin-ink/88">{message}</p>}
       </div>
     </div>
   );

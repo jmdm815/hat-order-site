@@ -117,7 +117,7 @@ export default function AdminSetupChargesManager() {
   }
 
   if (loading) {
-    return <p className="text-white/40 text-sm">Loading…</p>;
+    return <p className="text-admin-ink/62 text-sm">Loading…</p>;
   }
 
   return (
@@ -136,15 +136,15 @@ export default function AdminSetupChargesManager() {
           const draft = drafts[c.id] ?? { label: c.label, price: c.price };
           const isOpen = openId === c.id;
           return (
-            <div key={c.id} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black overflow-hidden">
+            <div key={c.id} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <div className="flex-1">
-                  <div className="font-semibold text-white">{c.label}</div>
-                  <div className="text-xs text-white/50 mt-0.5">{formatUSD(c.price)}</div>
+                  <div className="font-semibold text-admin-ink">{c.label}</div>
+                  <div className="text-xs text-admin-ink/72 mt-0.5">{formatUSD(c.price)}</div>
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : c.id)}
-                  className="text-sm text-white/70 px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+                  className="text-sm text-admin-ink/88 px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
@@ -153,16 +153,16 @@ export default function AdminSetupChargesManager() {
                     if (confirm(`Delete "${c.label}"?`)) handleDelete(c.id);
                   }}
                   disabled={savingId === c.id}
-                  className="text-sm text-red-600 px-2 hover:underline disabled:text-white/20"
+                  className="text-sm text-red-600 px-2 hover:underline disabled:text-admin-ink/35"
                 >
                   Delete
                 </button>
               </div>
 
               {isOpen && (
-                <div className="p-4 border-t border-white/10 bg-white/[0.02]">
+                <div className="p-4 border-t border-admin-ink/10 bg-admin-ink/[0.02]">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-                    <label className="text-sm text-white/70">
+                    <label className="text-sm text-admin-ink/88">
                       Label
                       <input
                         type="text"
@@ -170,10 +170,10 @@ export default function AdminSetupChargesManager() {
                         onChange={(e) =>
                           setDrafts((prev) => ({ ...prev, [c.id]: { ...draft, label: e.target.value } }))
                         }
-                        className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                        className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                       />
                     </label>
-                    <label className="text-sm text-white/70">
+                    <label className="text-sm text-admin-ink/88">
                       Price ($)
                       <input
                         type="number"
@@ -186,11 +186,11 @@ export default function AdminSetupChargesManager() {
                             [c.id]: { ...draft, price: Math.max(0, Number(e.target.value) || 0) },
                           }))
                         }
-                        className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                        className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                       />
                     </label>
                   </div>
-                  <label className="mt-3 flex items-center gap-2 text-sm text-white/70">
+                  <label className="mt-3 flex items-center gap-2 text-sm text-admin-ink/88">
                     <input
                       type="checkbox"
                       checked={draft.taxable}
@@ -204,7 +204,7 @@ export default function AdminSetupChargesManager() {
                     <button
                       onClick={() => handleSaveExisting(c.id)}
                       disabled={savingId === c.id || !draft.label.trim()}
-                      className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+                      className="px-5 py-2 rounded-full bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
                     >
                       {savingId === c.id ? "Saving…" : "Save changes"}
                     </button>
@@ -216,29 +216,29 @@ export default function AdminSetupChargesManager() {
         })}
       </div>
 
-      <div className="mt-6 border border-dashed border-white/20 rounded-2xl">
+      <div className="mt-6 border border-dashed border-admin-ink/20 rounded-2xl">
         {!creating ? (
           <button
             onClick={() => setCreating(true)}
-            className="w-full p-4 text-sm font-medium text-white/70 hover:bg-white/5 rounded-2xl"
+            className="w-full p-4 text-sm font-medium text-admin-ink/88 hover:bg-admin-ink/5 rounded-2xl"
           >
             + Add a setup charge
           </button>
         ) : (
           <div className="p-4">
-            <h3 className="font-semibold text-white">New setup charge</h3>
+            <h3 className="font-semibold text-admin-ink">New setup charge</h3>
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-              <label className="text-sm text-white/70">
+              <label className="text-sm text-admin-ink/88">
                 Label
                 <input
                   type="text"
                   value={newDraft.label}
                   onChange={(e) => setNewDraft((prev) => ({ ...prev, label: e.target.value }))}
                   placeholder="e.g. Digitizing for embroidery"
-                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                 />
               </label>
-              <label className="text-sm text-white/70">
+              <label className="text-sm text-admin-ink/88">
                 Price ($)
                 <input
                   type="number"
@@ -248,11 +248,11 @@ export default function AdminSetupChargesManager() {
                   onChange={(e) =>
                     setNewDraft((prev) => ({ ...prev, price: Math.max(0, Number(e.target.value) || 0) }))
                   }
-                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                 />
               </label>
             </div>
-            <label className="mt-3 flex items-center gap-2 text-sm text-white/70">
+            <label className="mt-3 flex items-center gap-2 text-sm text-admin-ink/88">
               <input
                 type="checkbox"
                 checked={newDraft.taxable}
@@ -264,7 +264,7 @@ export default function AdminSetupChargesManager() {
               <button
                 onClick={handleCreate}
                 disabled={savingId === "__new__" || !newDraft.label.trim()}
-                className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+                className="px-5 py-2 rounded-full bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
               >
                 {savingId === "__new__" ? "Adding…" : "Add setup charge"}
               </button>
@@ -273,7 +273,7 @@ export default function AdminSetupChargesManager() {
                   setCreating(false);
                   setNewDraft(BLANK_DRAFT);
                 }}
-                className="px-4 py-2 rounded-full border border-white/20 text-sm font-medium hover:bg-white/5"
+                className="px-4 py-2 rounded-full border border-admin-ink/20 text-sm font-medium hover:bg-admin-ink/5"
               >
                 Cancel
               </button>
@@ -282,7 +282,7 @@ export default function AdminSetupChargesManager() {
         )}
       </div>
 
-      {message && <p className="mt-4 text-sm text-white/70">{message}</p>}
+      {message && <p className="mt-4 text-sm text-admin-ink/88">{message}</p>}
     </div>
   );
 }

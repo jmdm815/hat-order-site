@@ -83,9 +83,9 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Pr
 
   return (
     <>
-      <header className="border-b-2 border-white bg-black sticky top-0 z-10">
+      <header className="border-b-2 border-admin-ink bg-admin-card sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <span className="font-heading font-semibold text-sm sm:text-lg tracking-wide text-white uppercase truncate">
+          <span className="font-heading font-semibold text-sm sm:text-lg tracking-wide text-admin-ink uppercase truncate">
             JM Digital Media · Admin
           </span>
           <Link
@@ -94,7 +94,7 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Pr
                 ? "/admin?tab=invoices"
                 : "/admin?tab=quotes"
             }
-            className="shrink-0 text-sm text-white/60 hover:text-white hover:underline"
+            className="shrink-0 text-sm text-admin-ink/80 hover:text-admin-ink hover:underline"
           >
             {(record ? record.status === "invoice" : createAs === "invoice")
               ? "← Back to invoices"
@@ -103,9 +103,9 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Pr
         </div>
       </header>
       <main className="flex-1 max-w-5xl mx-auto px-4 py-6 sm:py-10 w-full">
-        <h1 className="text-2xl font-bold text-white mb-6">{title}</h1>
+        <h1 className="text-2xl font-bold text-admin-ink mb-6">{title}</h1>
 
-        {loading && <p className="text-white/50 text-sm">Loading…</p>}
+        {loading && <p className="text-admin-ink/72 text-sm">Loading…</p>}
 
         {notFound && (
           <p className="text-sm text-red-500">

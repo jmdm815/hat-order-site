@@ -64,7 +64,7 @@ export default function AdminPricingManager() {
   }
 
   if (loading || !designerSettings) {
-    return <p className="text-white/40 text-sm">Loading…</p>;
+    return <p className="text-admin-ink/62 text-sm">Loading…</p>;
   }
 
   return (
@@ -87,11 +87,11 @@ export default function AdminPricingManager() {
         ).map((row) => (
           <label
             key={row.key}
-            className="flex items-center justify-between gap-4 border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-4"
+            className="flex items-center justify-between gap-4 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card p-4"
           >
             <span>
-              <span className="font-medium text-white">{row.label}</span>
-              <span className="block text-xs text-white/50 mt-0.5">
+              <span className="font-medium text-admin-ink">{row.label}</span>
+              <span className="block text-xs text-admin-ink/72 mt-0.5">
                 When off, customers get a simple form (pick a placement,
                 upload a file) instead of the drag/resize live preview canvas.
               </span>
@@ -108,7 +108,7 @@ export default function AdminPricingManager() {
         ))}
       </div>
 
-      <p className="mt-4 text-xs text-white/50 max-w-md">
+      <p className="mt-4 text-xs text-admin-ink/72 max-w-md">
         Individual items can override this — see the &quot;Live
         designer&quot; control inside &quot;Configure decorations&quot; on
         any item in the Catalog tab.
@@ -118,11 +118,11 @@ export default function AdminPricingManager() {
         <button
           onClick={handleSave}
           disabled={!dirty || saving}
-          className="px-5 py-2 rounded-full bg-red text-navy font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+          className="px-5 py-2 rounded-full bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
         >
           {saving ? "Saving…" : dirty ? "Save settings" : "Saved"}
         </button>
-        {saveMessage && <p className="text-sm text-white/70">{saveMessage}</p>}
+        {saveMessage && <p className="text-sm text-admin-ink/88">{saveMessage}</p>}
       </div>
     </div>
   );

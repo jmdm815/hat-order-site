@@ -34,23 +34,23 @@ export default function AdminLogin() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-sm border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-6"
+      className="max-w-sm border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card p-6"
     >
       <label className="block">
-        <span className="text-sm font-medium text-white">Admin password</span>
+        <span className="text-sm font-medium text-admin-ink">Admin password</span>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoFocus
-          className="mt-1 w-full border border-white/20 rounded-xl px-3 py-2 text-sm"
+          className="mt-1 w-full border border-admin-ink/20 rounded-xl px-3 py-2 text-sm"
         />
       </label>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={submitting || !password}
-        className="mt-4 w-full py-2.5 rounded-full bg-navy text-white font-semibold hover:bg-red hover:text-navy transition disabled:bg-navy/20"
+        className="mt-4 w-full py-2.5 rounded-full bg-admin-bg text-admin-ink font-semibold hover:bg-admin-accent hover:text-admin-accent-ink transition disabled:bg-admin-bg/20"
       >
         {submitting ? "Checking…" : "Log in"}
       </button>

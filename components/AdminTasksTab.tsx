@@ -164,14 +164,14 @@ export default function AdminTasksTab() {
   }
 
   if (loading) {
-    return <p className="text-white/40 text-sm">Loading…</p>;
+    return <p className="text-admin-ink/62 text-sm">Loading…</p>;
   }
 
   if (!status?.configured) {
     return (
-      <div className="bg-black border border-white/10 rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-white">Tasks</h2>
-        <p className="mt-2 text-sm text-white/60">
+      <div className="bg-admin-card border border-admin-ink/10 rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-admin-ink">Tasks</h2>
+        <p className="mt-2 text-sm text-admin-ink/80">
           Google Tasks isn&apos;t set up on this deployment yet — GOOGLE_TASKS_CLIENT_ID and
           GOOGLE_TASKS_CLIENT_SECRET need to be configured first.
         </p>
@@ -181,15 +181,15 @@ export default function AdminTasksTab() {
 
   if (!status.connected) {
     return (
-      <div className="bg-black border border-white/10 rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-white">Tasks</h2>
-        <p className="mt-2 text-sm text-white/60">
+      <div className="bg-admin-card border border-admin-ink/10 rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-admin-ink">Tasks</h2>
+        <p className="mt-2 text-sm text-admin-ink/80">
           Connect your Google account to see and manage your real Google Tasks right here.
         </p>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         <a
           href="/api/admin/google-tasks/auth"
-          className="mt-4 inline-block text-sm px-4 py-2 rounded-xl bg-red text-navy font-semibold hover:bg-red/90"
+          className="mt-4 inline-block text-sm px-4 py-2 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent/90"
         >
           Connect Google account
         </a>
@@ -204,14 +204,14 @@ export default function AdminTasksTab() {
     <div>
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <div>
-          <h2 className="text-lg font-bold text-white">Tasks</h2>
-          <p className="text-xs text-white/50">
+          <h2 className="text-lg font-bold text-admin-ink">Tasks</h2>
+          <p className="text-xs text-admin-ink/72">
             {status.connectedEmail ? `Connected as ${status.connectedEmail}` : "Connected"}
           </p>
         </div>
         <button
           onClick={disconnect}
-          className="text-xs px-3 py-1.5 rounded-xl border border-white/20 text-white/60 hover:bg-white/5"
+          className="text-xs px-3 py-1.5 rounded-xl border border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/5"
         >
           Disconnect
         </button>
@@ -221,12 +221,12 @@ export default function AdminTasksTab() {
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
       {status.lists.length > 1 && (
-        <label className="block text-xs text-white/60 mb-3 max-w-xs">
+        <label className="block text-xs text-admin-ink/80 mb-3 max-w-xs">
           List
           <select
             value={selectedListId}
             onChange={(e) => setSelectedListId(e.target.value)}
-            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm bg-black text-white"
+            className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm bg-admin-card text-admin-ink"
           >
             {status.lists.map((l) => (
               <option key={l.id} value={l.id}>
@@ -238,9 +238,9 @@ export default function AdminTasksTab() {
       )}
 
       {status.lists.length === 0 ? (
-        <p className="text-sm text-white/40">No task lists found on this Google account.</p>
+        <p className="text-sm text-admin-ink/62">No task lists found on this Google account.</p>
       ) : (
-        <div className="bg-black border border-white/10 rounded-2xl p-4 max-w-xl">
+        <div className="bg-admin-card border border-admin-ink/10 rounded-2xl p-4 max-w-xl">
           <div className="flex items-center gap-2">
             <input
               value={newTaskTitle}
@@ -252,27 +252,27 @@ export default function AdminTasksTab() {
                 }
               }}
               placeholder="Add a task…"
-              className="flex-1 bg-black border border-white/20 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+              className="flex-1 bg-admin-card border border-admin-ink/20 rounded-xl px-3 py-2 text-sm text-admin-ink outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
             />
             <button
               onClick={addTask}
               disabled={adding || !newTaskTitle.trim()}
-              className="shrink-0 text-sm px-4 py-2 rounded-xl bg-red text-navy font-semibold hover:bg-red/90 disabled:opacity-40"
+              className="shrink-0 text-sm px-4 py-2 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent/90 disabled:opacity-40"
             >
               {adding ? "Adding…" : "Add"}
             </button>
           </div>
 
           {tasksLoading ? (
-            <p className="mt-4 text-sm text-white/40">Loading tasks…</p>
+            <p className="mt-4 text-sm text-admin-ink/62">Loading tasks…</p>
           ) : (
             <>
               <div className="mt-4 space-y-1.5">
                 {incomplete.length === 0 ? (
-                  <p className="text-sm text-white/40">Nothing on your list right now.</p>
+                  <p className="text-sm text-admin-ink/62">Nothing on your list right now.</p>
                 ) : (
                   incomplete.map((t) => (
-                    <div key={t.id} className="flex items-start gap-2 px-1 py-1.5 rounded-lg hover:bg-white/5">
+                    <div key={t.id} className="flex items-start gap-2 px-1 py-1.5 rounded-lg hover:bg-admin-ink/5">
                       <input
                         type="checkbox"
                         checked={false}
@@ -280,11 +280,11 @@ export default function AdminTasksTab() {
                         disabled={busyTaskId === t.id}
                         className="mt-0.5 shrink-0"
                       />
-                      <span className="text-sm text-white flex-1 min-w-0">{t.title}</span>
+                      <span className="text-sm text-admin-ink flex-1 min-w-0">{t.title}</span>
                       <button
                         onClick={() => removeTask(t)}
                         disabled={busyTaskId === t.id}
-                        className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                        className="text-xs text-red-600 hover:underline shrink-0 disabled:text-admin-ink/35"
                       >
                         Delete
                       </button>
@@ -294,17 +294,17 @@ export default function AdminTasksTab() {
               </div>
 
               {completed.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-white/10">
+                <div className="mt-4 pt-3 border-t border-admin-ink/10">
                   <button
                     onClick={() => setShowCompleted((v) => !v)}
-                    className="text-xs text-white/40 hover:text-white/60"
+                    className="text-xs text-admin-ink/62 hover:text-admin-ink/80"
                   >
                     {showCompleted ? "Hide" : "Show"} completed ({completed.length})
                   </button>
                   {showCompleted && (
                     <div className="mt-2 space-y-1.5">
                       {completed.map((t) => (
-                        <div key={t.id} className="flex items-start gap-2 px-1 py-1.5 rounded-lg hover:bg-white/5">
+                        <div key={t.id} className="flex items-start gap-2 px-1 py-1.5 rounded-lg hover:bg-admin-ink/5">
                           <input
                             type="checkbox"
                             checked
@@ -312,11 +312,11 @@ export default function AdminTasksTab() {
                             disabled={busyTaskId === t.id}
                             className="mt-0.5 shrink-0"
                           />
-                          <span className="text-sm text-white/40 line-through flex-1 min-w-0">{t.title}</span>
+                          <span className="text-sm text-admin-ink/62 line-through flex-1 min-w-0">{t.title}</span>
                           <button
                             onClick={() => removeTask(t)}
                             disabled={busyTaskId === t.id}
-                            className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                            className="text-xs text-red-600 hover:underline shrink-0 disabled:text-admin-ink/35"
                           >
                             Delete
                           </button>

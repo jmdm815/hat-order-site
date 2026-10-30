@@ -43,6 +43,37 @@
 
   /* Backwards-compatible alias — old markup referenced --color-cream */
   --color-cream: #ffffff;
+
+  /* Admin-dashboard-only palette (quotes/invoices editor, catalog manager,
+     every /admin page and components/Admin*.tsx) — a lighter, ShopVox-style
+     navy theme, kept entirely separate from the customer-facing site's
+     black/navy/white scheme above so this only touches the admin. These
+     utilities (bg-admin-bg, bg-admin-card, text-admin-ink, etc.) are the
+     *only* place they're referenced; nothing on the storefront uses them.
+       - admin-bg:     the page canvas (was bg-navy in the admin)
+       - admin-card:   card/box background, a close but slightly darker
+                        navy than the page so cards still read as "boxes"
+                        without the old stark navy-vs-black jump (was
+                        bg-black in the admin)
+       - admin-ink:    body text / borders / subtle panel tints (was
+                        text-white / border-white / bg-white[/NN] in the
+                        admin) — kept pure white for maximum readability,
+                        and every text-white/NN opacity tier was bumped up
+                        a notch at the same time (see scratchpad/retheme.py)
+                        since the old low-opacity tiers were hard to read
+                        against navy
+       - admin-accent / admin-accent-ink / admin-accent-dim: the solid
+         light primary-button fill and its label/hover colors (was
+         bg-red / text-navy / bg-red-dark in the admin) — accent-ink stays
+         a genuinely dark navy on purpose, independent of admin-bg, so
+         button labels keep full contrast even though admin-bg itself is
+         now much lighter than before. */
+  --color-admin-bg: #3b4a73;
+  --color-admin-card: #2c3759;
+  --color-admin-ink: #ffffff;
+  --color-admin-accent: #ffffff;
+  --color-admin-accent-ink: #1b2340;
+  --color-admin-accent-dim: #cfd3dc;
 }
 
 /* iOS Safari bumps the page's own font size up when it thinks the user

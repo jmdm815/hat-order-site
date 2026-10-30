@@ -227,24 +227,24 @@ export default function AdminCustomProductForm({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-navy/40 flex items-start justify-center overflow-y-auto py-8 px-4">
-      <div className="bg-black rounded-2xl max-w-2xl w-full p-6">
+    <div className="fixed inset-0 z-40 bg-admin-bg/40 flex items-start justify-center overflow-y-auto py-8 px-4">
+      <div className="bg-admin-card rounded-2xl max-w-2xl w-full p-6">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-white text-lg">
+          <h2 className="font-semibold text-admin-ink text-lg">
             {editing ? "Edit custom product" : "Add a custom product"}
           </h2>
-          <button onClick={onClose} className="text-sm text-white/50 hover:text-white">
+          <button onClick={onClose} className="text-sm text-admin-ink/72 hover:text-admin-ink">
             Close
           </button>
         </div>
-        <p className="mt-1 text-xs text-white/50">
+        <p className="mt-1 text-xs text-admin-ink/72">
           Hand-entered products don&apos;t come from the SanMar catalog — use this for Tumblers
           (or any hat/shirt SanMar doesn&apos;t carry). You can hide/show and configure
           decorations for it just like any other catalog item once it&apos;s saved.
         </p>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="text-sm text-white/70">
+          <label className="text-sm text-admin-ink/88">
             Product type
             <select
               value={draft.productType}
@@ -253,7 +253,7 @@ export default function AdminCustomProductForm({
                 const productType = e.target.value as ProductType;
                 apply({ productType, category: CATEGORY_SUGGESTIONS[productType][0] ?? "" });
               }}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm disabled:bg-white/5 disabled:text-white/40"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm disabled:bg-admin-ink/5 disabled:text-admin-ink/62"
             >
               <option value="hat">Hat</option>
               <option value="shirt">Shirt</option>
@@ -261,14 +261,14 @@ export default function AdminCustomProductForm({
               <option value="tumbler">Tumbler</option>
             </select>
           </label>
-          <label className="text-sm text-white/70 sm:col-span-2">
+          <label className="text-sm text-admin-ink/88 sm:col-span-2">
             Category
             <input
               list="category-suggestions"
               type="text"
               value={draft.category}
               onChange={(e) => apply({ category: e.target.value })}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
             <datalist id="category-suggestions">
               {CATEGORY_SUGGESTIONS[draft.productType].map((c) => (
@@ -279,38 +279,38 @@ export default function AdminCustomProductForm({
         </div>
 
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="text-sm text-white/70">
+          <label className="text-sm text-admin-ink/88">
             Product name
             <input
               type="text"
               value={draft.productName}
               onChange={(e) => apply({ productName: e.target.value })}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-sm text-white/70">
+          <label className="text-sm text-admin-ink/88">
             Brand (optional)
             <input
               type="text"
               value={draft.brandName}
               onChange={(e) => apply({ brandName: e.target.value })}
               placeholder="Custom"
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
         </div>
 
-        <label className="mt-3 block text-sm text-white/70">
+        <label className="mt-3 block text-sm text-admin-ink/88">
           Description
           <textarea
             value={draft.description}
             onChange={(e) => apply({ description: e.target.value })}
             rows={2}
-            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
 
-        <label className="mt-3 block text-sm text-white/70 max-w-xs">
+        <label className="mt-3 block text-sm text-admin-ink/88 max-w-xs">
           Base price ($, cheapest size/color)
           <input
             type="number"
@@ -318,12 +318,12 @@ export default function AdminCustomProductForm({
             step="0.01"
             value={draft.basePrice}
             onChange={(e) => apply({ basePrice: e.target.value })}
-            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
 
-        <div className="mt-4 pt-3 border-t border-white/10">
-          <label className="flex items-center gap-1.5 text-sm text-white/70 cursor-pointer select-none">
+        <div className="mt-4 pt-3 border-t border-admin-ink/10">
+          <label className="flex items-center gap-1.5 text-sm text-admin-ink/88 cursor-pointer select-none">
             <input type="checkbox" checked={draft.hasSizes} onChange={(e) => apply({ hasSizes: e.target.checked })} />
             Has multiple sizes (per-size pricing, e.g. 20oz / 30oz)
           </label>
@@ -336,7 +336,7 @@ export default function AdminCustomProductForm({
                     placeholder="Size name"
                     value={s.name}
                     onChange={(e) => updateSize(i, { name: e.target.value })}
-                    className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                    className="w-32 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                   />
                   <input
                     type="number"
@@ -345,7 +345,7 @@ export default function AdminCustomProductForm({
                     placeholder="Price"
                     value={s.price}
                     onChange={(e) => updateSize(i, { price: e.target.value })}
-                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                    className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                   />
                   <input
                     type="number"
@@ -353,57 +353,57 @@ export default function AdminCustomProductForm({
                     placeholder="Inventory"
                     value={s.inventory}
                     onChange={(e) => updateSize(i, { inventory: e.target.value })}
-                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                    className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                   />
                   <button
                     onClick={() => removeSize(i)}
                     disabled={draft.sizes.length <= 1}
-                    className="ml-auto text-xs text-red-600 hover:underline disabled:text-white/20"
+                    className="ml-auto text-xs text-red-600 hover:underline disabled:text-admin-ink/35"
                   >
                     Remove
                   </button>
                 </div>
               ))}
-              <button onClick={addSize} className="text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5">
+              <button onClick={addSize} className="text-sm px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5">
                 + Add size
               </button>
             </div>
           )}
         </div>
 
-        <div className="mt-4 pt-3 border-t border-white/10">
-          <div className="text-sm font-medium text-white">Colors</div>
+        <div className="mt-4 pt-3 border-t border-admin-ink/10">
+          <div className="text-sm font-medium text-admin-ink">Colors</div>
           <div className="mt-2 space-y-4">
             {draft.colors.map((c, i) => (
-              <div key={i} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-3">
+              <div key={i} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-3">
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     placeholder="Color name"
                     value={c.colorName}
                     onChange={(e) => updateColor(i, { colorName: e.target.value })}
-                    className="flex-1 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                    className="flex-1 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                   />
                   <input
                     type="color"
                     value={c.colorHex}
                     onChange={(e) => updateColor(i, { colorHex: e.target.value })}
-                    className="w-9 h-9 border border-white/20 rounded-xl"
+                    className="w-9 h-9 border border-admin-ink/20 rounded-xl"
                   />
                   <button
                     onClick={() => removeColor(i)}
                     disabled={draft.colors.length <= 1}
-                    className="text-xs text-red-600 hover:underline disabled:text-white/20"
+                    className="text-xs text-red-600 hover:underline disabled:text-admin-ink/35"
                   >
                     Remove
                   </button>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-4">
                   <div>
-                    <label className="text-xs text-white/60 block mb-1">Front photo</label>
+                    <label className="text-xs text-admin-ink/80 block mb-1">Front photo</label>
                     {c.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.imageUrl} alt="" className="w-16 h-16 object-contain border border-white/10 shadow-lg shadow-black/30 rounded-xl bg-black" />
+                      <img src={c.imageUrl} alt="" className="w-16 h-16 object-contain border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl bg-admin-card" />
                     ) : (
                       <input
                         type="file"
@@ -424,13 +424,13 @@ export default function AdminCustomProductForm({
                         Replace
                       </button>
                     )}
-                    {c.uploadingFront && <p className="text-[11px] text-white/40">Uploading…</p>}
+                    {c.uploadingFront && <p className="text-[11px] text-admin-ink/62">Uploading…</p>}
                   </div>
                   <div>
-                    <label className="text-xs text-white/60 block mb-1">Back photo (optional)</label>
+                    <label className="text-xs text-admin-ink/80 block mb-1">Back photo (optional)</label>
                     {c.backImageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.backImageUrl} alt="" className="w-16 h-16 object-contain border border-white/10 shadow-lg shadow-black/30 rounded-xl bg-black" />
+                      <img src={c.backImageUrl} alt="" className="w-16 h-16 object-contain border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl bg-admin-card" />
                     ) : (
                       <input
                         type="file"
@@ -451,13 +451,13 @@ export default function AdminCustomProductForm({
                         Replace
                       </button>
                     )}
-                    {c.uploadingBack && <p className="text-[11px] text-white/40">Uploading…</p>}
+                    {c.uploadingBack && <p className="text-[11px] text-admin-ink/62">Uploading…</p>}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <button onClick={addColor} className="mt-3 text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5">
+          <button onClick={addColor} className="mt-3 text-sm px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5">
             + Add color
           </button>
         </div>
@@ -468,11 +468,11 @@ export default function AdminCustomProductForm({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+            className="px-5 py-2 rounded-full bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
           >
             {saving ? "Saving…" : editing ? "Save changes" : "Add product"}
           </button>
-          <button onClick={onClose} className="px-4 py-2 rounded-full border border-white/20 text-sm font-medium hover:bg-white/5">
+          <button onClick={onClose} className="px-4 py-2 rounded-full border border-admin-ink/20 text-sm font-medium hover:bg-admin-ink/5">
             Cancel
           </button>
         </div>

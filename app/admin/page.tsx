@@ -8,21 +8,21 @@ export default async function AdminPage() {
 
   return (
     <>
-      <header className="border-b-2 border-white bg-black sticky top-0 z-10">
+      <header className="border-b-2 border-admin-ink bg-admin-card sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <span className="font-heading font-semibold text-sm sm:text-lg tracking-wide text-white uppercase truncate">
+          <span className="font-heading font-semibold text-sm sm:text-lg tracking-wide text-admin-ink uppercase truncate">
             JM Digital Media · Admin
           </span>
           <Link
             href="/"
-            className="shrink-0 text-sm text-white/60 hover:text-white hover:underline"
+            className="shrink-0 text-sm text-admin-ink/80 hover:text-admin-ink hover:underline"
           >
             ← Back to site
           </Link>
         </div>
       </header>
       <main className="flex-1 max-w-6xl mx-auto px-4 py-6 sm:py-10 w-full">
-        <h1 className="text-2xl font-bold text-white">Admin</h1>
+        <h1 className="text-2xl font-bold text-admin-ink">Admin</h1>
       {authed && usingDefaultPassword() && (
         <p className="mt-3 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 inline-block">
           You&apos;re using the default admin password. Set an{" "}

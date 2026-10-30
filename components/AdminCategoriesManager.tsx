@@ -88,7 +88,7 @@ export default function AdminCategoriesManager() {
     });
   }
 
-  if (loading) return <p className="text-white/40 text-sm">Loading categories…</p>;
+  if (loading) return <p className="text-admin-ink/62 text-sm">Loading categories…</p>;
 
   return (
     <div>
@@ -106,12 +106,12 @@ export default function AdminCategoriesManager() {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          className="flex-1 border border-white/20 rounded-xl px-3 py-2 text-sm"
+          className="flex-1 border border-admin-ink/20 rounded-xl px-3 py-2 text-sm"
         />
         <button
           onClick={handleAdd}
           disabled={adding || !newName.trim()}
-          className="px-4 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+          className="px-4 py-2 rounded-full bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
         >
           {adding ? "Adding…" : "+ Add"}
         </button>
@@ -119,19 +119,19 @@ export default function AdminCategoriesManager() {
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
       {categories.length === 0 ? (
-        <p className="mt-6 text-sm text-white/50">
+        <p className="mt-6 text-sm text-admin-ink/72">
           No categories yet. Add one above, then assign products to it from the Catalog tab
           (&quot;Configure decorations&quot; on any item).
         </p>
       ) : (
-        <div className="mt-6 divide-y divide-white/10 border border-white/10 shadow-lg shadow-black/30 rounded-2xl max-w-md overflow-hidden">
+        <div className="mt-6 divide-y divide-admin-ink/10 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl max-w-md overflow-hidden">
           {categories.map((c, i) => (
-            <div key={c.id} className="flex items-center gap-2 p-3 bg-black">
+            <div key={c.id} className="flex items-center gap-2 p-3 bg-admin-card">
               <div className="flex flex-col gap-0.5">
                 <button
                   onClick={() => handleReorder(c.id, "up")}
                   disabled={i === 0}
-                  className="text-white/40 hover:text-white disabled:opacity-20 text-xs leading-none"
+                  className="text-admin-ink/62 hover:text-admin-ink disabled:opacity-20 text-xs leading-none"
                   aria-label="Move up"
                 >
                   ▲
@@ -139,7 +139,7 @@ export default function AdminCategoriesManager() {
                 <button
                   onClick={() => handleReorder(c.id, "down")}
                   disabled={i === categories.length - 1}
-                  className="text-white/40 hover:text-white disabled:opacity-20 text-xs leading-none"
+                  className="text-admin-ink/62 hover:text-admin-ink disabled:opacity-20 text-xs leading-none"
                   aria-label="Move down"
                 >
                   ▼
@@ -153,11 +153,11 @@ export default function AdminCategoriesManager() {
                   onKeyDown={(e) => e.key === "Enter" && handleRename(c.id)}
                   onBlur={() => handleRename(c.id)}
                   autoFocus
-                  className="flex-1 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                  className="flex-1 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                 />
               ) : (
                 <span
-                  className="flex-1 text-sm font-medium text-white cursor-pointer"
+                  className="flex-1 text-sm font-medium text-admin-ink cursor-pointer"
                   onClick={() => {
                     setEditingId(c.id);
                     setEditingName(c.name);

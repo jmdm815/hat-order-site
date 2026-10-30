@@ -29,22 +29,22 @@ export default function AdminQuotesTab({ kind }: Props) {
   const [showDeleted, setShowDeleted] = useState(false);
 
   return (
-    <section className="bg-white/[0.02] border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+    <section className="bg-admin-ink/[0.02] border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <h3 className="text-sm font-semibold text-white">
+        <h3 className="text-sm font-semibold text-admin-ink">
           {showDeleted ? "Recently deleted" : kind === "invoice" ? "Invoices" : "Quotes"}
         </h3>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowDeleted((v) => !v)}
-            className="text-xs px-3 py-1.5 rounded-xl border border-white/20 text-white/70 hover:bg-white/5 shrink-0"
+            className="text-xs px-3 py-1.5 rounded-xl border border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5 shrink-0"
           >
             {showDeleted ? "← Back to list" : "Recently deleted"}
           </button>
           {!showDeleted && (
             <Link
               href={kind === "invoice" ? "/admin/quotes/new?kind=invoice" : "/admin/quotes/new"}
-              className="text-sm px-3 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 shrink-0"
+              className="text-sm px-3 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink hover:bg-admin-accent/90 shrink-0"
             >
               {kind === "invoice" ? "+ New invoice" : "+ New quote"}
             </Link>

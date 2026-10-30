@@ -253,40 +253,40 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-navy/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-admin-bg/40 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-black rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5"
+        className="bg-admin-card rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-white">Job Folder</h2>
-            <p className="text-xs text-white/50">{isInvoice ? `Invoice ${docLabel}` : `Quote ${docLabel}`}</p>
+            <h2 className="text-lg font-bold text-admin-ink">Job Folder</h2>
+            <p className="text-xs text-admin-ink/72">{isInvoice ? `Invoice ${docLabel}` : `Quote ${docLabel}`}</p>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white text-sm px-1">
+          <button onClick={onClose} className="text-admin-ink/62 hover:text-admin-ink text-sm px-1">
             ✕
           </button>
         </div>
-        <p className="mt-2 text-xs text-white/40">
+        <p className="mt-2 text-xs text-admin-ink/62">
           A 2-page handout for production: page 1 is the no-pricing work order, page 2 is the garment
           mock-up and where to find each print file.
         </p>
 
         {/* --- Mock-up image --------------------------------------------- */}
-        <div className="mt-4 border-t border-white/10 pt-4">
-          <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-2">Garment mock-up</p>
+        <div className="mt-4 border-t border-admin-ink/10 pt-4">
+          <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-2">Garment mock-up</p>
           {mockupImageUrl ? (
             <>
               <div className="bg-white rounded-xl p-2 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={mockupImageUrl} alt="Garment mock-up" className="max-h-48 object-contain" />
               </div>
-              <p className="mt-1.5 text-xs text-white/40">
-                For: <span className="text-white/70">{current.jobFolder?.mockupLineItemLabel || FOR_REFERENCE_ONLY}</span>
+              <p className="mt-1.5 text-xs text-admin-ink/62">
+                For: <span className="text-admin-ink/88">{current.jobFolder?.mockupLineItemLabel || FOR_REFERENCE_ONLY}</span>
               </p>
             </>
           ) : (
-            <p className="text-sm text-white/40 italic">No mock-up uploaded yet.</p>
+            <p className="text-sm text-admin-ink/62 italic">No mock-up uploaded yet.</p>
           )}
           <input
             ref={mockupInputRef}
@@ -300,14 +300,14 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
           />
 
           {pendingMockupFile && (
-            <div className="mt-2 bg-white/5 rounded-xl p-3">
-              <p className="text-xs text-white/70">
-                Which line item is <span className="font-medium text-white">{pendingMockupFile.name}</span> for?
+            <div className="mt-2 bg-admin-ink/5 rounded-xl p-3">
+              <p className="text-xs text-admin-ink/88">
+                Which line item is <span className="font-medium text-admin-ink">{pendingMockupFile.name}</span> for?
               </p>
               <select
                 value={pendingLineItemChoice}
                 onChange={(e) => setPendingLineItemChoice(e.target.value)}
-                className="mt-2 w-full bg-black border border-white/20 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                className="mt-2 w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
               >
                 {lineItems.map((line, i) => (
                   <option key={i} value={String(i)}>
@@ -321,7 +321,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                   type="button"
                   onClick={confirmPendingMockupUpload}
                   disabled={uploading}
-                  className="text-xs px-3 py-1.5 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+                  className="text-xs px-3 py-1.5 rounded-xl bg-admin-bg text-admin-ink hover:bg-admin-bg/90 disabled:opacity-40"
                 >
                   {uploading ? "Uploading…" : "Upload"}
                 </button>
@@ -329,7 +329,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                   type="button"
                   onClick={cancelPendingMockupUpload}
                   disabled={uploading}
-                  className="text-xs text-white/50 hover:text-white disabled:opacity-40"
+                  className="text-xs text-admin-ink/72 hover:text-admin-ink disabled:opacity-40"
                 >
                   Cancel
                 </button>
@@ -342,7 +342,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
               type="button"
               onClick={() => mockupInputRef.current?.click()}
               disabled={uploading || !!pendingMockupFile}
-              className="text-xs px-3 py-1.5 rounded-xl border border-white/20 text-white hover:bg-white/5 disabled:opacity-40"
+              className="text-xs px-3 py-1.5 rounded-xl border border-admin-ink/20 text-admin-ink hover:bg-admin-ink/5 disabled:opacity-40"
             >
               {uploading ? "Uploading…" : mockupImageUrl ? "Replace image" : "Upload mock-up image"}
             </button>
@@ -351,19 +351,19 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                 type="button"
                 onClick={removeMockup}
                 disabled={uploading}
-                className="text-xs text-red hover:underline disabled:opacity-40"
+                className="text-xs text-admin-accent hover:underline disabled:opacity-40"
               >
                 Remove
               </button>
             )}
           </div>
-          {mockupError && <p className="mt-1.5 text-xs text-red font-medium">{mockupError}</p>}
+          {mockupError && <p className="mt-1.5 text-xs text-admin-accent font-medium">{mockupError}</p>}
         </div>
 
         {/* --- Print file locations --------------------------------------- */}
-        <div className="mt-4 border-t border-white/10 pt-4">
-          <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1">Print file locations</p>
-          <p className="text-xs text-white/40 mb-3">
+        <div className="mt-4 border-t border-admin-ink/10 pt-4">
+          <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-1">Print file locations</p>
+          <p className="text-xs text-admin-ink/62 mb-3">
             Paste the path yourself (⌥-right-click a file in Finder → &quot;Copy as Pathname&quot;, or paste a
             Google Drive link) — browsers can&apos;t hand a website a real file path. &quot;Browse…&quot; can
             still fill in just the file name for you.
@@ -378,26 +378,26 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
 
           <div className="space-y-2">
             {rows.map((row) => (
-              <div key={row.id} className="bg-white/5 rounded-xl p-2.5">
+              <div key={row.id} className="bg-admin-ink/5 rounded-xl p-2.5">
                 <div className="flex items-center gap-2">
                   <input
                     list="job-folder-label-suggestions"
                     value={row.label}
                     onChange={(e) => updateRow(row.id, { label: e.target.value })}
                     placeholder="Front"
-                    className="w-32 shrink-0 bg-black border border-white/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                    className="w-32 shrink-0 bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
                   />
                   <input
                     value={row.path}
                     onChange={(e) => updateRow(row.id, { path: e.target.value })}
                     placeholder="Shared drives/.../FRONT.pdf"
-                    className="flex-1 min-w-0 bg-black border border-white/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                    className="flex-1 min-w-0 bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
                   />
                   <button
                     type="button"
                     onClick={() => openBrowseFor(row.id)}
                     title="Pick a file to fill in its name"
-                    className="shrink-0 text-xs px-2 py-1 rounded-lg border border-white/20 text-white hover:bg-white/10"
+                    className="shrink-0 text-xs px-2 py-1 rounded-lg border border-admin-ink/20 text-admin-ink hover:bg-admin-ink/10"
                   >
                     Browse…
                   </button>
@@ -405,7 +405,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                     type="button"
                     onClick={() => removeRow(row.id)}
                     title="Remove this row"
-                    className="shrink-0 text-white/40 hover:text-red text-sm px-1"
+                    className="shrink-0 text-admin-ink/62 hover:text-admin-accent text-sm px-1"
                   >
                     ✕
                   </button>
@@ -427,22 +427,22 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
               type="button"
               onClick={saveRows}
               disabled={savingRows || !rowsDirty}
-              className="text-sm px-4 py-1.5 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+              className="text-sm px-4 py-1.5 rounded-xl bg-admin-bg text-admin-ink hover:bg-admin-bg/90 disabled:opacity-40"
             >
               {savingRows ? "Saving…" : "Save"}
             </button>
             {rowsSaved && !rowsDirty && <span className="text-xs text-green-700">Saved.</span>}
           </div>
-          {rowsError && <p className="mt-1.5 text-xs text-red font-medium">{rowsError}</p>}
+          {rowsError && <p className="mt-1.5 text-xs text-admin-accent font-medium">{rowsError}</p>}
         </div>
 
         {/* --- Download ----------------------------------------------------- */}
-        <div className="mt-4 border-t border-white/10 pt-4">
+        <div className="mt-4 border-t border-admin-ink/10 pt-4">
           <button
             type="button"
             onClick={downloadJobFolder}
             disabled={downloading}
-            className="w-full py-2.5 rounded-xl bg-navy text-white font-semibold hover:bg-navy/90 disabled:opacity-40"
+            className="w-full py-2.5 rounded-xl bg-admin-bg text-admin-ink font-semibold hover:bg-admin-bg/90 disabled:opacity-40"
           >
             {downloading ? "Generating…" : "Download Job Folder PDF"}
           </button>

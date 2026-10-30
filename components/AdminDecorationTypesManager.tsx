@@ -150,11 +150,11 @@ export default function AdminDecorationTypesManager() {
     return (
       <div className="mt-3">
         <div className="flex items-baseline justify-between">
-          <div className="text-xs font-medium text-white/60 uppercase tracking-wide">
+          <div className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide">
             Quantity price breaks
           </div>
           {hasColumns && (
-            <div className="text-xs text-white/40">Priced per {columns.length > 1 ? "column" : "the column"} below</div>
+            <div className="text-xs text-admin-ink/62">Priced per {columns.length > 1 ? "column" : "the column"} below</div>
           )}
         </div>
 
@@ -162,17 +162,17 @@ export default function AdminDecorationTypesManager() {
           <div className="mt-2 space-y-2">
             {draft.pricingTiers.map((tier, i) => (
               <div key={i} className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 text-xs text-white/60">
+                <label className="flex items-center gap-1.5 text-xs text-admin-ink/80">
                   Qty ≥
                   <input
                     type="number"
                     min={1}
                     value={tier.minQty}
                     onChange={(e) => updateTier(i, "minQty", Math.max(1, Number(e.target.value) || 1))}
-                    className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                    className="w-20 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                   />
                 </label>
-                <label className="flex items-center gap-1.5 text-xs text-white/60">
+                <label className="flex items-center gap-1.5 text-xs text-admin-ink/80">
                   $/unit
                   <input
                     type="number"
@@ -180,16 +180,16 @@ export default function AdminDecorationTypesManager() {
                     step="0.01"
                     value={tier.pricePerUnit}
                     onChange={(e) => updateTier(i, "pricePerUnit", Math.max(0, Number(e.target.value) || 0))}
-                    className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                    className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                   />
                 </label>
-                <span className="text-xs text-white/40">
+                <span className="text-xs text-admin-ink/62">
                   {formatUSD(tier.pricePerUnit)}/unit at {tier.minQty}+
                 </span>
                 <button
                   onClick={() => removeTier(i)}
                   disabled={draft.pricingTiers.length <= 1}
-                  className="ml-auto text-xs text-red-600 hover:underline disabled:text-white/20 disabled:no-underline"
+                  className="ml-auto text-xs text-red-600 hover:underline disabled:text-admin-ink/35 disabled:no-underline"
                 >
                   Remove
                 </button>
@@ -201,9 +201,9 @@ export default function AdminDecorationTypesManager() {
             <table className="text-sm border-collapse">
               <thead>
                 <tr>
-                  <th className="text-left text-xs font-medium text-white/60 pr-3 pb-2">Qty ≥</th>
+                  <th className="text-left text-xs font-medium text-admin-ink/80 pr-3 pb-2">Qty ≥</th>
                   {columns.map((col) => (
-                    <th key={col.id} className="text-left text-xs font-medium text-white/60 px-2 pb-2">
+                    <th key={col.id} className="text-left text-xs font-medium text-admin-ink/80 px-2 pb-2">
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -236,7 +236,7 @@ export default function AdminDecorationTypesManager() {
                         min={1}
                         value={tier.minQty}
                         onChange={(e) => updateTier(i, "minQty", Math.max(1, Number(e.target.value) || 1))}
-                        className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                        className="w-20 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                       />
                     </td>
                     {columns.map((col) => (
@@ -247,7 +247,7 @@ export default function AdminDecorationTypesManager() {
                           step="0.01"
                           value={tier.pricesByColumn?.[col.id] ?? tier.pricePerUnit}
                           onChange={(e) => updateCellPrice(i, col.id, Math.max(0, Number(e.target.value) || 0))}
-                          className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                          className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                         />
                       </td>
                     ))}
@@ -255,7 +255,7 @@ export default function AdminDecorationTypesManager() {
                       <button
                         onClick={() => removeTier(i)}
                         disabled={draft.pricingTiers.length <= 1}
-                        className="text-xs text-red-600 hover:underline disabled:text-white/20 disabled:no-underline"
+                        className="text-xs text-red-600 hover:underline disabled:text-admin-ink/35 disabled:no-underline"
                       >
                         Remove row
                       </button>
@@ -264,7 +264,7 @@ export default function AdminDecorationTypesManager() {
                 ))}
               </tbody>
             </table>
-            <p className="mt-1 text-xs text-white/40">
+            <p className="mt-1 text-xs text-admin-ink/62">
               A blank cell falls back to that row&apos;s base $/unit until you set one.
             </p>
           </div>
@@ -273,18 +273,18 @@ export default function AdminDecorationTypesManager() {
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
             onClick={addTier}
-            className="text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+            className="text-sm px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
           >
             + Add {hasColumns ? "row" : "tier"}
           </button>
           <button
             onClick={addColumn}
-            className="text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+            className="text-sm px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
           >
             + Add column
           </button>
           {!hasColumns && (
-            <span className="text-xs text-white/40">
+            <span className="text-xs text-admin-ink/62">
               Add a column to price this decoration differently by, e.g., embroidery stitch count.
             </span>
           )}
@@ -297,38 +297,38 @@ export default function AdminDecorationTypesManager() {
     return (
       <>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="text-sm text-white/70">
+          <label className="text-sm text-admin-ink/88">
             Short label (shown in lists)
             <input
               type="text"
               value={draft.shortLabel}
               onChange={(e) => apply({ shortLabel: e.target.value })}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-sm text-white/70">
+          <label className="text-sm text-admin-ink/88">
             Full label
             <input
               type="text"
               value={draft.label}
               onChange={(e) => apply({ label: e.target.value })}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
         </div>
 
-        <label className="mt-3 block text-sm text-white/70">
+        <label className="mt-3 block text-sm text-admin-ink/88">
           Description
           <textarea
             value={draft.description}
             onChange={(e) => apply({ description: e.target.value })}
             rows={2}
-            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
           />
         </label>
 
-        <div className="mt-3 flex items-center gap-4 text-sm text-white/70">
-          <span className="font-medium text-white">Available on</span>
+        <div className="mt-3 flex items-center gap-4 text-sm text-admin-ink/88">
+          <span className="font-medium text-admin-ink">Available on</span>
           {(["hat", "shirt", "polo", "tumbler"] as const).map((t) => (
             <label key={t} className="flex items-center gap-1.5 capitalize">
               <input
@@ -342,30 +342,30 @@ export default function AdminDecorationTypesManager() {
         </div>
 
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="text-sm text-white/70">
+          <label className="text-sm text-admin-ink/88">
             Accepted file types (comma separated)
             <input
               type="text"
               value={draft.acceptedFileTypesText}
               onChange={(e) => apply({ acceptedFileTypesText: e.target.value })}
               placeholder=".png, .jpg, .pdf, .ai, .svg"
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-sm text-white/70">
+          <label className="text-sm text-admin-ink/88">
             Turnaround
             <input
               type="text"
               value={draft.turnaroundDays}
               onChange={(e) => apply({ turnaroundDays: e.target.value })}
               placeholder="e.g. 10-12 business days"
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
         </div>
 
-        <div className="mt-4 pt-3 border-t border-white/10">
-          <label className="flex items-center gap-1.5 text-sm text-white/70 cursor-pointer select-none">
+        <div className="mt-4 pt-3 border-t border-admin-ink/10">
+          <label className="flex items-center gap-1.5 text-sm text-admin-ink/88 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={draft.quoteRequired === true}
@@ -373,7 +373,7 @@ export default function AdminDecorationTypesManager() {
             />
             Requires a custom quote — no automatic price
           </label>
-          <p className="mt-1 text-xs text-white/50">
+          <p className="mt-1 text-xs text-admin-ink/72">
             Customers can still pick this decoration and place their order, but it&apos;s
             never priced automatically — they&apos;re told we&apos;ll follow up with a
             quote. Use this when cost depends on something we have to look at case by
@@ -382,14 +382,14 @@ export default function AdminDecorationTypesManager() {
         </div>
 
         {draft.quoteRequired ? (
-          <p className="mt-3 text-xs text-white/50 bg-white/[0.03] border border-white/10 shadow-lg shadow-black/30 rounded-xl px-3 py-2">
+          <p className="mt-3 text-xs text-admin-ink/72 bg-admin-ink/[0.03] border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl px-3 py-2">
             Setup fee and pricing tiers are hidden while &quot;Requires a custom quote&quot;
             is on — turn it off to price this decoration automatically again.
           </p>
         ) : (
           <>
             <div className="mt-3 flex flex-wrap items-center gap-4 max-w-md">
-              <label className="flex items-center gap-2 text-sm text-white/70">
+              <label className="flex items-center gap-2 text-sm text-admin-ink/88">
                 <span className="whitespace-nowrap">Setup / digitization fee ($)</span>
                 <input
                   type="number"
@@ -398,10 +398,10 @@ export default function AdminDecorationTypesManager() {
                   value={draft.setupFee}
                   disabled={draft.setupFeeEnabled === false}
                   onChange={(e) => apply({ setupFee: Math.max(0, Number(e.target.value) || 0) })}
-                  className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm disabled:bg-white/5 disabled:text-white/30"
+                  className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm disabled:bg-admin-ink/5 disabled:text-admin-ink/50"
                 />
               </label>
-              <label className="flex items-center gap-1.5 text-sm text-white/70 cursor-pointer select-none">
+              <label className="flex items-center gap-1.5 text-sm text-admin-ink/88 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={draft.setupFeeEnabled !== false}
@@ -411,7 +411,7 @@ export default function AdminDecorationTypesManager() {
               </label>
             </div>
             {draft.setupFeeEnabled === false && (
-              <p className="mt-1 text-xs text-white/50">
+              <p className="mt-1 text-xs text-admin-ink/72">
                 Setup fee is off — orders for this decoration type will never be charged one,
                 regardless of quantity. The amount above is kept so you can turn it back on later.
               </p>
@@ -420,8 +420,8 @@ export default function AdminDecorationTypesManager() {
             {tierRows(draft, apply)}
 
             {(draft.priceColumns?.length ?? 0) > 0 && (
-              <div className="mt-4 pt-3 border-t border-white/10">
-                <label className="flex items-center gap-1.5 text-sm text-white/70 cursor-pointer select-none">
+              <div className="mt-4 pt-3 border-t border-admin-ink/10">
+                <label className="flex items-center gap-1.5 text-sm text-admin-ink/88 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={draft.allowUnknownStitchCount === true}
@@ -429,7 +429,7 @@ export default function AdminDecorationTypesManager() {
                   />
                   Let customers say they don&apos;t know their stitch count
                 </label>
-                <p className="mt-1 text-xs text-white/50">
+                <p className="mt-1 text-xs text-admin-ink/72">
                   Adds a checkbox on the customer side — &quot;I don&apos;t know how many
                   stitches my design has.&quot; If they check it, this decoration is priced
                   at $0 for their order (like a custom quote) and we follow up with them
@@ -506,7 +506,7 @@ export default function AdminDecorationTypesManager() {
   }
 
   if (loading) {
-    return <p className="text-white/40 text-sm">Loading…</p>;
+    return <p className="text-admin-ink/62 text-sm">Loading…</p>;
   }
 
   return (
@@ -525,11 +525,11 @@ export default function AdminDecorationTypesManager() {
           const draft = drafts[d.id] ?? toDraft(d);
           const isOpen = openId === d.id;
           return (
-            <div key={d.id} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black overflow-hidden">
+            <div key={d.id} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <div className="flex-1">
-                  <div className="font-semibold text-white">{d.shortLabel}</div>
-                  <div className="text-xs text-white/50 mt-0.5">
+                  <div className="font-semibold text-admin-ink">{d.shortLabel}</div>
+                  <div className="text-xs text-admin-ink/72 mt-0.5">
                     {d.productTypes
                       .map((t) =>
                         t === "hat" ? "Hats" : t === "shirt" ? "Shirts" : t === "polo" ? "Polos" : "Tumblers"
@@ -551,7 +551,7 @@ export default function AdminDecorationTypesManager() {
                 </div>
                 <button
                   onClick={() => setOpenId(isOpen ? null : d.id)}
-                  className="text-sm text-white/70 px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+                  className="text-sm text-admin-ink/88 px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                 >
                   {isOpen ? "Close" : "Edit"}
                 </button>
@@ -562,20 +562,20 @@ export default function AdminDecorationTypesManager() {
                     }
                   }}
                   disabled={savingId === d.id}
-                  className="text-sm text-red-600 px-2 hover:underline disabled:text-white/20"
+                  className="text-sm text-red-600 px-2 hover:underline disabled:text-admin-ink/35"
                 >
                   Delete
                 </button>
               </div>
 
               {isOpen && (
-                <div className="p-4 border-t border-white/10 bg-white/[0.02]">
+                <div className="p-4 border-t border-admin-ink/10 bg-admin-ink/[0.02]">
                   {draftFields(draft, (patch) => updateDraft(d.id, patch))}
                   <div className="mt-4 flex items-center gap-3">
                     <button
                       onClick={() => handleSaveExisting(d.id)}
                       disabled={savingId === d.id}
-                      className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+                      className="px-5 py-2 rounded-full bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
                     >
                       {savingId === d.id ? "Saving…" : "Save changes"}
                     </button>
@@ -587,23 +587,23 @@ export default function AdminDecorationTypesManager() {
         })}
       </div>
 
-      <div className="mt-6 border border-dashed border-white/20 rounded-2xl">
+      <div className="mt-6 border border-dashed border-admin-ink/20 rounded-2xl">
         {!creating ? (
           <button
             onClick={() => setCreating(true)}
-            className="w-full p-4 text-sm font-medium text-white/70 hover:bg-white/5 rounded-2xl"
+            className="w-full p-4 text-sm font-medium text-admin-ink/88 hover:bg-admin-ink/5 rounded-2xl"
           >
             + Add a decoration type
           </button>
         ) : (
           <div className="p-4">
-            <h3 className="font-semibold text-white">New decoration type</h3>
+            <h3 className="font-semibold text-admin-ink">New decoration type</h3>
             {draftFields(newDraft, (patch) => setNewDraft((prev) => ({ ...prev, ...patch })))}
             <div className="mt-4 flex items-center gap-3">
               <button
                 onClick={handleCreate}
                 disabled={savingId === "__new__" || !newDraft.label || !newDraft.shortLabel}
-                className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+                className="px-5 py-2 rounded-full bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
               >
                 {savingId === "__new__" ? "Adding…" : "Add decoration type"}
               </button>
@@ -612,7 +612,7 @@ export default function AdminDecorationTypesManager() {
                   setCreating(false);
                   setNewDraft(BLANK_DRAFT);
                 }}
-                className="px-4 py-2 rounded-full border border-white/20 text-sm font-medium hover:bg-white/5"
+                className="px-4 py-2 rounded-full border border-admin-ink/20 text-sm font-medium hover:bg-admin-ink/5"
               >
                 Cancel
               </button>
@@ -621,7 +621,7 @@ export default function AdminDecorationTypesManager() {
         )}
       </div>
 
-      {message && <p className="mt-4 text-sm text-white/70">{message}</p>}
+      {message && <p className="mt-4 text-sm text-admin-ink/88">{message}</p>}
     </div>
   );
 }

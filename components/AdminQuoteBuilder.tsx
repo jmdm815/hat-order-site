@@ -203,21 +203,21 @@ function CsPricedSizeRows({
             value={row.size}
             onChange={(e) => updateRow(i, { size: e.target.value })}
             placeholder={itemPlaceholder}
-            className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
+            className="w-32 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
           />
-          <label className="flex items-center gap-1 text-[11px] text-white/50">
+          <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
             Qty
             <input
               type="number"
               min={0}
               value={row.quantity}
               onChange={(e) => updateRow(i, { quantity: Math.max(0, Number(e.target.value) || 0) })}
-              className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+              className="w-16 border border-admin-ink/20 rounded-xl px-1.5 py-1 text-center text-sm"
             />
           </label>
           {showPricing && (
             <>
-              <label className="flex items-center gap-1 text-[11px] text-white/50">
+              <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
                 Cost $
                 <input
                   type="number"
@@ -225,11 +225,11 @@ function CsPricedSizeRows({
                   step="0.01"
                   value={row.cost}
                   onChange={(e) => updateRow(i, { cost: Math.max(0, Number(e.target.value) || 0) })}
-                  className="w-20 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+                  className="w-20 border border-admin-ink/20 rounded-xl px-1.5 py-1 text-center text-sm"
                 />
               </label>
               {manualMarkup ? (
-                <label className="flex items-center gap-1 text-[11px] text-white/50">
+                <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
                   Markup %
                   <input
                     type="number"
@@ -237,16 +237,16 @@ function CsPricedSizeRows({
                     step="1"
                     value={row.markupPercent}
                     onChange={(e) => updateRow(i, { markupPercent: Math.max(0, Number(e.target.value) || 0) })}
-                    className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+                    className="w-16 border border-admin-ink/20 rounded-xl px-1.5 py-1 text-center text-sm"
                   />
                 </label>
               ) : (
-                <span className="text-[11px] text-white/40">({row.markupPercent}% markup)</span>
+                <span className="text-[11px] text-admin-ink/62">({row.markupPercent}% markup)</span>
               )}
-              <span className="text-xs text-white/70 w-16 text-right shrink-0">${csRowPrice(row).toFixed(2)}</span>
+              <span className="text-xs text-admin-ink/88 w-16 text-right shrink-0">${csRowPrice(row).toFixed(2)}</span>
             </>
           )}
-          <button type="button" onClick={() => copyRow(i)} className="text-xs text-white/60 hover:underline">
+          <button type="button" onClick={() => copyRow(i)} className="text-xs text-admin-ink/80 hover:underline">
             Copy
           </button>
           <button
@@ -262,12 +262,12 @@ function CsPricedSizeRows({
         <button
           type="button"
           onClick={() => onChange([...rows, { size: "", quantity: 0, cost: 0, markupPercent: 0 }])}
-          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+          className="text-xs px-2 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
         >
           {addRowLabel}
         </button>
         {showPricing && (
-          <button type="button" onClick={toggleManualMarkup} className="text-xs text-white/40 hover:underline">
+          <button type="button" onClick={toggleManualMarkup} className="text-xs text-admin-ink/62 hover:underline">
             {manualMarkup ? "Use automatic markup" : "Set markup manually"}
           </button>
         )}
@@ -321,54 +321,54 @@ function CsCustomItemRows({
   return (
     <div className="mt-1.5 space-y-2">
       {rows.map((row, i) => (
-        <div key={i} className="flex items-center gap-2 flex-wrap border border-white/10 rounded-xl px-2 py-2">
-          <label className="flex items-center gap-1 text-[11px] text-white/50">
+        <div key={i} className="flex items-center gap-2 flex-wrap border border-admin-ink/10 rounded-xl px-2 py-2">
+          <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
             Brand
             <input
               value={row.brand}
               onChange={(e) => updateRow(i, { brand: e.target.value })}
               placeholder="e.g. Yeti"
-              className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+              className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
             />
           </label>
-          <label className="flex items-center gap-1 text-[11px] text-white/50">
+          <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
             Style / item
             <input
               value={row.styleNumber}
               onChange={(e) => updateRow(i, { styleNumber: e.target.value })}
               placeholder="e.g. 20oz Tumbler"
-              className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
+              className="w-32 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
             />
           </label>
-          <label className="flex items-center gap-1 text-[11px] text-white/50">
+          <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
             Color
             <input
               value={row.colorName}
               onChange={(e) => updateRow(i, { colorName: e.target.value })}
               placeholder="e.g. Black"
-              className="w-24 border border-white/20 rounded-xl px-2 py-1 text-sm"
+              className="w-24 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
             />
           </label>
-          <label className="flex items-center gap-1 text-[11px] text-white/50">
+          <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
             Size
             <input
               value={row.size}
               onChange={(e) => updateRow(i, { size: e.target.value })}
               placeholder="One Size"
-              className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+              className="w-20 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
             />
           </label>
-          <label className="flex items-center gap-1 text-[11px] text-white/50">
+          <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
             Qty
             <input
               type="number"
               min={0}
               value={row.quantity}
               onChange={(e) => updateRow(i, { quantity: Math.max(0, Number(e.target.value) || 0) })}
-              className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+              className="w-16 border border-admin-ink/20 rounded-xl px-1.5 py-1 text-center text-sm"
             />
           </label>
-          <label className="flex items-center gap-1 text-[11px] text-white/50">
+          <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
             Cost $
             <input
               type="number"
@@ -376,11 +376,11 @@ function CsCustomItemRows({
               step="0.01"
               value={row.cost}
               onChange={(e) => updateRow(i, { cost: Math.max(0, Number(e.target.value) || 0) })}
-              className="w-20 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+              className="w-20 border border-admin-ink/20 rounded-xl px-1.5 py-1 text-center text-sm"
             />
           </label>
           {manualMarkup ? (
-            <label className="flex items-center gap-1 text-[11px] text-white/50">
+            <label className="flex items-center gap-1 text-[11px] text-admin-ink/72">
               Markup %
               <input
                 type="number"
@@ -388,14 +388,14 @@ function CsCustomItemRows({
                 step="1"
                 value={row.markupPercent}
                 onChange={(e) => updateRow(i, { markupPercent: Math.max(0, Number(e.target.value) || 0) })}
-                className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+                className="w-16 border border-admin-ink/20 rounded-xl px-1.5 py-1 text-center text-sm"
               />
             </label>
           ) : (
-            <span className="text-[11px] text-white/40">({row.markupPercent}% markup)</span>
+            <span className="text-[11px] text-admin-ink/62">({row.markupPercent}% markup)</span>
           )}
-          <span className="text-xs text-white/70 w-16 text-right shrink-0">${csRowPrice(row).toFixed(2)}</span>
-          <button type="button" onClick={() => copyRow(i)} className="text-xs text-white/60 hover:underline">
+          <span className="text-xs text-admin-ink/88 w-16 text-right shrink-0">${csRowPrice(row).toFixed(2)}</span>
+          <button type="button" onClick={() => copyRow(i)} className="text-xs text-admin-ink/80 hover:underline">
             Copy
           </button>
           <button
@@ -411,11 +411,11 @@ function CsCustomItemRows({
         <button
           type="button"
           onClick={() => onChange([...rows, csDefaultCustomItemRow()])}
-          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+          className="text-xs px-2 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
         >
           + Add item row
         </button>
-        <button type="button" onClick={toggleManualMarkup} className="text-xs text-white/40 hover:underline">
+        <button type="button" onClick={toggleManualMarkup} className="text-xs text-admin-ink/62 hover:underline">
           {manualMarkup ? "Use automatic markup" : "Set markup manually"}
         </button>
       </div>
@@ -1703,6 +1703,44 @@ export default function AdminQuoteBuilder({
     return null;
   }
 
+  // Thumbnails (PendingLine.imageUrl) aren't persisted with a saved quote
+  // (see that field's comment), so every line in a record just loaded back
+  // from the server starts with no picture — the Items cards would show a
+  // blank placeholder for every row until the admin opened "Edit" on each
+  // one. Quietly re-look each catalog line up by style + color right after
+  // mount so the thumbnails fill in on their own. Runs once per record (this
+  // component remounts per record — see AdminQuotePageClient's
+  // key={record?.id ?? "new"} — so the `lines` this effect starts from are
+  // exactly what that record loaded with).
+  useEffect(() => {
+    const candidates = lines.filter((l) => !l.imageUrl && !l.customerSupplied && l.styleNumber && l.colorName);
+    if (candidates.length === 0) return;
+    let cancelled = false;
+    candidates.forEach(async (line) => {
+      const result = await fetchColorsForEdit(line);
+      if (cancelled || !result) return;
+      const target = line.colorName!.trim().toLowerCase();
+      const color = result.colors.find((c) => c.colorName.trim().toLowerCase() === target);
+      if (!color || (!color.imageUrl && !color.imageFallbackUrl)) return;
+      setLines((prev) =>
+        prev.map((l) =>
+          l.key === line.key
+            ? {
+                ...l,
+                imageUrl: color.imageUrl,
+                imageFallbackUrl: color.imageFallbackUrl,
+                catalogSource: l.catalogSource ?? result.catalog,
+              }
+            : l
+        )
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function startEditLine(line: PendingLine) {
     setEditingLineKey(line.key);
     setEditDraftColorName(line.colorName ?? "");
@@ -2075,16 +2113,16 @@ export default function AdminQuoteBuilder({
     <>
     <div className="space-y-8">
       {activeRecord && (
-        <div className="bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-2xl px-4 py-2.5 text-sm space-y-2.5">
+        <div className="bg-admin-ink/5 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl px-4 py-2.5 text-sm space-y-2.5">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="text-white/70">
+          <div className="text-admin-ink/88">
             Editing{" "}
             {activeRecord.status === "invoice"
               ? `invoice ${activeRecord.invoiceNumber}`
               : activeRecord.quoteNumber
                 ? `quote ${activeRecord.quoteNumber}`
                 : "saved quote"}{" "}
-            <span className="text-white/40">
+            <span className="text-admin-ink/62">
               (saved {new Date(activeRecord.updatedAt).toLocaleDateString()})
             </span>
             {activeRecord.status === "invoice" && activeRecord.invoiceStatus && (
@@ -2103,7 +2141,7 @@ export default function AdminQuoteBuilder({
             {activeRecord.status === "quote" && activeRecord.linkedInvoiceId && (
               <button
                 onClick={() => router.push(`/admin/quotes/${activeRecord.linkedInvoiceId}`)}
-                className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium border border-white/20 text-white/70 hover:bg-white/5"
+                className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium border border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
                 title="Open the invoice created from this quote"
               >
                 → Invoice {activeRecord.linkedInvoiceNumber ?? ""}
@@ -2112,7 +2150,7 @@ export default function AdminQuoteBuilder({
             {activeRecord.status === "invoice" && activeRecord.linkedQuoteId && (
               <button
                 onClick={() => router.push(`/admin/quotes/${activeRecord.linkedQuoteId}`)}
-                className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium border border-white/20 text-white/70 hover:bg-white/5"
+                className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium border border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
                 title="Open the quote this invoice was created from"
               >
                 from Quote {activeRecord.linkedQuoteNumber ?? ""}
@@ -2121,7 +2159,7 @@ export default function AdminQuoteBuilder({
           </div>
           <button
             onClick={startNewQuote}
-            className="text-xs text-white/60 px-3 py-1 rounded-xl border border-white/20 hover:bg-black shrink-0"
+            className="text-xs text-admin-ink/80 px-3 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-card shrink-0"
           >
             Start a new quote
           </button>
@@ -2136,17 +2174,17 @@ export default function AdminQuoteBuilder({
             invoice, Create a copy, and all four PDF downloads move into the
             menu. */}
         {mode === "full" && (
-          <div className="flex items-center gap-2 flex-wrap pt-2.5 border-t border-white/10">
+          <div className="flex items-center gap-2 flex-wrap pt-2.5 border-t border-admin-ink/10">
             <button
               onClick={saveQuote}
               disabled={saving}
-              className="text-xs px-3 py-1.5 rounded-xl bg-red text-navy font-semibold hover:bg-red/90 disabled:opacity-40"
+              className="text-xs px-3 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent/90 disabled:opacity-40"
             >
               {saving ? "Saving…" : "Save changes"}
             </button>
             <button
               onClick={() => setSendModalOpen(true)}
-              className="text-xs px-3 py-1.5 rounded-xl bg-white/10 text-white hover:bg-white/15"
+              className="text-xs px-3 py-1.5 rounded-xl bg-admin-ink/10 text-admin-ink hover:bg-admin-ink/15"
             >
               Send to customer
             </button>
@@ -2154,7 +2192,7 @@ export default function AdminQuoteBuilder({
               <button
                 onClick={convertToInvoice}
                 disabled={converting}
-                className="text-xs px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
+                className="text-xs px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5 disabled:opacity-40"
               >
                 {converting ? "Converting…" : "Convert to invoice"}
               </button>
@@ -2164,30 +2202,30 @@ export default function AdminQuoteBuilder({
                 type="button"
                 onClick={() => setMoreMenuOpen((o) => !o)}
                 title="More actions"
-                className="text-xs px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+                className="text-xs px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
               >
                 ⋯ More
               </button>
               {moreMenuOpen && (
-                <div className="absolute right-0 z-40 mt-1 w-64 bg-black border border-white/20 rounded-2xl shadow-xl p-1.5">
+                <div className="absolute right-0 z-40 mt-1 w-64 bg-admin-card border border-admin-ink/20 rounded-2xl shadow-xl p-1.5">
                   <button
                     onClick={() => {
                       generateQuote();
                       setMoreMenuOpen(false);
                     }}
                     disabled={quoteLoading}
-                    className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                    className="w-full text-left text-sm text-admin-ink/94 px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5 disabled:opacity-40"
                   >
                     {quoteLoading ? "Calculating…" : "Refresh preview"}
                   </button>
-                  <div className="h-px bg-white/10 my-1" />
+                  <div className="h-px bg-admin-ink/10 my-1" />
                   <button
                     onClick={() => {
                       downloadPdf("customer");
                       setMoreMenuOpen(false);
                     }}
                     disabled={pdfLoading !== null}
-                    className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                    className="w-full text-left text-sm text-admin-ink/94 px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5 disabled:opacity-40"
                   >
                     {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
                   </button>
@@ -2197,7 +2235,7 @@ export default function AdminQuoteBuilder({
                       setMoreMenuOpen(false);
                     }}
                     disabled={pdfLoading !== null}
-                    className="w-full text-left text-sm text-red px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                    className="w-full text-left text-sm text-admin-accent px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5 disabled:opacity-40"
                   >
                     {pdfLoading === "internal" ? "Generating…" : "Download company PDF (with cost)"}
                   </button>
@@ -2207,7 +2245,7 @@ export default function AdminQuoteBuilder({
                       setMoreMenuOpen(false);
                     }}
                     disabled={pdfLoading !== null}
-                    className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                    className="w-full text-left text-sm text-admin-ink/94 px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5 disabled:opacity-40"
                   >
                     {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
                   </button>
@@ -2218,33 +2256,33 @@ export default function AdminQuoteBuilder({
                         setMoreMenuOpen(false);
                       }}
                       disabled={pdfLoading !== null}
-                      className="w-full text-left text-sm text-green-500 px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                      className="w-full text-left text-sm text-green-500 px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5 disabled:opacity-40"
                     >
                       {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
                     </button>
                   )}
-                  <div className="h-px bg-white/10 my-1" />
+                  <div className="h-px bg-admin-ink/10 my-1" />
                   {copyMenuOpen ? (
                     <div className="px-2.5 py-1.5">
-                      <p className="text-xs text-white/50 mb-1.5">Copy as:</p>
+                      <p className="text-xs text-admin-ink/72 mb-1.5">Copy as:</p>
                       <div className="flex gap-1.5">
                         <button
                           onClick={() => handleDuplicate("quote")}
                           disabled={duplicating}
-                          className="flex-1 text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                          className="flex-1 text-xs px-2.5 py-1 rounded-lg bg-admin-ink/10 hover:bg-admin-ink/20 disabled:opacity-40"
                         >
                           {duplicating ? "…" : "Quote"}
                         </button>
                         <button
                           onClick={() => handleDuplicate("invoice")}
                           disabled={duplicating}
-                          className="flex-1 text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                          className="flex-1 text-xs px-2.5 py-1 rounded-lg bg-admin-ink/10 hover:bg-admin-ink/20 disabled:opacity-40"
                         >
                           {duplicating ? "…" : "Invoice"}
                         </button>
                         <button
                           onClick={() => setCopyMenuOpen(false)}
-                          className="text-xs px-2 py-1 text-white/40 hover:text-white"
+                          className="text-xs px-2 py-1 text-admin-ink/62 hover:text-admin-ink"
                           title="Cancel"
                         >
                           ✕
@@ -2255,7 +2293,7 @@ export default function AdminQuoteBuilder({
                     <button
                       onClick={() => setCopyMenuOpen(true)}
                       title="Create an independent copy of this as a new quote or invoice"
-                      className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5"
+                      className="w-full text-left text-sm text-admin-ink/94 px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5"
                     >
                       Create a copy
                     </button>
@@ -2273,12 +2311,12 @@ export default function AdminQuoteBuilder({
       {/* Customer / quote header — skipped entirely in "quick" mode (Quick
           Quote tab): no customer to look up, no payment terms to set. */}
       {mode === "full" && (
-      <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-white mb-3">Quote details</h3>
+      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-admin-ink mb-3">Quote details</h3>
 
         {customers.length > 0 && (
           <div className="relative max-w-sm mb-3">
-            <label className="text-xs text-white/60">
+            <label className="text-xs text-admin-ink/80">
               Load a saved customer (optional)
               <input
                 value={customerQuery}
@@ -2288,21 +2326,21 @@ export default function AdminQuoteBuilder({
                 }}
                 onFocus={() => setCustomerSuggestionsOpen(true)}
                 onBlur={() => setTimeout(() => setCustomerSuggestionsOpen(false), 150)}
-                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                 placeholder="Search by name, company, or email…"
               />
             </label>
             {customerSuggestionsOpen && customerSuggestions.length > 0 && (
-              <ul className="absolute z-40 mt-1 w-full max-h-56 overflow-y-auto bg-black border border-white/20 rounded-xl shadow-lg text-sm">
+              <ul className="absolute z-40 mt-1 w-full max-h-56 overflow-y-auto bg-admin-card border border-admin-ink/20 rounded-xl shadow-lg text-sm">
                 {customerSuggestions.map((c) => (
                   <li key={c.id}>
                     <button
                       type="button"
                       onMouseDown={() => selectCustomer(c)}
-                      className="block w-full text-left px-3 py-2 hover:bg-white/5"
+                      className="block w-full text-left px-3 py-2 hover:bg-admin-ink/5"
                     >
-                      <span className="font-medium text-white">{c.name}</span>{" "}
-                      <span className="text-white/40">
+                      <span className="font-medium text-admin-ink">{c.name}</span>{" "}
+                      <span className="text-admin-ink/62">
                         {[c.company, c.email].filter(Boolean).join(" · ")}
                       </span>
                     </button>
@@ -2314,82 +2352,82 @@ export default function AdminQuoteBuilder({
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <label className="text-xs text-white/60">
+          <label className="text-xs text-admin-ink/80">
             Customer name
             <input
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
               placeholder="Jane Smith"
             />
           </label>
-          <label className="text-xs text-white/60">
+          <label className="text-xs text-admin-ink/80">
             Company (optional)
             <input
               value={customerCompany}
               onChange={(e) => setCustomerCompany(e.target.value)}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-xs text-white/60">
+          <label className="text-xs text-admin-ink/80">
             Email (optional)
             <input
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-xs text-white/60">
+          <label className="text-xs text-admin-ink/80">
             Quote date
             <input
               type="date"
               value={quoteDate}
               onChange={(e) => setQuoteDate(e.target.value)}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
         </div>
-        <label className="block text-xs text-white/60 mt-3">
+        <label className="block text-xs text-admin-ink/80 mt-3">
           Notes (optional, printed on the PDF)
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             rows={2}
           />
         </label>
 
         <div className="mt-3">
-          <p className="text-xs text-white/60 mb-1">Payment terms</p>
+          <p className="text-xs text-admin-ink/80 mb-1">Payment terms</p>
           <div className="relative inline-block" ref={paymentTermsRef}>
             <button
               type="button"
               onClick={() => setPaymentTermsOpen((o) => !o)}
-              className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+              className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
             >
               {customPercentMode
                 ? `Custom — ${depositPercent}% deposit`
                 : (paymentTerms.find((t) => t.depositPercent === depositPercent)?.label ??
                   `${depositPercent}% deposit`)}
-              <span className="text-white/40">{paymentTermsOpen ? "▲" : "▼"}</span>
+              <span className="text-admin-ink/62">{paymentTermsOpen ? "▲" : "▼"}</span>
             </button>
 
             {paymentTermsOpen && (
-              <div className="absolute z-40 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+              <div className="absolute z-40 mt-1 w-80 bg-admin-card border border-admin-ink/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
                 {paymentTerms.map((t) => {
                   const isEditing = editingTermId === t.id;
                   const busy = termBusyId === t.id;
                   if (isEditing) {
                     return (
-                      <div key={t.id} className="px-2 py-2 border-b border-white/5 last:border-b-0">
+                      <div key={t.id} className="px-2 py-2 border-b border-admin-ink/5 last:border-b-0">
                         <div className="flex flex-col gap-1.5">
                           <input
                             value={termEditDraft.label}
                             onChange={(e) => setTermEditDraft((d) => ({ ...d, label: e.target.value }))}
-                            className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                            className="w-full border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                             placeholder="Label"
                           />
-                          <label className="flex items-center gap-1.5 text-xs text-white/60">
+                          <label className="flex items-center gap-1.5 text-xs text-admin-ink/80">
                             Deposit
                             <input
                               type="number"
@@ -2402,7 +2440,7 @@ export default function AdminQuoteBuilder({
                                   depositPercent: Math.min(100, Math.max(1, Number(e.target.value) || 0)),
                                 }))
                               }
-                              className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                              className="w-16 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                             />
                             %
                           </label>
@@ -2411,14 +2449,14 @@ export default function AdminQuoteBuilder({
                               type="button"
                               onClick={() => saveTermEdit(t.id)}
                               disabled={busy}
-                              className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                              className="text-xs font-semibold text-admin-accent hover:underline disabled:text-admin-ink/35"
                             >
                               {busy ? "Saving…" : "Save"}
                             </button>
                             <button
                               type="button"
                               onClick={() => setEditingTermId(null)}
-                              className="text-xs text-white/60 hover:underline"
+                              className="text-xs text-admin-ink/80 hover:underline"
                             >
                               Cancel
                             </button>
@@ -2430,20 +2468,20 @@ export default function AdminQuoteBuilder({
                   return (
                     <div
                       key={t.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-admin-ink/5 border-b border-admin-ink/5 last:border-b-0"
                     >
                       <button
                         type="button"
                         onClick={() => selectPaymentTerm(t)}
-                        className="flex-1 min-w-0 text-left text-sm text-white/80"
+                        className="flex-1 min-w-0 text-left text-sm text-admin-ink/94"
                       >
                         <span className="truncate">{t.label}</span>{" "}
-                        <span className="text-white/40">({t.depositPercent}%)</span>
+                        <span className="text-admin-ink/62">({t.depositPercent}%)</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => startEditTerm(t)}
-                        className="text-xs text-white/50 hover:text-white hover:underline shrink-0"
+                        className="text-xs text-admin-ink/72 hover:text-admin-ink hover:underline shrink-0"
                       >
                         Edit
                       </button>
@@ -2451,7 +2489,7 @@ export default function AdminQuoteBuilder({
                         type="button"
                         onClick={() => handleDeleteTerm(t)}
                         disabled={busy}
-                        className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                        className="text-xs text-red-600 hover:underline shrink-0 disabled:text-admin-ink/35"
                       >
                         {busy ? "…" : "Delete"}
                       </button>
@@ -2465,12 +2503,12 @@ export default function AdminQuoteBuilder({
                     setCustomPercentMode(true);
                     setPaymentTermsOpen(false);
                   }}
-                  className="w-full text-left text-sm text-white/80 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5"
+                  className="w-full text-left text-sm text-admin-ink/94 px-2 py-1.5 rounded-xl hover:bg-admin-ink/5 border-b border-admin-ink/5"
                 >
                   Custom % (this quote only)
                 </button>
 
-                <div className="mt-1 pt-1 border-t border-white/10">
+                <div className="mt-1 pt-1 border-t border-admin-ink/10">
                   {!creatingTerm ? (
                     <button
                       type="button"
@@ -2479,7 +2517,7 @@ export default function AdminQuoteBuilder({
                         setEditingTermId(null);
                         setTermError(null);
                       }}
-                      className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-xl hover:bg-white/5"
+                      className="w-full text-left text-sm font-medium text-admin-accent px-2 py-1.5 rounded-xl hover:bg-admin-ink/5"
                     >
                       + Add custom payment term
                     </button>
@@ -2489,10 +2527,10 @@ export default function AdminQuoteBuilder({
                         value={newTermDraft.label}
                         onChange={(e) => setNewTermDraft((d) => ({ ...d, label: e.target.value }))}
                         placeholder="e.g. 25% deposit, balance on delivery"
-                        className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                        className="w-full border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                         autoFocus
                       />
-                      <label className="flex items-center gap-1.5 text-xs text-white/60">
+                      <label className="flex items-center gap-1.5 text-xs text-admin-ink/80">
                         Deposit
                         <input
                           type="number"
@@ -2505,7 +2543,7 @@ export default function AdminQuoteBuilder({
                               depositPercent: Math.min(100, Math.max(1, Number(e.target.value) || 0)),
                             }))
                           }
-                          className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                          className="w-16 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                         />
                         %
                       </label>
@@ -2514,7 +2552,7 @@ export default function AdminQuoteBuilder({
                           type="button"
                           onClick={handleCreateTerm}
                           disabled={termBusyId === "__new__"}
-                          className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                          className="text-xs font-semibold text-admin-accent hover:underline disabled:text-admin-ink/35"
                         >
                           {termBusyId === "__new__" ? "Adding…" : "Add & select"}
                         </button>
@@ -2525,7 +2563,7 @@ export default function AdminQuoteBuilder({
                             setNewTermDraft({ label: "", depositPercent: 100 });
                             setTermError(null);
                           }}
-                          className="text-xs text-white/60 hover:underline"
+                          className="text-xs text-admin-ink/80 hover:underline"
                         >
                           Cancel
                         </button>
@@ -2540,7 +2578,7 @@ export default function AdminQuoteBuilder({
           </div>
 
           {customPercentMode && (
-            <label className="mt-2 flex items-center gap-1.5 text-xs text-white/60">
+            <label className="mt-2 flex items-center gap-1.5 text-xs text-admin-ink/80">
               Deposit
               <input
                 type="number"
@@ -2548,50 +2586,50 @@ export default function AdminQuoteBuilder({
                 max={99}
                 value={depositPercent}
                 onChange={(e) => setDepositPercent(Math.min(99, Math.max(1, Number(e.target.value) || 0)))}
-                className="w-16 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                className="w-16 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
               />
               %
             </label>
           )}
 
           {depositPercent < 100 && (
-            <p className="mt-1.5 text-xs text-white/40">
+            <p className="mt-1.5 text-xs text-admin-ink/62">
               {depositPercent}% deposit due now, {100 - depositPercent}% balance due at pickup
             </p>
           )}
         </div>
 
         <div className="mt-3">
-          <p className="text-xs text-white/60 mb-1">Tax</p>
+          <p className="text-xs text-admin-ink/80 mb-1">Tax</p>
           <div className="relative inline-block" ref={taxDropdownRef}>
             <button
               type="button"
               onClick={() => setTaxDropdownOpen((o) => !o)}
-              className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+              className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
             >
               {customTaxMode
                 ? `Custom — ${taxRatePercent}% tax`
                 : (taxRates.find((t) => t.ratePercent === taxRatePercent)?.label ??
                   (taxRatePercent === 0 ? "No tax" : `${taxRatePercent}% tax`))}
-              <span className="text-white/40">{taxDropdownOpen ? "▲" : "▼"}</span>
+              <span className="text-admin-ink/62">{taxDropdownOpen ? "▲" : "▼"}</span>
             </button>
 
             {taxDropdownOpen && (
-              <div className="absolute z-40 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+              <div className="absolute z-40 mt-1 w-80 bg-admin-card border border-admin-ink/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
                 {taxRates.map((t) => {
                   const isEditing = editingTaxId === t.id;
                   const busy = taxBusyId === t.id;
                   if (isEditing) {
                     return (
-                      <div key={t.id} className="px-2 py-2 border-b border-white/5 last:border-b-0">
+                      <div key={t.id} className="px-2 py-2 border-b border-admin-ink/5 last:border-b-0">
                         <div className="flex flex-col gap-1.5">
                           <input
                             value={taxEditDraft.label}
                             onChange={(e) => setTaxEditDraft((d) => ({ ...d, label: e.target.value }))}
-                            className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                            className="w-full border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                             placeholder="Label"
                           />
-                          <label className="flex items-center gap-1.5 text-xs text-white/60">
+                          <label className="flex items-center gap-1.5 text-xs text-admin-ink/80">
                             Rate
                             <input
                               type="number"
@@ -2605,7 +2643,7 @@ export default function AdminQuoteBuilder({
                                   ratePercent: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
                                 }))
                               }
-                              className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                              className="w-20 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                             />
                             %
                           </label>
@@ -2614,14 +2652,14 @@ export default function AdminQuoteBuilder({
                               type="button"
                               onClick={() => saveTaxRateEdit(t.id)}
                               disabled={busy}
-                              className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                              className="text-xs font-semibold text-admin-accent hover:underline disabled:text-admin-ink/35"
                             >
                               {busy ? "Saving…" : "Save"}
                             </button>
                             <button
                               type="button"
                               onClick={() => setEditingTaxId(null)}
-                              className="text-xs text-white/60 hover:underline"
+                              className="text-xs text-admin-ink/80 hover:underline"
                             >
                               Cancel
                             </button>
@@ -2633,20 +2671,20 @@ export default function AdminQuoteBuilder({
                   return (
                     <div
                       key={t.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-admin-ink/5 border-b border-admin-ink/5 last:border-b-0"
                     >
                       <button
                         type="button"
                         onClick={() => selectTaxRate(t)}
-                        className="flex-1 min-w-0 text-left text-sm text-white/80"
+                        className="flex-1 min-w-0 text-left text-sm text-admin-ink/94"
                       >
                         <span className="truncate">{t.label}</span>{" "}
-                        <span className="text-white/40">({t.ratePercent}%)</span>
+                        <span className="text-admin-ink/62">({t.ratePercent}%)</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => startEditTaxRate(t)}
-                        className="text-xs text-white/50 hover:text-white hover:underline shrink-0"
+                        className="text-xs text-admin-ink/72 hover:text-admin-ink hover:underline shrink-0"
                       >
                         Edit
                       </button>
@@ -2654,7 +2692,7 @@ export default function AdminQuoteBuilder({
                         type="button"
                         onClick={() => handleDeleteTaxRate(t)}
                         disabled={busy}
-                        className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                        className="text-xs text-red-600 hover:underline shrink-0 disabled:text-admin-ink/35"
                       >
                         {busy ? "…" : "Delete"}
                       </button>
@@ -2668,12 +2706,12 @@ export default function AdminQuoteBuilder({
                     setCustomTaxMode(true);
                     setTaxDropdownOpen(false);
                   }}
-                  className="w-full text-left text-sm text-white/80 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5"
+                  className="w-full text-left text-sm text-admin-ink/94 px-2 py-1.5 rounded-xl hover:bg-admin-ink/5 border-b border-admin-ink/5"
                 >
                   Custom % (this quote only)
                 </button>
 
-                <div className="mt-1 pt-1 border-t border-white/10">
+                <div className="mt-1 pt-1 border-t border-admin-ink/10">
                   {!creatingTaxRate ? (
                     <button
                       type="button"
@@ -2682,7 +2720,7 @@ export default function AdminQuoteBuilder({
                         setEditingTaxId(null);
                         setTaxError(null);
                       }}
-                      className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-xl hover:bg-white/5"
+                      className="w-full text-left text-sm font-medium text-admin-accent px-2 py-1.5 rounded-xl hover:bg-admin-ink/5"
                     >
                       + Add custom tax rate
                     </button>
@@ -2692,10 +2730,10 @@ export default function AdminQuoteBuilder({
                         value={newTaxRateDraft.label}
                         onChange={(e) => setNewTaxRateDraft((d) => ({ ...d, label: e.target.value }))}
                         placeholder="e.g. 8.25% sales tax"
-                        className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                        className="w-full border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                         autoFocus
                       />
-                      <label className="flex items-center gap-1.5 text-xs text-white/60">
+                      <label className="flex items-center gap-1.5 text-xs text-admin-ink/80">
                         Rate
                         <input
                           type="number"
@@ -2709,7 +2747,7 @@ export default function AdminQuoteBuilder({
                               ratePercent: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
                             }))
                           }
-                          className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                          className="w-20 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                         />
                         %
                       </label>
@@ -2718,7 +2756,7 @@ export default function AdminQuoteBuilder({
                           type="button"
                           onClick={handleCreateTaxRate}
                           disabled={taxBusyId === "__new__"}
-                          className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                          className="text-xs font-semibold text-admin-accent hover:underline disabled:text-admin-ink/35"
                         >
                           {taxBusyId === "__new__" ? "Adding…" : "Add & select"}
                         </button>
@@ -2729,7 +2767,7 @@ export default function AdminQuoteBuilder({
                             setNewTaxRateDraft({ label: "", ratePercent: 0 });
                             setTaxError(null);
                           }}
-                          className="text-xs text-white/60 hover:underline"
+                          className="text-xs text-admin-ink/80 hover:underline"
                         >
                           Cancel
                         </button>
@@ -2744,7 +2782,7 @@ export default function AdminQuoteBuilder({
           </div>
 
           {customTaxMode && (
-            <label className="mt-2 flex items-center gap-1.5 text-xs text-white/60">
+            <label className="mt-2 flex items-center gap-1.5 text-xs text-admin-ink/80">
               Rate
               <input
                 type="number"
@@ -2753,7 +2791,7 @@ export default function AdminQuoteBuilder({
                 step="0.01"
                 value={taxRatePercent}
                 onChange={(e) => setTaxRatePercent(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                className="w-20 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                className="w-20 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
               />
               %
             </label>
@@ -2767,11 +2805,11 @@ export default function AdminQuoteBuilder({
           <button
             onClick={saveQuote}
             disabled={saving}
-            className="text-sm font-semibold px-6 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 disabled:opacity-40"
+            className="text-sm font-semibold px-6 py-2.5 rounded-xl bg-green-600 text-admin-ink hover:bg-green-700 disabled:opacity-40"
           >
             {saving ? "Saving…" : "Save & add line item"}
           </button>
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-admin-ink/62">
             Saves the customer details, payment terms, and tax above, assigns this quote a quote
             number, and unlocks the Items section below so you can add garments and charges.
           </p>
@@ -2789,8 +2827,8 @@ export default function AdminQuoteBuilder({
           save step — mirroring the reference quoting tool's two-phase flow. */}
       {(mode === "quick" || activeRecord) && (
       <div>
-        <h2 className="text-lg font-bold text-white mb-1">Items</h2>
-        <p className="text-sm text-white/50 mb-4">
+        <h2 className="text-lg font-bold text-admin-ink mb-1">Items</h2>
+        <p className="text-sm text-admin-ink/72 mb-4">
           Everything that adds to this quote&apos;s total — garments, setup charges, and any other
           one-off charges. Starts blank; use &quot;+ Add item&quot; below to add a garment, a setup
           charge, or another one-off charge, and it shows up here right away.
@@ -2805,9 +2843,9 @@ export default function AdminQuoteBuilder({
             "Setup charges" / "Garments" cards sitting around with nothing
             in them), matching the reference quoting tool's single central
             Items list. */}
-        <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+        <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-            <h3 className="text-sm font-semibold text-white">
+            <h3 className="text-sm font-semibold text-admin-ink">
               Items ({lines.length + selectedSetupChargeIds.length + miscFees.length})
             </h3>
             <div className="flex items-center gap-2">
@@ -2818,7 +2856,7 @@ export default function AdminQuoteBuilder({
                     ? "Hide item cost and item markup — show only the item price"
                     : "Show item cost and item markup"
                 }
-                className="text-xs px-2 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+                className="text-xs px-2 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
               >
                 {showMarkup ? "Item Markup" : "IM%"}
               </button>
@@ -2826,12 +2864,12 @@ export default function AdminQuoteBuilder({
               <button
                 type="button"
                 onClick={() => setAddItemMenuOpen((o) => !o)}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-xl bg-red text-navy font-semibold hover:bg-red/90"
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent/90"
               >
-                + Add item <span className="text-navy/60">{addItemMenuOpen ? "▲" : "▼"}</span>
+                + Add item <span className="text-admin-accent-ink/60">{addItemMenuOpen ? "▲" : "▼"}</span>
               </button>
               {addItemMenuOpen && (
-                <div className="absolute right-0 z-40 mt-1 w-48 bg-black border border-white/20 rounded-2xl shadow-xl p-1.5">
+                <div className="absolute right-0 z-40 mt-1 w-48 bg-admin-card border border-admin-ink/20 rounded-2xl shadow-xl p-1.5">
                   {(
                     [
                       ["garment", "Garment"],
@@ -2846,7 +2884,7 @@ export default function AdminQuoteBuilder({
                         setAddItemMode(key);
                         setAddItemMenuOpen(false);
                       }}
-                      className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5"
+                      className="w-full text-left text-sm text-admin-ink/94 px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5"
                     >
                       {label}
                     </button>
@@ -2858,7 +2896,7 @@ export default function AdminQuoteBuilder({
           </div>
 
           {lines.length === 0 && selectedSetupChargeIds.length === 0 && miscFees.length === 0 ? (
-            <p className="text-sm text-white/40">
+            <p className="text-sm text-admin-ink/62">
               No items yet — tap &quot;+ Add item&quot; above to add a garment or a charge.
             </p>
           ) : (
@@ -2889,10 +2927,10 @@ export default function AdminQuoteBuilder({
                 return (
                   <div
                     key={line.key}
-                    className="border border-white/15 rounded-xl px-3 py-3 bg-white/[0.015]"
+                    className="border border-admin-ink/15 rounded-xl px-3 py-3 bg-admin-ink/[0.015]"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
+                      <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-admin-ink/10 text-admin-ink/80 text-xs font-semibold flex items-center justify-center">
                         {itemNumber}
                       </div>
                       {line.imageUrl ? (
@@ -2900,18 +2938,18 @@ export default function AdminQuoteBuilder({
                         <img
                           src={productPreviewImageUrl(line.imageUrl, line.imageFallbackUrl)}
                           alt=""
-                          className="shrink-0 w-14 h-14 rounded-lg object-contain bg-white/5 border border-white/10"
+                          className="shrink-0 w-14 h-14 rounded-lg object-contain bg-admin-ink/5 border border-admin-ink/10"
                         />
                       ) : (
-                        <div className="shrink-0 w-14 h-14 rounded-lg bg-white/5 border border-white/10" />
+                        <div className="shrink-0 w-14 h-14 rounded-lg bg-admin-ink/5 border border-admin-ink/10" />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="text-sm text-white">
+                          <div className="text-sm text-admin-ink">
                             {line.customerSupplied && line.itemType !== "hat" && line.manualSource !== "custom" ? (
                               <>
                                 <span className="font-medium">Customer-supplied item</span>{" "}
-                                <span className="text-white/40">({line.itemDescription})</span>
+                                <span className="text-admin-ink/62">({line.itemDescription})</span>
                               </>
                             ) : (
                               <>
@@ -2919,7 +2957,7 @@ export default function AdminQuoteBuilder({
                                   {[line.brandName, line.productName].filter(Boolean).join(" ")}
                                 </span>
                                 {(line.styleNumber || line.colorName) && (
-                                  <span className="text-white/40">
+                                  <span className="text-admin-ink/62">
                                     {" "}
                                     ({[line.styleNumber, line.colorName].filter(Boolean).join(" — ")})
                                   </span>
@@ -2927,7 +2965,7 @@ export default function AdminQuoteBuilder({
                               </>
                             )}
                             {decoration && (
-                              <div className="text-xs text-white/60 mt-0.5">
+                              <div className="text-xs text-admin-ink/80 mt-0.5">
                                 {decoration.label}
                                 {column ? ` (${column.label})` : ""}
                               </div>
@@ -2935,21 +2973,21 @@ export default function AdminQuoteBuilder({
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
                             {computedLine && (
-                              <span className="text-sm font-semibold text-white whitespace-nowrap">
+                              <span className="text-sm font-semibold text-admin-ink whitespace-nowrap">
                                 ${computedLine.subtotal.toFixed(2)}
                               </span>
                             )}
                             <div className="flex flex-col items-end gap-1">
                               <button
                                 onClick={() => (isEditing ? cancelEditLine() : startEditLine(line))}
-                                className="text-xs text-white/70 hover:underline"
+                                className="text-xs text-admin-ink/88 hover:underline"
                               >
                                 {isEditing ? "Cancel" : "Edit"}
                               </button>
                               <button
                                 onClick={() => duplicateLine(line.key)}
                                 title="Add a copy of this garment line — handy for adding the same item in a different color"
-                                className="text-xs text-white/70 hover:underline"
+                                className="text-xs text-admin-ink/88 hover:underline"
                               >
                                 Copy Style
                               </button>
@@ -2969,7 +3007,7 @@ export default function AdminQuoteBuilder({
                           {computedLine ? (
                             <table className="text-xs border-collapse w-full">
                               <thead>
-                                <tr className="text-white/50">
+                                <tr className="text-admin-ink/72">
                                   <th className="text-left pr-3 pb-1 font-medium">Size</th>
                                   <th className="text-left pr-3 pb-1 font-medium">Qty</th>
                                   {showMarkup && (
@@ -2986,7 +3024,7 @@ export default function AdminQuoteBuilder({
                               </thead>
                               <tbody>
                                 {computedLine.sizes.map((s) => (
-                                  <tr key={s.size} className="border-t border-white/5 text-white/80">
+                                  <tr key={s.size} className="border-t border-admin-ink/5 text-admin-ink/94">
                                     <td className="pr-3 py-1">{s.size}</td>
                                     <td className="pr-3 py-1">{s.quantity}</td>
                                     {showMarkup && (
@@ -3012,9 +3050,9 @@ export default function AdminQuoteBuilder({
                               </tbody>
                             </table>
                           ) : (
-                            <div className="text-xs text-white/60">
+                            <div className="text-xs text-admin-ink/80">
                               {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
-                              <span className="text-white/30"> (pricing…)</span>
+                              <span className="text-admin-ink/50"> (pricing…)</span>
                             </div>
                           )}
                         </div>
@@ -3022,17 +3060,17 @@ export default function AdminQuoteBuilder({
                     </div>
 
                     {isEditing && (
-                      <div className="mt-3 pt-3 border-t border-white/10">
+                      <div className="mt-3 pt-3 border-t border-admin-ink/10">
                         {!line.customerSupplied && (
-                          <label className="block text-xs text-white/60 max-w-xs">
+                          <label className="block text-xs text-admin-ink/80 max-w-xs">
                             Color
                             {editColorsLoading ? (
-                              <p className="mt-1 text-xs text-white/40">Loading colors…</p>
+                              <p className="mt-1 text-xs text-admin-ink/62">Loading colors…</p>
                             ) : editColors && editColors.length > 0 ? (
                               <select
                                 value={editDraftColorName}
                                 onChange={(e) => editDraftChangeColor(e.target.value)}
-                                className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                                className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                               >
                                 {[...editColors]
                                   .sort((a, b) => a.colorName.localeCompare(b.colorName))
@@ -3043,7 +3081,7 @@ export default function AdminQuoteBuilder({
                                   ))}
                               </select>
                             ) : (
-                              <p className="mt-1 text-xs text-white/40">
+                              <p className="mt-1 text-xs text-admin-ink/62">
                                 {editDraftColorName || "—"} (color list unavailable — quantities below can still be
                                 edited)
                               </p>
@@ -3053,35 +3091,35 @@ export default function AdminQuoteBuilder({
 
                         {line.customerSupplied && (line.itemType === "hat" || line.manualSource === "custom") && (
                           <div className="flex flex-wrap gap-2">
-                            <label className="block text-xs text-white/60">
+                            <label className="block text-xs text-admin-ink/80">
                               Brand
                               <input
                                 value={editDraftBrand}
                                 onChange={(e) => setEditDraftBrand(e.target.value)}
-                                className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                                className="mt-1 w-32 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                               />
                             </label>
-                            <label className="block text-xs text-white/60">
+                            <label className="block text-xs text-admin-ink/80">
                               Style number
                               <input
                                 value={editDraftStyleText}
                                 onChange={(e) => setEditDraftStyleText(e.target.value)}
-                                className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                                className="mt-1 w-32 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                               />
                             </label>
-                            <label className="block text-xs text-white/60">
+                            <label className="block text-xs text-admin-ink/80">
                               Color
                               <input
                                 value={editDraftColorText}
                                 onChange={(e) => setEditDraftColorText(e.target.value)}
-                                className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                                className="mt-1 w-32 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                               />
                             </label>
                           </div>
                         )}
 
                         <div className="mt-3">
-                          <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
+                          <span className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide">
                             {line.customerSupplied
                               ? line.manualSource === "custom"
                                 ? "Items, cost & pricing"
@@ -3122,10 +3160,10 @@ export default function AdminQuoteBuilder({
                                       value={s.size}
                                       onChange={(e) => editDraftUpdateCustomSizeRow(i, { size: e.target.value })}
                                       placeholder="Size / label"
-                                      className="w-32 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                                      className="w-32 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                                     />
                                   ) : (
-                                    <span className="w-20 text-sm text-white/70">{s.size}</span>
+                                    <span className="w-20 text-sm text-admin-ink/88">{s.size}</span>
                                   )}
                                   <input
                                     type="number"
@@ -3138,7 +3176,7 @@ export default function AdminQuoteBuilder({
                                           })
                                         : editDraftSetQty(s.size, Math.max(0, Number(e.target.value) || 0))
                                     }
-                                    className="w-20 border border-white/20 rounded-xl px-2 py-1 text-center text-sm"
+                                    className="w-20 border border-admin-ink/20 rounded-xl px-2 py-1 text-center text-sm"
                                   />
                                   {line.customerSupplied && (
                                     <button
@@ -3153,7 +3191,7 @@ export default function AdminQuoteBuilder({
                               {line.customerSupplied && (
                                 <button
                                   onClick={editDraftAddCustomSizeRow}
-                                  className="text-xs text-white/60 hover:underline"
+                                  className="text-xs text-admin-ink/80 hover:underline"
                                 >
                                   + Add size row
                                 </button>
@@ -3167,13 +3205,13 @@ export default function AdminQuoteBuilder({
                         <div className="mt-3 flex gap-2">
                           <button
                             onClick={saveEditLine}
-                            className="text-sm px-3 py-1.5 rounded-xl bg-red text-navy font-semibold hover:bg-red/90"
+                            className="text-sm px-3 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent/90"
                           >
                             Save
                           </button>
                           <button
                             onClick={cancelEditLine}
-                            className="text-sm px-3 py-1.5 rounded-xl border border-white/20 text-white/70 hover:bg-white/5"
+                            className="text-sm px-3 py-1.5 rounded-xl border border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
                           >
                             Cancel
                           </button>
@@ -3193,15 +3231,15 @@ export default function AdminQuoteBuilder({
                 return (
                   <div
                     key={id}
-                    className="flex items-center gap-3 border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
+                    className="flex items-center gap-3 border border-admin-ink/15 rounded-xl px-3 py-2.5 bg-admin-ink/[0.015]"
                   >
-                    <div className="shrink-0 w-6 h-6 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
+                    <div className="shrink-0 w-6 h-6 rounded-full bg-admin-ink/10 text-admin-ink/80 text-xs font-semibold flex items-center justify-center">
                       {itemNumber}
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-                      <div className="text-sm text-white">
+                      <div className="text-sm text-admin-ink">
                         <span className="font-medium">{c.label}</span>{" "}
-                        <span className="text-white/40">({formatUSD(c.price)}) · Setup charge</span>
+                        <span className="text-admin-ink/62">({formatUSD(c.price)}) · Setup charge</span>
                       </div>
                       <button
                         onClick={() => toggleSetupCharge(id, false)}
@@ -3221,15 +3259,15 @@ export default function AdminQuoteBuilder({
                 return (
                 <div
                   key={f.id}
-                  className="flex items-center gap-3 border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
+                  className="flex items-center gap-3 border border-admin-ink/15 rounded-xl px-3 py-2.5 bg-admin-ink/[0.015]"
                 >
-                  <div className="shrink-0 w-6 h-6 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
+                  <div className="shrink-0 w-6 h-6 rounded-full bg-admin-ink/10 text-admin-ink/80 text-xs font-semibold flex items-center justify-center">
                     {itemNumber}
                   </div>
                   <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-                    <div className="text-sm text-white">
+                    <div className="text-sm text-admin-ink">
                       <span className="font-medium">{f.label}</span>{" "}
-                      <span className="text-white/40">
+                      <span className="text-admin-ink/62">
                         (
                         {f.quantity > 1
                           ? `${f.quantity} × ${formatUSD(f.amount)} = ${formatUSD(f.amount * f.quantity)}`
@@ -3261,18 +3299,18 @@ export default function AdminQuoteBuilder({
           "Setup charge" is the open "+ Add item" panel — the charges
           already picked live in the unified Items list above, not here. */}
       {addItemMode === "setup" && (
-      <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <div className="flex items-start justify-between gap-3 mb-1">
-          <h3 className="text-sm font-semibold text-white">Add a setup charge</h3>
+          <h3 className="text-sm font-semibold text-admin-ink">Add a setup charge</h3>
           <button
             type="button"
             onClick={() => setAddItemMode(null)}
-            className="text-xs text-white/40 hover:text-white shrink-0"
+            className="text-xs text-admin-ink/62 hover:text-admin-ink shrink-0"
           >
             ✕ Close
           </button>
         </div>
-        <p className="text-xs text-white/50 mb-3">
+        <p className="text-xs text-admin-ink/72 mb-3">
           One-time charges for this quote as a whole — not tied to any garment or decoration.
         </p>
 
@@ -3280,18 +3318,18 @@ export default function AdminQuoteBuilder({
           <button
             type="button"
             onClick={() => setSetupDropdownOpen((o) => !o)}
-            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+            className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
           >
             {selectedSetupChargeIds.length > 0
               ? `${selectedSetupChargeIds.length} setup charge${selectedSetupChargeIds.length === 1 ? "" : "s"} selected`
               : "Add setup charges"}
-            <span className="text-white/40">{setupDropdownOpen ? "▲" : "▼"}</span>
+            <span className="text-admin-ink/62">{setupDropdownOpen ? "▲" : "▼"}</span>
           </button>
 
           {setupDropdownOpen && (
-            <div className="absolute z-40 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+            <div className="absolute z-40 mt-1 w-80 bg-admin-card border border-admin-ink/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
               {setupCharges.length === 0 && !creatingCharge && (
-                <p className="text-xs text-white/40 px-2 py-2">No setup charges configured yet.</p>
+                <p className="text-xs text-admin-ink/62 px-2 py-2">No setup charges configured yet.</p>
               )}
               {setupCharges.map((c) => {
                 const checked = selectedSetupChargeIds.includes(c.id);
@@ -3299,12 +3337,12 @@ export default function AdminQuoteBuilder({
                 const busy = chargeBusyId === c.id;
                 if (isEditing) {
                   return (
-                    <div key={c.id} className="px-2 py-2 border-b border-white/5 last:border-b-0">
+                    <div key={c.id} className="px-2 py-2 border-b border-admin-ink/5 last:border-b-0">
                       <div className="flex flex-col gap-1.5">
                         <input
                           value={chargeEditDraft.label}
                           onChange={(e) => setChargeEditDraft((d) => ({ ...d, label: e.target.value }))}
-                          className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                          className="w-full border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                           placeholder="Label"
                         />
                         <input
@@ -3315,10 +3353,10 @@ export default function AdminQuoteBuilder({
                           onChange={(e) =>
                             setChargeEditDraft((d) => ({ ...d, price: Math.max(0, Number(e.target.value) || 0) }))
                           }
-                          className="w-28 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                          className="w-28 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                           placeholder="Price"
                         />
-                        <label className="flex items-center gap-1.5 text-xs text-white/60">
+                        <label className="flex items-center gap-1.5 text-xs text-admin-ink/80">
                           <input
                             type="checkbox"
                             checked={chargeEditDraft.taxable}
@@ -3333,14 +3371,14 @@ export default function AdminQuoteBuilder({
                             type="button"
                             onClick={() => saveChargeEdit(c.id)}
                             disabled={busy}
-                            className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                            className="text-xs font-semibold text-admin-accent hover:underline disabled:text-admin-ink/35"
                           >
                             {busy ? "Saving…" : "Save"}
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditingChargeId(null)}
-                            className="text-xs text-white/60 hover:underline"
+                            className="text-xs text-admin-ink/80 hover:underline"
                           >
                             Cancel
                           </button>
@@ -3352,21 +3390,21 @@ export default function AdminQuoteBuilder({
                 return (
                   <div
                     key={c.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-admin-ink/5 border-b border-admin-ink/5 last:border-b-0"
                   >
-                    <label className="flex items-center gap-2 flex-1 min-w-0 text-sm text-white/80 cursor-pointer">
+                    <label className="flex items-center gap-2 flex-1 min-w-0 text-sm text-admin-ink/94 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={(e) => toggleSetupCharge(c.id, e.target.checked)}
                       />
                       <span className="truncate">{c.label}</span>
-                      <span className="text-white/40 shrink-0">({formatUSD(c.price)})</span>
+                      <span className="text-admin-ink/62 shrink-0">({formatUSD(c.price)})</span>
                     </label>
                     <button
                       type="button"
                       onClick={() => startEditCharge(c)}
-                      className="text-xs text-white/50 hover:text-white hover:underline shrink-0"
+                      className="text-xs text-admin-ink/72 hover:text-admin-ink hover:underline shrink-0"
                     >
                       Edit
                     </button>
@@ -3374,7 +3412,7 @@ export default function AdminQuoteBuilder({
                       type="button"
                       onClick={() => handleDeleteCharge(c)}
                       disabled={busy}
-                      className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                      className="text-xs text-red-600 hover:underline shrink-0 disabled:text-admin-ink/35"
                     >
                       {busy ? "…" : "Delete"}
                     </button>
@@ -3382,7 +3420,7 @@ export default function AdminQuoteBuilder({
                 );
               })}
 
-              <div className="mt-1 pt-1 border-t border-white/10">
+              <div className="mt-1 pt-1 border-t border-admin-ink/10">
                 {!creatingCharge ? (
                   <button
                     type="button"
@@ -3391,7 +3429,7 @@ export default function AdminQuoteBuilder({
                       setEditingChargeId(null);
                       setChargeError(null);
                     }}
-                    className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-xl hover:bg-white/5"
+                    className="w-full text-left text-sm font-medium text-admin-accent px-2 py-1.5 rounded-xl hover:bg-admin-ink/5"
                   >
                     + Add custom setup charge
                   </button>
@@ -3401,7 +3439,7 @@ export default function AdminQuoteBuilder({
                       value={newChargeDraft.label}
                       onChange={(e) => setNewChargeDraft((d) => ({ ...d, label: e.target.value }))}
                       placeholder="e.g. Rush digitizing"
-                      className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                      className="w-full border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                       autoFocus
                     />
                     <input
@@ -3413,9 +3451,9 @@ export default function AdminQuoteBuilder({
                         setNewChargeDraft((d) => ({ ...d, price: Math.max(0, Number(e.target.value) || 0) }))
                       }
                       placeholder="Price"
-                      className="w-28 border border-white/20 rounded-xl px-2 py-1 text-sm"
+                      className="w-28 border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                     />
-                    <label className="flex items-center gap-1.5 text-xs text-white/60">
+                    <label className="flex items-center gap-1.5 text-xs text-admin-ink/80">
                       <input
                         type="checkbox"
                         checked={newChargeDraft.taxable}
@@ -3428,7 +3466,7 @@ export default function AdminQuoteBuilder({
                         type="button"
                         onClick={handleCreateCharge}
                         disabled={chargeBusyId === "__new__"}
-                        className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                        className="text-xs font-semibold text-admin-accent hover:underline disabled:text-admin-ink/35"
                       >
                         {chargeBusyId === "__new__" ? "Adding…" : "Add & select"}
                       </button>
@@ -3439,7 +3477,7 @@ export default function AdminQuoteBuilder({
                           setNewChargeDraft({ label: "", price: 0, taxable: true });
                           setChargeError(null);
                         }}
-                        className="text-xs text-white/60 hover:underline"
+                        className="text-xs text-admin-ink/80 hover:underline"
                       >
                         Cancel
                       </button>
@@ -3461,14 +3499,14 @@ export default function AdminQuoteBuilder({
               return (
                 <span
                   key={id}
-                  className="flex items-center gap-1.5 text-xs bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-full pl-3 pr-1.5 py-1 text-white/80"
+                  className="flex items-center gap-1.5 text-xs bg-admin-ink/5 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-full pl-3 pr-1.5 py-1 text-admin-ink/94"
                 >
-                  {c.label} <span className="text-white/40">({formatUSD(c.price)})</span>
+                  {c.label} <span className="text-admin-ink/62">({formatUSD(c.price)})</span>
                   <button
                     type="button"
                     onClick={() => toggleSetupCharge(id, false)}
                     aria-label={`Remove ${c.label} from this quote`}
-                    className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-white/10 text-white/50 hover:text-white"
+                    className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-admin-ink/10 text-admin-ink/72 hover:text-admin-ink"
                   >
                     ✕
                   </button>
@@ -3488,33 +3526,33 @@ export default function AdminQuoteBuilder({
           "+ Add item" panel — fees already added live in the unified Items
           list above, not here. */}
       {mode === "full" && addItemMode === "misc" && (
-      <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <div className="flex items-start justify-between gap-3 mb-1">
-          <h3 className="text-sm font-semibold text-white">Add another charge</h3>
+          <h3 className="text-sm font-semibold text-admin-ink">Add another charge</h3>
           <button
             type="button"
             onClick={() => setAddItemMode(null)}
-            className="text-xs text-white/40 hover:text-white shrink-0"
+            className="text-xs text-admin-ink/62 hover:text-admin-ink shrink-0"
           >
             ✕ Close
           </button>
         </div>
-        <p className="text-xs text-white/50 mb-3">
+        <p className="text-xs text-admin-ink/72 mb-3">
           One-off charges for this quote only — a rush fee, a shipping surcharge, anything that
           isn&apos;t a garment or a reusable setup charge. These aren&apos;t added to the Setup
           Charges list.
         </p>
         <div className="flex flex-wrap items-end gap-2">
-          <label className="text-xs text-white/60">
+          <label className="text-xs text-admin-ink/80">
             Description
             <input
               value={miscFeeLabel}
               onChange={(e) => setMiscFeeLabel(e.target.value)}
               placeholder="e.g. Rush fee, Shipping"
-              className="mt-1 w-48 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-48 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-xs text-white/60">
+          <label className="text-xs text-admin-ink/80">
             Amount
             <input
               type="number"
@@ -3523,10 +3561,10 @@ export default function AdminQuoteBuilder({
               value={miscFeeAmount}
               onChange={(e) => setMiscFeeAmount(e.target.value)}
               placeholder="0.00"
-              className="mt-1 w-28 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-28 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="text-xs text-white/60">
+          <label className="text-xs text-admin-ink/80">
             Quantity
             <input
               type="number"
@@ -3535,10 +3573,10 @@ export default function AdminQuoteBuilder({
               value={miscFeeQuantity}
               onChange={(e) => setMiscFeeQuantity(e.target.value)}
               placeholder="1"
-              className="mt-1 w-20 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-20 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-white/60 pb-1.5">
+          <label className="flex items-center gap-1.5 text-xs text-admin-ink/80 pb-1.5">
             <input
               type="checkbox"
               checked={miscFeeTaxable}
@@ -3549,7 +3587,7 @@ export default function AdminQuoteBuilder({
           <button
             type="button"
             onClick={addMiscFee}
-            className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90"
+            className="text-sm px-4 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink hover:bg-admin-accent/90"
           >
             + Add fee
           </button>
@@ -3557,8 +3595,8 @@ export default function AdminQuoteBuilder({
             const amt = Math.max(0, Number(miscFeeAmount) || 0);
             const qty = Math.max(1, Number(miscFeeQuantity) || 1);
             return amt > 0 ? (
-              <span className="text-xs text-white/50 pb-1.5">
-                Total: <span className="font-semibold text-white">{formatUSD(amt * qty)}</span>
+              <span className="text-xs text-admin-ink/72 pb-1.5">
+                Total: <span className="font-semibold text-admin-ink">{formatUSD(amt * qty)}</span>
               </span>
             ) : null;
           })()}
@@ -3574,19 +3612,19 @@ export default function AdminQuoteBuilder({
           auto-closing) since a real order is usually several
           styles/colors added back-to-back under the same decoration. */}
       {addItemMode === "garment" && (
-      <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
-          <h3 className="text-sm font-semibold text-white">Add a garment</h3>
+          <h3 className="text-sm font-semibold text-admin-ink">Add a garment</h3>
           <button
             type="button"
             onClick={() => setAddItemMode(null)}
-            className="text-xs text-white/40 hover:text-white shrink-0"
+            className="text-xs text-admin-ink/62 hover:text-admin-ink shrink-0"
           >
             ✕ Close
           </button>
         </div>
 
-        <label className="flex items-center gap-1.5 text-xs text-white/60 mb-3">
+        <label className="flex items-center gap-1.5 text-xs text-admin-ink/80 mb-3">
           <input
             type="checkbox"
             checked={lineTaxable}
@@ -3596,24 +3634,24 @@ export default function AdminQuoteBuilder({
         </label>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
-          <div className="text-xs text-white/60">
+          <div className="text-xs text-admin-ink/80">
             Decoration type
             <div className="relative mt-1" ref={decorationDropdownRef}>
               <button
                 type="button"
                 onClick={() => setDecorationDropdownOpen((o) => !o)}
-                className="flex items-center justify-between gap-2 w-full text-sm px-2 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 text-left"
+                className="flex items-center justify-between gap-2 w-full text-sm px-2 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5 text-left"
               >
                 <span className="truncate">
                   {selectedDecorationId
                     ? (decorations.find((d) => d.id === selectedDecorationId)?.label ?? "—")
                     : "None — garment only"}
                 </span>
-                <span className="text-white/40 shrink-0">{decorationDropdownOpen ? "▲" : "▼"}</span>
+                <span className="text-admin-ink/62 shrink-0">{decorationDropdownOpen ? "▲" : "▼"}</span>
               </button>
 
               {decorationDropdownOpen && (
-                <div className="absolute z-40 mt-1 w-80 bg-black border border-white/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
+                <div className="absolute z-40 mt-1 w-80 bg-admin-card border border-admin-ink/20 rounded-2xl shadow-xl p-2 max-h-96 overflow-y-auto">
                   <button
                     type="button"
                     onClick={() => {
@@ -3621,24 +3659,24 @@ export default function AdminQuoteBuilder({
                       setSelectedColumnId("");
                       setDecorationDropdownOpen(false);
                     }}
-                    className="w-full text-left text-sm text-white/80 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5"
+                    className="w-full text-left text-sm text-admin-ink/94 px-2 py-1.5 rounded-xl hover:bg-admin-ink/5 border-b border-admin-ink/5"
                   >
                     None — garment only
                   </button>
                   {decorationsLoaded && decorations.length === 0 && !creatingDecoration && (
-                    <p className="text-xs text-white/40 px-2 py-2">No decoration types configured yet.</p>
+                    <p className="text-xs text-admin-ink/62 px-2 py-2">No decoration types configured yet.</p>
                   )}
                   {decorations.map((d) => {
                     const isEditing = editingDecorationId === d.id;
                     const busy = decorationBusyId === d.id;
                     if (isEditing) {
                       return (
-                        <div key={d.id} className="px-2 py-2 border-b border-white/5 last:border-b-0">
+                        <div key={d.id} className="px-2 py-2 border-b border-admin-ink/5 last:border-b-0">
                           <div className="flex flex-col gap-1.5">
                             <input
                               value={decorationEditLabel}
                               onChange={(e) => setDecorationEditLabel(e.target.value)}
-                              className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                              className="w-full border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                               placeholder="Name"
                               autoFocus
                             />
@@ -3647,14 +3685,14 @@ export default function AdminQuoteBuilder({
                                 type="button"
                                 onClick={() => saveDecorationEdit(d.id)}
                                 disabled={busy}
-                                className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                                className="text-xs font-semibold text-admin-accent hover:underline disabled:text-admin-ink/35"
                               >
                                 {busy ? "Saving…" : "Save"}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setEditingDecorationId(null)}
-                                className="text-xs text-white/60 hover:underline"
+                                className="text-xs text-admin-ink/80 hover:underline"
                               >
                                 Cancel
                               </button>
@@ -3666,7 +3704,7 @@ export default function AdminQuoteBuilder({
                     return (
                       <div
                         key={d.id}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-admin-ink/5 border-b border-admin-ink/5 last:border-b-0"
                       >
                         <button
                           type="button"
@@ -3675,14 +3713,14 @@ export default function AdminQuoteBuilder({
                             setSelectedColumnId("");
                             setDecorationDropdownOpen(false);
                           }}
-                          className="flex-1 min-w-0 text-left text-sm text-white/80 truncate"
+                          className="flex-1 min-w-0 text-left text-sm text-admin-ink/94 truncate"
                         >
                           {d.label}
                         </button>
                         <button
                           type="button"
                           onClick={() => startEditDecoration(d)}
-                          className="text-xs text-white/50 hover:text-white hover:underline shrink-0"
+                          className="text-xs text-admin-ink/72 hover:text-admin-ink hover:underline shrink-0"
                         >
                           Edit
                         </button>
@@ -3690,7 +3728,7 @@ export default function AdminQuoteBuilder({
                           type="button"
                           onClick={() => handleDeleteDecoration(d)}
                           disabled={busy}
-                          className="text-xs text-red-600 hover:underline shrink-0 disabled:text-white/20"
+                          className="text-xs text-red-600 hover:underline shrink-0 disabled:text-admin-ink/35"
                         >
                           {busy ? "…" : "Delete"}
                         </button>
@@ -3698,7 +3736,7 @@ export default function AdminQuoteBuilder({
                     );
                   })}
 
-                  <div className="mt-1 pt-1 border-t border-white/10">
+                  <div className="mt-1 pt-1 border-t border-admin-ink/10">
                     {!creatingDecoration ? (
                       <button
                         type="button"
@@ -3707,7 +3745,7 @@ export default function AdminQuoteBuilder({
                           setEditingDecorationId(null);
                           setDecorationError(null);
                         }}
-                        className="w-full text-left text-sm font-medium text-red px-2 py-1.5 rounded-xl hover:bg-white/5"
+                        className="w-full text-left text-sm font-medium text-admin-accent px-2 py-1.5 rounded-xl hover:bg-admin-ink/5"
                       >
                         + Add decoration type
                       </button>
@@ -3717,7 +3755,7 @@ export default function AdminQuoteBuilder({
                           value={newDecorationLabel}
                           onChange={(e) => setNewDecorationLabel(e.target.value)}
                           placeholder="e.g. Banner, Vinyl Decal"
-                          className="w-full border border-white/20 rounded-xl px-2 py-1 text-sm"
+                          className="w-full border border-admin-ink/20 rounded-xl px-2 py-1 text-sm"
                           autoFocus
                         />
                         <div className="flex items-center gap-3">
@@ -3725,7 +3763,7 @@ export default function AdminQuoteBuilder({
                             type="button"
                             onClick={handleCreateDecoration}
                             disabled={decorationBusyId === "__new__"}
-                            className="text-xs font-semibold text-red hover:underline disabled:text-white/20"
+                            className="text-xs font-semibold text-admin-accent hover:underline disabled:text-admin-ink/35"
                           >
                             {decorationBusyId === "__new__" ? "Adding…" : "Add & select"}
                           </button>
@@ -3736,12 +3774,12 @@ export default function AdminQuoteBuilder({
                               setNewDecorationLabel("");
                               setDecorationError(null);
                             }}
-                            className="text-xs text-white/60 hover:underline"
+                            className="text-xs text-admin-ink/80 hover:underline"
                           >
                             Cancel
                           </button>
                         </div>
-                        <p className="text-[11px] text-white/40">
+                        <p className="text-[11px] text-admin-ink/62">
                           Added with $0 pricing — fine-tune its price, turnaround, and file types on the
                           Pricing tab.
                         </p>
@@ -3755,12 +3793,12 @@ export default function AdminQuoteBuilder({
             </div>
           </div>
 
-          <label className="text-xs text-white/60">
+          <label className="text-xs text-admin-ink/80">
             Catalog
             <select
               value={catalogSource}
               onChange={(e) => onCatalogChange(e.target.value as CatalogSource)}
-              className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             >
               {CATALOG_OPTIONS.map((c) => (
                 <option key={c.id} value={c.id} disabled={c.disabled}>
@@ -3773,11 +3811,11 @@ export default function AdminQuoteBuilder({
         </div>
 
         {catalogSource === "customer-supplied" || catalogSource === "custom" ? (
-          <div className="mt-4 border-t border-white/10 pt-4 max-w-xl">
+          <div className="mt-4 border-t border-admin-ink/10 pt-4 max-w-xl">
             {catalogSource === "customer-supplied" && (
               <>
-                <span className="text-xs font-medium text-white/60 uppercase tracking-wide">Garment type</span>
-                <div className="mt-1.5 flex flex-wrap gap-4 text-sm text-white/70">
+                <span className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide">Garment type</span>
+                <div className="mt-1.5 flex flex-wrap gap-4 text-sm text-admin-ink/88">
                   <label className="flex items-center gap-1.5">
                     <input
                       type="radio"
@@ -3809,40 +3847,40 @@ export default function AdminQuoteBuilder({
 
                 {csItemType === "hat" && (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <label className="block text-xs text-white/60">
+                    <label className="block text-xs text-admin-ink/80">
                       Brand
                       <input
                         value={csBrand}
                         onChange={(e) => setCsBrand(e.target.value)}
-                        className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                        className="mt-1 w-32 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                         placeholder="e.g. New Era"
                       />
                     </label>
-                    <label className="block text-xs text-white/60">
+                    <label className="block text-xs text-admin-ink/80">
                       Style number
                       <input
                         value={csStyleNumber}
                         onChange={(e) => setCsStyleNumber(e.target.value)}
-                        className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                        className="mt-1 w-32 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                       />
                     </label>
-                    <label className="block text-xs text-white/60">
+                    <label className="block text-xs text-admin-ink/80">
                       Color
                       <input
                         value={csColor}
                         onChange={(e) => setCsColor(e.target.value)}
-                        className="mt-1 w-32 border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                        className="mt-1 w-32 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                       />
                     </label>
                   </div>
                 )}
 
-                <label className="block text-xs text-white/60 mt-3">
+                <label className="block text-xs text-admin-ink/80 mt-3">
                   {csItemType === "other" ? "Item description" : "Description / notes (optional)"}
                   <input
                     value={csDescription}
                     onChange={(e) => setCsDescription(e.target.value)}
-                    className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                    className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                     placeholder={
                       csItemType === "apparel"
                         ? "e.g. Customer-supplied hoodie"
@@ -3858,10 +3896,10 @@ export default function AdminQuoteBuilder({
             <div className="mt-3">
               {catalogSource === "custom" ? (
                 <>
-                  <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
+                  <span className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide">
                     Items, cost & pricing
                   </span>
-                  <p className="mt-1 text-xs text-white/40">
+                  <p className="mt-1 text-xs text-admin-ink/62">
                     Each row is its own item — Brand, Style/item name, Color, and Size are all free text
                     (nothing to look up), then Qty and Cost. Rows with the same Brand + Style + Color become
                     one quote line with multiple sizes; use Copy to start the next row from the same
@@ -3875,22 +3913,22 @@ export default function AdminQuoteBuilder({
                 </>
               ) : (
                 <>
-                  <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
+                  <span className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide">
                     Sizes & quantities
                   </span>
-                  <p className="mt-1 text-xs text-white/40">Optional — leave a size&apos;s quantity at 0 to skip it.</p>
+                  <p className="mt-1 text-xs text-admin-ink/62">Optional — leave a size&apos;s quantity at 0 to skip it.</p>
                   <CsPricedSizeRows rows={csPricedSizeRows} onChange={setCsPricedSizeRows} showPricing={false} />
                 </>
               )}
             </div>
 
             {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
-              <label className="block text-xs text-white/60 mt-4 max-w-xs">
+              <label className="block text-xs text-admin-ink/80 mt-4 max-w-xs">
                 {columnLabel}
                 <select
                   value={selectedColumnId}
                   onChange={(e) => setSelectedColumnId(e.target.value)}
-                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                  className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                 >
                   <option value="">Select…</option>
                   {selectedDecoration.priceColumns.map((c) => (
@@ -3911,7 +3949,7 @@ export default function AdminQuoteBuilder({
             )}
 
             {catalogSource === "customer-supplied" && (
-              <p className="mt-2 text-xs text-white/40">
+              <p className="mt-2 text-xs text-admin-ink/62">
                 No garment cost is charged for a customer-supplied item — only decoration pricing (if a
                 decoration type is selected above) applies. Use the Custom catalog option instead if you
                 need to charge for this item.
@@ -3922,7 +3960,7 @@ export default function AdminQuoteBuilder({
 
             <button
               onClick={addCustomerSuppliedLine}
-              className="mt-4 text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90"
+              className="mt-4 text-sm px-4 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink hover:bg-admin-accent/90"
             >
               Add to quote
             </button>
@@ -3930,14 +3968,14 @@ export default function AdminQuoteBuilder({
         ) : (
           <>
             <div className="relative mt-3 max-w-xl">
-              <label className="text-xs text-white/60">
+              <label className="text-xs text-admin-ink/80">
                 Product
                 <input
                   value={productQuery}
                   onChange={(e) => onProductQueryChange(e.target.value)}
                   onFocus={() => productSuggestions.length > 0 && setSuggestionsOpen(true)}
                   onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
-                  className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-white/5"
+                  className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm disabled:opacity-40 disabled:bg-admin-ink/5"
                   placeholder={
                     catalogSource === "ss"
                       ? "Start typing a style number or name — e.g. 2000"
@@ -3946,31 +3984,31 @@ export default function AdminQuoteBuilder({
                 />
               </label>
               {searchLoading && (
-                <span className="absolute right-2 top-8 text-[11px] text-white/30">searching…</span>
+                <span className="absolute right-2 top-8 text-[11px] text-admin-ink/50">searching…</span>
               )}
               {suggestionsOpen && productSuggestions.length > 0 && (
-                <ul className="absolute z-40 mt-1 w-full max-h-64 overflow-y-auto bg-black border border-white/20 rounded-xl shadow-lg text-sm">
+                <ul className="absolute z-40 mt-1 w-full max-h-64 overflow-y-auto bg-admin-card border border-admin-ink/20 rounded-xl shadow-lg text-sm">
                   {productSuggestions.map((r) => (
                     <li key={r.styleNumber}>
                       <button
                         type="button"
                         // onMouseDown (not onClick) fires before the input's onBlur closes the list.
                         onMouseDown={() => selectProduct(r)}
-                        className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-white/5"
+                        className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-admin-ink/5"
                       >
                         {r.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={productPreviewImageUrl(r.imageUrl)}
                             alt=""
-                            className="w-8 h-8 shrink-0 rounded-md object-contain bg-white/5"
+                            className="w-8 h-8 shrink-0 rounded-md object-contain bg-admin-ink/5"
                           />
                         ) : (
-                          <span className="w-8 h-8 shrink-0 rounded-md bg-white/5" />
+                          <span className="w-8 h-8 shrink-0 rounded-md bg-admin-ink/5" />
                         )}
                         <span className="min-w-0">
-                          <span className="font-medium text-white">{r.name}</span>{" "}
-                          <span className="text-white/40">
+                          <span className="font-medium text-admin-ink">{r.name}</span>{" "}
+                          <span className="text-admin-ink/62">
                             {r.brand} · {r.styleNumber}
                           </span>
                         </span>
@@ -3983,14 +4021,14 @@ export default function AdminQuoteBuilder({
                 !searchLoading &&
                 productSuggestions.length === 0 &&
                 productQuery.trim().length >= 2 && (
-                  <p className="mt-1 text-xs text-white/40">No matches for &quot;{productQuery}&quot;.</p>
+                  <p className="mt-1 text-xs text-admin-ink/62">No matches for &quot;{productQuery}&quot;.</p>
                 )}
             </div>
-            {lookupLoading && <p className="mt-2 text-xs text-white/40">Loading product…</p>}
+            {lookupLoading && <p className="mt-2 text-xs text-admin-ink/62">Loading product…</p>}
             {lookupError && <p className="mt-2 text-xs text-red-600">{lookupError}</p>}
 
             {foundProduct && (
-              <div className="mt-4 border-t border-white/10 pt-4">
+              <div className="mt-4 border-t border-admin-ink/10 pt-4">
                 <div className="flex items-start gap-3">
                   {selectedColorRow?.imageUrl && (
                     // A picture of the shirt and color being selected — mirrors
@@ -4000,24 +4038,24 @@ export default function AdminQuoteBuilder({
                     <img
                       src={productPreviewImageUrl(selectedColorRow.imageUrl, selectedColorRow.imageFallbackUrl)}
                       alt={`${foundProduct.productName} — ${selectedColor}`}
-                      className="w-20 h-20 shrink-0 rounded-xl object-contain bg-white/5 border border-white/10"
+                      className="w-20 h-20 shrink-0 rounded-xl object-contain bg-admin-ink/5 border border-admin-ink/10"
                     />
                   )}
-                  <p className="text-sm font-medium text-white">
+                  <p className="text-sm font-medium text-admin-ink">
                     {foundProduct.brandName} {foundProduct.productName}{" "}
-                    <span className="text-white/40 font-normal">({foundProduct.styleNumber})</span>
+                    <span className="text-admin-ink/62 font-normal">({foundProduct.styleNumber})</span>
                     {catalogSource === "sanmar" && (
-                      <span className="ml-2 text-[11px] text-white/40">
+                      <span className="ml-2 text-[11px] text-admin-ink/62">
                         {foundProductLive ? "live SanMar pricing" : "catalog list price (live pricing unavailable)"}
                       </span>
                     )}
                     {catalogSource === "ss" && (
-                      <span className="ml-2 text-[11px] text-white/40">live S&amp;S Activewear pricing</span>
+                      <span className="ml-2 text-[11px] text-admin-ink/62">live S&amp;S Activewear pricing</span>
                     )}
                   </p>
                 </div>
 
-                <label className="block text-xs text-white/60 mt-3 max-w-xs">
+                <label className="block text-xs text-admin-ink/80 mt-3 max-w-xs">
                   Color
                   <select
                     value={selectedColor}
@@ -4033,7 +4071,7 @@ export default function AdminQuoteBuilder({
                       }
                       setSizeQty(next);
                     }}
-                    className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                    className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                   >
                     {sortedProductColors.map((c) => (
                       <option key={c.colorName} value={c.colorName}>
@@ -4046,7 +4084,7 @@ export default function AdminQuoteBuilder({
                 {selectedColorRow && selectedColorRow.sizes.length > 0 ? (
                   <div className="mt-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-white/60 uppercase tracking-wide">Sizes</span>
+                      <span className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide">Sizes</span>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setShowMarkup((v) => !v)}
@@ -4055,19 +4093,19 @@ export default function AdminQuoteBuilder({
                               ? "Hide item cost and item markup — show only the item price"
                               : "Show item cost and item markup"
                           }
-                          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                          className="text-xs px-2 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                         >
                           {showMarkup ? "Item Markup" : "IM%"}
                         </button>
                         <button
                           onClick={fillOneEach}
-                          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                          className="text-xs px-2 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                         >
                           Fill 1 of each
                         </button>
                         <button
                           onClick={clearQuantities}
-                          className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                          className="text-xs px-2 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                         >
                           Clear
                         </button>
@@ -4082,7 +4120,7 @@ export default function AdminQuoteBuilder({
                   </div>
                 ) : (
                   <div className="mt-3 max-w-[10rem]">
-                    <label className="text-xs text-white/60">
+                    <label className="text-xs text-admin-ink/80">
                       Quantity (one-size item)
                       <input
                         type="number"
@@ -4091,19 +4129,19 @@ export default function AdminQuoteBuilder({
                         onChange={(e) =>
                           setSizeQty({ [ONE_SIZE_LABEL]: Math.max(0, Number(e.target.value) || 0) })
                         }
-                        className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                        className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                       />
                     </label>
                   </div>
                 )}
 
                 {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
-                  <label className="block text-xs text-white/60 mt-4 max-w-xs">
+                  <label className="block text-xs text-admin-ink/80 mt-4 max-w-xs">
                     {columnLabel}
                     <select
                       value={selectedColumnId}
                       onChange={(e) => setSelectedColumnId(e.target.value)}
-                      className="mt-1 w-full border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+                      className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                     >
                       <option value="">Select…</option>
                       {selectedDecoration.priceColumns.map((c) => (
@@ -4125,7 +4163,7 @@ export default function AdminQuoteBuilder({
 
                 <button
                   onClick={addLine}
-                  className="mt-4 text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90"
+                  className="mt-4 text-sm px-4 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink hover:bg-admin-accent/90"
                 >
                   Add to quote
                 </button>
@@ -4147,27 +4185,27 @@ export default function AdminQuoteBuilder({
           reference quoting tool puts one totals box under the item list
           instead of a second separate "Preview" section. */}
       {quote && (
-        <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-          <h3 className="text-sm font-semibold text-white mb-3">Totals</h3>
+        <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+          <h3 className="text-sm font-semibold text-admin-ink mb-3">Totals</h3>
           {quote.setupCharges.length > 0 && (
-            <div className="border-t border-white/10 pt-3 mb-3">
-              <div className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1">
+            <div className="border-t border-admin-ink/10 pt-3 mb-3">
+              <div className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-1">
                 Setup charges
               </div>
               {quote.setupCharges.map((c) => (
-                <div key={c.id} className="text-sm text-white/70">
+                <div key={c.id} className="text-sm text-admin-ink/88">
                   {c.label} — ${c.price.toFixed(2)}
                 </div>
               ))}
             </div>
           )}
           {quote.miscFees.length > 0 && (
-            <div className="border-t border-white/10 pt-3 mb-3">
-              <div className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1">
+            <div className="border-t border-admin-ink/10 pt-3 mb-3">
+              <div className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-1">
                 Other charges
               </div>
               {quote.miscFees.map((f, i) => (
-                <div key={i} className="text-sm text-white/70">
+                <div key={i} className="text-sm text-admin-ink/88">
                   {f.label}
                   {f.quantity > 1 ? ` × ${f.quantity} @ $${f.amount.toFixed(2)}` : ""} — $
                   {f.lineTotal.toFixed(2)}
@@ -4175,8 +4213,8 @@ export default function AdminQuoteBuilder({
               ))}
             </div>
           )}
-          <div className="border-t border-white/10 pt-3 flex justify-end">
-            <div className="text-sm text-white space-y-1 text-right">
+          <div className="border-t border-admin-ink/10 pt-3 flex justify-end">
+            <div className="text-sm text-admin-ink space-y-1 text-right">
               <div>
                 Total units: <span className="font-medium">{quote.totalQuantity}</span>
               </div>
@@ -4189,12 +4227,12 @@ export default function AdminQuoteBuilder({
                   <span className="font-medium">${quote.taxAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="text-lg font-semibold text-red">
+              <div className="text-lg font-semibold text-admin-accent">
                 Grand total: ${quote.grandTotal.toFixed(2)}
               </div>
-              <div className="text-xs text-white/40">(setup charges included above)</div>
+              <div className="text-xs text-admin-ink/62">(setup charges included above)</div>
               {depositPercent < 100 && (
-                <div className="text-xs text-white/60 pt-1 border-t border-white/10 mt-1">
+                <div className="text-xs text-admin-ink/80 pt-1 border-t border-admin-ink/10 mt-1">
                   <div>
                     Deposit due ({depositPercent}%): $
                     {(quote.grandTotal * (depositPercent / 100)).toFixed(2)}
@@ -4220,16 +4258,16 @@ export default function AdminQuoteBuilder({
           effect above (see generateQuote's useEffect) keeps it live as
           items are added, edited, or removed. */}
       {(mode === "quick" || activeRecord) && (
-        <div className="sticky bottom-0 left-0 right-0 -mx-4 sm:mx-0 bg-black/95 backdrop-blur border-t border-white/10 shadow-lg shadow-black/50 px-4 py-3 flex flex-wrap items-center justify-end gap-4 text-sm text-white z-30">
-          <span className="text-white/60">
+        <div className="sticky bottom-0 left-0 right-0 -mx-4 sm:mx-0 bg-admin-card/95 backdrop-blur border-t border-admin-ink/10 shadow-lg shadow-black/50 px-4 py-3 flex flex-wrap items-center justify-end gap-4 text-sm text-admin-ink z-30">
+          <span className="text-admin-ink/80">
             Subtotal{" "}
-            <span className="text-white font-medium">${(quote?.subtotalBeforeTax ?? 0).toFixed(2)}</span>
+            <span className="text-admin-ink font-medium">${(quote?.subtotalBeforeTax ?? 0).toFixed(2)}</span>
           </span>
-          <span className="text-white/60">
+          <span className="text-admin-ink/80">
             Tax{quote && quote.taxRatePercent > 0 ? ` (${quote.taxRatePercent}%)` : ""}{" "}
-            <span className="text-white font-medium">${(quote?.taxAmount ?? 0).toFixed(2)}</span>
+            <span className="text-admin-ink font-medium">${(quote?.taxAmount ?? 0).toFixed(2)}</span>
           </span>
-          <span className="text-base font-semibold text-red">
+          <span className="text-base font-semibold text-admin-accent">
             Total ${(quote?.grandTotal ?? 0).toFixed(2)}
           </span>
         </div>
@@ -4242,25 +4280,25 @@ export default function AdminQuoteBuilder({
           activeRecord — see its condition above), so it keeps its own
           simple Preview/Create quote row. */}
       {mode === "quick" && (
-      <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <div className="flex flex-wrap gap-2">
           <button
             onClick={generateQuote}
             disabled={quoteLoading}
-            className="text-sm px-4 py-1.5 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+            className="text-sm px-4 py-1.5 rounded-xl bg-admin-bg text-admin-ink hover:bg-admin-bg/90 disabled:opacity-40"
           >
             {quoteLoading ? "Calculating…" : "Preview quote"}
           </button>
           <button
             onClick={() => onCreateQuote?.(lines, selectedSetupChargeIds)}
             disabled={lines.length === 0}
-            className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
+            className="text-sm px-4 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink hover:bg-admin-accent/90 disabled:opacity-40"
             title="Carry these items into a full quote where you can add the customer's info and save it"
           >
             Create quote
           </button>
         </div>
-        <p className="mt-2 text-xs text-white/40">
+        <p className="mt-2 text-xs text-admin-ink/62">
           This is just a quick price check — nothing is saved yet. If the customer wants to
           order, tap &quot;Create quote&quot; to carry these items over to the Quotes tab, where
           you can add their info and save it for real.
@@ -4306,24 +4344,24 @@ function SizeGrid({
   return (
     <div className="mt-2 overflow-x-auto">
       {totalQty > 0 && (
-        <p className="mb-1.5 text-xs font-semibold text-white">
-          Total: <span className="text-red">{totalQty}</span> {totalQty === 1 ? "unit" : "units"}
+        <p className="mb-1.5 text-xs font-semibold text-admin-ink">
+          Total: <span className="text-admin-accent">{totalQty}</span> {totalQty === 1 ? "unit" : "units"}
         </p>
       )}
       <table className="text-xs border-collapse w-full min-w-[480px]">
         <thead>
           <tr>
-            <th className="text-left pr-3 py-1 text-white/50 font-medium">Size</th>
+            <th className="text-left pr-3 py-1 text-admin-ink/72 font-medium">Size</th>
             {sizes.map((sz) => (
-              <th key={sz.name} className="text-center px-2 py-1 text-white font-semibold">
+              <th key={sz.name} className="text-center px-2 py-1 text-admin-ink font-semibold">
                 {sz.name}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          <tr className="border-t border-white/10">
-            <td className="pr-3 py-1.5 text-white/50">Quantity</td>
+          <tr className="border-t border-admin-ink/10">
+            <td className="pr-3 py-1.5 text-admin-ink/72">Quantity</td>
             {sizes.map((sz) => (
               <td key={sz.name} className="px-1 py-1.5">
                 <input
@@ -4334,45 +4372,45 @@ function SizeGrid({
                     const v = Math.max(0, Number(e.target.value) || 0);
                     setSizeQty((prev) => ({ ...prev, [sz.name]: v }));
                   }}
-                  className="w-16 border border-white/20 rounded-xl px-1.5 py-1 text-center text-sm"
+                  className="w-16 border border-admin-ink/20 rounded-xl px-1.5 py-1 text-center text-sm"
                 />
               </td>
             ))}
           </tr>
           {showMarkup && (
             <>
-              <tr className="border-t border-white/5">
-                <td className="pr-3 py-1 text-white/50">Item Cost</td>
+              <tr className="border-t border-admin-ink/5">
+                <td className="pr-3 py-1 text-admin-ink/72">Item Cost</td>
                 {sizes.map((sz) => (
-                  <td key={sz.name} className="px-2 py-1 text-center text-white/70">
+                  <td key={sz.name} className="px-2 py-1 text-center text-admin-ink/88">
                     ${sz.cost.toFixed(2)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-t border-white/5">
-                <td className="pr-3 py-1 text-white/50">Item Markup (%)</td>
+              <tr className="border-t border-admin-ink/5">
+                <td className="pr-3 py-1 text-admin-ink/72">Item Markup (%)</td>
                 {sizes.map((sz) => (
-                  <td key={sz.name} className="px-2 py-1 text-center text-white/70">
+                  <td key={sz.name} className="px-2 py-1 text-center text-admin-ink/88">
                     {sz.markupPercent}
                   </td>
                 ))}
               </tr>
             </>
           )}
-          <tr className="border-t border-white/5">
-            <td className="pr-3 py-1 text-white/50">Item Price</td>
+          <tr className="border-t border-admin-ink/5">
+            <td className="pr-3 py-1 text-admin-ink/72">Item Price</td>
             {sizes.map((sz) => (
-              <td key={sz.name} className="px-2 py-1 text-center font-medium text-white">
+              <td key={sz.name} className="px-2 py-1 text-center font-medium text-admin-ink">
                 ${sz.price.toFixed(2)}
               </td>
             ))}
           </tr>
-          <tr className="border-t border-white/10">
-            <td className="pr-3 py-1 text-white/50">Line total</td>
+          <tr className="border-t border-admin-ink/10">
+            <td className="pr-3 py-1 text-admin-ink/72">Line total</td>
             {sizes.map((sz) => {
               const qty = sizeQty[sz.name] ?? 0;
               return (
-                <td key={sz.name} className="px-2 py-1 text-center text-white/70">
+                <td key={sz.name} className="px-2 py-1 text-center text-admin-ink/88">
                   {qty > 0 ? `$${(qty * sz.price).toFixed(2)}` : "—"}
                 </td>
               );

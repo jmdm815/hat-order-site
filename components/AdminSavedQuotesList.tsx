@@ -254,7 +254,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
   }
 
   if (loading) {
-    return <p className="text-white/40 text-sm">Loading…</p>;
+    return <p className="text-admin-ink/62 text-sm">Loading…</p>;
   }
 
   const emptyMessage =
@@ -278,7 +278,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
       {jobsMessage && <p className="mb-3 text-sm text-green-700">{jobsMessage}</p>}
 
       {records.length === 0 ? (
-        <p className="text-sm text-white/40">{emptyMessage}</p>
+        <p className="text-sm text-admin-ink/62">{emptyMessage}</p>
       ) : (
         <div className="space-y-2">
           {records.map((r) => {
@@ -287,14 +287,14 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
             return (
               <div
                 key={r.id}
-                className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+                className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card p-4 flex flex-col sm:flex-row sm:items-center gap-3"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-white truncate">{customer}</span>
+                    <span className="font-medium text-admin-ink truncate">{customer}</span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        r.status === "invoice" ? "bg-white/10 text-white" : "bg-white/5 text-white/60"
+                        r.status === "invoice" ? "bg-admin-ink/10 text-admin-ink" : "bg-admin-ink/5 text-admin-ink/80"
                       }`}
                     >
                       {r.status === "invoice" ? r.invoiceNumber : r.quoteNumber ?? "Quote"}
@@ -328,7 +328,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     {view !== "deleted" && r.status === "quote" && r.linkedInvoiceId && (
                       <button
                         onClick={() => onEdit(r.linkedInvoiceId!)}
-                        className="px-2 py-0.5 rounded-full text-xs font-medium border border-white/20 text-white/70 hover:bg-white/5"
+                        className="px-2 py-0.5 rounded-full text-xs font-medium border border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
                         title="Open the invoice created from this quote"
                       >
                         → Invoice {r.linkedInvoiceNumber ?? ""}
@@ -337,14 +337,14 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     {view !== "deleted" && r.status === "invoice" && r.linkedQuoteId && (
                       <button
                         onClick={() => onEdit(r.linkedQuoteId!)}
-                        className="px-2 py-0.5 rounded-full text-xs font-medium border border-white/20 text-white/70 hover:bg-white/5"
+                        className="px-2 py-0.5 rounded-full text-xs font-medium border border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
                         title="Open the quote this invoice was created from"
                       >
                         from Quote {r.linkedQuoteNumber ?? ""}
                       </button>
                     )}
                   </div>
-                  <div className="text-xs text-white/50 mt-0.5">
+                  <div className="text-xs text-admin-ink/72 mt-0.5">
                     {r.computed.totalQuantity} units · ${r.computed.grandTotal.toFixed(2)} · saved{" "}
                     {new Date(r.updatedAt).toLocaleDateString()}
                     {typeof r.amountPaid === "number" &&
@@ -367,7 +367,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     <button
                       onClick={() => handleRestore(r.id)}
                       disabled={isBusy}
-                      className="text-xs px-2.5 py-1 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+                      className="text-xs px-2.5 py-1 rounded-xl bg-admin-bg text-admin-ink hover:bg-admin-bg/90 disabled:opacity-40"
                     >
                       {isBusy ? "…" : "Restore"}
                     </button>
@@ -383,25 +383,25 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                   <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => onEdit(r.id)}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => downloadPdf(r.id, "customer")}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                     >
                       PDF
                     </button>
                     <button
                       onClick={() => downloadPdf(r.id, "internal")}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
+                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-accent/30 text-admin-accent hover:bg-admin-accent/5"
                     >
                       Internal
                     </button>
                     <button
                       onClick={() => downloadPdf(r.id, "work-order")}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                     >
                       Work order
                     </button>
@@ -413,25 +413,25 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                       Job Folder
                     </button>
                     {copyMenuId === r.id ? (
-                      <span className="inline-flex items-center gap-1.5 bg-white/5 rounded-xl px-1.5 py-0.5">
-                        <span className="text-xs text-white/50 pl-1">Copy as:</span>
+                      <span className="inline-flex items-center gap-1.5 bg-admin-ink/5 rounded-xl px-1.5 py-0.5">
+                        <span className="text-xs text-admin-ink/72 pl-1">Copy as:</span>
                         <button
                           onClick={() => handleDuplicate(r.id, "quote")}
                           disabled={isBusy}
-                          className="text-xs px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                          className="text-xs px-2 py-1 rounded-lg bg-admin-ink/10 hover:bg-admin-ink/20 disabled:opacity-40"
                         >
                           {isBusy ? "…" : "Quote"}
                         </button>
                         <button
                           onClick={() => handleDuplicate(r.id, "invoice")}
                           disabled={isBusy}
-                          className="text-xs px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                          className="text-xs px-2 py-1 rounded-lg bg-admin-ink/10 hover:bg-admin-ink/20 disabled:opacity-40"
                         >
                           {isBusy ? "…" : "Invoice"}
                         </button>
                         <button
                           onClick={() => setCopyMenuId(null)}
-                          className="text-xs px-1.5 py-1 text-white/40 hover:text-white"
+                          className="text-xs px-1.5 py-1 text-admin-ink/62 hover:text-admin-ink"
                           title="Cancel"
                         >
                           ✕
@@ -441,7 +441,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                       <button
                         onClick={() => setCopyMenuId(r.id)}
                         title="Create an independent copy of this as a new quote or invoice"
-                        className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                        className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                       >
                         Create a copy
                       </button>
@@ -451,7 +451,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                         <button
                           onClick={() => handleConvert(r.id)}
                           disabled={isBusy}
-                          className="text-xs px-2.5 py-1 rounded-xl bg-navy text-white hover:bg-navy/90 disabled:opacity-40"
+                          className="text-xs px-2.5 py-1 rounded-xl bg-admin-bg text-admin-ink hover:bg-admin-bg/90 disabled:opacity-40"
                         >
                           {isBusy ? "…" : r.linkedInvoiceId ? "View invoice" : "Convert to invoice"}
                         </button>
@@ -474,7 +474,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                           <button
                             onClick={() => handleCopyPayPageLink(r.id)}
                             title="Copy a link to this site's own branded pay page for this quote's deposit"
-                            className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
+                            className="text-xs px-2.5 py-1 rounded-xl border border-admin-accent/30 text-admin-accent hover:bg-admin-accent/5"
                           >
                             Copy pay page link
                           </button>
@@ -485,7 +485,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                         {r.linkedQuoteId && (
                           <button
                             onClick={() => onEdit(r.linkedQuoteId!)}
-                            className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                            className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                             title="Open the quote this invoice was created from"
                           >
                             View quote
@@ -501,7 +501,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                           <button
                             onClick={() => handleCopyPayPageLink(r.id)}
                             title="Copy a link to this site's own branded payment page for this invoice"
-                            className="text-xs px-2.5 py-1 rounded-xl border border-red/30 text-red hover:bg-red/5"
+                            className="text-xs px-2.5 py-1 rounded-xl border border-admin-accent/30 text-admin-accent hover:bg-admin-accent/5"
                           >
                             Copy pay page link
                           </button>
@@ -511,7 +511,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                           className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
                             r.invoiceStatus === "paid"
                               ? "border border-green-600/30 text-green-700 hover:bg-green-50"
-                              : "bg-navy text-white hover:bg-navy/90"
+                              : "bg-admin-bg text-admin-ink hover:bg-admin-bg/90"
                           }`}
                         >
                           Payment
@@ -520,7 +520,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     )}
                     <button
                       onClick={() => setSendModalRecord(r)}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-white/20 hover:bg-white/5"
+                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                     >
                       Send
                     </button>
@@ -535,7 +535,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     <button
                       onClick={() => handleDelete(r.id)}
                       disabled={isBusy}
-                      className="text-xs px-2.5 py-1 text-red-600 hover:underline disabled:text-white/20"
+                      className="text-xs px-2.5 py-1 text-red-600 hover:underline disabled:text-admin-ink/35"
                     >
                       Delete
                     </button>

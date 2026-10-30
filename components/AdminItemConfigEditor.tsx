@@ -284,28 +284,28 @@ export default function AdminItemConfigEditor({
   }, [expandedType, view]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-navy/40 flex items-center justify-center p-4">
-      <div className="bg-black rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+    <div className="fixed inset-0 z-50 bg-admin-bg/40 flex items-center justify-center p-4">
+      <div className="bg-admin-card rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-bold text-lg text-white">
+            <h2 className="font-bold text-lg text-admin-ink">
               {product.brandName} {product.styleNumber} — {product.productName}
             </h2>
-            <p className="text-sm text-white/60 mt-0.5">
+            <p className="text-sm text-admin-ink/80 mt-0.5">
               Configure which decoration types this item offers and where customers can place
               artwork for each.
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-white/50 hover:text-white text-xl leading-none px-2"
+            className="text-admin-ink/72 hover:text-admin-ink text-xl leading-none px-2"
             aria-label="Close"
           >
             ×
           </button>
         </div>
 
-        <label className="mt-5 flex items-center gap-2 text-sm font-medium text-white border-b border-white/10 pb-3">
+        <label className="mt-5 flex items-center gap-2 text-sm font-medium text-admin-ink border-b border-admin-ink/10 pb-3">
           <input
             type="checkbox"
             checked={allEnabled}
@@ -314,8 +314,8 @@ export default function AdminItemConfigEditor({
           All
         </label>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm border-b border-white/10 pb-4">
-          <span className="text-white/70 font-medium">Live designer</span>
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm border-b border-admin-ink/10 pb-4">
+          <span className="text-admin-ink/88 font-medium">Live designer</span>
           {(["default", "on", "off"] as const).map((mode) => {
             const active =
               (mode === "default" && config.liveDesignerOverride === undefined) ||
@@ -333,8 +333,8 @@ export default function AdminItemConfigEditor({
                 }
                 className={`px-3 py-1 rounded-full text-xs border transition ${
                   active
-                    ? "bg-navy text-white border-white"
-                    : "border-white/20 text-white/70 hover:bg-white/5"
+                    ? "bg-admin-bg text-admin-ink border-admin-ink"
+                    : "border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
                 }`}
               >
                 {mode === "default" ? "Use global setting" : mode === "on" ? "Always on" : "Always off"}
@@ -343,16 +343,16 @@ export default function AdminItemConfigEditor({
           })}
         </div>
 
-        <div className="mt-4 border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-          <h3 className="font-medium text-white">Homepage catalog</h3>
-          <p className="text-xs text-white/60 mt-0.5">
+        <div className="mt-4 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+          <h3 className="font-medium text-admin-ink">Homepage catalog</h3>
+          <p className="text-xs text-admin-ink/80 mt-0.5">
             Choose which category sections show this item on the homepage, and which action
             button(s) its card offers.
           </p>
 
           <div className="mt-3 flex flex-wrap gap-2">
             {allCategories.length === 0 ? (
-              <p className="text-xs text-white/40">
+              <p className="text-xs text-admin-ink/62">
                 No categories yet — create one from the Categories tab first.
               </p>
             ) : (
@@ -363,8 +363,8 @@ export default function AdminItemConfigEditor({
                     key={cat.id}
                     className={`px-3 py-1.5 rounded-full text-xs border cursor-pointer transition ${
                       checked
-                        ? "bg-navy text-white border-white"
-                        : "border-white/20 text-white/70 hover:bg-white/5"
+                        ? "bg-admin-bg text-admin-ink border-admin-ink"
+                        : "border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
                     }`}
                   >
                     <input
@@ -400,20 +400,20 @@ export default function AdminItemConfigEditor({
           </div>
         </div>
 
-        <div className="mt-4 border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-          <h3 className="font-medium text-white">Design canvas photo</h3>
-          <p className="text-xs text-white/60 mt-0.5">
+        <div className="mt-4 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+          <h3 className="font-medium text-admin-ink">Design canvas photo</h3>
+          <p className="text-xs text-admin-ink/80 mt-0.5">
             Defaults to SanMar&apos;s photo, or an illustrated shirt if SanMar has
             none. Upload your own instead — pick a color, or &quot;All
             colors&quot; for every color at once.
           </p>
 
           <label className="mt-3 flex items-center gap-2 text-sm">
-            <span className="text-white/70">Color</span>
+            <span className="text-admin-ink/88">Color</span>
             <select
               value={overrideColorName}
               onChange={(e) => setOverrideColorName(e.target.value)}
-              className="border border-white/20 rounded-xl px-2 py-1.5 text-sm"
+              className="border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             >
               {overrideColorOptions.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -434,7 +434,7 @@ export default function AdminItemConfigEditor({
                 const source = photoSource[v];
                 return (
                   <div key={v}>
-                    <div className="relative w-full aspect-square bg-black border border-white/10 shadow-lg shadow-black/30 rounded-xl overflow-hidden">
+                    <div className="relative w-full aspect-square bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl overflow-hidden">
                       <GarmentPreview
                         url={currentUrl}
                         view={v}
@@ -445,11 +445,11 @@ export default function AdminItemConfigEditor({
                       />
                     </div>
                     <div className="mt-1.5 flex items-center justify-between gap-2">
-                      <span className="text-xs text-white/60 capitalize">
+                      <span className="text-xs text-admin-ink/80 capitalize">
                         {v} {hasCustom && <span className="text-green-700 font-medium">· custom</span>}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <label className="text-xs px-2 py-1 rounded-full border border-white/20 hover:bg-white/5 cursor-pointer">
+                        <label className="text-xs px-2 py-1 rounded-full border border-admin-ink/20 hover:bg-admin-ink/5 cursor-pointer">
                           {uploadingView === v ? "Uploading…" : hasCustom ? "Replace" : "Upload"}
                           <input
                             type="file"
@@ -482,7 +482,7 @@ export default function AdminItemConfigEditor({
                     {source && (
                       <p
                         className={`mt-1 text-[11px] ${
-                          source === "illustration" ? "text-amber-700" : "text-white/50"
+                          source === "illustration" ? "text-amber-700" : "text-admin-ink/72"
                         }`}
                       >
                         {PHOTO_SOURCE_LABEL[source]}
@@ -501,20 +501,20 @@ export default function AdminItemConfigEditor({
             const info = getDecoration(allDecorations ?? [], type);
             const isExpanded = expandedType === type;
             return (
-              <div key={type} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden">
-                <div className="flex items-center gap-3 p-3 bg-white/[0.02]">
+              <div key={type} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden">
+                <div className="flex items-center gap-3 p-3 bg-admin-ink/[0.02]">
                   <input
                     type="checkbox"
                     checked={setting.enabled}
                     onChange={(e) => toggleEnabled(type, e.target.checked)}
                   />
-                  <span className="font-medium text-white flex-1">
+                  <span className="font-medium text-admin-ink flex-1">
                     {info?.shortLabel ?? type}
                   </span>
                   {setting.enabled && (
                     <button
                       onClick={() => setExpandedType(isExpanded ? null : type)}
-                      className="text-sm text-white/70 px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+                      className="text-sm text-admin-ink/88 px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                     >
                       {isExpanded ? "Hide placements" : `Manage placements (${setting.zones.length})`}
                     </button>
@@ -522,7 +522,7 @@ export default function AdminItemConfigEditor({
                 </div>
 
                 {setting.enabled && isExpanded && (
-                  <div className="p-4 border-t border-white/10">
+                  <div className="p-4 border-t border-admin-ink/10">
                     {hasBack && (
                       <div className="flex gap-1 mb-3">
                         {(["front", "back"] as const).map((v) => (
@@ -531,8 +531,8 @@ export default function AdminItemConfigEditor({
                             onClick={() => setView(v)}
                             className={`px-3 py-1 text-xs rounded-full border capitalize ${
                               view === v
-                                ? "bg-navy text-white border-white"
-                                : "border-white/20 text-white/70"
+                                ? "bg-admin-bg text-admin-ink border-admin-ink"
+                                : "border-admin-ink/20 text-admin-ink/88"
                             }`}
                           >
                             {v}
@@ -544,7 +544,7 @@ export default function AdminItemConfigEditor({
                     <div className="grid grid-cols-1 sm:grid-cols-[1fr_260px] gap-4">
                       <div
                         ref={imageRef}
-                        className="relative w-full aspect-square bg-black border border-white/10 shadow-lg shadow-black/30 rounded-xl overflow-hidden"
+                        className="relative w-full aspect-square bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl overflow-hidden"
                       >
                         <GarmentPreview
                           url={view === "back" ? zoneCanvasBack ?? zoneCanvasFront : zoneCanvasFront}
@@ -569,8 +569,8 @@ export default function AdminItemConfigEditor({
                             label={z.label}
                             className={`border-2 border-dashed rounded ${
                               selectedZoneId === z.id
-                                ? "border-red bg-red/10"
-                                : "border-white/50 bg-white/5"
+                                ? "border-admin-accent bg-admin-accent/10"
+                                : "border-admin-ink/50 bg-admin-ink/5"
                             }`}
                           />
                         ))}
@@ -579,7 +579,7 @@ export default function AdminItemConfigEditor({
                       <div className="space-y-2">
                         <button
                           onClick={() => addZone(type)}
-                          className="w-full text-sm px-3 py-2 rounded-xl border border-white/20 hover:bg-white/5"
+                          className="w-full text-sm px-3 py-2 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
                         >
                           + Add zone
                         </button>
@@ -593,8 +593,8 @@ export default function AdminItemConfigEditor({
                               }}
                               className={`p-2 rounded-xl border text-sm cursor-pointer ${
                                 selectedZoneId === z.id
-                                  ? "border-red ring-1 ring-red"
-                                  : "border-white/10 hover:border-white/30"
+                                  ? "border-admin-accent ring-1 ring-admin-accent"
+                                  : "border-admin-ink/10 hover:border-admin-ink/30"
                               }`}
                             >
                               <div className="flex items-center gap-2">
@@ -605,7 +605,7 @@ export default function AdminItemConfigEditor({
                                     updateZone(type, z.id, { label: e.target.value })
                                   }
                                   onClick={(e) => e.stopPropagation()}
-                                  className="flex-1 border border-white/20 rounded px-2 py-1 text-xs"
+                                  className="flex-1 border border-admin-ink/20 rounded px-2 py-1 text-xs"
                                 />
                                 <button
                                   onClick={(e) => {
@@ -628,7 +628,7 @@ export default function AdminItemConfigEditor({
                                     });
                                   }}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="mt-1.5 text-xs border border-white/20 rounded px-1.5 py-1"
+                                  className="mt-1.5 text-xs border border-admin-ink/20 rounded px-1.5 py-1"
                                 >
                                   <option value="front">Front</option>
                                   <option value="back">Back</option>
@@ -637,7 +637,7 @@ export default function AdminItemConfigEditor({
                             </div>
                           ))}
                           {setting.zones.length === 0 && (
-                            <p className="text-xs text-white/40">No zones yet — add one above.</p>
+                            <p className="text-xs text-admin-ink/62">No zones yet — add one above.</p>
                           )}
                         </div>
                       </div>
@@ -654,14 +654,14 @@ export default function AdminItemConfigEditor({
         <div className="mt-5 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-full border border-white/20 text-sm font-medium hover:bg-white/5"
+            className="px-4 py-2 rounded-full border border-admin-ink/20 text-sm font-medium hover:bg-admin-ink/5"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 rounded-full bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition disabled:bg-navy/20"
+            className="px-5 py-2 rounded-full bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-bg hover:text-admin-ink transition disabled:bg-admin-bg/20"
           >
             {saving ? "Saving…" : "Save"}
           </button>

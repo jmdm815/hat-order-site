@@ -78,17 +78,17 @@ export default function AdminSendDocumentModal({ record, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-navy/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-admin-bg/40 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-black rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto p-5 border border-white/10"
+        className="bg-admin-card rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto p-5 border border-admin-ink/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-white">Send to customer</h2>
-            <p className="text-xs text-white/50">{docLabel || "This quote"}</p>
+            <h2 className="text-lg font-bold text-admin-ink">Send to customer</h2>
+            <p className="text-xs text-admin-ink/72">{docLabel || "This quote"}</p>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white text-sm px-1">
+          <button onClick={onClose} className="text-admin-ink/62 hover:text-admin-ink text-sm px-1">
             ✕
           </button>
         </div>
@@ -96,7 +96,7 @@ export default function AdminSendDocumentModal({ record, onClose }: Props) {
         <div className="mt-4 flex gap-2">
           <button
             type="button"
-            className="flex-1 text-sm font-semibold px-3 py-2 rounded-xl bg-white text-navy"
+            className="flex-1 text-sm font-semibold px-3 py-2 rounded-xl bg-admin-accent text-admin-accent-ink"
           >
             Email
           </button>
@@ -104,16 +104,16 @@ export default function AdminSendDocumentModal({ record, onClose }: Props) {
             type="button"
             disabled
             title="SMS is coming soon"
-            className="flex-1 text-sm font-medium px-3 py-2 rounded-xl border border-white/15 text-white/30 cursor-not-allowed"
+            className="flex-1 text-sm font-medium px-3 py-2 rounded-xl border border-admin-ink/15 text-admin-ink/50 cursor-not-allowed"
           >
             SMS (coming soon)
           </button>
         </div>
 
         <div className="mt-4">
-          <p className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1.5">Send to</p>
+          <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-1.5">Send to</p>
           {emails.length === 0 ? (
-            <p className="text-xs text-white/40 mb-2">
+            <p className="text-xs text-admin-ink/62 mb-2">
               No email on this customer&apos;s profile yet — add one below.
             </p>
           ) : (
@@ -121,14 +121,14 @@ export default function AdminSendDocumentModal({ record, onClose }: Props) {
               {emails.map((e) => (
                 <span
                   key={e}
-                  className="flex items-center gap-1.5 text-xs bg-white/5 border border-white/10 rounded-full pl-3 pr-1.5 py-1 text-white/80"
+                  className="flex items-center gap-1.5 text-xs bg-admin-ink/5 border border-admin-ink/10 rounded-full pl-3 pr-1.5 py-1 text-admin-ink/94"
                 >
                   {e}
                   <button
                     type="button"
                     onClick={() => removeEmail(e)}
                     aria-label={`Remove ${e}`}
-                    className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-white/10 text-white/50 hover:text-white"
+                    className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-admin-ink/10 text-admin-ink/72 hover:text-admin-ink"
                   >
                     ✕
                   </button>
@@ -151,20 +151,20 @@ export default function AdminSendDocumentModal({ record, onClose }: Props) {
                 }
               }}
               placeholder="Add an email address…"
-              className="flex-1 bg-black border border-white/20 rounded-xl px-2 py-1.5 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+              className="flex-1 bg-admin-card border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
             />
             <button
               type="button"
               onClick={addEmail}
-              className="shrink-0 text-sm px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+              className="shrink-0 text-sm px-3 py-1.5 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
             >
               + Add
             </button>
           </div>
-          {emailError && <p className="mt-1.5 text-xs text-red">{emailError}</p>}
+          {emailError && <p className="mt-1.5 text-xs text-admin-accent">{emailError}</p>}
         </div>
 
-        {sendError && <p className="mt-3 text-sm text-red font-medium">{sendError}</p>}
+        {sendError && <p className="mt-3 text-sm text-admin-accent font-medium">{sendError}</p>}
         {sentTo && (
           <p className="mt-3 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
             Sent to {sentTo.join(", ")}.
@@ -174,11 +174,11 @@ export default function AdminSendDocumentModal({ record, onClose }: Props) {
         <button
           onClick={handleSend}
           disabled={sending || emails.length === 0}
-          className="mt-4 w-full py-2 rounded-xl bg-red text-navy text-sm font-semibold hover:bg-red/90 disabled:opacity-40"
+          className="mt-4 w-full py-2 rounded-xl bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-accent/90 disabled:opacity-40"
         >
           {sending ? "Sending…" : `Send ${record.status === "invoice" ? "invoice" : "quote"} PDF`}
         </button>
-        <p className="mt-2 text-xs text-white/40">
+        <p className="mt-2 text-xs text-admin-ink/62">
           Emails the same PDF as &quot;Download customer PDF&quot; to every address above.
         </p>
       </div>
