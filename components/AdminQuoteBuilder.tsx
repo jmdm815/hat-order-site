@@ -734,6 +734,14 @@ export default function AdminQuoteBuilder({
   const [duplicating, setDuplicating] = useState(false);
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
 
+  // The "⋯ More" menu in the top status bar (ShopVox-style header: a couple
+  // of primary actions visible, everything else — Preview quote, Convert to
+  // invoice, Create a copy, the four PDF downloads — tucked behind one
+  // overflow menu) rather than a long row of buttons sitting below the
+  // whole Items/Preview section.
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
+
   // Hide/show toggle for the admin-only cost/markup breakdown (the "Item
   // Cost" and "Item Markup" rows in the size grid below, and the matching
   // "Cost"/"Markup" columns in the Preview table) — handy for Quick Quote
@@ -873,6 +881,17 @@ export default function AdminQuoteBuilder({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [addItemMenuOpen]);
+
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [moreMenuOpen]);
 
   useEffect(() => {
     if (!paymentTermsOpen) return;
@@ -2056,7 +2075,8 @@ export default function AdminQuoteBuilder({
     <>
     <div className="space-y-8">
       {activeRecord && (
-        <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-2xl px-4 py-2.5 text-sm">
+        <div className="bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-2xl px-4 py-2.5 text-sm space-y-2.5">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="text-white/70">
             Editing{" "}
             {activeRecord.status === "invoice"
@@ -2105,6 +2125,148 @@ export default function AdminQuoteBuilder({
           >
             Start a new quote
           </button>
+        </div>
+
+        {/* Primary actions, moved up here next to the record status instead
+            of sitting below the whole Items/Preview section where they were
+            easy to lose track of while scrolling — matching the reference
+            quoting tool's header (a couple of direct actions, everything
+            else behind one "⋯ More" menu). Only a couple stay directly
+            visible: Save, and Send to customer; Preview/refresh, Convert to
+            invoice, Create a copy, and all four PDF downloads move into the
+            menu. */}
+        {mode === "full" && (
+          <div className="flex items-center gap-2 flex-wrap pt-2.5 border-t border-white/10">
+            <button
+              onClick={saveQuote}
+              disabled={saving}
+              className="text-xs px-3 py-1.5 rounded-xl bg-red text-navy font-semibold hover:bg-red/90 disabled:opacity-40"
+            >
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+            <button
+              onClick={() => setSendModalOpen(true)}
+              className="text-xs px-3 py-1.5 rounded-xl bg-white/10 text-white hover:bg-white/15"
+            >
+              Send to customer
+            </button>
+            {activeRecord.status === "quote" && (
+              <button
+                onClick={convertToInvoice}
+                disabled={converting}
+                className="text-xs px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
+              >
+                {converting ? "Converting…" : "Convert to invoice"}
+              </button>
+            )}
+            <div className="relative ml-auto" ref={moreMenuRef}>
+              <button
+                type="button"
+                onClick={() => setMoreMenuOpen((o) => !o)}
+                title="More actions"
+                className="text-xs px-3 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+              >
+                ⋯ More
+              </button>
+              {moreMenuOpen && (
+                <div className="absolute right-0 z-40 mt-1 w-64 bg-black border border-white/20 rounded-2xl shadow-xl p-1.5">
+                  <button
+                    onClick={() => {
+                      generateQuote();
+                      setMoreMenuOpen(false);
+                    }}
+                    disabled={quoteLoading}
+                    className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                  >
+                    {quoteLoading ? "Calculating…" : "Refresh preview"}
+                  </button>
+                  <div className="h-px bg-white/10 my-1" />
+                  <button
+                    onClick={() => {
+                      downloadPdf("customer");
+                      setMoreMenuOpen(false);
+                    }}
+                    disabled={pdfLoading !== null}
+                    className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                  >
+                    {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      downloadPdf("internal");
+                      setMoreMenuOpen(false);
+                    }}
+                    disabled={pdfLoading !== null}
+                    className="w-full text-left text-sm text-red px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                  >
+                    {pdfLoading === "internal" ? "Generating…" : "Download company PDF (with cost)"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      downloadPdf("work-order");
+                      setMoreMenuOpen(false);
+                    }}
+                    disabled={pdfLoading !== null}
+                    className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                  >
+                    {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
+                  </button>
+                  {activeRecord.status === "invoice" && (
+                    <button
+                      onClick={() => {
+                        downloadPdf("invoice");
+                        setMoreMenuOpen(false);
+                      }}
+                      disabled={pdfLoading !== null}
+                      className="w-full text-left text-sm text-green-500 px-2.5 py-1.5 rounded-xl hover:bg-white/5 disabled:opacity-40"
+                    >
+                      {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
+                    </button>
+                  )}
+                  <div className="h-px bg-white/10 my-1" />
+                  {copyMenuOpen ? (
+                    <div className="px-2.5 py-1.5">
+                      <p className="text-xs text-white/50 mb-1.5">Copy as:</p>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleDuplicate("quote")}
+                          disabled={duplicating}
+                          className="flex-1 text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                        >
+                          {duplicating ? "…" : "Quote"}
+                        </button>
+                        <button
+                          onClick={() => handleDuplicate("invoice")}
+                          disabled={duplicating}
+                          className="flex-1 text-xs px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                        >
+                          {duplicating ? "…" : "Invoice"}
+                        </button>
+                        <button
+                          onClick={() => setCopyMenuOpen(false)}
+                          className="text-xs px-2 py-1 text-white/40 hover:text-white"
+                          title="Cancel"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setCopyMenuOpen(true)}
+                      title="Create an independent copy of this as a new quote or invoice"
+                      className="w-full text-left text-sm text-white/80 px-2.5 py-1.5 rounded-xl hover:bg-white/5"
+                    >
+                      Create a copy
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {mode === "full" && saveMessage && <p className="text-xs text-green-700">{saveMessage}</p>}
+        {quoteError && <p className="text-xs text-red-600">{quoteError}</p>}
         </div>
       )}
 
@@ -2648,6 +2810,18 @@ export default function AdminQuoteBuilder({
             <h3 className="text-sm font-semibold text-white">
               Items ({lines.length + selectedSetupChargeIds.length + miscFees.length})
             </h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowMarkup((v) => !v)}
+                title={
+                  showMarkup
+                    ? "Hide item cost and item markup — show only the item price"
+                    : "Show item cost and item markup"
+                }
+                className="text-xs px-2 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
+              >
+                {showMarkup ? "Item Markup" : "IM%"}
+              </button>
             <div className="relative" ref={addItemMenuRef}>
               <button
                 type="button"
@@ -2680,6 +2854,7 @@ export default function AdminQuoteBuilder({
                 </div>
               )}
             </div>
+            </div>
           </div>
 
           {lines.length === 0 && selectedSetupChargeIds.length === 0 && miscFees.length === 0 ? (
@@ -2701,68 +2876,147 @@ export default function AdminQuoteBuilder({
                 // selectedSetupChargeIds/miscFees below.
                 const itemNumber = idx + 1;
                 const isEditing = editingLineKey === line.key;
+                // The priced version of this exact line, from the live
+                // (debounced) recompute below — same index as `lines` since
+                // buildQuoteInput() maps lines 1:1 in order. Lets this card
+                // show a real size/qty/price grid (merging what used to be
+                // a separate "Preview" section into the Items list itself,
+                // matching the reference quoting tool's per-item layout)
+                // instead of just a plain qty summary; falls back to that
+                // summary for the brief window before the first compute
+                // finishes, or if pricing failed.
+                const computedLine = quote?.lines[idx];
                 return (
                   <div
                     key={line.key}
-                    className="border border-white/15 rounded-xl px-3 py-2.5 bg-white/[0.015]"
+                    className="border border-white/15 rounded-xl px-3 py-3 bg-white/[0.015]"
                   >
                     <div className="flex items-start gap-3">
                       <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold flex items-center justify-center">
                         {itemNumber}
                       </div>
-                      {line.imageUrl && (
+                      {line.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={productPreviewImageUrl(line.imageUrl, line.imageFallbackUrl)}
                           alt=""
-                          className="shrink-0 w-10 h-10 rounded-lg object-contain bg-white/5 border border-white/10"
+                          className="shrink-0 w-14 h-14 rounded-lg object-contain bg-white/5 border border-white/10"
                         />
+                      ) : (
+                        <div className="shrink-0 w-14 h-14 rounded-lg bg-white/5 border border-white/10" />
                       )}
-                      <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
-                        <div className="text-sm text-white">
-                          {line.customerSupplied && line.itemType !== "hat" && line.manualSource !== "custom" ? (
-                            <>
-                              <span className="font-medium">Customer-supplied item</span>{" "}
-                              <span className="text-white/40">({line.itemDescription})</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="font-medium">
-                                {[line.brandName, line.productName].filter(Boolean).join(" ")}
-                              </span>
-                              {(line.styleNumber || line.colorName) && (
-                                <span className="text-white/40">
-                                  {" "}
-                                  ({[line.styleNumber, line.colorName].filter(Boolean).join(" — ")})
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="text-sm text-white">
+                            {line.customerSupplied && line.itemType !== "hat" && line.manualSource !== "custom" ? (
+                              <>
+                                <span className="font-medium">Customer-supplied item</span>{" "}
+                                <span className="text-white/40">({line.itemDescription})</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-medium">
+                                  {[line.brandName, line.productName].filter(Boolean).join(" ")}
                                 </span>
-                              )}
-                            </>
-                          )}
-                          <div className="text-xs text-white/60 mt-0.5">
-                            {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
-                            {decoration ? ` · ${decoration.label}${column ? ` (${column.label})` : ""}` : ""}
+                                {(line.styleNumber || line.colorName) && (
+                                  <span className="text-white/40">
+                                    {" "}
+                                    ({[line.styleNumber, line.colorName].filter(Boolean).join(" — ")})
+                                  </span>
+                                )}
+                              </>
+                            )}
+                            {decoration && (
+                              <div className="text-xs text-white/60 mt-0.5">
+                                {decoration.label}
+                                {column ? ` (${column.label})` : ""}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            {computedLine && (
+                              <span className="text-sm font-semibold text-white whitespace-nowrap">
+                                ${computedLine.subtotal.toFixed(2)}
+                              </span>
+                            )}
+                            <div className="flex flex-col items-end gap-1">
+                              <button
+                                onClick={() => (isEditing ? cancelEditLine() : startEditLine(line))}
+                                className="text-xs text-white/70 hover:underline"
+                              >
+                                {isEditing ? "Cancel" : "Edit"}
+                              </button>
+                              <button
+                                onClick={() => duplicateLine(line.key)}
+                                title="Add a copy of this garment line — handy for adding the same item in a different color"
+                                className="text-xs text-white/70 hover:underline"
+                              >
+                                Copy Style
+                              </button>
+                              <button
+                                onClick={() => removeLine(line.key)}
+                                className="text-xs text-red-600 hover:underline"
+                              >
+                                Delete Style
+                              </button>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <button
-                            onClick={() => (isEditing ? cancelEditLine() : startEditLine(line))}
-                            className="text-xs text-white/70 hover:underline"
-                          >
-                            {isEditing ? "Cancel" : "Edit"}
-                          </button>
-                          <button
-                            onClick={() => duplicateLine(line.key)}
-                            title="Add a copy of this garment line — handy for adding the same item in a different color"
-                            className="text-xs text-white/70 hover:underline"
-                          >
-                            Copy Style
-                          </button>
-                          <button
-                            onClick={() => removeLine(line.key)}
-                            className="text-xs text-red-600 hover:underline"
-                          >
-                            Delete Style
-                          </button>
+
+                        {/* Per-size price grid — the merged-in "Preview"
+                            table for this one line. */}
+                        <div className="mt-2 overflow-x-auto">
+                          {computedLine ? (
+                            <table className="text-xs border-collapse w-full">
+                              <thead>
+                                <tr className="text-white/50">
+                                  <th className="text-left pr-3 pb-1 font-medium">Size</th>
+                                  <th className="text-left pr-3 pb-1 font-medium">Qty</th>
+                                  {showMarkup && (
+                                    <>
+                                      <th className="text-left pr-3 pb-1 font-medium">Cost</th>
+                                      <th className="text-left pr-3 pb-1 font-medium">Markup</th>
+                                    </>
+                                  )}
+                                  <th className="text-left pr-3 pb-1 font-medium">Garment</th>
+                                  <th className="text-left pr-3 pb-1 font-medium">Decoration</th>
+                                  <th className="text-left pr-3 pb-1 font-medium">Unit</th>
+                                  <th className="text-right pb-1 font-medium">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {computedLine.sizes.map((s) => (
+                                  <tr key={s.size} className="border-t border-white/5 text-white/80">
+                                    <td className="pr-3 py-1">{s.size}</td>
+                                    <td className="pr-3 py-1">{s.quantity}</td>
+                                    {showMarkup && (
+                                      <>
+                                        <td className="pr-3 py-1">
+                                          ${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}
+                                        </td>
+                                        <td className="pr-3 py-1">
+                                          {(s.garmentMarkupAmount ?? 0) > 0
+                                            ? `+$${(s.garmentMarkupAmount ?? 0).toFixed(2)}`
+                                            : "—"}
+                                        </td>
+                                      </>
+                                    )}
+                                    <td className="pr-3 py-1">${s.garmentUnitPrice.toFixed(2)}</td>
+                                    <td className="pr-3 py-1">
+                                      {s.decorationUnitPrice > 0 ? `+$${s.decorationUnitPrice.toFixed(2)}` : "—"}
+                                    </td>
+                                    <td className="pr-3 py-1">${s.unitPrice.toFixed(2)}</td>
+                                    <td className="py-1 text-right">${s.lineTotal.toFixed(2)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <div className="text-xs text-white/60">
+                              {line.sizes.map((s) => `${s.size}×${s.quantity}`).join(", ")} · {totalQty} total
+                              <span className="text-white/30"> (pricing…)</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -3886,95 +4140,15 @@ export default function AdminQuoteBuilder({
       </div>
       )}
 
-      {/* Computed preview */}
+      {/* Totals — the per-line size/price breakdown now lives inline in each
+          Items card above (see computedLine there), so this card is just
+          the quote-wide wrap-up: setup charges, other charges, and the
+          subtotal/tax/grand total/deposit figures, the same way the
+          reference quoting tool puts one totals box under the item list
+          instead of a second separate "Preview" section. */}
       {quote && (
         <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white">Preview</h3>
-            <button
-              onClick={() => setShowMarkup((v) => !v)}
-              title={
-                showMarkup
-                  ? "Hide item cost and item markup — show only the item price"
-                  : "Show item cost and item markup"
-              }
-              className="text-xs px-2 py-1 rounded-xl border border-white/20 hover:bg-white/5"
-            >
-              {showMarkup ? "Item Markup" : "IM%"}
-            </button>
-          </div>
-          {quote.lines.map((line, i) => (
-            <div key={i} className="mb-4">
-              <p className="text-sm font-medium text-white">
-                {line.customerSupplied && line.itemType !== "hat" && line.manualSource !== "custom" ? (
-                  <>
-                    Customer-supplied item{" "}
-                    <span className="text-white/40 font-normal">
-                      ({line.itemDescription})
-                      {line.decorationLabel ? ` · ${line.decorationLabel}` : ""}
-                      {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    {[line.brandName, line.productName].filter(Boolean).join(" ")}{" "}
-                    <span className="text-white/40 font-normal">
-                      {(line.styleNumber || line.colorName) &&
-                        `(${[line.styleNumber, line.colorName].filter(Boolean).join(" — ")})`}
-                      {line.decorationLabel ? ` · ${line.decorationLabel}` : ""}
-                      {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
-                    </span>
-                  </>
-                )}
-              </p>
-              <div className="mt-1 overflow-x-auto">
-                <table className="text-sm border-collapse w-full">
-                  <thead>
-                    <tr className="text-xs text-white/60">
-                      <th className="text-left pr-3 pb-1">Size</th>
-                      <th className="text-left pr-3 pb-1">Qty</th>
-                      {showMarkup && (
-                        <>
-                          <th className="text-left pr-3 pb-1">Cost</th>
-                          <th className="text-left pr-3 pb-1">Markup</th>
-                        </>
-                      )}
-                      <th className="text-left pr-3 pb-1">Garment price</th>
-                      <th className="text-left pr-3 pb-1">Decoration</th>
-                      <th className="text-left pr-3 pb-1">Unit</th>
-                      <th className="text-right pb-1">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {line.sizes.map((s) => (
-                      <tr key={s.size} className="border-t border-white/5">
-                        <td className="pr-3 py-1">{s.size}</td>
-                        <td className="pr-3 py-1">{s.quantity}</td>
-                        {showMarkup && (
-                          <>
-                            <td className="pr-3 py-1">
-                              ${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}
-                            </td>
-                            <td className="pr-3 py-1">
-                              {(s.garmentMarkupAmount ?? 0) > 0
-                                ? `+$${(s.garmentMarkupAmount ?? 0).toFixed(2)}`
-                                : "—"}
-                            </td>
-                          </>
-                        )}
-                        <td className="pr-3 py-1">${s.garmentUnitPrice.toFixed(2)}</td>
-                        <td className="pr-3 py-1">
-                          {s.decorationUnitPrice > 0 ? `+$${s.decorationUnitPrice.toFixed(2)}` : "—"}
-                        </td>
-                        <td className="pr-3 py-1">${s.unitPrice.toFixed(2)}</td>
-                        <td className="py-1 text-right">${s.lineTotal.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
+          <h3 className="text-sm font-semibold text-white mb-3">Totals</h3>
           {quote.setupCharges.length > 0 && (
             <div className="border-t border-white/10 pt-3 mb-3">
               <div className="text-xs font-medium text-white/60 uppercase tracking-wide mb-1">
@@ -4061,12 +4235,13 @@ export default function AdminQuoteBuilder({
         </div>
       )}
 
-      {/* Actions — moved down here, below the Subtotal/Tax/Total bar, so the
-          admin sees the final total before hitting Preview/Save/Convert or
-          downloading a PDF, instead of those buttons sitting above an empty
-          Items list before anything's even been priced. Same condition as
-          the totals bar above it. */}
-      {(mode === "quick" || activeRecord) && (
+      {/* Quick Quote's own lightweight action bar — "full" mode's actions now
+          live up in the status bar at the top (Save/Send/Convert + the
+          "⋯ More" menu for everything else) instead of down here below the
+          whole Items/Preview section. Quick Quote has no top status bar (no
+          activeRecord — see its condition above), so it keeps its own
+          simple Preview/Create quote row. */}
+      {mode === "quick" && (
       <section className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
         <div className="flex flex-wrap gap-2">
           <button
@@ -4076,133 +4251,20 @@ export default function AdminQuoteBuilder({
           >
             {quoteLoading ? "Calculating…" : "Preview quote"}
           </button>
-          {mode === "full" ? (
-            <>
-              <button
-                onClick={saveQuote}
-                disabled={saving}
-                className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
-              >
-                {saving ? "Saving…" : activeRecord ? "Save changes" : "Save quote"}
-              </button>
-              {activeRecord && activeRecord.status === "quote" && (
-                <button
-                  onClick={convertToInvoice}
-                  disabled={converting}
-                  className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
-                >
-                  {converting ? "Converting…" : "Convert to invoice"}
-                </button>
-              )}
-              {activeRecord &&
-                (copyMenuOpen ? (
-                  <span className="inline-flex items-center gap-1.5 bg-white/5 rounded-xl px-1.5 py-1">
-                    <span className="text-sm text-white/50 pl-1.5">Copy as:</span>
-                    <button
-                      onClick={() => handleDuplicate("quote")}
-                      disabled={duplicating}
-                      className="text-sm px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
-                    >
-                      {duplicating ? "…" : "Quote"}
-                    </button>
-                    <button
-                      onClick={() => handleDuplicate("invoice")}
-                      disabled={duplicating}
-                      className="text-sm px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
-                    >
-                      {duplicating ? "…" : "Invoice"}
-                    </button>
-                    <button
-                      onClick={() => setCopyMenuOpen(false)}
-                      className="text-sm px-2 py-1 text-white/40 hover:text-white"
-                      title="Cancel"
-                    >
-                      ✕
-                    </button>
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => setCopyMenuOpen(true)}
-                    title="Create an independent copy of this as a new quote or invoice"
-                    className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5"
-                  >
-                    Create a copy
-                  </button>
-                ))}
-            </>
-          ) : (
-            <button
-              onClick={() => onCreateQuote?.(lines, selectedSetupChargeIds)}
-              disabled={lines.length === 0}
-              className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
-              title="Carry these items into a full quote where you can add the customer's info and save it"
-            >
-              Create quote
-            </button>
-          )}
+          <button
+            onClick={() => onCreateQuote?.(lines, selectedSetupChargeIds)}
+            disabled={lines.length === 0}
+            className="text-sm px-4 py-1.5 rounded-xl bg-red text-navy hover:bg-red/90 disabled:opacity-40"
+            title="Carry these items into a full quote where you can add the customer's info and save it"
+          >
+            Create quote
+          </button>
         </div>
-
-        {mode === "full" && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              onClick={() => downloadPdf("customer")}
-              disabled={pdfLoading !== null}
-              className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
-            >
-              {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
-            </button>
-            <button
-              onClick={() => downloadPdf("internal")}
-              disabled={pdfLoading !== null}
-              className="text-sm px-4 py-1.5 rounded-xl border border-red/30 text-red hover:bg-red/5 disabled:opacity-40"
-            >
-              {pdfLoading === "internal" ? "Generating…" : "Download company PDF (with cost)"}
-            </button>
-            <button
-              onClick={() => downloadPdf("work-order")}
-              disabled={pdfLoading !== null}
-              className="text-sm px-4 py-1.5 rounded-xl border border-white/20 hover:bg-white/5 disabled:opacity-40"
-            >
-              {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
-            </button>
-            {activeRecord?.status === "invoice" && (
-              <button
-                onClick={() => downloadPdf("invoice")}
-                disabled={pdfLoading !== null}
-                className="text-sm px-4 py-1.5 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50 disabled:opacity-40"
-              >
-                {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
-              </button>
-            )}
-            {activeRecord && (
-              <button
-                onClick={() => setSendModalOpen(true)}
-                className="text-sm px-4 py-1.5 rounded-xl bg-white/10 text-white hover:bg-white/15"
-              >
-                Send to customer
-              </button>
-            )}
-          </div>
-        )}
         <p className="mt-2 text-xs text-white/40">
-          {mode === "full" ? (
-            <>
-              The customer PDF shows only the final unit price and totals. The company PDF adds
-              garment cost and decoration cost columns and is marked &quot;internal use only.&quot;
-              The work order has no pricing at all — just garments, sizes, quantities, and
-              decoration details for production staff. Saving keeps this quote on the &quot;Saved
-              quotes &amp; invoices&quot; list below so it can be reopened, edited, or converted to
-              an invoice later.
-            </>
-          ) : (
-            <>
-              This is just a quick price check — nothing is saved yet. If the customer wants to
-              order, tap &quot;Create quote&quot; to carry these items over to the Quotes tab, where
-              you can add their info and save it for real.
-            </>
-          )}
+          This is just a quick price check — nothing is saved yet. If the customer wants to
+          order, tap &quot;Create quote&quot; to carry these items over to the Quotes tab, where
+          you can add their info and save it for real.
         </p>
-        {mode === "full" && saveMessage && <p className="mt-2 text-xs text-green-700">{saveMessage}</p>}
         {quoteError && <p className="mt-2 text-xs text-red-600">{quoteError}</p>}
       </section>
       )}
