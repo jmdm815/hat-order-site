@@ -169,6 +169,30 @@ function drawTitleBar(
   doc.moveDown(0.7);
 }
 
+// A filled, rounded button whose entire rectangle is one link annotation —
+// used for the "Pay online" / "Pay deposit online" call to action instead
+// of an inline underlined text link. A text link's clickable area is only
+// as big as the rendered glyphs themselves (worse once a long URL wraps
+// across lines, or inside a continued:true chain, where some PDF
+// viewers mis-place the annotation box relative to the visible text) —
+// easy to miss on a phone screen, which is exactly the "QR code works,
+// the link doesn't" complaint this replaces. A single explicit
+// doc.link(x, y, w, h, url) over a generously sized button is the same
+// trick already used for the QR code image below, just applied to the
+// text call to action too.
+function drawPayButton(doc: PDFKit.PDFDocument, x: number, y: number, label: string, url: string): number {
+  const buttonW = 230;
+  const buttonH = 34;
+  doc.roundedRect(x, y, buttonW, buttonH, 5).fill(NAVY);
+  doc
+    .fillColor("#ffffff")
+    .font("Helvetica-Bold")
+    .fontSize(11)
+    .text(label, x, y + 11, { width: buttonW, align: "center" });
+  doc.link(x, y, buttonW, buttonH, url);
+  return y + buttonH;
+}
+
 // Boxed, bordered two-column block (ordered-by / contact info) that
 // replaces the old plain-text "PREPARED FOR"/"BILL TO"/"ORDER FOR" line.
 // Returns without drawing anything if both columns are empty.
@@ -398,14 +422,17 @@ export async function renderQuotePdf(
       doc.moveDown(0.6);
 
       if (invoiceMeta?.payPageUrl && !paid) {
+        const buttonBottom = drawPayButton(doc, left, doc.y, "PAY ONLINE", invoiceMeta.payPageUrl);
+        doc.y = buttonBottom + 5;
         doc
-          .fillColor(NAVY)
-          .font("Helvetica-Bold")
-          .fontSize(10)
-          .text("Pay online: ", left, doc.y, { continued: true })
-          .font("Helvetica")
           .fillColor("#1a56cd")
-          .text(invoiceMeta.payPageUrl, { link: invoiceMeta.payPageUrl, underline: true });
+          .font("Helvetica")
+          .fontSize(8)
+          .text(invoiceMeta.payPageUrl, left, doc.y, {
+            link: invoiceMeta.payPageUrl,
+            underline: true,
+            width: pageWidth,
+          });
         doc.moveDown(0.5);
 
         if (paymentQrPng) {
@@ -432,14 +459,19 @@ export async function renderQuotePdf(
       // "pay in full" terms (depositPercent undefined/100) is paid in full
       // through this same link, so it says just "Pay online" instead.
       const isPartialDeposit = Boolean(quote.depositPercent && quote.depositPercent < 100);
+      const buttonBottom = drawPayButton(
+        doc,
+        left,
+        doc.y,
+        isPartialDeposit ? "PAY DEPOSIT ONLINE" : "PAY ONLINE",
+        linkForPdf
+      );
+      doc.y = buttonBottom + 5;
       doc
-        .fillColor(NAVY)
-        .font("Helvetica-Bold")
-        .fontSize(10)
-        .text(isPartialDeposit ? "Pay deposit online: " : "Pay online: ", left, doc.y, { continued: true })
-        .font("Helvetica")
         .fillColor("#1a56cd")
-        .text(linkForPdf, { link: linkForPdf, underline: true });
+        .font("Helvetica")
+        .fontSize(8)
+        .text(linkForPdf, left, doc.y, { link: linkForPdf, underline: true, width: pageWidth });
       doc.moveDown(0.5);
 
       if (paymentQrPng) {
