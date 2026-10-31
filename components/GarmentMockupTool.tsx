@@ -433,6 +433,24 @@ export default function GarmentMockupTool() {
     saveCanvas(combineGrid(rows), `mockup-${logoSlug}-${slug(`${style}-${colorsPart}`)}-${what}.png`);
   }
 
+  function fileNameFor(p: Panel): string {
+    return `mockup-${logoSlug}-${slug(itemNameFor(p.preset.view, p.colorName))}-${p.preset.id}.png`;
+  }
+
+  function downloadPanel(p: Panel) {
+    if (!logoCanvas) return;
+    saveCanvas(renderMockup(p.base, logoCanvas, p.layout, { fabricBlend, raised }), fileNameFor(p));
+  }
+
+  // Each view as its own PNG. Spaced out so browsers don't drop rapid-fire
+  // downloads (Chrome may ask once to allow multiple downloads).
+  async function downloadEachSeparately() {
+    for (let i = 0; i < panels.length; i++) {
+      downloadPanel(panels[i]);
+      if (i < panels.length - 1) await new Promise((r) => setTimeout(r, 600));
+    }
+  }
+
   // ---- UI -----------------------------------------------------------------
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
@@ -810,21 +828,45 @@ export default function GarmentMockupTool() {
               )}
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-              {panels.length > 1 && (
-                <button type="button" className={btnPrimary} onClick={downloadCombined}>
-                  {panelColors.length > 1
-                    ? `Download all ${panels.length} views`
-                    : "Download front + back"}
+            {panels.length > 1 ? (
+              <div className="mt-5 flex flex-col gap-3 text-sm">
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className={btnPrimary} onClick={downloadEachSeparately}>
+                    Download each separately ({panels.length} files)
+                  </button>
+                  <button type="button" className={btnGhost} onClick={downloadCombined}>
+                    Download all in one image
+                  </button>
+                  <button type="button" className={btnGhost} onClick={resetPlacement}>
+                    Reset to {activePreset?.label}
+                  </button>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs text-admin-ink/70">Or download one view:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {panels.map((p) => (
+                      <button
+                        key={`dl-${p.colorName ?? ""}-${p.preset.id}`}
+                        type="button"
+                        className={`${btnGhost} px-3 py-1.5 text-xs`}
+                        onClick={() => downloadPanel(p)}
+                      >
+                        {panelLabel(p)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button type="button" className={btnPrimary} onClick={download}>
+                  Download PNG
                 </button>
-              )}
-              <button type="button" className={panels.length > 1 ? btnGhost : btnPrimary} onClick={download}>
-                {panels.length > 1 && panel ? `Download ${panelLabel(panel)} only` : "Download PNG"}
-              </button>
-              <button type="button" className={btnGhost} onClick={resetPlacement}>
-                Reset to {activePreset?.label}
-              </button>
-            </div>
+                <button type="button" className={btnGhost} onClick={resetPlacement}>
+                  Reset to {activePreset?.label}
+                </button>
+              </div>
+            )}
           </>
         )}
       </section>
