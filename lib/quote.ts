@@ -34,6 +34,19 @@ export type QuoteSizeInput = {
   // product/color + the admin's garment-markup breakpoint table instead.
   garmentCost?: number;
   garmentMarkupPercent?: number;
+  // Manual price override for this one size row — lets the admin type an
+  // exact Unit Price or Total, or apply a Discount %, directly over the
+  // computed garment + decoration price (matching a reference quoting
+  // tool's editable Qty/Unit Discount/Unit Price/Total Price row, where
+  // touching any one of those recalculates the others). Only one kind is
+  // ever active per row — setting one clears whichever was set before
+  // ("last edit wins"); see AdminQuoteBuilder's updateSizeOverride. Absent
+  // (the default/common case) means "use the computed price" exactly as
+  // before this field existed.
+  priceOverride?:
+    | { kind: "unitPrice"; value: number }
+    | { kind: "total"; value: number }
+    | { kind: "discountPercent"; value: number };
 };
 
 // One row the admin builds in the UI: a specific style + color, a set of
@@ -81,6 +94,14 @@ export type QuoteLineInput = {
   // Whether this line counts toward the quote's taxable subtotal — defaults
   // to true (taxable) when absent. See QuoteInput.taxRatePercent.
   taxable?: boolean;
+  // Manual override for this line's decoration per-unit price — lets the
+  // admin correct just the decoration charge (a price-chart typo, a
+  // one-off special rate) without touching the garment price or any
+  // per-size override above. Applies uniformly to every size row in this
+  // line, same as the computed decoration price it replaces. Absent means
+  // "use the computed decoration price" exactly as before this field
+  // existed.
+  decorationUnitPriceOverride?: number;
 };
 
 export type QuoteInput = {
@@ -124,8 +145,19 @@ export type QuoteSizeResult = {
   garmentMarkupAmount: number;
   garmentUnitPrice: number; // garment selling price after markup
   decorationUnitPrice: number;
-  unitPrice: number; // garment + decoration
+  unitPrice: number; // garment + decoration, after any priceOverride below
   lineTotal: number; // unitPrice * quantity
+  // True when unitPrice/lineTotal above came from QuoteSizeInput.priceOverride
+  // rather than being computed from garmentUnitPrice + decorationUnitPrice —
+  // the UI uses this to flag the row and offer a reset back to computed.
+  isOverridden: boolean;
+  // What unitPrice would be with no override (garmentUnitPrice +
+  // decorationUnitPrice) — kept for reference/reset even when overridden.
+  computedUnitPrice: number;
+  // Set only when the active override is a discountPercent — the admin's
+  // typed % handed back as-is so the UI can show it rather than trying to
+  // back-compute a percentage from the resulting price.
+  effectiveDiscountPercent?: number;
 };
 
 export type QuoteLineResult = {
@@ -152,6 +184,13 @@ export type QuoteLineResult = {
   // See QuoteLineInput.taxable — resolved to a concrete true/false here
   // (defaults true when the input left it unset).
   taxable: boolean;
+  // True when the decoration per-unit price applied to every size row above
+  // came from QuoteLineInput.decorationUnitPriceOverride rather than being
+  // computed from the decoration's own pricing chart.
+  decorationUnitPriceOverridden: boolean;
+  // What the decoration per-unit price would be with no override — kept
+  // for reference/reset even when decorationUnitPriceOverridden is true.
+  computedDecorationUnitPrice: number;
 };
 
 // A quote-level setup/digitization charge resolved from lib/setup-charges-store.ts.
@@ -259,6 +298,12 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
       return false;
     }
     if (l.taxable !== undefined && typeof l.taxable !== "boolean") return false;
+    if (
+      l.decorationUnitPriceOverride !== undefined &&
+      (typeof l.decorationUnitPriceOverride !== "number" || l.decorationUnitPriceOverride < 0)
+    ) {
+      return false;
+    }
     if (!Array.isArray(l.sizes)) return false;
     return l.sizes.every((s) => {
       if (typeof s !== "object" || s === null) return false;
@@ -266,9 +311,45 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
       if (typeof sz.size !== "string" || typeof sz.quantity !== "number") return false;
       if (sz.garmentCost !== undefined && typeof sz.garmentCost !== "number") return false;
       if (sz.garmentMarkupPercent !== undefined && typeof sz.garmentMarkupPercent !== "number") return false;
+      if (sz.priceOverride !== undefined) {
+        if (typeof sz.priceOverride !== "object" || sz.priceOverride === null) return false;
+        const ov = sz.priceOverride as Record<string, unknown>;
+        if (!["unitPrice", "total", "discountPercent"].includes(ov.kind as string)) return false;
+        if (typeof ov.value !== "number" || ov.value < 0) return false;
+      }
       return true;
     });
   });
+}
+
+// Applies a size row's manual priceOverride (if any) on top of its
+// computed baseUnitPrice (garmentUnitPrice + the line's effective
+// decoration unit price) — shared by both the catalog and
+// customer-supplied line branches below so the three override kinds
+// ("last edit wins" — only one is ever active) behave identically
+// everywhere. See QuoteSizeInput.priceOverride.
+function applySizeOverride(
+  baseUnitPrice: number,
+  quantity: number,
+  override: QuoteSizeInput["priceOverride"]
+): { unitPrice: number; lineTotal: number; isOverridden: boolean; effectiveDiscountPercent?: number } {
+  if (!override) {
+    const unitPrice = money(baseUnitPrice);
+    return { unitPrice, lineTotal: money(unitPrice * quantity), isOverridden: false };
+  }
+  if (override.kind === "unitPrice") {
+    const unitPrice = money(Math.max(0, override.value));
+    return { unitPrice, lineTotal: money(unitPrice * quantity), isOverridden: true };
+  }
+  if (override.kind === "total") {
+    const lineTotal = money(Math.max(0, override.value));
+    const unitPrice = quantity > 0 ? money(lineTotal / quantity) : 0;
+    return { unitPrice, lineTotal, isOverridden: true };
+  }
+  // discountPercent
+  const pct = Math.min(100, Math.max(0, override.value));
+  const unitPrice = money(baseUnitPrice * (1 - pct / 100));
+  return { unitPrice, lineTotal: money(unitPrice * quantity), isOverridden: true, effectiveDiscountPercent: pct };
 }
 
 export function findProductColor(product: Product, colorName: string) {
@@ -324,11 +405,20 @@ export function computeQuote(
     // same decorationId + priceColumnId; that pooling was removed per the
     // admin's request so each added line always reflects its own quantity.)
     const lineQty = line.sizes.reduce((sum, s) => sum + s.quantity, 0);
-    const decorationUnitPrice = decoration
-      ? decoration.quoteRequired
-        ? 0
-        : getUnitPriceForQuantity(decoration, lineQty, line.priceColumnId)
-      : 0;
+    const computedDecorationUnitPrice = money(
+      decoration
+        ? decoration.quoteRequired
+          ? 0
+          : getUnitPriceForQuantity(decoration, lineQty, line.priceColumnId)
+        : 0
+    );
+    // See QuoteLineInput.decorationUnitPriceOverride — applies uniformly to
+    // every size row below in place of the computed per-unit decoration
+    // price, same as computedDecorationUnitPrice would have.
+    const decorationUnitPriceOverridden = line.decorationUnitPriceOverride !== undefined;
+    const decorationUnitPrice = decorationUnitPriceOverridden
+      ? money(Math.max(0, line.decorationUnitPriceOverride!))
+      : computedDecorationUnitPrice;
 
     const priceColumnLabel = line.priceColumnId
       ? decoration?.priceColumns?.find((c) => c.id === line.priceColumnId)?.label
@@ -349,21 +439,24 @@ export function computeQuote(
       const isCustomPriced = line.manualSource === "custom";
 
       const sizes: QuoteSizeResult[] = line.sizes.map((s) => {
-        const roundedDecorationUnitPrice = money(decorationUnitPrice);
         const garmentCost = isCustomPriced ? money(s.garmentCost ?? 0) : 0;
         const markupPercent = isCustomPriced ? s.garmentMarkupPercent ?? 0 : 0;
         const garmentUnitPrice = money(garmentCost * (1 + markupPercent / 100));
         const garmentMarkupAmount = money(garmentUnitPrice - garmentCost);
-        const unitPrice = money(garmentUnitPrice + roundedDecorationUnitPrice);
+        const computedUnitPrice = money(garmentUnitPrice + decorationUnitPrice);
+        const priced = applySizeOverride(computedUnitPrice, s.quantity, s.priceOverride);
         return {
           size: s.size,
           quantity: s.quantity,
           garmentCost,
           garmentMarkupAmount,
           garmentUnitPrice,
-          decorationUnitPrice: roundedDecorationUnitPrice,
-          unitPrice,
-          lineTotal: money(unitPrice * s.quantity),
+          decorationUnitPrice,
+          unitPrice: priced.unitPrice,
+          lineTotal: priced.lineTotal,
+          isOverridden: priced.isOverridden,
+          computedUnitPrice,
+          effectiveDiscountPercent: priced.effectiveDiscountPercent,
         };
       });
 
@@ -402,6 +495,8 @@ export function computeQuote(
         quantity,
         subtotal,
         taxable: line.taxable ?? true,
+        decorationUnitPriceOverridden,
+        computedDecorationUnitPrice,
       };
     }
 
@@ -416,17 +511,20 @@ export function computeQuote(
       const garmentCost = sizeInfo?.price ?? product.basePrice;
       const garmentUnitPrice = money(applyGarmentMarkup(garmentCost, garmentMarkupBreakpoints));
       const garmentMarkupAmount = money(garmentUnitPrice - garmentCost);
-      const roundedDecorationUnitPrice = money(decorationUnitPrice);
-      const unitPrice = money(garmentUnitPrice + roundedDecorationUnitPrice);
+      const computedUnitPrice = money(garmentUnitPrice + decorationUnitPrice);
+      const priced = applySizeOverride(computedUnitPrice, s.quantity, s.priceOverride);
       return {
         size: s.size,
         quantity: s.quantity,
         garmentCost: money(garmentCost),
         garmentMarkupAmount,
         garmentUnitPrice,
-        decorationUnitPrice: roundedDecorationUnitPrice,
-        unitPrice,
-        lineTotal: money(unitPrice * s.quantity),
+        decorationUnitPrice,
+        unitPrice: priced.unitPrice,
+        lineTotal: priced.lineTotal,
+        isOverridden: priced.isOverridden,
+        computedUnitPrice,
+        effectiveDiscountPercent: priced.effectiveDiscountPercent,
       };
     });
 
@@ -446,6 +544,8 @@ export function computeQuote(
       quantity,
       subtotal,
       taxable: line.taxable ?? true,
+      decorationUnitPriceOverridden,
+      computedDecorationUnitPrice,
     };
   });
 

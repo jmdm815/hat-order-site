@@ -1632,6 +1632,31 @@ export default function AdminQuoteBuilder({
     if (editingLineKey === key) setEditingLineKey(null);
   }
 
+  // Sets (or clears, with override: undefined) one size row's manual price
+  // override — see QuoteSizeInput.priceOverride. Only one kind is ever
+  // active per row; setting a new one here replaces whatever was there
+  // before ("last edit wins"), matching the Unit/Total/Discount % inputs in
+  // the Items list below, each of which calls this with its own `kind`.
+  function updateSizeOverride(lineKey: string, size: string, override: QuoteSizeInput["priceOverride"]) {
+    setLines((prev) =>
+      prev.map((l) =>
+        l.key === lineKey
+          ? { ...l, sizes: l.sizes.map((s) => (s.size === size ? { ...s, priceOverride: override } : s)) }
+          : l
+      )
+    );
+  }
+
+  // Sets (or clears, with value: undefined) a line's decoration per-unit
+  // price override — see QuoteLineInput.decorationUnitPriceOverride.
+  // Applies to every size row in the line uniformly, same as the computed
+  // decoration price it replaces.
+  function updateDecorationOverride(lineKey: string, value: number | undefined) {
+    setLines((prev) =>
+      prev.map((l) => (l.key === lineKey ? { ...l, decorationUnitPriceOverride: value } : l))
+    );
+  }
+
   // "Copy Style" — duplicates an already-added garment line as a new line
   // with the same catalog/product/decoration/color, right after the
   // original. The point (per the admin's request) isn't to create an exact
@@ -1862,6 +1887,7 @@ export default function AdminQuoteBuilder({
         manualSource: l.manualSource,
         brandNameInput: l.brandNameInput,
         taxable: l.taxable,
+        decorationUnitPriceOverride: l.decorationUnitPriceOverride,
       })),
       setupChargeIds: selectedSetupChargeIds,
       miscFees:
@@ -2965,9 +2991,46 @@ export default function AdminQuoteBuilder({
                               </>
                             )}
                             {decoration && (
-                              <div className="text-xs text-admin-ink/80 mt-0.5">
-                                {decoration.label}
-                                {column ? ` (${column.label})` : ""}
+                              <div className="text-xs text-admin-ink/80 mt-0.5 flex items-center flex-wrap gap-x-2 gap-y-1">
+                                <span>
+                                  {decoration.label}
+                                  {column ? ` (${column.label})` : ""}
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-admin-ink/62">
+                                  <span>Deco/unit $</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={
+                                      line.decorationUnitPriceOverride ??
+                                      computedLine?.sizes[0]?.decorationUnitPrice ??
+                                      ""
+                                    }
+                                    onChange={(e) =>
+                                      updateDecorationOverride(
+                                        line.key,
+                                        e.target.value === "" ? undefined : Math.max(0, Number(e.target.value) || 0)
+                                      )
+                                    }
+                                    title="Override this line's decoration price per unit — applies to every size row below"
+                                    className={`w-16 border rounded px-1 py-0.5 text-xs ${
+                                      line.decorationUnitPriceOverride !== undefined
+                                        ? "border-amber-400 bg-amber-50 text-amber-900"
+                                        : "border-admin-ink/20 bg-transparent text-admin-ink"
+                                    }`}
+                                  />
+                                  {line.decorationUnitPriceOverride !== undefined && (
+                                    <button
+                                      type="button"
+                                      onClick={() => updateDecorationOverride(line.key, undefined)}
+                                      title="Reset to the computed decoration price"
+                                      className="text-admin-ink/50 hover:text-admin-ink"
+                                    >
+                                      ↺
+                                    </button>
+                                  )}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -3018,35 +3081,127 @@ export default function AdminQuoteBuilder({
                                   )}
                                   <th className="text-left pr-3 pb-1 font-medium">Garment</th>
                                   <th className="text-left pr-3 pb-1 font-medium">Decoration</th>
+                                  <th className="text-left pr-3 pb-1 font-medium">Disc %</th>
                                   <th className="text-left pr-3 pb-1 font-medium">Unit</th>
                                   <th className="text-right pb-1 font-medium">Total</th>
+                                  <th className="w-5 pb-1" />
                                 </tr>
                               </thead>
                               <tbody>
-                                {computedLine.sizes.map((s) => (
-                                  <tr key={s.size} className="border-t border-admin-ink/5 text-admin-ink/94">
-                                    <td className="pr-3 py-1">{s.size}</td>
-                                    <td className="pr-3 py-1">{s.quantity}</td>
-                                    {showMarkup && (
-                                      <>
-                                        <td className="pr-3 py-1">
-                                          ${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}
-                                        </td>
-                                        <td className="pr-3 py-1">
-                                          {(s.garmentMarkupAmount ?? 0) > 0
-                                            ? `+$${(s.garmentMarkupAmount ?? 0).toFixed(2)}`
-                                            : "—"}
-                                        </td>
-                                      </>
-                                    )}
-                                    <td className="pr-3 py-1">${s.garmentUnitPrice.toFixed(2)}</td>
-                                    <td className="pr-3 py-1">
-                                      {s.decorationUnitPrice > 0 ? `+$${s.decorationUnitPrice.toFixed(2)}` : "—"}
-                                    </td>
-                                    <td className="pr-3 py-1">${s.unitPrice.toFixed(2)}</td>
-                                    <td className="py-1 text-right">${s.lineTotal.toFixed(2)}</td>
-                                  </tr>
-                                ))}
+                                {computedLine.sizes.map((s) => {
+                                  const rawSize = line.sizes.find((rs) => rs.size === s.size);
+                                  const overrideKind = rawSize?.priceOverride?.kind;
+                                  return (
+                                    <tr
+                                      key={s.size}
+                                      className={`border-t border-admin-ink/5 text-admin-ink/94 ${
+                                        s.isOverridden ? "bg-amber-50/50" : ""
+                                      }`}
+                                    >
+                                      <td className="pr-3 py-1">{s.size}</td>
+                                      <td className="pr-3 py-1">{s.quantity}</td>
+                                      {showMarkup && (
+                                        <>
+                                          <td className="pr-3 py-1">
+                                            ${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}
+                                          </td>
+                                          <td className="pr-3 py-1">
+                                            {(s.garmentMarkupAmount ?? 0) > 0
+                                              ? `+$${(s.garmentMarkupAmount ?? 0).toFixed(2)}`
+                                              : "—"}
+                                          </td>
+                                        </>
+                                      )}
+                                      <td className="pr-3 py-1">${s.garmentUnitPrice.toFixed(2)}</td>
+                                      <td className="pr-3 py-1">
+                                        {s.decorationUnitPrice > 0 ? `+$${s.decorationUnitPrice.toFixed(2)}` : "—"}
+                                      </td>
+                                      <td className="pr-3 py-1">
+                                        <input
+                                          type="number"
+                                          step="0.1"
+                                          min="0"
+                                          max="100"
+                                          placeholder="0"
+                                          value={overrideKind === "discountPercent" ? s.effectiveDiscountPercent ?? "" : ""}
+                                          onChange={(e) =>
+                                            updateSizeOverride(
+                                              line.key,
+                                              s.size,
+                                              e.target.value === ""
+                                                ? undefined
+                                                : { kind: "discountPercent", value: Math.max(0, Number(e.target.value) || 0) }
+                                            )
+                                          }
+                                          title="Discount % off the computed price — editing this, the unit price, or the total overrides whichever was set before"
+                                          className={`w-12 border rounded px-1 py-0.5 ${
+                                            overrideKind === "discountPercent"
+                                              ? "border-amber-400 bg-amber-50 text-amber-900"
+                                              : "border-admin-ink/20 bg-transparent"
+                                          }`}
+                                        />
+                                      </td>
+                                      <td className="pr-3 py-1">
+                                        <span className="inline-flex items-center gap-0.5">
+                                          $
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={overrideKind === "unitPrice" ? rawSize!.priceOverride!.value : s.unitPrice}
+                                            onChange={(e) =>
+                                              updateSizeOverride(line.key, s.size, {
+                                                kind: "unitPrice",
+                                                value: Math.max(0, Number(e.target.value) || 0),
+                                              })
+                                            }
+                                            title="Override this row's unit price directly — recalculates the total"
+                                            className={`w-16 border rounded px-1 py-0.5 ${
+                                              overrideKind === "unitPrice"
+                                                ? "border-amber-400 bg-amber-50 text-amber-900"
+                                                : "border-admin-ink/20 bg-transparent"
+                                            }`}
+                                          />
+                                        </span>
+                                      </td>
+                                      <td className="py-1 text-right">
+                                        <span className="inline-flex items-center gap-0.5">
+                                          $
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={overrideKind === "total" ? rawSize!.priceOverride!.value : s.lineTotal}
+                                            onChange={(e) =>
+                                              updateSizeOverride(line.key, s.size, {
+                                                kind: "total",
+                                                value: Math.max(0, Number(e.target.value) || 0),
+                                              })
+                                            }
+                                            title="Override this row's total directly — recalculates the unit price"
+                                            className={`w-16 border rounded px-1 py-0.5 text-right ${
+                                              overrideKind === "total"
+                                                ? "border-amber-400 bg-amber-50 text-amber-900"
+                                                : "border-admin-ink/20 bg-transparent"
+                                            }`}
+                                          />
+                                        </span>
+                                      </td>
+                                      <td className="py-1 pl-1">
+                                        {s.isOverridden && (
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSizeOverride(line.key, s.size, undefined)}
+                                            title={`Reset to the computed price ($${s.computedUnitPrice.toFixed(2)}/unit)`}
+                                            className="text-admin-ink/50 hover:text-admin-ink"
+                                          >
+                                            ↺
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           ) : (
