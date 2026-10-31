@@ -86,6 +86,10 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
   // Which row's "Create a copy" quote-vs-invoice picker is open, if any —
   // see handleDuplicate below.
   const [copyMenuId, setCopyMenuId] = useState<string | null>(null);
+  // Which row's "⋯" actions menu (the thin ShopVox-style table row's
+  // overflow menu) is open, if any. Only one at a time — opening a new one
+  // implicitly closes the last, same as copyMenuId above.
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -113,6 +117,19 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken, view]);
+
+  // Closes the "⋯" actions menu (and its nested "Create a copy" picker) on
+  // any click outside it — the menu itself and its toggle button call
+  // stopPropagation so this only fires for genuine outside clicks.
+  useEffect(() => {
+    if (!openMenuId) return;
+    const close = () => {
+      setOpenMenuId(null);
+      setCopyMenuId(null);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openMenuId]);
 
   // Converts a quote into a (new, linked) invoice, or reuses the existing
   // one if this quote was already converted before — either way, jumps the
@@ -280,270 +297,369 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
       {records.length === 0 ? (
         <p className="text-sm text-admin-ink/62">{emptyMessage}</p>
       ) : (
-        <div className="space-y-2">
-          {records.map((r) => {
-            const customer = r.computed.customerName || r.computed.customerCompany || "(no customer name)";
-            const isBusy = busyId === r.id;
-            return (
-              <div
-                key={r.id}
-                className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-admin-ink truncate">{customer}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        r.status === "invoice" ? "bg-admin-ink/10 text-admin-ink" : "bg-admin-ink/5 text-admin-ink/80"
-                      }`}
-                    >
-                      {r.status === "invoice" ? r.invoiceNumber : r.quoteNumber ?? "Quote"}
-                    </span>
-                    {r.status === "invoice" && r.invoiceStatus && (
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS[r.invoiceStatus]}`}>
-                        {STATUS_LABEL[r.invoiceStatus]}
+        <div className="border border-admin-ink/10 rounded-2xl bg-admin-card overflow-visible">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-admin-ink/50 border-b border-admin-ink/10">
+                <th className="font-medium px-3 py-2 w-24">{view === "invoices" ? "Inv #" : "QT #"}</th>
+                <th className="font-medium px-3 py-2">Customer</th>
+                <th className="font-medium px-3 py-2 w-20 text-right">Units</th>
+                <th className="font-medium px-3 py-2 w-28 text-right">Total</th>
+                <th className="font-medium px-3 py-2 w-40">{view === "deleted" ? "Deleted" : "Status"}</th>
+                <th className="font-medium px-3 py-2 w-28">Date</th>
+                <th className="font-medium px-3 py-2 w-16 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((r, i) => {
+                const customer = r.computed.customerName || r.computed.customerCompany || "(no customer name)";
+                const isBusy = busyId === r.id;
+                const menuOpen = openMenuId === r.id;
+                const paidInFull = (r.amountPaid ?? 0) >= r.computed.grandTotal - 0.005;
+                const partiallyPaid = (r.amountPaid ?? 0) > 0 && !paidInFull;
+                return (
+                  <tr
+                    key={r.id}
+                    onClick={() => view !== "deleted" && onEdit(r.id)}
+                    className={`border-b border-admin-ink/5 last:border-b-0 ${
+                      i % 2 === 1 ? "bg-admin-ink/[0.025]" : ""
+                    } ${view !== "deleted" ? "cursor-pointer hover:bg-admin-ink/[0.07]" : ""}`}
+                  >
+                    <td className="px-3 py-2 align-top whitespace-nowrap">
+                      <span className="font-medium text-admin-ink/90">
+                        {r.status === "invoice" ? r.invoiceNumber : r.quoteNumber ?? "—"}
                       </span>
-                    )}
-                    {/* A plain quote (never converted to an invoice) has no
-                        invoiceStatus field — that only exists on "invoice"
-                        records — but it still tracks amountPaid/payments
-                        whenever someone pays through its pay page before
-                        conversion (e.g. paying the full amount up front
-                        instead of a deposit). Without this, a fully- or
-                        partially-paid quote showed no payment indicator
-                        anywhere in this list. */}
-                    {r.status === "quote" && (r.amountPaid ?? 0) > 0 && (
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          r.amountPaid! >= r.computed.grandTotal - 0.005
-                            ? STATUS_CLASS.paid
-                            : STATUS_CLASS.partially_paid
-                        }`}
-                      >
-                        {r.amountPaid! >= r.computed.grandTotal - 0.005
-                          ? "Paid in full"
-                          : `$${r.amountPaid!.toFixed(2)} paid`}
-                      </span>
-                    )}
-                    {view !== "deleted" && r.status === "quote" && r.linkedInvoiceId && (
-                      <button
-                        onClick={() => onEdit(r.linkedInvoiceId!)}
-                        className="px-2 py-0.5 rounded-full text-xs font-medium border border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
-                        title="Open the invoice created from this quote"
-                      >
-                        → Invoice {r.linkedInvoiceNumber ?? ""}
-                      </button>
-                    )}
-                    {view !== "deleted" && r.status === "invoice" && r.linkedQuoteId && (
-                      <button
-                        onClick={() => onEdit(r.linkedQuoteId!)}
-                        className="px-2 py-0.5 rounded-full text-xs font-medium border border-admin-ink/20 text-admin-ink/88 hover:bg-admin-ink/5"
-                        title="Open the quote this invoice was created from"
-                      >
-                        from Quote {r.linkedQuoteNumber ?? ""}
-                      </button>
-                    )}
-                  </div>
-                  <div className="text-xs text-admin-ink/72 mt-0.5">
-                    {r.computed.totalQuantity} units · ${r.computed.grandTotal.toFixed(2)} · saved{" "}
-                    {new Date(r.updatedAt).toLocaleDateString()}
-                    {typeof r.amountPaid === "number" &&
-                      r.amountPaid > 0 &&
-                      r.amountPaid < r.computed.grandTotal - 0.005 && (
-                        <> · ${r.amountPaid.toFixed(2)} paid, ${(r.computed.grandTotal - r.amountPaid).toFixed(2)} remaining</>
-                      )}
-                    {view === "deleted" && r.deletedAt && (
-                      <>
-                        {" "}
-                        · deleted {new Date(r.deletedAt).toLocaleDateString()} · auto-deletes in{" "}
-                        {daysLeft(r.deletedAt)} day{daysLeft(r.deletedAt) === 1 ? "" : "s"}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {view === "deleted" ? (
-                  <div className="flex flex-wrap items-center gap-1.5 min-w-0 sm:justify-end">
-                    <button
-                      onClick={() => handleRestore(r.id)}
-                      disabled={isBusy}
-                      className="text-xs px-2.5 py-1 rounded-xl bg-admin-bg text-admin-ink hover:bg-admin-bg/90 disabled:opacity-40"
-                    >
-                      {isBusy ? "…" : "Restore"}
-                    </button>
-                    <button
-                      onClick={() => handlePermanentDelete(r.id)}
-                      disabled={isBusy}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-red-600/40 text-red-600 hover:bg-red-50 disabled:opacity-40"
-                    >
-                      Delete permanently
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-1.5 min-w-0 sm:justify-end">
-                    <button
-                      onClick={() => onEdit(r.id)}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => downloadPdf(r.id, "customer")}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
-                    >
-                      PDF
-                    </button>
-                    <button
-                      onClick={() => downloadPdf(r.id, "internal")}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-accent/30 text-admin-accent hover:bg-admin-accent/5"
-                    >
-                      Internal
-                    </button>
-                    <button
-                      onClick={() => downloadPdf(r.id, "work-order")}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
-                    >
-                      Work order
-                    </button>
-                    <button
-                      onClick={() => setJobFolderModalRecord(r)}
-                      title="Attach a garment mock-up and print-file locations, then download a 2-page job folder PDF"
-                      className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50"
-                    >
-                      Job Folder
-                    </button>
-                    {copyMenuId === r.id ? (
-                      <span className="inline-flex items-center gap-1.5 bg-admin-ink/5 rounded-xl px-1.5 py-0.5">
-                        <span className="text-xs text-admin-ink/72 pl-1">Copy as:</span>
-                        <button
-                          onClick={() => handleDuplicate(r.id, "quote")}
-                          disabled={isBusy}
-                          className="text-xs px-2 py-1 rounded-lg bg-admin-ink/10 hover:bg-admin-ink/20 disabled:opacity-40"
-                        >
-                          {isBusy ? "…" : "Quote"}
-                        </button>
-                        <button
-                          onClick={() => handleDuplicate(r.id, "invoice")}
-                          disabled={isBusy}
-                          className="text-xs px-2 py-1 rounded-lg bg-admin-ink/10 hover:bg-admin-ink/20 disabled:opacity-40"
-                        >
-                          {isBusy ? "…" : "Invoice"}
-                        </button>
-                        <button
-                          onClick={() => setCopyMenuId(null)}
-                          className="text-xs px-1.5 py-1 text-admin-ink/62 hover:text-admin-ink"
-                          title="Cancel"
-                        >
-                          ✕
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => setCopyMenuId(r.id)}
-                        title="Create an independent copy of this as a new quote or invoice"
-                        className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
-                      >
-                        Create a copy
-                      </button>
-                    )}
-                    {r.status === "quote" ? (
-                      <>
-                        <button
-                          onClick={() => handleConvert(r.id)}
-                          disabled={isBusy}
-                          className="text-xs px-2.5 py-1 rounded-xl bg-admin-bg text-admin-ink hover:bg-admin-bg/90 disabled:opacity-40"
-                        >
-                          {isBusy ? "…" : r.linkedInvoiceId ? "View invoice" : "Convert to invoice"}
-                        </button>
-                        <button
-                          onClick={() => setPaymentModalRecord(r)}
-                          title="Set a deposit amount for the pay page link, or record a deposit taken another way (cash, check), before converting this to an invoice"
-                          className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
-                            (r.amountPaid ?? 0) > 0
-                              ? "border border-green-600/30 text-green-700 hover:bg-green-50"
-                              : "border border-blue-400 text-blue-700 hover:bg-blue-50"
-                          }`}
-                        >
-                          {(r.amountPaid ?? 0) >= r.computed.grandTotal - 0.005
-                            ? `Paid ($${(r.amountPaid ?? 0).toFixed(2)})`
-                            : (r.amountPaid ?? 0) > 0
-                              ? `Deposit ($${(r.amountPaid ?? 0).toFixed(2)})`
-                              : "Deposit"}
-                        </button>
-                        {(r.amountPaid ?? 0) < r.computed.grandTotal - 0.005 && (
+                    </td>
+                    <td className="px-3 py-2 align-top min-w-0">
+                      <div className="truncate font-medium text-admin-ink">{customer}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                        {view !== "deleted" && r.status === "quote" && r.linkedInvoiceId && (
                           <button
-                            onClick={() => handleCopyPayPageLink(r.id)}
-                            title="Copy a link to this site's own branded pay page for this quote's deposit"
-                            className="text-xs px-2.5 py-1 rounded-xl border border-admin-accent/30 text-admin-accent hover:bg-admin-accent/5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(r.linkedInvoiceId!);
+                            }}
+                            className="px-1.5 py-0.5 rounded-full text-[11px] font-medium border border-admin-ink/20 text-admin-ink/72 hover:bg-admin-ink/5"
+                            title="Open the invoice created from this quote"
                           >
-                            Copy pay page link
+                            → Invoice {r.linkedInvoiceNumber ?? ""}
                           </button>
                         )}
-                      </>
-                    ) : (
-                      <>
-                        {r.linkedQuoteId && (
+                        {view !== "deleted" && r.status === "invoice" && r.linkedQuoteId && (
                           <button
-                            onClick={() => onEdit(r.linkedQuoteId!)}
-                            className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(r.linkedQuoteId!);
+                            }}
+                            className="px-1.5 py-0.5 rounded-full text-[11px] font-medium border border-admin-ink/20 text-admin-ink/72 hover:bg-admin-ink/5"
                             title="Open the quote this invoice was created from"
                           >
-                            View quote
+                            from Quote {r.linkedQuoteNumber ?? ""}
                           </button>
                         )}
-                        <button
-                          onClick={() => downloadPdf(r.id, "invoice")}
-                          className="text-xs px-2.5 py-1 rounded-xl border border-green-600/30 text-green-700 hover:bg-green-50"
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 align-top text-right text-admin-ink/72 whitespace-nowrap">
+                      {r.computed.totalQuantity}
+                    </td>
+                    <td className="px-3 py-2 align-top text-right font-medium text-admin-ink whitespace-nowrap">
+                      ${r.computed.grandTotal.toFixed(2)}
+                      {partiallyPaid && (
+                        <div className="text-[11px] font-normal text-admin-ink/55">
+                          ${r.amountPaid!.toFixed(2)} paid
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 align-top whitespace-nowrap">
+                      {view === "deleted" && r.deletedAt ? (
+                        <>
+                          <div className="text-admin-ink/72">{new Date(r.deletedAt).toLocaleDateString()}</div>
+                          <div className="text-[11px] text-admin-ink/50">
+                            auto-deletes in {daysLeft(r.deletedAt)} day{daysLeft(r.deletedAt) === 1 ? "" : "s"}
+                          </div>
+                        </>
+                      ) : r.status === "invoice" && r.invoiceStatus ? (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS[r.invoiceStatus]}`}>
+                          {STATUS_LABEL[r.invoiceStatus]}
+                        </span>
+                      ) : r.status === "quote" && paidInFull ? (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS.paid}`}>
+                          Paid in full
+                        </span>
+                      ) : r.status === "quote" && partiallyPaid ? (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS.partially_paid}`}>
+                          Partially paid
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-admin-ink/8 text-admin-ink/65">
+                          Draft
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 align-top text-admin-ink/72 whitespace-nowrap">
+                      {new Date(r.updatedAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-3 py-2 align-top text-right relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCopyMenuId(null);
+                          setOpenMenuId(menuOpen ? null : r.id);
+                        }}
+                        className="text-admin-ink/60 hover:text-admin-ink hover:bg-admin-ink/10 rounded-lg w-7 h-7 inline-flex items-center justify-center text-base leading-none"
+                        title="Actions"
+                      >
+                        ⋯
+                      </button>
+
+                      {menuOpen && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-3 top-full mt-1 z-20 w-56 rounded-xl border border-admin-ink/15 bg-admin-card shadow-2xl shadow-black/50 py-1 text-left"
                         >
-                          Invoice
-                        </button>
-                        {r.invoiceStatus !== "paid" && (
-                          <button
-                            onClick={() => handleCopyPayPageLink(r.id)}
-                            title="Copy a link to this site's own branded payment page for this invoice"
-                            className="text-xs px-2.5 py-1 rounded-xl border border-admin-accent/30 text-admin-accent hover:bg-admin-accent/5"
-                          >
-                            Copy pay page link
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setPaymentModalRecord(r)}
-                          className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
-                            r.invoiceStatus === "paid"
-                              ? "border border-green-600/30 text-green-700 hover:bg-green-50"
-                              : "bg-admin-bg text-admin-ink hover:bg-admin-bg/90"
-                          }`}
-                        >
-                          Payment
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => setSendModalRecord(r)}
-                      className="text-xs px-2.5 py-1 rounded-xl border border-admin-ink/20 hover:bg-admin-ink/5"
-                    >
-                      Send
-                    </button>
-                    <button
-                      onClick={() => handleSendToJobs(r.id)}
-                      disabled={isBusy}
-                      title="Create a production job per line item, assigned to each item's decoration type"
-                      className="text-xs px-2.5 py-1 rounded-xl border border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-40"
-                    >
-                      {isBusy ? "…" : "Send to Jobs"}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(r.id)}
-                      disabled={isBusy}
-                      className="text-xs px-2.5 py-1 text-red-600 hover:underline disabled:text-admin-ink/35"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                          {view === "deleted" ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  handleRestore(r.id);
+                                }}
+                                disabled={isBusy}
+                                className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10 disabled:opacity-40"
+                              >
+                                {isBusy ? "…" : "Restore"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  handlePermanentDelete(r.id);
+                                }}
+                                disabled={isBusy}
+                                className="w-full text-left text-xs px-3 py-1.5 text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+                              >
+                                Delete permanently
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  onEdit(r.id);
+                                }}
+                                className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  downloadPdf(r.id, "customer");
+                                }}
+                                className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
+                              >
+                                PDF
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  downloadPdf(r.id, "internal");
+                                }}
+                                className="w-full text-left text-xs px-3 py-1.5 text-admin-accent hover:bg-admin-ink/10"
+                              >
+                                Internal (with cost)
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  downloadPdf(r.id, "work-order");
+                                }}
+                                className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
+                              >
+                                Work order
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  setJobFolderModalRecord(r);
+                                }}
+                                title="Attach a garment mock-up and print-file locations, then download a 2-page job folder PDF"
+                                className="w-full text-left text-xs px-3 py-1.5 text-blue-400 hover:bg-admin-ink/10"
+                              >
+                                Job Folder
+                              </button>
+
+                              <div className="my-1 border-t border-admin-ink/10" />
+
+                              {copyMenuId === r.id ? (
+                                <div className="px-3 py-1.5">
+                                  <div className="text-[11px] text-admin-ink/55 mb-1">Copy as:</div>
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      onClick={() => handleDuplicate(r.id, "quote")}
+                                      disabled={isBusy}
+                                      className="text-xs px-2 py-1 rounded-lg bg-admin-ink/10 hover:bg-admin-ink/20 disabled:opacity-40"
+                                    >
+                                      {isBusy ? "…" : "Quote"}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDuplicate(r.id, "invoice")}
+                                      disabled={isBusy}
+                                      className="text-xs px-2 py-1 rounded-lg bg-admin-ink/10 hover:bg-admin-ink/20 disabled:opacity-40"
+                                    >
+                                      {isBusy ? "…" : "Invoice"}
+                                    </button>
+                                    <button
+                                      onClick={() => setCopyMenuId(null)}
+                                      className="text-xs px-1.5 py-1 text-admin-ink/62 hover:text-admin-ink"
+                                      title="Cancel"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setCopyMenuId(r.id)}
+                                  title="Create an independent copy of this as a new quote or invoice"
+                                  className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
+                                >
+                                  Create a copy
+                                </button>
+                              )}
+
+                              <div className="my-1 border-t border-admin-ink/10" />
+
+                              {r.status === "quote" ? (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      handleConvert(r.id);
+                                    }}
+                                    disabled={isBusy}
+                                    className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10 disabled:opacity-40"
+                                  >
+                                    {isBusy ? "…" : r.linkedInvoiceId ? "View invoice" : "Convert to invoice"}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      setPaymentModalRecord(r);
+                                    }}
+                                    title="Set a deposit amount for the pay page link, or record a deposit taken another way (cash, check), before converting this to an invoice"
+                                    className={`w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10 font-medium ${
+                                      (r.amountPaid ?? 0) > 0 ? "text-green-400" : "text-blue-400"
+                                    }`}
+                                  >
+                                    {paidInFull
+                                      ? `Paid ($${(r.amountPaid ?? 0).toFixed(2)})`
+                                      : partiallyPaid
+                                        ? `Deposit ($${(r.amountPaid ?? 0).toFixed(2)})`
+                                        : "Deposit"}
+                                  </button>
+                                  {!paidInFull && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenMenuId(null);
+                                        handleCopyPayPageLink(r.id);
+                                      }}
+                                      title="Copy a link to this site's own branded pay page for this quote's deposit"
+                                      className="w-full text-left text-xs px-3 py-1.5 text-admin-accent hover:bg-admin-ink/10"
+                                    >
+                                      Copy pay page link
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {r.linkedQuoteId && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenMenuId(null);
+                                        onEdit(r.linkedQuoteId!);
+                                      }}
+                                      className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
+                                      title="Open the quote this invoice was created from"
+                                    >
+                                      View quote
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      downloadPdf(r.id, "invoice");
+                                    }}
+                                    className="w-full text-left text-xs px-3 py-1.5 text-green-400 hover:bg-admin-ink/10"
+                                  >
+                                    Invoice
+                                  </button>
+                                  {r.invoiceStatus !== "paid" && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenMenuId(null);
+                                        handleCopyPayPageLink(r.id);
+                                      }}
+                                      title="Copy a link to this site's own branded payment page for this invoice"
+                                      className="w-full text-left text-xs px-3 py-1.5 text-admin-accent hover:bg-admin-ink/10"
+                                    >
+                                      Copy pay page link
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      setPaymentModalRecord(r);
+                                    }}
+                                    className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
+                                  >
+                                    Payment
+                                  </button>
+                                </>
+                              )}
+
+                              <div className="my-1 border-t border-admin-ink/10" />
+
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  setSendModalRecord(r);
+                                }}
+                                className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
+                              >
+                                Send
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  handleSendToJobs(r.id);
+                                }}
+                                disabled={isBusy}
+                                title="Create a production job per line item, assigned to each item's decoration type"
+                                className="w-full text-left text-xs px-3 py-1.5 text-blue-400 hover:bg-admin-ink/10 disabled:opacity-40"
+                              >
+                                {isBusy ? "…" : "Send to Jobs"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  handleDelete(r.id);
+                                }}
+                                disabled={isBusy}
+                                className="w-full text-left text-xs px-3 py-1.5 text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
