@@ -33,7 +33,7 @@ const GARMENT_PRESETS: PlacementPreset[] = [
   {
     id: "left-chest",
     label: "Left Chest",
-    hint: "≈ 3.5–4.5″ wide, over the heart",
+    hint: "about 3.5-4.5 in wide, over the heart",
     view: "front",
     centerX: 0.64,
     centerY: 0.267,
@@ -43,7 +43,7 @@ const GARMENT_PRESETS: PlacementPreset[] = [
   {
     id: "full-front",
     label: "Full Front",
-    hint: "≈ 10–12″ wide, centered on the chest",
+    hint: "about 10-12 in wide, centered on the chest",
     view: "front",
     centerX: 0.5,
     centerY: 0.4,
@@ -53,7 +53,7 @@ const GARMENT_PRESETS: PlacementPreset[] = [
   {
     id: "back",
     label: "Back",
-    hint: "≈ 11–12″ wide, centered below the collar",
+    hint: "about 11-12 in wide, centered below the collar",
     view: "back",
     centerX: 0.5,
     centerY: 0.37,

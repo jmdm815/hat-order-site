@@ -537,14 +537,40 @@ export default function GarmentMockupTool() {
               </label>
               <div className="flex items-center gap-1.5">
                 <span className="mr-1 font-semibold">Nudge</span>
-                {[
-                  ["←", -1, 0],
-                  ["↑", 0, -1],
-                  ["↓", 0, 1],
-                  ["→", 1, 0],
-                ].map(([l, dx, dy]) => (
-                  <button key={l as string} type="button" className={`${btnGhost} px-2.5 py-1`} onClick={() => nudge(dx as number, dy as number)}>
-                    {l}
+                {(
+                  [
+                    ["Left", -1, 0, 180],
+                    ["Up", 0, -1, 270],
+                    ["Down", 0, 1, 90],
+                    ["Right", 1, 0, 0],
+                  ] as const
+                ).map(([label, dx, dy, rot]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-label={`Nudge ${label.toLowerCase()}`}
+                    title={`Nudge ${label.toLowerCase()}`}
+                    className={`${btnGhost} px-2.5 py-1.5`}
+                    onClick={() => nudge(dx, dy)}
+                  >
+                    {/* Drawn icon rather than an arrow character: some desktop fonts lack ←↑↓→. */}
+                    <svg
+                      viewBox="0 0 16 16"
+                      width="16"
+                      height="16"
+                      aria-hidden="true"
+                      style={{ transform: `rotate(${rot}deg)` }}
+                      className="block"
+                    >
+                      <path
+                        d="M2 8h11M9 4l4 4-4 4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </button>
                 ))}
               </div>
