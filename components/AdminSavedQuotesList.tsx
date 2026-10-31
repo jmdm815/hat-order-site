@@ -306,7 +306,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                 <th className="font-medium px-3 py-2 w-20 text-right">Units</th>
                 <th className="font-medium px-3 py-2 w-28 text-right">Total</th>
                 <th className="font-medium px-3 py-2 w-40">{view === "deleted" ? "Deleted" : "Status"}</th>
-                <th className="font-medium px-3 py-2 w-28">Date</th>
+                {view !== "deleted" && <th className="font-medium px-3 py-2 w-28">Date</th>}
                 <th className="font-medium px-3 py-2 w-16 text-right">Actions</th>
               </tr>
             </thead>
@@ -396,9 +396,11 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 align-top text-admin-ink/72 whitespace-nowrap">
-                      {new Date(r.updatedAt).toLocaleDateString()}
-                    </td>
+                    {view !== "deleted" && (
+                      <td className="px-3 py-2 align-top text-admin-ink/72 whitespace-nowrap">
+                        {new Date(r.updatedAt).toLocaleDateString()}
+                      </td>
+                    )}
                     <td className="px-3 py-2 align-top text-right relative">
                       <button
                         onClick={(e) => {
