@@ -7,6 +7,7 @@ import AdminCategoriesManager from "@/components/AdminCategoriesManager";
 import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
 import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManager";
+import GarmentMockupTool from "@/components/GarmentMockupTool";
 import AdminQuotesTab from "@/components/AdminQuotesTab";
 import AdminJobsTab from "@/components/AdminJobsTab";
 import AdminTasksTab from "@/components/AdminTasksTab";
@@ -34,6 +35,7 @@ const DEFAULT_TABS = [
   { id: "setup-charges", label: "Setup Charges", icon: "🧾" },
   { id: "garment-markup", label: "Garment Markup", icon: "📈" },
   { id: "mockup-generator", label: "Mockup Generator", icon: "🎨" },
+  { id: "garment-mockup", label: "Garment Mockups", icon: "👕" },
 ] as const;
 
 type TabId = (typeof DEFAULT_TABS)[number]["id"];
@@ -429,6 +431,15 @@ export default function AdminDashboard() {
               later phase.
             </p>
             <AdminMockupGeneratorManager />
+          </>
+        )}
+        {tab === "garment-mockup" && (
+          <>
+            <p className="mb-4 text-admin-ink/80 text-sm">
+              Put a logo on a blank garment for customer proofs. Upload a blank photo or pick one
+              from the catalog, upload the logo, choose a placement, then generate and download.
+            </p>
+            <GarmentMockupTool />
           </>
         )}
       </div>
