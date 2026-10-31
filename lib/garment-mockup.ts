@@ -15,13 +15,21 @@
 
 import type { ProductType } from "./types";
 
-export type PlacementId = "left-chest" | "full-front" | "back" | "hat-front" | "hat-left-side";
+export type PlacementId =
+  | "left-chest"
+  | "full-front"
+  | "back"
+  | "sleeve"
+  | "hat-front"
+  | "hat-left-side"
+  | "hat-side";
 
 export type PlacementPreset = {
   id: PlacementId;
   label: string;
   hint: string;
-  view: "front" | "back";
+  // "side" = the optional sleeve / side-profile photo (upload only).
+  view: "front" | "back" | "side";
   // All fractions of the detected garment bounding box.
   centerX: number;
   centerY: number;
@@ -104,8 +112,40 @@ const HAT_PRESETS: PlacementPreset[] = [
   },
 ];
 
-export function presetsFor(productType: ProductType | "upload-hat" | "upload-garment"): PlacementPreset[] {
-  return productType === "hat" || productType === "upload-hat" ? HAT_PRESETS : GARMENT_PRESETS;
+// Placements on the sleeve / side-profile photo. Centered on whatever the
+// photo shows (a side view of the garment or a sleeve close-up), sized
+// small; drag/resize to fine-tune.
+const GARMENT_SIDE_PRESET: PlacementPreset = {
+  id: "sleeve",
+  label: "Sleeve",
+  hint: "about 3 in wide, uses the sleeve / side photo",
+  view: "side",
+  centerX: 0.5,
+  centerY: 0.32,
+  maxWidth: 0.3,
+  maxHeight: 0.2,
+  nominalWidthIn: 3,
+};
+const HAT_SIDE_PRESET: PlacementPreset = {
+  id: "hat-side",
+  label: "Side (side photo)",
+  hint: "about 2.5 in wide, uses the side profile photo",
+  view: "side",
+  centerX: 0.5,
+  centerY: 0.45,
+  maxWidth: 0.3,
+  maxHeight: 0.25,
+  nominalWidthIn: 2.5,
+};
+
+export function presetsFor(
+  productType: ProductType | "upload-hat" | "upload-garment",
+  includeSide = false
+): PlacementPreset[] {
+  const hat = productType === "hat" || productType === "upload-hat";
+  const base = hat ? HAT_PRESETS : GARMENT_PRESETS;
+  if (!includeSide) return base;
+  return [...base, hat ? HAT_SIDE_PRESET : GARMENT_SIDE_PRESET];
 }
 
 export type Rect = { x: number; y: number; width: number; height: number };

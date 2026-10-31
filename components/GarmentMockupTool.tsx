@@ -59,6 +59,7 @@ export default function GarmentMockupTool() {
   const [source, setSource] = useState<BlankSource>("upload");
   const [uploadFront, setUploadFront] = useState<{ url: string; name: string } | null>(null);
   const [uploadBack, setUploadBack] = useState<{ url: string; name: string } | null>(null);
+  const [uploadSide, setUploadSide] = useState<{ url: string; name: string } | null>(null);
   const [isHat, setIsHat] = useState(false);
 
   const [supplier, setSupplier] = useState<SupplierFilter>("all");
@@ -120,7 +121,11 @@ export default function GarmentMockupTool() {
   const [raised, setRaised] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const presets = useMemo(() => presetsFor(isHat ? "upload-hat" : "upload-garment"), [isHat]);
+  // Sleeve/side placements only exist for uploads (supplier feeds have no side photos).
+  const presets = useMemo(
+    () => presetsFor(isHat ? "upload-hat" : "upload-garment", source === "upload"),
+    [isHat, source]
+  );
   // A placement that doesn't exist for the chosen item type counts as unset.
   const preset = presets.find((p) => p.id === placementId) ?? null;
 
@@ -169,8 +174,12 @@ export default function GarmentMockupTool() {
 
   // ---- resolve the blank image for the chosen view -----------------------
   async function resolveBlank(
-    view: "front" | "back"
+    view: "front" | "back" | "side"
   ): Promise<{ img: HTMLImageElement; note?: string; onModel?: boolean }> {
+    if (source === "upload" && view === "side") {
+      if (!uploadSide) throw new Error("Upload a sleeve / side photo for this placement.");
+      return { img: await loadImage(uploadSide.url) };
+    }
     if (source === "upload") {
       const pick = view === "back" && uploadBack ? uploadBack : uploadFront;
       if (!pick) throw new Error("Upload a blank photo first.");
@@ -211,7 +220,13 @@ export default function GarmentMockupTool() {
   const canGenerate =
     Boolean(logo) &&
     Boolean(preset) &&
-    (source === "upload" ? Boolean(uploadFront) : Boolean(color));
+    (source === "upload"
+      ? preset?.view === "side"
+        ? Boolean(uploadSide)
+        : preset?.view === "back"
+          ? Boolean(uploadBack || uploadFront)
+          : Boolean(uploadFront)
+      : Boolean(color));
 
   async function generate() {
     if (!preset || !logo) return;
@@ -313,7 +328,12 @@ export default function GarmentMockupTool() {
     const itemName =
       source === "catalog" && product
         ? `${product.styleNumber}-${color?.colorName ?? ""}`
-        : uploadFront?.name.replace(/\.[^.]+$/, "") ?? "garment";
+        : (activePreset.view === "side"
+            ? uploadSide
+            : activePreset.view === "back" && uploadBack
+              ? uploadBack
+              : uploadFront
+          )?.name.replace(/\.[^.]+$/, "") ?? "garment";
     const logoName = logo?.name.replace(/\.[^.]+$/, "") ?? "logo";
     rendered.toBlob((blob) => {
       if (!blob) return;
@@ -360,6 +380,12 @@ export default function GarmentMockupTool() {
                 file={uploadBack}
                 accept="image/*"
                 onPick={setUploadBack}
+              />
+              <FilePick
+                label={`${isHat ? "Side profile" : "Sleeve / side"} photo (optional, used for ${isHat ? "Side" : "Sleeve"} placement)`}
+                file={uploadSide}
+                accept="image/*"
+                onPick={setUploadSide}
               />
             </div>
           ) : (
@@ -516,21 +542,27 @@ export default function GarmentMockupTool() {
         <section className={card}>
           <h3 className={stepTitle}>3 · Placement</h3>
           <div className="mt-3 grid gap-2">
-            {presets.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPlacementId(p.id)}
-                className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm ${
-                  preset?.id === p.id
-                    ? "border-admin-accent bg-admin-accent text-admin-accent-ink"
-                    : "border-admin-ink/30 hover:bg-admin-ink/10"
-                }`}
-              >
-                <span className="font-semibold">{p.label}</span>
-                <span className="text-xs opacity-70">{p.hint}</span>
-              </button>
-            ))}
+            {presets.map((p) => {
+              const needsSide = p.view === "side" && !uploadSide;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={needsSide}
+                  onClick={() => setPlacementId(p.id)}
+                  className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+                    preset?.id === p.id && !needsSide
+                      ? "border-admin-accent bg-admin-accent text-admin-accent-ink"
+                      : "border-admin-ink/30 hover:bg-admin-ink/10"
+                  }`}
+                >
+                  <span className="font-semibold">{p.label}</span>
+                  <span className="text-right text-xs opacity-70">
+                    {needsSide ? `Upload a ${isHat ? "side profile" : "sleeve / side"} photo first` : p.hint}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <button type="button" disabled={!canGenerate || generating} onClick={generate} className={`${btnPrimary} mt-4 w-full`}>
             {generating ? "Generating…" : "Generate mockup"}
