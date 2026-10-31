@@ -11,7 +11,7 @@ import {
   loadImage,
   presetsFor,
   comboFor,
-  combineSideBySide,
+  combineGrid,
   COMBO_ID,
   printWidthIn,
   readTaggedDpi,
@@ -49,6 +49,7 @@ type Panel = {
   layout: LogoLayout; // in base-photo px
   sizePct: number;
   note: string | null;
+  colorName: string | null; // catalog color this view shows (null for uploads)
 };
 
 function readFileAsUrl(file: File): string {
@@ -88,6 +89,10 @@ export default function GarmentMockupTool() {
   const [product, setProduct] = useState<Product | null>(null);
   const [productLoading, setProductLoading] = useState(false);
   const [color, setColor] = useState<ProductColor | null>(null);
+  // Multi-color mode: same logo + placement mocked up on several colors.
+  const [multiColor, setMultiColor] = useState(false);
+  const [colorSet, setColorSet] = useState<ProductColor[]>([]);
+  const [syncColors, setSyncColors] = useState(true);
 
   // ---- Step 2: logo -------------------------------------------------------
   const [logo, setLogo] = useState<{ url: string; name: string } | null>(null);
@@ -134,10 +139,17 @@ export default function GarmentMockupTool() {
   const activePreset = panel?.preset ?? null;
   const sizePct = panel?.sizePct ?? 100;
   const note = panel?.note ?? null;
+  // With "same placement on every color" on, an edit applies to every
+  // color's view of the same placement (front edits all fronts, etc.).
   const updatePanel = useCallback(
     (patch: Partial<Panel>) =>
-      setPanels((ps) => ps.map((p, i) => (i === activeIdx ? { ...p, ...patch } : p))),
-    [activeIdx]
+      setPanels((ps) => {
+        const target = ps[activeIdx];
+        return ps.map((p, i) =>
+          i === activeIdx || (syncColors && target && p.preset.id === target.preset.id) ? { ...p, ...patch } : p
+        );
+      }),
+    [activeIdx, syncColors]
   );
   const setLayout = useCallback((l: LogoLayout) => updatePanel({ layout: l }), [updatePanel]);
   const [fabricBlend, setFabricBlend] = useState(35);
@@ -180,6 +192,7 @@ export default function GarmentMockupTool() {
     setPicked(r);
     setProduct(null);
     setColor(null);
+    setColorSet([]);
     setProductError(null);
     setProductLoading(true);
     try {
@@ -190,6 +203,7 @@ export default function GarmentMockupTool() {
       if (!res.ok || !data.product) throw new Error(data.error ?? "Couldn't load that style.");
       setProduct(data.product);
       setColor(data.product.colors[0] ?? null);
+      setColorSet(data.product.colors[0] ? [data.product.colors[0]] : []);
       setIsHat(data.product.productType === "hat");
     } catch (e) {
       setProductError(e instanceof Error ? e.message : "Couldn't load that style.");
@@ -200,7 +214,8 @@ export default function GarmentMockupTool() {
 
   // ---- resolve the blank image for the chosen view -----------------------
   async function resolveBlank(
-    view: "front" | "back" | "side"
+    view: "front" | "back" | "side",
+    color: ProductColor | null
   ): Promise<{ img: HTMLImageElement; note?: string; onModel?: boolean }> {
     if (source === "upload" && view === "side") {
       if (!uploadSide) throw new Error("Upload a sleeve / side photo for this placement.");
@@ -225,7 +240,7 @@ export default function GarmentMockupTool() {
       try {
         return { img: await loadImage(url) };
       } catch {
-        throw new Error("SanMar has no back photo for this color — switch to Upload and add one.");
+        throw new Error(`The supplier has no back photo for ${color.colorName} — switch to Upload and add one.`);
       }
     }
     if (color.imageIsOverride) return { img: await loadImage(color.imageUrl) };
@@ -235,15 +250,16 @@ export default function GarmentMockupTool() {
       if (color.imageFallbackUrl) {
         return {
           img: await loadImage(productImageUrl(color.imageFallbackUrl)),
-          note: "SanMar has no flat photo for this color, so this uses the on-model photo — placement is approximate, drag to adjust. Upload a flat blank for a cleaner proof.",
+          note: `SanMar has no flat photo for ${color.colorName}, so this uses the on-model photo — placement is approximate, drag to adjust. Upload a flat blank for a cleaner proof.`,
           onModel: true,
         };
       }
-      throw new Error("Couldn't load a photo for this color.");
+      throw new Error(`Couldn't load a photo for ${color.colorName}.`);
     }
   }
 
   const isCombo = placementId === COMBO_ID;
+  const chosenColors: ProductColor[] = multiColor ? colorSet : color ? [color] : [];
   const hasUploadFor = (view: PlacementPreset["view"]) =>
     view === "side"
       ? Boolean(uploadSide)
@@ -254,19 +270,22 @@ export default function GarmentMockupTool() {
   const canGenerate =
     Boolean(logo) &&
     selectedPresets.length > 0 &&
-    (source === "upload" ? selectedPresets.every((p) => hasUploadFor(p.view)) : Boolean(color));
+    (source === "upload" ? selectedPresets.every((p) => hasUploadFor(p.view)) : chosenColors.length > 0);
 
   async function generate() {
     if (!selectedPresets.length || !logo) return;
     setGenerating(true);
     setError(null);
     try {
+      // Every (color, placement) pair becomes a view, grouped by color.
+      const colorsToUse: (ProductColor | null)[] = source === "catalog" ? chosenColors : [null];
+      const jobs = colorsToUse.flatMap((c) => selectedPresets.map((p) => ({ c, p })));
       const [blanks, logoImg] = await Promise.all([
-        Promise.all(selectedPresets.map((p) => resolveBlank(p.view))),
+        Promise.all(jobs.map(({ c, p }) => resolveBlank(p.view, c))),
         loadImage(logo.url),
       ]);
       const trimmed = trimTransparent(logoImg);
-      const next: Panel[] = selectedPresets.map((p, i) => {
+      const next: Panel[] = jobs.map(({ c, p }, i) => {
         const { img, note: n, onModel } = blanks[i];
         const detected = detectGarmentBounds(img);
         const g = onModel ? onModelGarmentBounds(detected) : detected;
@@ -277,6 +296,7 @@ export default function GarmentMockupTool() {
           layout: layoutForPreset(p, g, trimmed.width, trimmed.height, 100),
           sizePct: 100,
           note: n ?? null,
+          colorName: c?.colorName ?? null,
         };
       });
       setLogoCanvas(trimmed);
@@ -364,8 +384,8 @@ export default function GarmentMockupTool() {
     drag.current = null;
   }, []);
 
-  function itemNameFor(view: PlacementPreset["view"]): string {
-    if (source === "catalog" && product) return `${product.styleNumber}-${color?.colorName ?? ""}`;
+  function itemNameFor(view: PlacementPreset["view"], colorName?: string | null): string {
+    if (source === "catalog" && product) return `${product.styleNumber}-${colorName ?? color?.colorName ?? ""}`;
     const f = view === "side" ? uploadSide : view === "back" && uploadBack ? uploadBack : uploadFront;
     return f?.name.replace(/\.[^.]+$/, "") ?? "garment";
   }
@@ -385,16 +405,32 @@ export default function GarmentMockupTool() {
 
   function download() {
     if (!rendered || !activePreset) return;
-    saveCanvas(rendered, `mockup-${logoSlug}-${slug(itemNameFor(activePreset.view))}-${activePreset.id}.png`);
+    saveCanvas(
+      rendered,
+      `mockup-${logoSlug}-${slug(itemNameFor(activePreset.view, panel?.colorName))}-${activePreset.id}.png`
+    );
+  }
+
+  const panelColors = [...new Set(panels.map((p) => p.colorName ?? ""))];
+  const presetsPerColor = panelColors.length ? panels.length / panelColors.length : 0;
+
+  function panelLabel(p: Panel): string {
+    const view = presetsPerColor > 1 ? (p.preset.view === "back" ? "Back" : "Front") : p.preset.label;
+    return p.colorName && panelColors.length > 1 ? `${p.colorName} · ${view}` : presetsPerColor > 1 ? `${view} · ${p.preset.label}` : view;
   }
 
   function downloadCombined() {
     if (!logoCanvas || panels.length < 2) return;
     const views = panels.map((p) => renderMockup(p.base, logoCanvas, p.layout, { fabricBlend, raised }));
-    saveCanvas(
-      combineSideBySide(views),
-      `mockup-${logoSlug}-${slug(itemNameFor("front"))}-front-back.png`
-    );
+    // One placement: all colors in one row. Several (Front + Back): a row per color.
+    const rows: HTMLCanvasElement[][] =
+      presetsPerColor > 1
+        ? panelColors.map((_, ci) => views.slice(ci * presetsPerColor, (ci + 1) * presetsPerColor))
+        : [views];
+    const what = presetsPerColor > 1 ? "front-back" : panels[0].preset.id;
+    const colorsPart = panelColors.length > 1 ? `${panelColors.length}-colors` : panels[0].colorName ?? "";
+    const style = source === "catalog" && product ? product.styleNumber : itemNameFor("front");
+    saveCanvas(combineGrid(rows), `mockup-${logoSlug}-${slug(`${style}-${colorsPart}`)}-${what}.png`);
   }
 
   // ---- UI -----------------------------------------------------------------
@@ -539,7 +575,15 @@ export default function GarmentMockupTool() {
                         {product.brandName} {product.styleNumber}
                       </p>
                       <p className="text-xs text-admin-ink/70">{product.productName}</p>
-                      {color && <p className="mt-1 text-xs">Color: {color.colorName}</p>}
+                      {multiColor ? (
+                        <p className="mt-1 text-xs">
+                          {colorSet.length
+                            ? `Colors (${colorSet.length}): ${colorSet.map((c) => c.colorName).join(", ")}`
+                            : "Tap colors to add them"}
+                        </p>
+                      ) : (
+                        color && <p className="mt-1 text-xs">Color: {color.colorName}</p>
+                      )}
                     </div>
                   </div>
                   <div className="mt-3 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
@@ -547,11 +591,25 @@ export default function GarmentMockupTool() {
                       <button
                         key={c.colorName}
                         type="button"
-                        onClick={() => setColor(c)}
+                        onClick={() => {
+                          setColor(c);
+                          if (multiColor) {
+                            setColorSet((set) =>
+                              set.some((x) => x.colorName === c.colorName)
+                                ? set.filter((x) => x.colorName !== c.colorName)
+                                : [...set, c]
+                            );
+                          }
+                        }}
                         title={c.colorName}
                         aria-label={c.colorName}
-                        className={`h-7 w-7 overflow-hidden rounded-full border-2 ${
-                          color?.colorName === c.colorName ? "border-admin-accent" : "border-admin-ink/20"
+                        aria-pressed={
+                          multiColor ? colorSet.some((x) => x.colorName === c.colorName) : color?.colorName === c.colorName
+                        }
+                        className={`relative h-7 w-7 overflow-hidden rounded-full border-2 ${
+                          (multiColor ? colorSet.some((x) => x.colorName === c.colorName) : color?.colorName === c.colorName)
+                            ? "border-admin-accent ring-2 ring-admin-accent ring-offset-1 ring-offset-admin-card"
+                            : "border-admin-ink/20"
                         }`}
                         style={{
                           background:
@@ -562,6 +620,17 @@ export default function GarmentMockupTool() {
                       />
                     ))}
                   </div>
+                  <label className="mt-3 flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={multiColor}
+                      onChange={(e) => {
+                        setMultiColor(e.target.checked);
+                        setColorSet(color ? [color] : []);
+                      }}
+                    />
+                    Mock up several colors (same logo on each)
+                  </label>
                 </div>
               )}
             </div>
@@ -653,17 +722,17 @@ export default function GarmentMockupTool() {
         ) : (
           <>
             {panels.length > 1 && (
-              <div className="mt-3 inline-flex self-start rounded-xl border border-admin-ink/30 p-1 text-sm">
+              <div className="mt-3 flex flex-wrap gap-1 self-start rounded-xl border border-admin-ink/30 p-1 text-sm">
                 {panels.map((p, i) => (
                   <button
-                    key={p.preset.id}
+                    key={`${p.colorName ?? ""}-${p.preset.id}`}
                     type="button"
                     onClick={() => setActiveIdx(i)}
                     className={`rounded-lg px-3 py-1.5 font-semibold ${
                       i === activeIdx ? "bg-admin-accent text-admin-accent-ink" : "hover:bg-admin-ink/10"
                     }`}
                   >
-                    {p.preset.view === "back" ? "Back" : "Front"} · {p.preset.label}
+                    {panelLabel(p)}
                   </button>
                 ))}
               </div>
@@ -733,16 +802,24 @@ export default function GarmentMockupTool() {
                 <input type="checkbox" checked={raised} onChange={(e) => setRaised(e.target.checked)} />
                 Raised shadow (embroidery / patch look)
               </label>
+              {panelColors.length > 1 && (
+                <label className="flex items-center gap-2 sm:col-span-2">
+                  <input type="checkbox" checked={syncColors} onChange={(e) => setSyncColors(e.target.checked)} />
+                  Same placement on every color (moving or resizing one moves them all)
+                </label>
+              )}
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
               {panels.length > 1 && (
                 <button type="button" className={btnPrimary} onClick={downloadCombined}>
-                  Download front + back
+                  {panelColors.length > 1
+                    ? `Download all ${panels.length} views`
+                    : "Download front + back"}
                 </button>
               )}
               <button type="button" className={panels.length > 1 ? btnGhost : btnPrimary} onClick={download}>
-                {panels.length > 1 ? `Download ${activePreset?.view === "back" ? "back" : "front"} only` : "Download PNG"}
+                {panels.length > 1 && panel ? `Download ${panelLabel(panel)} only` : "Download PNG"}
               </button>
               <button type="button" className={btnGhost} onClick={resetPlacement}>
                 Reset to {activePreset?.label}

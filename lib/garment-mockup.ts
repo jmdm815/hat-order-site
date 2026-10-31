@@ -236,7 +236,7 @@ export function detectGarmentBounds(img: HTMLImageElement): Rect {
 export function onModelGarmentBounds(person: Rect): Rect {
   return {
     x: person.x + person.width * 0.04,
-    y: person.y + person.height * 0.21,
+    y: person.y + person.height * 0.245,
     width: person.width * 0.92,
     height: person.height * 0.47,
   };
@@ -490,5 +490,26 @@ export function combineSideBySide(views: HTMLCanvasElement[]): HTMLCanvasElement
     ctx.drawImage(v, x, 0, widths[i], H);
     x += widths[i] + gap;
   });
+  return out;
+}
+
+// Stack rows (each laid out side by side) vertically, centered — e.g. one row
+// per garment color, each row holding that color's front + back.
+export function combineGrid(rows: HTMLCanvasElement[][]): HTMLCanvasElement {
+  const lines = rows.map((r) => combineSideBySide(r));
+  if (lines.length === 1) return lines[0];
+  const W = Math.max(...lines.map((l) => l.width));
+  const gap = Math.round(lines[0].height * 0.04);
+  const out = document.createElement("canvas");
+  out.width = W;
+  out.height = lines.reduce((a, l) => a + l.height, 0) + gap * (lines.length - 1);
+  const ctx = out.getContext("2d")!;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, out.width, out.height);
+  let y = 0;
+  for (const l of lines) {
+    ctx.drawImage(l, Math.round((W - l.width) / 2), y);
+    y += l.height + gap;
+  }
   return out;
 }
