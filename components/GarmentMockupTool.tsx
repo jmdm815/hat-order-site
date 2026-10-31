@@ -10,6 +10,10 @@ import {
   onModelGarmentBounds,
   loadImage,
   presetsFor,
+  printWidthIn,
+  readTaggedDpi,
+  assessResolution,
+  RECOMMENDED_DPI,
   renderMockup,
   trimTransparent,
   type LogoLayout,
@@ -74,6 +78,30 @@ export default function GarmentMockupTool() {
 
   // ---- Step 2: logo -------------------------------------------------------
   const [logo, setLogo] = useState<{ url: string; name: string } | null>(null);
+  // Pixel size of the artwork (transparent padding trimmed) + the dpi the
+  // file is tagged with, read as soon as the logo is picked.
+  const [logoInfo, setLogoInfo] = useState<{
+    url: string;
+    width: number;
+    height: number;
+    taggedDpi: number | null;
+  } | null>(null);
+
+  async function pickLogo(f: { url: string; name: string } | null) {
+    setLogo(f);
+    setLogoInfo(null);
+    if (!f) return;
+    try {
+      const [buf, img] = await Promise.all([
+        fetch(f.url).then((r) => r.arrayBuffer()),
+        loadImage(f.url),
+      ]);
+      const trimmed = trimTransparent(img);
+      setLogoInfo({ url: f.url, width: trimmed.width, height: trimmed.height, taggedDpi: readTaggedDpi(buf) });
+    } catch {
+      /* resolution info is advisory only */
+    }
+  }
 
   // ---- Step 3: placement --------------------------------------------------
   const [placementId, setPlacementId] = useState<string | null>(null);
@@ -252,7 +280,9 @@ export default function GarmentMockupTool() {
       const c = canvasRef.current;
       if (!c || !layout) return;
       const rect = c.getBoundingClientRect();
-      const scale = c.width / rect.width;
+      if (!base) return;
+      // Layout is in base-photo px; the canvas itself is upscaled for export.
+      const scale = base.naturalWidth / rect.width;
       const px = (e.clientX - rect.left) * scale;
       const py = (e.clientY - rect.top) * scale;
       const pad = 12 * scale;
@@ -263,7 +293,7 @@ export default function GarmentMockupTool() {
       c.setPointerCapture(e.pointerId);
       drag.current = { startX: e.clientX, startY: e.clientY, orig: layout, scale };
     },
-    [layout]
+    [layout, base]
   );
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     const d = drag.current;
@@ -468,7 +498,17 @@ export default function GarmentMockupTool() {
         <section className={card}>
           <h3 className={stepTitle}>2 · Logo</h3>
           <div className="mt-3 text-sm">
-            <FilePick label="Logo (transparent PNG works best)" file={logo} accept="image/*" onPick={setLogo} preview />
+            <FilePick label="Logo (transparent PNG works best)" file={logo} accept="image/*" onPick={pickLogo} preview />
+            {logoInfo && logoInfo.url === logo?.url && (
+              <LogoResolution
+                info={logoInfo}
+                placed={
+                  layout && activePreset && garment && logoCanvas
+                    ? { label: activePreset.label, inches: printWidthIn(activePreset, garment, layout) }
+                    : null
+                }
+              />
+            )}
           </div>
         </section>
 
@@ -647,6 +687,49 @@ function FilePick({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function LogoResolution({
+  info,
+  placed,
+}: {
+  info: { width: number; height: number; taggedDpi: number | null };
+  placed: { label: string; inches: number } | null;
+}) {
+  const maxSharpIn = info.width / RECOMMENDED_DPI;
+  const verdict = placed ? assessResolution(info.width, placed.inches) : null;
+  const tone =
+    verdict?.level === "low"
+      ? "border-red-300/60 bg-red-500/15 text-red-100"
+      : verdict?.level === "fair"
+        ? "border-amber-300/60 bg-amber-500/15 text-amber-100"
+        : verdict
+          ? "border-emerald-300/60 bg-emerald-500/15 text-emerald-100"
+          : "border-admin-ink/20 text-admin-ink/80";
+  return (
+    <div className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-relaxed ${tone}`}>
+      <p>
+        {info.width} × {info.height} px
+        {info.taggedDpi ? ` · file tagged ${info.taggedDpi} dpi` : ""} · sharp (300 dpi) up to{" "}
+        {maxSharpIn.toFixed(1)} in wide
+      </p>
+      {verdict && placed && (
+        <p className="mt-1 font-semibold">
+          {verdict.level === "good" &&
+            `${placed.label} at ~${placed.inches.toFixed(1)} in wide: ${verdict.dpi} dpi. Good.`}
+          {verdict.level === "fair" &&
+            `${placed.label} at ~${placed.inches.toFixed(1)} in wide: ${verdict.dpi} dpi. Below the recommended 300 dpi, so it may look slightly soft.`}
+          {verdict.level === "low" &&
+            `Low resolution: ${verdict.dpi} dpi at ~${placed.inches.toFixed(1)} in wide. The mockup will look pixelated. Ask the customer for a larger file or vector art (300 dpi or higher).`}
+        </p>
+      )}
+      {!verdict && info.width < 600 && (
+        <p className="mt-1 font-semibold text-amber-100">
+          This is a small file. It may look pixelated on anything larger than a left chest.
+        </p>
+      )}
     </div>
   );
 }

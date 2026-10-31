@@ -27,6 +27,9 @@ export type PlacementPreset = {
   centerY: number;
   maxWidth: number;
   maxHeight: number;
+  // Real-world print width (inches) when a logo fills the full placement
+  // width at 100% size — used to estimate the logo's effective dpi.
+  nominalWidthIn: number;
 };
 
 const GARMENT_PRESETS: PlacementPreset[] = [
@@ -39,6 +42,7 @@ const GARMENT_PRESETS: PlacementPreset[] = [
     centerY: 0.267,
     maxWidth: 0.125,
     maxHeight: 0.09,
+    nominalWidthIn: 4,
   },
   {
     id: "full-front",
@@ -49,6 +53,7 @@ const GARMENT_PRESETS: PlacementPreset[] = [
     centerY: 0.4,
     maxWidth: 0.36,
     maxHeight: 0.36,
+    nominalWidthIn: 11,
   },
   {
     id: "back",
@@ -59,6 +64,7 @@ const GARMENT_PRESETS: PlacementPreset[] = [
     centerY: 0.37,
     maxWidth: 0.38,
     maxHeight: 0.42,
+    nominalWidthIn: 12,
   },
 ];
 
@@ -72,6 +78,7 @@ const HAT_PRESETS: PlacementPreset[] = [
     centerY: 0.36,
     maxWidth: 0.36,
     maxHeight: 0.24,
+    nominalWidthIn: 4.5,
   },
   {
     id: "hat-left-side",
@@ -82,6 +89,7 @@ const HAT_PRESETS: PlacementPreset[] = [
     centerY: 0.42,
     maxWidth: 0.14,
     maxHeight: 0.12,
+    nominalWidthIn: 2,
   },
   {
     id: "back",
@@ -92,6 +100,7 @@ const HAT_PRESETS: PlacementPreset[] = [
     centerY: 0.4,
     maxWidth: 0.28,
     maxHeight: 0.14,
+    nominalWidthIn: 2.5,
   },
 ];
 
@@ -231,35 +240,134 @@ export type RenderOptions = {
   raised: boolean; // subtle drop shadow, reads as embroidery/patch
 };
 
-// Composite the logo onto the garment photo at the photo's native size.
+// Mockups are exported at least this many px on the long side. Supplier
+// photos often arrive at ~1000px, which would leave a left-chest logo only
+// ~80px wide — too few pixels for it to look crisp, however sharp the art is.
+const MIN_EXPORT_LONG_SIDE = 3000;
+const MAX_EXPORT_SCALE = 4;
+
+export function exportScaleFor(base: HTMLImageElement): number {
+  const long = Math.max(base.naturalWidth, base.naturalHeight);
+  return Math.min(MAX_EXPORT_SCALE, Math.max(1, MIN_EXPORT_LONG_SIDE / long));
+}
+
+// High-quality downscale: halve repeatedly, then a final resize. A single
+// big drawImage() shrink (e.g. 1800px -> 120px) skips most source pixels and
+// leaves jagged, stair-stepped edges.
+export function resizeHQ(src: HTMLCanvasElement, w: number, h: number): HTMLCanvasElement {
+  let cur: HTMLCanvasElement = src;
+  while (cur.width / 2 >= w && cur.height / 2 >= h) {
+    const half = document.createElement("canvas");
+    half.width = Math.max(1, Math.round(cur.width / 2));
+    half.height = Math.max(1, Math.round(cur.height / 2));
+    const hctx = half.getContext("2d")!;
+    hctx.imageSmoothingEnabled = true;
+    hctx.imageSmoothingQuality = "high";
+    hctx.drawImage(cur, 0, 0, half.width, half.height);
+    cur = half;
+  }
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const octx = out.getContext("2d", { willReadFrequently: true })!;
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = "high";
+  octx.drawImage(cur, 0, 0, w, h);
+  return out;
+}
+
+// ---- logo resolution --------------------------------------------------------
+
+// The dpi a file is *tagged* with (PNG pHYs / JPEG JFIF density). Only
+// metadata — what actually matters is pixels per inch at the print size,
+// see assessResolution().
+export function readTaggedDpi(buf: ArrayBuffer): number | null {
+  const b = new Uint8Array(buf);
+  const dv = new DataView(buf);
+  // PNG
+  if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) {
+    let off = 8;
+    while (off + 12 <= b.length) {
+      const len = dv.getUint32(off);
+      const type = String.fromCharCode(b[off + 4], b[off + 5], b[off + 6], b[off + 7]);
+      if (type === "pHYs" && len >= 9) {
+        const ppuX = dv.getUint32(off + 8);
+        const unit = b[off + 16];
+        return unit === 1 ? Math.round(ppuX * 0.0254) : null;
+      }
+      if (type === "IDAT" || type === "IEND") return null;
+      off += 12 + len;
+    }
+    return null;
+  }
+  // JPEG (JFIF APP0)
+  if (b.length > 4 && b[0] === 0xff && b[1] === 0xd8) {
+    let off = 2;
+    while (off + 4 < b.length && b[off] === 0xff) {
+      const marker = b[off + 1];
+      const len = dv.getUint16(off + 2);
+      if (marker === 0xe0 && String.fromCharCode(...b.slice(off + 4, off + 8)) === "JFIF") {
+        const units = b[off + 11];
+        const xd = dv.getUint16(off + 12);
+        if (units === 1) return xd;
+        if (units === 2) return Math.round(xd * 2.54);
+        return null;
+      }
+      if (marker === 0xda) break;
+      off += 2 + len;
+    }
+  }
+  return null;
+}
+
+export type ResolutionLevel = "good" | "fair" | "low";
+export const RECOMMENDED_DPI = 300;
+export const LOW_DPI = 150;
+
+export function assessResolution(logoPxWidth: number, printWidthIn: number) {
+  const dpi = Math.round(logoPxWidth / Math.max(0.1, printWidthIn));
+  const level: ResolutionLevel = dpi >= RECOMMENDED_DPI ? "good" : dpi >= LOW_DPI ? "fair" : "low";
+  return { dpi, level };
+}
+
+// Estimated real-world width (inches) of a placed logo.
+export function printWidthIn(
+  preset: PlacementPreset,
+  garment: Rect,
+  layout: LogoLayout
+): number {
+  return (layout.width / (garment.width * preset.maxWidth)) * preset.nominalWidthIn;
+}
+
+// Composite the logo onto the garment photo. Output is upscaled so the long
+// side is at least MIN_EXPORT_LONG_SIDE px; `layout` stays in base-photo px.
 export function renderMockup(
   base: HTMLImageElement,
   logo: HTMLCanvasElement,
   layout: LogoLayout,
   opts: RenderOptions
 ): HTMLCanvasElement {
-  const W = base.naturalWidth;
-  const H = base.naturalHeight;
+  const k = exportScaleFor(base);
+  const W = Math.round(base.naturalWidth * k);
+  const H = Math.round(base.naturalHeight * k);
   const out = document.createElement("canvas");
   out.width = W;
   out.height = H;
   const ctx = out.getContext("2d", { willReadFrequently: true })!;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, W, H);
-  ctx.drawImage(base, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(base, 0, 0, W, H);
 
-  const lx = Math.round(layout.x);
-  const ly = Math.round(layout.y);
-  const lw = Math.max(1, Math.round(layout.width));
-  const lh = Math.max(1, Math.round(layout.height));
+  const lx = Math.round(layout.x * k);
+  const ly = Math.round(layout.y * k);
+  const lw = Math.max(1, Math.round(layout.width * k));
+  const lh = Math.max(1, Math.round(layout.height * k));
 
   // Scaled logo on its own layer.
-  const layer = document.createElement("canvas");
-  layer.width = lw;
-  layer.height = lh;
+  const layer = resizeHQ(logo, lw, lh);
   const lctx = layer.getContext("2d", { willReadFrequently: true })!;
-  lctx.imageSmoothingQuality = "high";
-  lctx.drawImage(logo, 0, 0, lw, lh);
 
   // Fabric shading: modulate the logo by the garment's local brightness
   // relative to its average under the logo, so folds and seams carry
