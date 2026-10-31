@@ -3024,7 +3024,7 @@ export default function AdminQuoteBuilder({
                                     <button
                                       type="button"
                                       onClick={() => updateDecorationOverride(line.key, undefined)}
-                                      title="Reset to the computed decoration price"
+                                      title="Revert to auto pricing (the computed decoration price)"
                                       className="text-admin-ink/50 hover:text-admin-ink"
                                     >
                                       ↺
@@ -3084,7 +3084,6 @@ export default function AdminQuoteBuilder({
                                   <th className="text-left pr-3 pb-1 font-medium">Disc %</th>
                                   <th className="text-left pr-3 pb-1 font-medium">Unit</th>
                                   <th className="text-right pb-1 font-medium">Total</th>
-                                  <th className="w-5 pb-1" />
                                 </tr>
                               </thead>
                               <tbody>
@@ -3117,29 +3116,41 @@ export default function AdminQuoteBuilder({
                                         {s.decorationUnitPrice > 0 ? `+$${s.decorationUnitPrice.toFixed(2)}` : "—"}
                                       </td>
                                       <td className="pr-3 py-1">
-                                        <input
-                                          type="number"
-                                          step="0.1"
-                                          min="0"
-                                          max="100"
-                                          placeholder="0"
-                                          value={overrideKind === "discountPercent" ? s.effectiveDiscountPercent ?? "" : ""}
-                                          onChange={(e) =>
-                                            updateSizeOverride(
-                                              line.key,
-                                              s.size,
-                                              e.target.value === ""
-                                                ? undefined
-                                                : { kind: "discountPercent", value: Math.max(0, Number(e.target.value) || 0) }
-                                            )
-                                          }
-                                          title="Discount % off the computed price — editing this, the unit price, or the total overrides whichever was set before"
-                                          className={`w-12 border rounded px-1 py-0.5 ${
-                                            overrideKind === "discountPercent"
-                                              ? "border-amber-400 bg-amber-50 text-amber-900"
-                                              : "border-admin-ink/20 bg-transparent"
-                                          }`}
-                                        />
+                                        <span className="inline-flex items-center gap-0.5">
+                                          <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            max="100"
+                                            placeholder="0"
+                                            value={overrideKind === "discountPercent" ? s.effectiveDiscountPercent ?? "" : ""}
+                                            onChange={(e) =>
+                                              updateSizeOverride(
+                                                line.key,
+                                                s.size,
+                                                e.target.value === ""
+                                                  ? undefined
+                                                  : { kind: "discountPercent", value: Math.max(0, Number(e.target.value) || 0) }
+                                              )
+                                            }
+                                            title="Discount % off the computed price — editing this, the unit price, or the total overrides whichever was set before"
+                                            className={`w-12 border rounded px-1 py-0.5 ${
+                                              overrideKind === "discountPercent"
+                                                ? "border-amber-400 bg-amber-50 text-amber-900"
+                                                : "border-admin-ink/20 bg-transparent"
+                                            }`}
+                                          />
+                                          {overrideKind === "discountPercent" && (
+                                            <button
+                                              type="button"
+                                              onClick={() => updateSizeOverride(line.key, s.size, undefined)}
+                                              title={`Revert to auto pricing ($${s.computedUnitPrice.toFixed(2)}/unit)`}
+                                              className="text-admin-ink/50 hover:text-admin-ink shrink-0"
+                                            >
+                                              ↺
+                                            </button>
+                                          )}
+                                        </span>
                                       </td>
                                       <td className="pr-3 py-1">
                                         <span className="inline-flex items-center gap-0.5">
@@ -3162,10 +3173,20 @@ export default function AdminQuoteBuilder({
                                                 : "border-admin-ink/20 bg-transparent"
                                             }`}
                                           />
+                                          {overrideKind === "unitPrice" && (
+                                            <button
+                                              type="button"
+                                              onClick={() => updateSizeOverride(line.key, s.size, undefined)}
+                                              title={`Revert to auto pricing ($${s.computedUnitPrice.toFixed(2)}/unit)`}
+                                              className="text-admin-ink/50 hover:text-admin-ink shrink-0"
+                                            >
+                                              ↺
+                                            </button>
+                                          )}
                                         </span>
                                       </td>
                                       <td className="py-1 text-right">
-                                        <span className="inline-flex items-center gap-0.5">
+                                        <span className="inline-flex items-center gap-0.5 justify-end">
                                           $
                                           <input
                                             type="number"
@@ -3185,19 +3206,17 @@ export default function AdminQuoteBuilder({
                                                 : "border-admin-ink/20 bg-transparent"
                                             }`}
                                           />
+                                          {overrideKind === "total" && (
+                                            <button
+                                              type="button"
+                                              onClick={() => updateSizeOverride(line.key, s.size, undefined)}
+                                              title={`Revert to auto pricing ($${s.computedUnitPrice.toFixed(2)}/unit)`}
+                                              className="text-admin-ink/50 hover:text-admin-ink shrink-0"
+                                            >
+                                              ↺
+                                            </button>
+                                          )}
                                         </span>
-                                      </td>
-                                      <td className="py-1 pl-1">
-                                        {s.isOverridden && (
-                                          <button
-                                            type="button"
-                                            onClick={() => updateSizeOverride(line.key, s.size, undefined)}
-                                            title={`Reset to the computed price ($${s.computedUnitPrice.toFixed(2)}/unit)`}
-                                            className="text-admin-ink/50 hover:text-admin-ink"
-                                          >
-                                            ↺
-                                          </button>
-                                        )}
                                       </td>
                                     </tr>
                                   );
