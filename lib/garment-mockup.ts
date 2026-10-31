@@ -148,6 +148,20 @@ export function presetsFor(
   return [...base, hat ? HAT_SIDE_PRESET : GARMENT_SIDE_PRESET];
 }
 
+// "Front + Back" combo: one generate makes two views, small on the front and
+// large on the back, edited separately and downloadable side by side.
+export const COMBO_ID = "front-back";
+export function comboFor(hat: boolean): { id: typeof COMBO_ID; label: string; hint: string; presets: PlacementPreset[] } {
+  const front = (hat ? HAT_PRESETS : GARMENT_PRESETS)[0]; // Front Center / Left Chest
+  const back = (hat ? HAT_PRESETS : GARMENT_PRESETS).find((p) => p.view === "back")!;
+  return {
+    id: COMBO_ID,
+    label: "Front + Back",
+    hint: hat ? "front logo + logo on the back" : "small left chest + large on the back",
+    presets: [front, back],
+  };
+}
+
 export type Rect = { x: number; y: number; width: number; height: number };
 
 // Logo layout in base-image pixel space.
@@ -455,5 +469,26 @@ export function renderMockup(
   } else {
     ctx.drawImage(layer, lx, ly);
   }
+  return out;
+}
+
+// Lay several rendered views side by side on one white canvas, scaled to a
+// common height (for a front + back proof).
+export function combineSideBySide(views: HTMLCanvasElement[]): HTMLCanvasElement {
+  const H = Math.max(...views.map((v) => v.height));
+  const widths = views.map((v) => Math.round((v.width * H) / v.height));
+  const gap = Math.round(H * 0.03);
+  const out = document.createElement("canvas");
+  out.width = widths.reduce((a, b) => a + b, 0) + gap * (views.length - 1);
+  out.height = H;
+  const ctx = out.getContext("2d")!;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.imageSmoothingQuality = "high";
+  let x = 0;
+  views.forEach((v, i) => {
+    ctx.drawImage(v, x, 0, widths[i], H);
+    x += widths[i] + gap;
+  });
   return out;
 }

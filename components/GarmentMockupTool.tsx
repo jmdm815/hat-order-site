@@ -10,6 +10,9 @@ import {
   onModelGarmentBounds,
   loadImage,
   presetsFor,
+  comboFor,
+  combineSideBySide,
+  COMBO_ID,
   printWidthIn,
   readTaggedDpi,
   assessResolution,
@@ -38,6 +41,15 @@ const SUPPLIER_TABS: { id: SupplierFilter; label: string }[] = [
 const SOURCE_LABEL = { sanmar: "SanMar", ss: "S&S" } as const;
 
 type BlankSource = "upload" | "catalog";
+
+type Panel = {
+  preset: PlacementPreset;
+  base: HTMLImageElement;
+  garment: Rect;
+  layout: LogoLayout; // in base-photo px
+  sizePct: number;
+  note: string | null;
+};
 
 function readFileAsUrl(file: File): string {
   return URL.createObjectURL(file);
@@ -110,13 +122,24 @@ export default function GarmentMockupTool() {
   // ---- Step 4: result -----------------------------------------------------
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const [base, setBase] = useState<HTMLImageElement | null>(null);
   const [logoCanvas, setLogoCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [garment, setGarment] = useState<Rect | null>(null);
-  const [layout, setLayout] = useState<LogoLayout | null>(null);
-  const [activePreset, setActivePreset] = useState<PlacementPreset | null>(null);
-  const [sizePct, setSizePct] = useState(100);
+  // One panel per generated view: a single placement makes one, "Front +
+  // Back" makes two. The editor controls act on the active panel.
+  const [panels, setPanels] = useState<Panel[]>([]);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const panel = panels[activeIdx] ?? null;
+  const base = panel?.base ?? null;
+  const garment = panel?.garment ?? null;
+  const layout = panel?.layout ?? null;
+  const activePreset = panel?.preset ?? null;
+  const sizePct = panel?.sizePct ?? 100;
+  const note = panel?.note ?? null;
+  const updatePanel = useCallback(
+    (patch: Partial<Panel>) =>
+      setPanels((ps) => ps.map((p, i) => (i === activeIdx ? { ...p, ...patch } : p))),
+    [activeIdx]
+  );
+  const setLayout = useCallback((l: LogoLayout) => updatePanel({ layout: l }), [updatePanel]);
   const [fabricBlend, setFabricBlend] = useState(35);
   const [raised, setRaised] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -126,8 +149,11 @@ export default function GarmentMockupTool() {
     () => presetsFor(isHat ? "upload-hat" : "upload-garment", source === "upload"),
     [isHat, source]
   );
+  const combo = useMemo(() => comboFor(isHat), [isHat]);
   // A placement that doesn't exist for the chosen item type counts as unset.
   const preset = presets.find((p) => p.id === placementId) ?? null;
+  const selectedPresets: PlacementPreset[] =
+    placementId === COMBO_ID ? combo.presets : preset ? [preset] : [];
 
 
   // ---- full-catalog search (SanMar feed + S&S live API) -----------------
@@ -217,34 +243,45 @@ export default function GarmentMockupTool() {
     }
   }
 
+  const isCombo = placementId === COMBO_ID;
+  const hasUploadFor = (view: PlacementPreset["view"]) =>
+    view === "side"
+      ? Boolean(uploadSide)
+      : view === "back"
+        ? // Front + Back needs a real back photo; a lone Back placement can reuse the front one.
+          Boolean(uploadBack || (!isCombo && uploadFront))
+        : Boolean(uploadFront);
   const canGenerate =
     Boolean(logo) &&
-    Boolean(preset) &&
-    (source === "upload"
-      ? preset?.view === "side"
-        ? Boolean(uploadSide)
-        : preset?.view === "back"
-          ? Boolean(uploadBack || uploadFront)
-          : Boolean(uploadFront)
-      : Boolean(color));
+    selectedPresets.length > 0 &&
+    (source === "upload" ? selectedPresets.every((p) => hasUploadFor(p.view)) : Boolean(color));
 
   async function generate() {
-    if (!preset || !logo) return;
+    if (!selectedPresets.length || !logo) return;
     setGenerating(true);
     setError(null);
-    setNote(null);
     try {
-      const [{ img, note: n, onModel }, logoImg] = await Promise.all([resolveBlank(preset.view), loadImage(logo.url)]);
+      const [blanks, logoImg] = await Promise.all([
+        Promise.all(selectedPresets.map((p) => resolveBlank(p.view))),
+        loadImage(logo.url),
+      ]);
       const trimmed = trimTransparent(logoImg);
-      const detected = detectGarmentBounds(img);
-      const g = onModel ? onModelGarmentBounds(detected) : detected;
-      setBase(img);
+      const next: Panel[] = selectedPresets.map((p, i) => {
+        const { img, note: n, onModel } = blanks[i];
+        const detected = detectGarmentBounds(img);
+        const g = onModel ? onModelGarmentBounds(detected) : detected;
+        return {
+          preset: p,
+          base: img,
+          garment: g,
+          layout: layoutForPreset(p, g, trimmed.width, trimmed.height, 100),
+          sizePct: 100,
+          note: n ?? null,
+        };
+      });
       setLogoCanvas(trimmed);
-      setGarment(g);
-      setActivePreset(preset);
-      setSizePct(100);
-      setLayout(layoutForPreset(preset, g, trimmed.width, trimmed.height, 100));
-      setNote(n ?? null);
+      setPanels(next);
+      setActiveIdx(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -268,18 +305,19 @@ export default function GarmentMockupTool() {
 
   // Resize around the logo's center.
   function applySize(next: number) {
-    setSizePct(next);
     if (!activePreset || !garment || !logoCanvas || !layout) return;
     const fresh = layoutForPreset(activePreset, garment, logoCanvas.width, logoCanvas.height, next);
     const cx = layout.x + layout.width / 2;
     const cy = layout.y + layout.height / 2;
-    setLayout({ ...fresh, x: cx - fresh.width / 2, y: cy - fresh.height / 2 });
+    updatePanel({ sizePct: next, layout: { ...fresh, x: cx - fresh.width / 2, y: cy - fresh.height / 2 } });
   }
 
   function resetPlacement() {
     if (!activePreset || !garment || !logoCanvas) return;
-    setSizePct(100);
-    setLayout(layoutForPreset(activePreset, garment, logoCanvas.width, logoCanvas.height, 100));
+    updatePanel({
+      sizePct: 100,
+      layout: layoutForPreset(activePreset, garment, logoCanvas.width, logoCanvas.height, 100),
+    });
   }
 
   function nudge(dx: number, dy: number) {
@@ -310,39 +348,53 @@ export default function GarmentMockupTool() {
     },
     [layout, base]
   );
-  const onPointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    setLayout({
-      ...d.orig,
-      x: d.orig.x + (e.clientX - d.startX) * d.scale,
-      y: d.orig.y + (e.clientY - d.startY) * d.scale,
-    });
-  }, []);
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      const d = drag.current;
+      if (!d) return;
+      setLayout({
+        ...d.orig,
+        x: d.orig.x + (e.clientX - d.startX) * d.scale,
+        y: d.orig.y + (e.clientY - d.startY) * d.scale,
+      });
+    },
+    [setLayout]
+  );
   const endDrag = useCallback(() => {
     drag.current = null;
   }, []);
 
-  function download() {
-    if (!rendered || !activePreset) return;
-    const itemName =
-      source === "catalog" && product
-        ? `${product.styleNumber}-${color?.colorName ?? ""}`
-        : (activePreset.view === "side"
-            ? uploadSide
-            : activePreset.view === "back" && uploadBack
-              ? uploadBack
-              : uploadFront
-          )?.name.replace(/\.[^.]+$/, "") ?? "garment";
-    const logoName = logo?.name.replace(/\.[^.]+$/, "") ?? "logo";
-    rendered.toBlob((blob) => {
+  function itemNameFor(view: PlacementPreset["view"]): string {
+    if (source === "catalog" && product) return `${product.styleNumber}-${color?.colorName ?? ""}`;
+    const f = view === "side" ? uploadSide : view === "back" && uploadBack ? uploadBack : uploadFront;
+    return f?.name.replace(/\.[^.]+$/, "") ?? "garment";
+  }
+
+  function saveCanvas(c: HTMLCanvasElement, filename: string) {
+    c.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `mockup-${slug(logoName)}-${slug(itemName)}-${activePreset.id}.png`;
+      a.download = filename;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     }, "image/png");
+  }
+
+  const logoSlug = slug(logo?.name.replace(/\.[^.]+$/, "") ?? "logo");
+
+  function download() {
+    if (!rendered || !activePreset) return;
+    saveCanvas(rendered, `mockup-${logoSlug}-${slug(itemNameFor(activePreset.view))}-${activePreset.id}.png`);
+  }
+
+  function downloadCombined() {
+    if (!logoCanvas || panels.length < 2) return;
+    const views = panels.map((p) => renderMockup(p.base, logoCanvas, p.layout, { fabricBlend, raised }));
+    saveCanvas(
+      combineSideBySide(views),
+      `mockup-${logoSlug}-${slug(itemNameFor("front"))}-front-back.png`
+    );
   }
 
   // ---- UI -----------------------------------------------------------------
@@ -563,7 +615,22 @@ export default function GarmentMockupTool() {
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={() => setPlacementId(COMBO_ID)}
+              className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm ${
+                isCombo
+                  ? "border-admin-accent bg-admin-accent text-admin-accent-ink"
+                  : "border-admin-ink/30 hover:bg-admin-ink/10"
+              }`}
+            >
+              <span className="font-semibold">{combo.label}</span>
+              <span className="text-right text-xs opacity-70">{combo.hint}</span>
+            </button>
           </div>
+          {isCombo && source === "upload" && !uploadBack && (
+            <p className="mt-2 text-xs text-amber-200">Front + Back needs a back photo. Add one in step 1.</p>
+          )}
           <button type="button" disabled={!canGenerate || generating} onClick={generate} className={`${btnPrimary} mt-4 w-full`}>
             {generating ? "Generating…" : "Generate mockup"}
           </button>
@@ -585,6 +652,22 @@ export default function GarmentMockupTool() {
           </div>
         ) : (
           <>
+            {panels.length > 1 && (
+              <div className="mt-3 inline-flex self-start rounded-xl border border-admin-ink/30 p-1 text-sm">
+                {panels.map((p, i) => (
+                  <button
+                    key={p.preset.id}
+                    type="button"
+                    onClick={() => setActiveIdx(i)}
+                    className={`rounded-lg px-3 py-1.5 font-semibold ${
+                      i === activeIdx ? "bg-admin-accent text-admin-accent-ink" : "hover:bg-admin-ink/10"
+                    }`}
+                  >
+                    {p.preset.view === "back" ? "Back" : "Front"} · {p.preset.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {note && <p className="mt-2 text-xs text-amber-200">{note}</p>}
             <div className="mt-3 rounded-xl bg-white p-2">
               <canvas
@@ -653,8 +736,13 @@ export default function GarmentMockupTool() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <button type="button" className={btnPrimary} onClick={download}>
-                Download PNG
+              {panels.length > 1 && (
+                <button type="button" className={btnPrimary} onClick={downloadCombined}>
+                  Download front + back
+                </button>
+              )}
+              <button type="button" className={panels.length > 1 ? btnGhost : btnPrimary} onClick={download}>
+                {panels.length > 1 ? `Download ${activePreset?.view === "back" ? "back" : "front"} only` : "Download PNG"}
               </button>
               <button type="button" className={btnGhost} onClick={resetPlacement}>
                 Reset to {activePreset?.label}
