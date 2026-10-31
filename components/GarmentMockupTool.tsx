@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Product, ProductColor, ProductType } from "@/lib/types";
+import type { Product, ProductColor } from "@/lib/types";
+import type { MockupSearchResult } from "@/app/api/admin/mockup/search/route";
 import { productImageUrl, productPreviewImageUrl } from "@/lib/product-image";
 import {
   detectGarmentBounds,
@@ -18,18 +19,19 @@ import {
 
 // ---------------------------------------------------------------------------
 // Garment Mockup Tool (admin): blank photo + logo + placement → proof PNG.
-// Blank comes from an upload or from this site's own catalog (same SanMar +
-// custom products the storefront uses, with admin photo overrides applied).
+// Blank comes from an upload or from the FULL SanMar and S&S Activewear
+// catalogs (not the storefront's curated list) via /api/admin/mockup/*.
 // Placement must be chosen before Generate is enabled. After generating, the
 // logo can be dragged, resized and nudged before downloading.
 // ---------------------------------------------------------------------------
 
-const TYPE_TABS: { id: ProductType; label: string }[] = [
-  { id: "shirt", label: "T-Shirts" },
-  { id: "polo", label: "Polos" },
-  { id: "hat", label: "Hats" },
-  { id: "tumbler", label: "Tumblers" },
+type SupplierFilter = "all" | "sanmar" | "ss";
+const SUPPLIER_TABS: { id: SupplierFilter; label: string }[] = [
+  { id: "all", label: "All suppliers" },
+  { id: "sanmar", label: "SanMar" },
+  { id: "ss", label: "S&S Activewear" },
 ];
+const SOURCE_LABEL = { sanmar: "SanMar", ss: "S&S" } as const;
 
 type BlankSource = "upload" | "catalog";
 
@@ -53,14 +55,19 @@ export default function GarmentMockupTool() {
   const [source, setSource] = useState<BlankSource>("upload");
   const [uploadFront, setUploadFront] = useState<{ url: string; name: string } | null>(null);
   const [uploadBack, setUploadBack] = useState<{ url: string; name: string } | null>(null);
-  const [uploadIsHat, setUploadIsHat] = useState(false);
+  const [isHat, setIsHat] = useState(false);
 
-  const [catalogType, setCatalogType] = useState<ProductType>("shirt");
-  const [catalogs, setCatalogs] = useState<Partial<Record<ProductType, Product[]>>>({});
-  const [catalogErrors, setCatalogErrors] = useState<Partial<Record<ProductType, string>>>({});
-  const catalog = catalogs[catalogType] ?? null;
-  const catalogError = catalogErrors[catalogType] ?? null;
+  const [supplier, setSupplier] = useState<SupplierFilter>("all");
   const [search, setSearch] = useState("");
+  // Results are tagged with the query+supplier they answer, so a stale
+  // response never shows under a newer query.
+  const [searchState, setSearchState] = useState<{
+    key: string;
+    results: MockupSearchResult[];
+    errors: string[];
+  } | null>(null);
+  const [picked, setPicked] = useState<MockupSearchResult | null>(null);
+  const [productError, setProductError] = useState<string | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [productLoading, setProductLoading] = useState(false);
   const [color, setColor] = useState<ProductColor | null>(null);
@@ -85,50 +92,48 @@ export default function GarmentMockupTool() {
   const [raised, setRaised] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const productTypeForPresets: ProductType | "upload-hat" | "upload-garment" =
-    source === "catalog" ? product?.productType ?? catalogType : uploadIsHat ? "upload-hat" : "upload-garment";
-  const presets = useMemo(() => presetsFor(productTypeForPresets), [productTypeForPresets]);
+  const presets = useMemo(() => presetsFor(isHat ? "upload-hat" : "upload-garment"), [isHat]);
   // A placement that doesn't exist for the chosen item type counts as unset.
   const preset = presets.find((p) => p.id === placementId) ?? null;
 
 
-  // ---- catalog loading ----------------------------------------------------
+  // ---- full-catalog search (SanMar feed + S&S live API) -----------------
+  const query = search.trim();
+  const searchKey = `${supplier}::${query.toLowerCase()}`;
   useEffect(() => {
-    if (source !== "catalog" || catalogs[catalogType] || catalogErrors[catalogType]) return;
-    const type = catalogType;
-    fetch(`/api/catalog?type=${type}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data: Product[]) => setCatalogs((prev) => ({ ...prev, [type]: data })))
-      .catch(() =>
-        setCatalogErrors((prev) => ({ ...prev, [type]: "Couldn't load the catalog. Try again in a moment." }))
-      );
-  }, [source, catalogType, catalogs, catalogErrors]);
+    if (source !== "catalog" || query.length < 2) return;
+    const key = searchKey;
+    const t = setTimeout(() => {
+      fetch(`/api/admin/mockup/search?q=${encodeURIComponent(query)}&source=${supplier}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+        .then((d: { results: MockupSearchResult[]; errors: string[] }) =>
+          setSearchState({ key, results: d.results, errors: d.errors ?? [] })
+        )
+        .catch(() => setSearchState({ key, results: [], errors: ["Search failed — try again."] }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [source, query, supplier, searchKey]);
+  const searching = query.length >= 2 && searchState?.key !== searchKey;
+  const results = searchState?.key === searchKey ? searchState.results : [];
+  const searchErrors = searchState?.key === searchKey ? searchState.errors : [];
 
-  const filtered = useMemo(() => {
-    if (!catalog) return [];
-    const q = search.trim().toLowerCase();
-    if (!q) return catalog;
-    return catalog.filter((p) =>
-      `${p.styleNumber} ${p.brandName} ${p.productName}`.toLowerCase().includes(q)
-    );
-  }, [catalog, search]);
-
-  async function chooseProduct(p: Product) {
-    setProduct(p);
+  async function chooseProduct(r: MockupSearchResult) {
+    setPicked(r);
+    setProduct(null);
     setColor(null);
+    setProductError(null);
     setProductLoading(true);
     try {
-      // Single-product route applies any admin-uploaded photo overrides.
-      const r = await fetch(`/api/products/${encodeURIComponent(p.styleNumber)}`);
-      if (r.ok) {
-        const data = (await r.json()) as { product: Product };
-        setProduct(data.product);
-        setColor(data.product.colors[0] ?? null);
-      } else {
-        setColor(p.colors[0] ?? null);
-      }
-    } catch {
-      setColor(p.colors[0] ?? null);
+      const res = await fetch(
+        `/api/admin/mockup/product?source=${r.source}&style=${encodeURIComponent(r.styleNumber)}`
+      );
+      const data = (await res.json()) as { product?: Product; error?: string };
+      if (!res.ok || !data.product) throw new Error(data.error ?? "Couldn't load that style.");
+      setProduct(data.product);
+      setColor(data.product.colors[0] ?? null);
+      setIsHat(data.product.productType === "hat");
+    } catch (e) {
+      setProductError(e instanceof Error ? e.message : "Couldn't load that style.");
     } finally {
       setProductLoading(false);
     }
@@ -326,25 +331,17 @@ export default function GarmentMockupTool() {
                 accept="image/*"
                 onPick={setUploadBack}
               />
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={uploadIsHat} onChange={(e) => setUploadIsHat(e.target.checked)} />
-                This is a hat (shows hat placements)
-              </label>
             </div>
           ) : (
             <div className="mt-4 flex flex-col gap-3 text-sm">
               <div className="flex flex-wrap gap-1.5">
-                {TYPE_TABS.map((t) => (
+                {SUPPLIER_TABS.map((t) => (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => {
-                      setCatalogType(t.id);
-                      setProduct(null);
-                      setColor(null);
-                    }}
+                    onClick={() => setSupplier(t.id)}
                     className={`rounded-full px-3 py-1 text-xs font-semibold border ${
-                      catalogType === t.id
+                      supplier === t.id
                         ? "bg-admin-accent text-admin-accent-ink border-admin-accent"
                         : "border-admin-ink/30 hover:bg-admin-ink/10"
                     }`}
@@ -356,70 +353,115 @@ export default function GarmentMockupTool() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search style #, brand or name"
+                placeholder="Style # (e.g. ST640, K500, 112), brand or name"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
                 className="w-full rounded-xl border border-admin-ink/30 bg-transparent px-3 py-2 placeholder:text-admin-ink/50"
               />
-              {catalogError && <p className="text-red-300">{catalogError}</p>}
-              {!catalog && !catalogError && <p className="text-admin-ink/70">Loading catalog…</p>}
-              {catalog && (
-                <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto pr-1">
-                  {filtered.map((p) => (
-                    <button
-                      key={p.styleNumber}
-                      type="button"
-                      onClick={() => chooseProduct(p)}
-                      className={`rounded-xl border bg-white p-1 text-left text-[11px] leading-tight text-black ${
-                        product?.styleNumber === p.styleNumber ? "border-admin-accent ring-2 ring-admin-accent" : "border-transparent"
-                      }`}
-                      title={`${p.brandName} ${p.productName}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={p.heroImageIsOverride ? p.heroImageUrl : productPreviewImageUrl(p.heroImageUrl, p.heroImageFallbackUrl)}
-                        alt=""
-                        loading="lazy"
-                        className="aspect-square w-full object-contain"
-                      />
-                      <span className="mt-1 block font-semibold">{p.styleNumber}</span>
-                      <span className="block truncate text-black/60">{p.productName}</span>
-                    </button>
-                  ))}
-                  {filtered.length === 0 && <p className="col-span-3 text-admin-ink/70">No matches.</p>}
+              {query.length > 0 && query.length < 2 && (
+                <p className="text-admin-ink/70">Keep typing…</p>
+              )}
+              {searching && <p className="text-admin-ink/70">Searching the full catalog…</p>}
+              {searchErrors.map((e) => (
+                <p key={e} className="text-amber-200 text-xs">
+                  {e}
+                </p>
+              ))}
+              {!searching && query.length >= 2 && (
+                <div className="flex max-h-80 flex-col gap-1.5 overflow-y-auto pr-1">
+                  {results.map((r) => {
+                    const active = picked?.source === r.source && picked.styleNumber === r.styleNumber;
+                    return (
+                      <button
+                        key={`${r.source}-${r.styleNumber}`}
+                        type="button"
+                        onClick={() => chooseProduct(r)}
+                        className={`flex items-center gap-3 rounded-xl border p-1.5 text-left ${
+                          active
+                            ? "border-admin-accent bg-admin-ink/10 ring-2 ring-admin-accent"
+                            : "border-admin-ink/20 hover:bg-admin-ink/10"
+                        }`}
+                      >
+                        <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white">
+                          {r.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={productPreviewImageUrl(r.imageUrl)}
+                              alt=""
+                              loading="lazy"
+                              className="h-full w-full object-contain"
+                            />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-semibold">
+                            {r.styleNumber}{" "}
+                            <span className="ml-1 rounded bg-admin-ink/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                              {SOURCE_LABEL[r.source]}
+                            </span>
+                          </span>
+                          <span className="block truncate text-xs text-admin-ink/70">
+                            {r.brand} · {r.name}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {results.length === 0 && searchErrors.length === 0 && (
+                    <p className="text-admin-ink/70">No styles match “{query}”.</p>
+                  )}
                 </div>
               )}
-              {product && (
-                <div>
-                  <p className="font-semibold">
-                    {product.brandName} {product.styleNumber} · {product.productName}
-                  </p>
-                  {productLoading ? (
-                    <p className="text-admin-ink/70">Loading colors…</p>
-                  ) : (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {product.colors.map((c) => (
-                        <button
-                          key={c.colorName}
-                          type="button"
-                          onClick={() => setColor(c)}
-                          title={c.colorName}
-                          className={`h-7 w-7 overflow-hidden rounded-full border-2 ${
-                            color?.colorName === c.colorName ? "border-admin-accent" : "border-admin-ink/20"
-                          }`}
-                          style={{
-                            background:
-                              c.colorHexes.length > 1
-                                ? `linear-gradient(135deg, ${c.colorHexes[0]} 50%, ${c.colorHexes[1]} 50%)`
-                                : c.colorHexes[0] ?? "#ccc",
-                          }}
-                        />
-                      ))}
+              {productLoading && <p className="text-admin-ink/70">Loading colors…</p>}
+              {productError && <p className="text-red-300">{productError}</p>}
+              {product && !productLoading && (
+                <div className="rounded-xl border border-admin-ink/20 p-3">
+                  <div className="flex items-start gap-3">
+                    {color?.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={productImageUrl(color.imageUrl, color.imageFallbackUrl)}
+                        alt=""
+                        className="h-20 w-20 shrink-0 rounded-lg bg-white object-contain"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-semibold">
+                        {product.brandName} {product.styleNumber}
+                      </p>
+                      <p className="text-xs text-admin-ink/70">{product.productName}</p>
+                      {color && <p className="mt-1 text-xs">Color: {color.colorName}</p>}
                     </div>
-                  )}
-                  {color && <p className="mt-1 text-admin-ink/70">{color.colorName}</p>}
+                  </div>
+                  <div className="mt-3 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
+                    {product.colors.map((c) => (
+                      <button
+                        key={c.colorName}
+                        type="button"
+                        onClick={() => setColor(c)}
+                        title={c.colorName}
+                        aria-label={c.colorName}
+                        className={`h-7 w-7 overflow-hidden rounded-full border-2 ${
+                          color?.colorName === c.colorName ? "border-admin-accent" : "border-admin-ink/20"
+                        }`}
+                        style={{
+                          background:
+                            c.colorHexes.length > 1
+                              ? `linear-gradient(135deg, ${c.colorHexes[0]} 50%, ${c.colorHexes[1]} 50%)`
+                              : c.colorHexes[0] ?? "#ccc",
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           )}
+          <label className="mt-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={isHat} onChange={(e) => setIsHat(e.target.checked)} />
+            This is a hat (shows hat placements)
+          </label>
         </section>
 
         {/* Step 2 */}
