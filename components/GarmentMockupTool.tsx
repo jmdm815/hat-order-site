@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Product, ProductColor } from "@/lib/types";
+import { makeZip } from "@/lib/zip";
 import type { MockupSearchResult } from "@/app/api/admin/mockup/search/route";
 import { productImageUrl, productPreviewImageUrl } from "@/lib/product-image";
 import {
@@ -451,6 +452,62 @@ export default function GarmentMockupTool() {
     }
   }
 
+  function renderPanelBlob(p: Panel): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      if (!logoCanvas) return reject(new Error("No logo"));
+      renderMockup(p.base, logoCanvas, p.layout, { fabricBlend, raised }).toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("Couldn't create the image"))),
+        "image/png"
+      );
+    });
+  }
+
+  const [packing, setPacking] = useState<"zip" | "share" | null>(null);
+
+  // All views in ONE .zip download — works on phones, where several
+  // back-to-back downloads get dropped after the first.
+  async function downloadZip() {
+    setPacking("zip");
+    try {
+      const files = await Promise.all(panels.map(async (p) => ({ name: fileNameFor(p), blob: await renderPanelBlob(p) })));
+      const zip = await makeZip(files);
+      const style = source === "catalog" && product ? product.styleNumber : itemNameFor("front");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(zip);
+      a.download = `mockups-${logoSlug}-${slug(style)}.zip`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't build the zip.");
+    } finally {
+      setPacking(null);
+    }
+  }
+
+  // Phones: open the share sheet with every image ("Save N Images" puts
+  // them straight into Photos on iPhone).
+  const canShareFiles =
+    typeof navigator !== "undefined" &&
+    typeof navigator.canShare === "function" &&
+    navigator.canShare({ files: [new File([""], "x.png", { type: "image/png" })] });
+
+  async function shareAll() {
+    setPacking("share");
+    try {
+      const files = await Promise.all(
+        panels.map(async (p) => new File([await renderPanelBlob(p)], fileNameFor(p), { type: "image/png" }))
+      );
+      await navigator.share({ files, title: "Mockups" });
+    } catch (e) {
+      // Closing the share sheet isn't an error worth showing.
+      if (!(e instanceof DOMException && e.name === "AbortError")) {
+        setError("Couldn't open the share sheet. Use Download all (.zip) instead.");
+      }
+    } finally {
+      setPacking(null);
+    }
+  }
+
   // ---- UI -----------------------------------------------------------------
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
@@ -831,8 +888,16 @@ export default function GarmentMockupTool() {
             {panels.length > 1 ? (
               <div className="mt-5 flex flex-col gap-3 text-sm">
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" className={btnPrimary} onClick={downloadEachSeparately}>
-                    Download each separately ({panels.length} files)
+                  <button type="button" className={btnPrimary} disabled={packing !== null} onClick={downloadZip}>
+                    {packing === "zip" ? "Building zip…" : `Download all (.zip, ${panels.length} files)`}
+                  </button>
+                  {canShareFiles && (
+                    <button type="button" className={btnPrimary} disabled={packing !== null} onClick={shareAll}>
+                      {packing === "share" ? "Preparing…" : `Save / share all ${panels.length} images`}
+                    </button>
+                  )}
+                  <button type="button" className={btnGhost} onClick={downloadEachSeparately}>
+                    Download each separately
                   </button>
                   <button type="button" className={btnGhost} onClick={downloadCombined}>
                     Download all in one image
@@ -841,6 +906,7 @@ export default function GarmentMockupTool() {
                     Reset to {activePreset?.label}
                   </button>
                 </div>
+                {error && <p className="text-sm text-red-300">{error}</p>}
                 <div>
                   <p className="mb-1.5 text-xs text-admin-ink/70">Or download one view:</p>
                   <div className="flex flex-wrap gap-1.5">
