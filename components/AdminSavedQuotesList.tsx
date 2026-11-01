@@ -298,7 +298,21 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
         <p className="text-sm text-admin-ink/62">{emptyMessage}</p>
       ) : (
         <div className="border border-admin-ink/10 rounded-2xl bg-admin-card overflow-visible">
-          <table className="w-full text-sm border-collapse">
+          {/* Fixed-width columns (QT#, Units, Total, Status, Date, Actions)
+              add up to more than a phone-portrait viewport, so without this
+              the table used to overflow the rounded card uncontrolled —
+              rows' alternating backgrounds and the sticky header would spill
+              past the card's border and visually overlap the page behind
+              it. Scrolling the table itself (not the outer card, which
+              stays overflow-visible so the "⋯" row menu below can still
+              pop out past the card's edge) keeps the card's border/rounding
+              intact and matches every other admin table in this codebase
+              (see AdminDecorationTypesManager/AdminGarmentMarkupManager/
+              AdminQuoteBuilder, all of which already wrap their <table> in
+              an overflow-x-auto div). min-w-[640px] keeps columns from
+              getting crushed illegibly thin before the scrollbar kicks in. */}
+          <div className="overflow-x-auto rounded-2xl">
+          <table className="w-full min-w-[640px] text-sm border-collapse">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-admin-ink/50 border-b border-admin-ink/10">
                 <th className="font-medium px-3 py-2 w-24">{view === "invoices" ? "Inv #" : "QT #"}</th>
@@ -662,6 +676,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
