@@ -53,7 +53,7 @@ export const viewport: Viewport = {
   // notch/home-indicator safe areas instead of leaving a plain white
   // letterboxed bar on iPhones — see .pt-safe/.pb-safe in globals.css.
   viewportFit: "cover",
-  themeColor: "#212a44",
+  themeColor: "#1c2338",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

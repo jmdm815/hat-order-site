@@ -7,6 +7,7 @@ import AdminCategoriesManager from "@/components/AdminCategoriesManager";
 import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
 import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManager";
+import GarmentMockupTool from "@/components/GarmentMockupTool";
 import AdminQuotesTab from "@/components/AdminQuotesTab";
 import AdminJobsTab from "@/components/AdminJobsTab";
 import AdminTasksTab from "@/components/AdminTasksTab";
@@ -34,6 +35,7 @@ const DEFAULT_TABS = [
   { id: "setup-charges", label: "Setup Charges", icon: "🧾" },
   { id: "garment-markup", label: "Garment Markup", icon: "📈" },
   { id: "mockup-generator", label: "Mockup Generator", icon: "🎨" },
+  { id: "garment-mockup", label: "Garment Mockups", icon: "👕" },
 ] as const;
 
 type TabId = (typeof DEFAULT_TABS)[number]["id"];
@@ -290,6 +292,30 @@ export default function AdminDashboard() {
         )}
       </div>
 
+      {/* Persistent quick-switch strip (desktop only — the dropdown above
+          already covers mobile, plus renaming/icon-editing, so this is
+          purely an accelerator: every section one click away instead of
+          dropdown-open-then-click, without touching the editing logic
+          above). Horizontally scrollable in case more sections get added
+          later and it outgrows the available width. */}
+      <div className="hidden lg:flex items-center gap-1.5 mt-3 overflow-x-auto no-scrollbar">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+              t.id === tab
+                ? "bg-admin-accent text-admin-accent-ink border-admin-accent"
+                : "border-admin-ink/15 text-admin-ink/70 hover:bg-admin-ink/5 hover:border-admin-ink/30"
+            }`}
+          >
+            <span className="text-sm leading-none">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div className="mt-6">
         {tab === "categories" && (
           <>
@@ -429,6 +455,15 @@ export default function AdminDashboard() {
               later phase.
             </p>
             <AdminMockupGeneratorManager />
+          </>
+        )}
+        {tab === "garment-mockup" && (
+          <>
+            <p className="mb-4 text-admin-ink/80 text-sm">
+              Put a logo on a blank garment for customer proofs. Upload a blank photo or pick one
+              from the catalog, upload the logo, choose a placement, then generate and download.
+            </p>
+            <GarmentMockupTool />
           </>
         )}
       </div>

@@ -13,7 +13,7 @@ import { productPreviewImageUrl } from "@/lib/product-image";
 export default function CuratedProductCard({ product }: { product: CuratedProduct }) {
   const query = `?style=${encodeURIComponent(product.styleNumber)}&type=${product.productType}`;
   return (
-    <div className="group border-2 border-white/10 rounded-2xl bg-black overflow-hidden hover:border-red hover:shadow-md transition flex flex-col">
+    <div className="group border-2 border-white/10 rounded-2xl bg-black overflow-hidden shadow-sm shadow-black/40 hover:border-red hover:shadow-lg hover:shadow-black/50 hover:-translate-y-0.5 transition flex flex-col">
       <div className="relative w-full aspect-square bg-white/5 p-6">
         <Image
           src={

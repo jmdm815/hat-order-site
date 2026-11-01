@@ -51,13 +51,13 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
   const logoUrl = logoUrlProp ?? fetchedLogoUrl;
 
   return (
-    <header className="bg-navy sticky top-0 z-10 shadow-sm pt-safe">
-      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+    <header className="bg-navy sticky top-0 z-10 shadow-md shadow-black/20 border-b border-white/5 pt-safe">
+      <div className="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo can be an
               admin-uploaded Vercel Blob URL (see AdminLogoManager.tsx), so next/image's
               remotePatterns allowlist doesn't apply; this is a small fixed-size icon. */}
-          <img src={logoUrl} alt="JM Digital Media" width={40} height={40} className="rounded-2xl w-10 h-10 object-contain" />
+          <img src={logoUrl} alt="JM Digital Media" width={42} height={42} className="rounded-2xl w-[42px] h-[42px] object-contain transition group-hover:scale-105" />
           <span className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-tan uppercase">
             Custom Tees and Hats
           </span>
@@ -92,7 +92,11 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
                   </span>
                   {step.label}
                 </span>
-                {i < STEPS.length - 1 && <span className="w-4 h-px bg-white/25" />}
+                {i < STEPS.length - 1 && (
+                  <span
+                    className={`w-5 h-px ${i < current ? "bg-red/50" : "bg-white/20"}`}
+                  />
+                )}
               </li>
             ))}
           </ol>

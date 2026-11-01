@@ -60,14 +60,16 @@ export default function CatalogPage() {
   return (
     <>
       <StepHeader />
-      <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full bg-black">
-        <h1 className="text-2xl font-bold text-white">Choose your gear</h1>
-        <p className="mt-1 text-white/60 text-sm">
+      <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full min-h-[70vh]">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white font-heading uppercase tracking-tight">
+          Choose your gear
+        </h1>
+        <p className="mt-1.5 text-white/60 text-sm">
           Preset blanks pulled from our wholesale catalog (SanMar). Pick a style, then
           customize it on the next step.
         </p>
 
-        <div className="mt-5 flex gap-2">
+        <div className="mt-6 flex gap-2 flex-wrap">
           {(["hat", "shirt", "polo", "tumbler"] as const).map((t) => (
             <button
               key={t}
@@ -77,8 +79,8 @@ export default function CatalogPage() {
               }}
               className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
                 productType === t
-                  ? "bg-navy text-white border-white"
-                  : "border-white/20 text-white/70 hover:bg-white/5"
+                  ? "bg-red text-navy border-red shadow-sm shadow-red/30"
+                  : "border-white/20 text-white/70 hover:bg-white/5 hover:border-white/35"
               }`}
             >
               {tabLabel(t)}
@@ -86,15 +88,15 @@ export default function CatalogPage() {
           ))}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {categories.map((c) => (
             <button
               key={c}
               onClick={() => setCategory(c)}
               className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
                 category === c
-                  ? "bg-navy text-white border-white"
-                  : "border-white/20 text-white/70 hover:bg-white/5"
+                  ? "bg-white text-navy border-white font-semibold"
+                  : "border-white/15 text-white/60 hover:bg-white/5 hover:border-white/30"
               }`}
             >
               {c}
@@ -104,13 +106,19 @@ export default function CatalogPage() {
 
         {loading ? (
           <p className="mt-10 text-white/40 text-sm">Loading catalog…</p>
+        ) : filtered.length === 0 ? (
+          <div className="mt-10 text-center py-14 px-6 rounded-2xl border border-white/10 bg-black/40">
+            <p className="text-white/60 text-sm">
+              No styles in this category yet — try another tab above.
+            </p>
+          </div>
         ) : (
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {filtered.map((product) => (
               <Link
                 key={product.styleNumber}
                 href={`/customize?style=${product.styleNumber}&type=${product.productType}`}
-                className="group border-2 border-white/10 rounded-2xl bg-black overflow-hidden hover:border-red hover:shadow-md hover:-translate-y-0.5 transition"
+                className="group border-2 border-white/10 rounded-2xl bg-black overflow-hidden shadow-sm shadow-black/40 hover:border-red hover:shadow-lg hover:shadow-black/50 hover:-translate-y-0.5 transition"
               >
                 <div className="relative w-full aspect-square bg-white/5 p-6">
                   <Image

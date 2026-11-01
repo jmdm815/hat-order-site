@@ -13,45 +13,66 @@ export default async function HomePage() {
       <StepHeader logoUrl={logoUrl} />
 
       {/* Short hero */}
-      <section className="bg-navy text-white">
-        <div className="max-w-6xl mx-auto px-4 py-10 sm:py-14 text-center">
+      <section className="relative overflow-hidden bg-navy text-white">
+        {/* Subtle radial glow behind the logo instead of a flat navy field —
+            gives the hero some depth without introducing a new color. */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-70"
+          style={{
+            background:
+              "radial-gradient(60% 55% at 50% 0%, rgba(215,38,61,0.16) 0%, rgba(215,38,61,0) 70%)",
+          }}
+          aria-hidden
+        />
+        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- can be an
               admin-uploaded Vercel Blob URL; see StepHeader.tsx for why plain
               img is used instead of next/image here. */}
           <img
             src={logoUrl}
             alt="JM Digital Media"
-            width={72}
-            height={72}
-            className="mx-auto mb-4 object-contain"
+            width={84}
+            height={84}
+            className="mx-auto mb-5 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
           />
-          <h1 className="font-heading text-3xl sm:text-4xl font-extrabold uppercase">
+          <h1 className="font-heading text-3xl sm:text-5xl font-extrabold uppercase tracking-tight">
             Look the Part. <span className="text-red">Mean Business.</span>
           </h1>
-          <p className="mt-3 text-tan text-base max-w-xl mx-auto">
+          <p className="mt-4 text-tan text-base sm:text-lg max-w-xl mx-auto">
             Browse our curated gear below. Pick a product, then Design Now to
             build it yourself or Get Quote to see pricing instantly.
           </p>
-          <Link
-            href="/quote-builder"
-            className="mt-5 inline-block px-6 py-2.5 rounded-2xl border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition"
-          >
-            Or build a quote by decoration type →
-          </Link>
+          <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/catalog"
+              className="w-full sm:w-auto px-7 py-3 rounded-2xl bg-red text-navy text-sm font-bold uppercase tracking-wide shadow-lg shadow-red/20 hover:bg-white transition"
+            >
+              Browse the Catalog
+            </Link>
+            <Link
+              href="/quote-builder"
+              className="w-full sm:w-auto px-7 py-3 rounded-2xl border border-white/30 text-white text-sm font-semibold hover:bg-white/10 hover:border-white/50 transition"
+            >
+              Or build a quote by decoration type →
+            </Link>
+          </div>
         </div>
       </section>
 
       <main className="flex-1 bg-white/5 w-full">
         <div className="max-w-6xl mx-auto px-4 py-10">
           {categories.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-white/60">
-                The catalog is being set up — check back soon, or{" "}
-                <Link href="/catalog" className="text-red font-semibold hover:underline">
-                  browse the full catalog
-                </Link>
-                .
+            <div className="text-center py-16 px-6 rounded-2xl border border-white/10 bg-black/40">
+              <p className="text-white/70">
+                The catalog is being set up — check back soon, or browse
+                everything we carry now.
               </p>
+              <Link
+                href="/catalog"
+                className="mt-5 inline-block px-6 py-2.5 rounded-2xl bg-red text-navy text-sm font-bold hover:bg-white transition"
+              >
+                Browse the full catalog →
+              </Link>
             </div>
           ) : (
             <div className="space-y-12">
