@@ -40,7 +40,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${docNumber}-${fileNameSafe}.pdf"`,
+        // "inline" — see app/api/admin/quotes/[id]/pdf/route.ts's comment.
+        "Content-Disposition": `inline; filename="${docNumber}-${fileNameSafe}.pdf"`,
       },
     });
   } catch (err) {

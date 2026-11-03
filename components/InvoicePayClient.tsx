@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import InvoicePayForm, { InvoicePaymentMethod } from "./InvoicePayForm";
-import { responseToNamedObjectUrl } from "@/lib/client-download";
 
 type InvoiceSummary = {
   id: string;
@@ -161,36 +160,25 @@ export default function InvoicePayClient({ id }: { id: string }) {
     }
   }
 
-  // Opens a blank tab synchronously (before the fetch's `await`) so the
-  // browser treats it as a direct result of the click rather than blocking
-  // it as a popup — same fix applied to the admin PDF buttons
-  // (components/AdminQuoteBuilder.tsx's downloadPdf). Produces a standalone
-  // receipt for one specific entry in the payment-history list below (see
-  // app/api/pay/[id]/payments/[paymentId]/receipt-pdf/route.ts).
-  async function downloadPaymentReceipt(paymentId: string) {
+  // Opens a blank tab synchronously so the browser treats it as a direct
+  // result of the click rather than blocking it as a popup, then navigates
+  // it straight to the receipt route — see components/AdminQuoteBuilder.tsx's
+  // downloadPdf for why this is a real navigation rather than a
+  // fetch()-built Blob object URL (the route's own "inline; filename=..."
+  // Content-Disposition only reliably determines the saved filename on a
+  // real navigation; a fetch+Blob lost it entirely, which is what was
+  // still showing a random blob-id filename on save). Produces a
+  // standalone receipt for one specific entry in the payment-history list
+  // below (see app/api/pay/[id]/payments/[paymentId]/receipt-pdf/route.ts).
+  function downloadPaymentReceipt(paymentId: string) {
     setPaymentReceiptLoadingId(paymentId);
     setPaymentReceiptError(null);
-    const tab = window.open("", "_blank");
     try {
-      const res = await fetch(`/api/pay/${id}/payments/${paymentId}/receipt-pdf`);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setPaymentReceiptError(data.error || "Failed to load the receipt");
-        tab?.close();
-        return;
-      }
-      // Named from the response's Content-Disposition header instead of an
-      // anonymous Blob — see lib/client-download.ts.
-      const url = await responseToNamedObjectUrl(res, "receipt.pdf");
-      if (tab) {
-        tab.location.href = url;
-      } else {
-        window.open(url, "_blank");
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      const url = `/api/pay/${id}/payments/${paymentId}/receipt-pdf`;
+      const tab = window.open(url, "_blank");
+      if (!tab) window.open(url, "_blank");
     } catch {
-      setPaymentReceiptError("Failed to load the receipt — check your connection and try again.");
-      tab?.close();
+      setPaymentReceiptError("Failed to open the receipt — check your connection and try again.");
     } finally {
       setPaymentReceiptLoadingId(null);
     }

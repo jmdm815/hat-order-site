@@ -58,7 +58,8 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filePrefix}-${fileNameSafe}-${quote.quoteDate}${suffix}.pdf"`,
+        // "inline" — see app/api/admin/quotes/[id]/pdf/route.ts's comment.
+        "Content-Disposition": `inline; filename="${filePrefix}-${fileNameSafe}-${quote.quoteDate}${suffix}.pdf"`,
       },
     });
   } catch (err) {

@@ -2025,38 +2025,48 @@ export default function AdminQuoteBuilder({
     const recordId = opts?.recordId ?? activeRecord?.id;
     setPdfLoading(opts?.loadingKey ?? mode);
     setQuoteError(null);
-    // Open the tab synchronously, in direct response to the click, and
-    // navigate it to the PDF once it's ready — opening it only after the
-    // `await` below (or just setting a.download on a same-tab anchor, which
-    // mobile Safari largely ignores) is what was actually navigating the
-    // admin's current tab away to view the PDF instead of leaving it open
-    // in a new one. Most desktop/mobile browsers allow a synchronous
-    // window.open() from a click handler even though this function is
-    // async; a null return (popup blocked) falls back to opening it once
-    // the blob is ready instead.
+    // Open the tab synchronously, in direct response to the click — doing
+    // this only after an `await` below (or using a.download on a same-tab
+    // anchor, which mobile Safari largely ignores) is what was actually
+    // navigating the admin's current tab away instead of leaving the PDF
+    // open in a new one.
     const tab = window.open("", "_blank");
     try {
-      // A saved record renders from its stored pricing snapshot (so the
-      // document matches what was actually saved, and invoice mode has the
-      // invoice number/payment status to show) — an unsaved quote falls
-      // back to the ad-hoc compute-and-render endpoint.
-      const res = recordId
-        ? await fetch(`/api/admin/quotes/${recordId}/pdf?mode=${mode}`)
-        : await fetch("/api/admin/quote/pdf", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...buildQuoteInput(), mode }),
-          });
+      if (recordId) {
+        // A saved record: navigate the tab straight to the PDF route
+        // instead of fetching it here and building a Blob object URL. The
+        // route's own Content-Disposition ("inline; filename=...") is what
+        // actually determines the saved filename once the admin does
+        // Save As/download from that tab — a real navigation honors it
+        // natively, where a fetch()-built Blob loses it entirely (the
+        // "wrap it in a File" workaround some browsers use for Blob URLs
+        // isn't reliably honored by every browser's own PDF viewer/Save
+        // As, which is why this still showed a random blob-id filename).
+        // Cookies go along automatically since it's same-origin.
+        if (tab) {
+          tab.location.href = `/api/admin/quotes/${recordId}/pdf?mode=${mode}`;
+        } else {
+          window.open(`/api/admin/quotes/${recordId}/pdf?mode=${mode}`, "_blank");
+        }
+        return;
+      }
+      // An unsaved quote has no saved record to navigate to — falls back
+      // to the ad-hoc compute-and-render endpoint, which needs a POST body
+      // and so can't be reached by a plain tab navigation. Named from the
+      // response's own Content-Disposition header via a File-wrapped Blob
+      // instead (see lib/client-download.ts) — not as reliable as a real
+      // navigation, but this path is just a quick, not-yet-saved preview.
+      const res = await fetch("/api/admin/quote/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...buildQuoteInput(), mode }),
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setQuoteError(data.error || "Failed to generate PDF");
         tab?.close();
         return;
       }
-      // Named from the response's own Content-Disposition header (e.g.
-      // "INV-0008-maddie-rusling-2026-11-02.pdf") instead of an anonymous
-      // Blob, so "Save As" on the opened tab proposes that name rather
-      // than the object URL's random id — see lib/client-download.ts.
       const url = await responseToNamedObjectUrl(res, "document.pdf");
       if (tab) {
         tab.location.href = url;

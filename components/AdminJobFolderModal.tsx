@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { QuoteRecord } from "@/lib/quotes-store";
 import { itemPhotoUrl } from "@/lib/item-photo";
-import { responseToNamedObjectUrl } from "@/lib/client-download";
 
 type Props = {
   record: QuoteRecord;
@@ -225,33 +224,19 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     }
   }
 
-  // Same open-tab-synchronously pattern used throughout the admin PDF/receipt
-  // buttons (see components/AdminQuoteBuilder.tsx's downloadPdf) — opens the
-  // tab before the `await` so the browser treats it as a direct result of
-  // the click instead of blocking it as a popup.
-  async function downloadJobFolder() {
+  // Opens a blank tab synchronously so the browser treats it as a direct
+  // result of the click instead of blocking it as a popup, then navigates
+  // it straight to the PDF route — see components/AdminQuoteBuilder.tsx's
+  // downloadPdf for why this is a real navigation rather than a
+  // fetch()-built Blob object URL (the route's own "inline; filename=..."
+  // Content-Disposition only reliably determines the saved filename on a
+  // real navigation).
+  function downloadJobFolder() {
     setDownloading(true);
-    const tab = window.open("", "_blank");
-    try {
-      const res = await fetch(`/api/admin/quotes/${record.id}/job-folder/pdf`);
-      if (!res.ok) {
-        tab?.close();
-        return;
-      }
-      // Named from the response's Content-Disposition header instead of an
-      // anonymous Blob — see lib/client-download.ts.
-      const url = await responseToNamedObjectUrl(res, "job-folder.pdf");
-      if (tab) {
-        tab.location.href = url;
-      } else {
-        window.open(url, "_blank");
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
-      tab?.close();
-    } finally {
-      setDownloading(false);
-    }
+    const url = `/api/admin/quotes/${record.id}/job-folder/pdf`;
+    const tab = window.open(url, "_blank");
+    if (!tab) window.open(url, "_blank");
+    setDownloading(false);
   }
 
   return (

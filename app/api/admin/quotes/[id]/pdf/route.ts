@@ -51,7 +51,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filePrefix}-${fileNameSafe}-${record.computed.quoteDate}${suffix}.pdf"`,
+        // "inline" (not "attachment") — the tab this is opened in renders
+        // the PDF instead of force-downloading it, but the filename is
+        // still what the browser's own "Save As"/download action in that
+        // viewer proposes. This is what actually determines the saved
+        // filename on a real navigation (vs. the client's own earlier
+        // fetch+Blob approach, whose "File" wrapper trick several browsers
+        // don't actually honor — see lib/client-download.ts and each
+        // downloadPdf's comment for why they navigate here directly now).
+        "Content-Disposition": `inline; filename="${filePrefix}-${fileNameSafe}-${record.computed.quoteDate}${suffix}.pdf"`,
       },
     });
   } catch (err) {

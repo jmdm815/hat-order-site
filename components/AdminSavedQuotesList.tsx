@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { QuoteRecord, InvoicePaymentStatus, DELETED_RETENTION_DAYS } from "@/lib/quotes-store";
-import { responseToNamedObjectUrl } from "@/lib/client-download";
 import AdminInvoicePaymentModal from "./AdminInvoicePaymentModal";
 import AdminSendDocumentModal from "./AdminSendDocumentModal";
 import AdminJobFolderModal from "./AdminJobFolderModal";
@@ -34,33 +33,18 @@ const STATUS_CLASS: Record<InvoicePaymentStatus, string> = {
   paid: "bg-green-100 text-green-800",
 };
 
-// Opens a blank tab synchronously (before the fetch's `await`) so the
-// browser treats it as a direct result of the click and doesn't block it as
-// a popup, then navigates that tab to the PDF once it's ready — matching the
-// fix in components/AdminQuoteBuilder.tsx's downloadPdf. Opening the tab only
-// after the await (or relying on an anchor's `download` attribute, which
-// mobile Safari largely ignores) is what was navigating the admin's current
-// tab away to view the PDF instead of leaving it open in a new one.
-async function downloadPdf(id: string, mode: string) {
-  const tab = window.open("", "_blank");
-  try {
-    const res = await fetch(`/api/admin/quotes/${id}/pdf?mode=${mode}`);
-    if (!res.ok) {
-      tab?.close();
-      return;
-    }
-    // Named from the response's Content-Disposition header instead of an
-    // anonymous Blob — see lib/client-download.ts.
-    const url = await responseToNamedObjectUrl(res, "document.pdf");
-    if (tab) {
-      tab.location.href = url;
-    } else {
-      window.open(url, "_blank");
-    }
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  } catch {
-    tab?.close();
-  }
+// Opens a blank tab synchronously (before anything else) so the browser
+// treats it as a direct result of the click and doesn't block it as a
+// popup, then navigates that tab straight to the PDF route — see
+// components/AdminQuoteBuilder.tsx's downloadPdf for why this is a real
+// navigation rather than a fetch()-built Blob object URL: the route's own
+// "inline; filename=..." Content-Disposition is what determines the saved
+// filename once Save As/download is used from that tab, and only a real
+// navigation reliably honors it.
+function downloadPdf(id: string, mode: string) {
+  const url = `/api/admin/quotes/${id}/pdf?mode=${mode}`;
+  const tab = window.open(url, "_blank");
+  if (!tab) window.open(url, "_blank");
 }
 
 function daysLeft(deletedAt: string): number {

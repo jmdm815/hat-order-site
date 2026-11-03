@@ -77,7 +77,15 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="receipt-${dateSafe}-${fileNameSafe}.pdf"`,
+        // "inline" — see app/api/admin/quotes/[id]/pdf/route.ts's comment.
+        // This route is reached two ways: a plain <a href target="_blank">
+        // link in AdminInvoicePaymentModal.tsx's payment-history list (an
+        // "inline" PDF just opens in that tab instead of force-downloading
+        // — still saves with this filename either way), and the customer
+        // pay page's own fetch-based downloadPaymentReceipt, which now
+        // navigates a tab to this URL directly for the same reason the
+        // admin PDF buttons do — see components/InvoicePayClient.tsx.
+        "Content-Disposition": `inline; filename="receipt-${dateSafe}-${fileNameSafe}.pdf"`,
       },
     });
   } catch (err) {
