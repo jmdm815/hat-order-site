@@ -470,7 +470,13 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                               <button
                                 onClick={() => {
                                   setOpenMenuId(null);
-                                  downloadPdf(r.id, "customer");
+                                  // Reflects what this row actually is —
+                                  // "customer" mode alone always rendered a
+                                  // Quote-titled PDF, even for an invoice
+                                  // row; "invoice" mode is the dedicated
+                                  // invoice renderer (same one the old,
+                                  // now-removed "Invoice" button below used).
+                                  downloadPdf(r.id, r.status === "invoice" ? "invoice" : "customer");
                                 }}
                                 className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
                               >
@@ -590,26 +596,29 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                               ) : (
                                 <>
                                   {r.linkedQuoteId && (
-                                    <button
-                                      onClick={() => {
-                                        setOpenMenuId(null);
-                                        onEdit(r.linkedQuoteId!);
-                                      }}
-                                      className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
-                                      title="Open the quote this invoice was created from"
-                                    >
-                                      View quote
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          onEdit(r.linkedQuoteId!);
+                                        }}
+                                        className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
+                                        title="Open the quote this invoice was created from"
+                                      >
+                                        View quote
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          downloadPdf(r.linkedQuoteId!, "customer");
+                                        }}
+                                        className="w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10"
+                                        title={`Download the original quote ${r.linkedQuoteNumber ?? ""} this invoice was converted from`}
+                                      >
+                                        Quote PDF
+                                      </button>
+                                    </>
                                   )}
-                                  <button
-                                    onClick={() => {
-                                      setOpenMenuId(null);
-                                      downloadPdf(r.id, "invoice");
-                                    }}
-                                    className="w-full text-left text-xs px-3 py-1.5 text-green-400 hover:bg-admin-ink/10"
-                                  >
-                                    Invoice
-                                  </button>
                                   {r.invoiceStatus !== "paid" && (
                                     <button
                                       onClick={() => {

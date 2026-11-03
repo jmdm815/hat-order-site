@@ -727,7 +727,10 @@ export default function AdminQuoteBuilder({
   const [quote, setQuote] = useState<ComputedQuote | null>(() => initialRecord?.computed ?? null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
-  const [pdfLoading, setPdfLoading] = useState<PdfMode | null>(null);
+  // Normally a PdfMode, but "linked-quote" marks the separate "Download
+  // quote PDF" button below (for an invoice that was converted from a
+  // quote) so its own spinner doesn't collide with the main PDF buttons'.
+  const [pdfLoading, setPdfLoading] = useState<PdfMode | "linked-quote" | null>(null);
   const [sendModalOpen, setSendModalOpen] = useState(false);
 
   // The saved record currently loaded into the builder, if any — null means
@@ -2013,8 +2016,13 @@ export default function AdminQuoteBuilder({
     };
   }, []);
 
-  async function downloadPdf(mode: PdfMode) {
-    setPdfLoading(mode);
+  // `recordId`/`loadingKey` let this also download a DIFFERENT saved
+  // record's PDF (the linked quote an invoice was converted from — see the
+  // "Download quote PDF" button below) while still defaulting to the
+  // record currently open in the builder.
+  async function downloadPdf(mode: PdfMode, opts?: { recordId?: string; loadingKey?: PdfMode | "linked-quote" }) {
+    const recordId = opts?.recordId ?? activeRecord?.id;
+    setPdfLoading(opts?.loadingKey ?? mode);
     setQuoteError(null);
     // Open the tab synchronously, in direct response to the click, and
     // navigate it to the PDF once it's ready — opening it only after the
@@ -2031,8 +2039,8 @@ export default function AdminQuoteBuilder({
       // document matches what was actually saved, and invoice mode has the
       // invoice number/payment status to show) — an unsaved quote falls
       // back to the ad-hoc compute-and-render endpoint.
-      const res = activeRecord
-        ? await fetch(`/api/admin/quotes/${activeRecord.id}/pdf?mode=${mode}`)
+      const res = recordId
+        ? await fetch(`/api/admin/quotes/${recordId}/pdf?mode=${mode}`)
         : await fetch("/api/admin/quote/pdf", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2260,14 +2268,42 @@ export default function AdminQuoteBuilder({
                   <div className="h-px bg-admin-ink/10 my-1" />
                   <button
                     onClick={() => {
-                      downloadPdf("customer");
+                      // Reflects whatever this record actually is — an
+                      // invoice always downloads as an invoice (mode
+                      // "invoice"; the server only honors that mode once
+                      // record.status is "invoice", same guard as before),
+                      // a quote always downloads as a quote (mode
+                      // "customer"). Previously this always used "customer"
+                      // mode, which rendered a Quote-titled PDF even while
+                      // editing an invoice.
+                      downloadPdf(isInvoice ? "invoice" : "customer");
                       setMoreMenuOpen(false);
                     }}
                     disabled={pdfLoading !== null}
                     className="w-full text-left text-sm text-admin-ink/94 px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5 disabled:opacity-40"
                   >
-                    {pdfLoading === "customer" ? "Generating…" : "Download customer PDF"}
+                    {pdfLoading === "customer" || pdfLoading === "invoice"
+                      ? "Generating…"
+                      : isInvoice
+                        ? "Download customer PDF (invoice)"
+                        : "Download customer PDF (quote)"}
                   </button>
+                  {activeRecord.status === "invoice" && activeRecord.linkedQuoteId && (
+                    <button
+                      onClick={() => {
+                        downloadPdf("customer", {
+                          recordId: activeRecord.linkedQuoteId,
+                          loadingKey: "linked-quote",
+                        });
+                        setMoreMenuOpen(false);
+                      }}
+                      disabled={pdfLoading !== null}
+                      className="w-full text-left text-sm text-admin-ink/94 px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5 disabled:opacity-40"
+                      title={`Download the original quote ${activeRecord.linkedQuoteNumber ?? ""} this invoice was converted from`}
+                    >
+                      {pdfLoading === "linked-quote" ? "Generating…" : "Download quote PDF"}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       downloadPdf("internal");
@@ -2288,18 +2324,6 @@ export default function AdminQuoteBuilder({
                   >
                     {pdfLoading === "work-order" ? "Generating…" : "Download work order"}
                   </button>
-                  {activeRecord.status === "invoice" && (
-                    <button
-                      onClick={() => {
-                        downloadPdf("invoice");
-                        setMoreMenuOpen(false);
-                      }}
-                      disabled={pdfLoading !== null}
-                      className="w-full text-left text-sm text-green-500 px-2.5 py-1.5 rounded-xl hover:bg-admin-ink/5 disabled:opacity-40"
-                    >
-                      {pdfLoading === "invoice" ? "Generating…" : "Download invoice PDF"}
-                    </button>
-                  )}
                   <div className="h-px bg-admin-ink/10 my-1" />
                   {copyMenuOpen ? (
                     <div className="px-2.5 py-1.5">
