@@ -13,6 +13,11 @@ type InvoiceSummary = {
   customerCompany?: string;
   customerEmail?: string;
   quoteDate: string;
+  // Invoice-only (see lib/quote.ts's QuoteInput.dueDate) — the API never
+  // sends this for a plain quote. Undefined means no due date was set, in
+  // which case the "Dates" card below just shows the invoice date alone —
+  // this page never guesses or defaults one.
+  dueDate?: string;
   lines: Array<{
     description: string;
     colorName?: string;
@@ -54,6 +59,28 @@ type InvoiceSummary = {
 function money(n: number): string {
   return `$${n.toFixed(2)}`;
 }
+
+// "Mon, 11/02/2026" — matches the reference "Dates" card layout this
+// section was designed from. Dates are stored as plain "YYYY-MM-DD" (no
+// time), so parsing with an explicit midnight avoids the UTC-vs-local
+// off-by-one day that `new Date("2026-11-02")` alone is prone to.
+function formatDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const weekday = d.toLocaleDateString(undefined, { weekday: "short" });
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${weekday}, ${mm}/${dd}/${d.getFullYear()}`;
+}
+
+// Calm, non-alarming labels for the de-emphasized status tag near the top
+// of the page — deliberately never says "overdue," even once a due date has
+// passed, matching how the admin asked this to read.
+const STATUS_LABEL: Record<string, string> = {
+  unpaid: "Unpaid",
+  partially_paid: "Partially paid",
+  paid: "Paid",
+};
 
 // Client half of the public, permanent pay page (app/pay/[id]/page.tsx) —
 // one single URL per quote or invoice that never changes. Loads the
@@ -199,6 +226,13 @@ export default function InvoicePayClient({ id }: { id: string }) {
             : invoice.status === "invoice"
               ? "Invoice"
               : "Quote"}
+        {/* De-emphasized status tag — same quiet, small-caps treatment as
+            the invoice/quote number next to it, not a bold centered red
+            banner. Only invoices carry invoiceStatus; a plain quote shows
+            nothing here. Never reads "overdue," even past the due date. */}
+        {invoice.status === "invoice" && invoice.invoiceStatus && (
+          <span className="text-white/30"> · {STATUS_LABEL[invoice.invoiceStatus] ?? invoice.invoiceStatus}</span>
+        )}
       </p>
       <h1 className="text-2xl font-bold text-white mt-1">
         {invoice.customerCompany || invoice.customerName || "Your invoice"}
@@ -206,6 +240,33 @@ export default function InvoicePayClient({ id }: { id: string }) {
       {invoice.customerCompany && invoice.customerName && (
         <p className="text-sm text-white/60">{invoice.customerName}</p>
       )}
+
+      {/* "Dates" card — invoice date always shown; due date only once the
+          admin has set one (invoice-only, see InvoiceSummary.dueDate). */}
+      <div className="mt-6 bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+        <p className="text-xs font-medium text-white/50 uppercase tracking-wide mb-3">Dates</p>
+        <div className="relative space-y-4">
+          {invoice.dueDate && (
+            <span className="absolute left-[3px] top-2 bottom-2 w-px bg-white/15" aria-hidden="true" />
+          )}
+          <div className="relative flex items-start gap-3">
+            <span className="relative z-10 mt-1 h-[7px] w-[7px] rounded-full bg-white/40 shrink-0" />
+            <div>
+              <p className="text-xs text-white/50">{invoice.status === "invoice" ? "Invoice Date" : "Quote Date"}</p>
+              <p className="text-sm text-white font-medium">{formatDate(invoice.quoteDate)}</p>
+            </div>
+          </div>
+          {invoice.dueDate && (
+            <div className="relative flex items-start gap-3">
+              <span className="relative z-10 mt-1 h-[7px] w-[7px] rounded-full bg-white/40 shrink-0" />
+              <div>
+                <p className="text-xs text-white/50">Due Date</p>
+                <p className="text-sm text-white font-medium">{formatDate(invoice.dueDate)}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="mt-6 bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden">
         <div className="divide-y divide-white/5">
@@ -254,7 +315,10 @@ export default function InvoicePayClient({ id }: { id: string }) {
           </div>
           <div className="flex justify-between pt-1.5 border-t border-white/10">
             <span className="font-semibold text-white">Balance</span>
-            <span className={`font-bold ${paidInFull ? "text-green-700" : "text-red"}`}>
+            {/* Neutral either way — no red for an unpaid/partial balance.
+                The status word itself (Unpaid / Partially paid) lives in the
+                quiet tag up top, not here. */}
+            <span className={`font-bold ${paidInFull ? "text-green-400" : "text-white"}`}>
               {money(invoice.balance)}
             </span>
           </div>

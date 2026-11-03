@@ -41,6 +41,7 @@ type CustomerInvoiceSummary = {
   customerCompany?: string;
   customerEmail?: string;
   quoteDate: string;
+  dueDate?: string;
   lines: Array<{
     description: string;
     colorName?: string;
@@ -97,6 +98,9 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
     customerCompany: record.computed.customerCompany,
     customerEmail: record.computed.customerEmail,
     quoteDate: record.computed.quoteDate,
+    // Invoice-only (see lib/quote.ts's QuoteInput.dueDate) — never surfaced
+    // for a plain quote, even if one somehow had it set.
+    dueDate: record.status === "invoice" ? record.computed.dueDate : undefined,
     lines: record.computed.lines.map((l) => ({
       description: l.customerSupplied
         ? l.itemDescription || "Customer-supplied item"

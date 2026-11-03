@@ -577,6 +577,12 @@ export default function AdminQuoteBuilder({
   );
   const [customerEmail, setCustomerEmail] = useState(() => initialRecord?.input.customerEmail ?? "");
   const [quoteDate, setQuoteDate] = useState(() => initialRecord?.input.quoteDate ?? todayIso());
+  // Invoice-only (see lib/quote.ts's QuoteInput.dueDate) — never set on a
+  // quote, so this just stays "" and is omitted from buildQuoteInput()
+  // below whenever isInvoice is false. No default: an invoice with no due
+  // date set just doesn't show one, rather than silently assuming "today"
+  // or some fixed number of days out.
+  const [dueDate, setDueDate] = useState(() => initialRecord?.input.dueDate ?? "");
   const [notes, setNotes] = useState(() => initialRecord?.input.notes ?? "");
   // Payment terms — 100 means "pay in full" (the common case); anything
   // less is a deposit-now / balance-later split (most often 50-50). See
@@ -728,6 +734,12 @@ export default function AdminQuoteBuilder({
   // "unsaved, brand-new quote." Set at mount from initialRecord, or by a
   // successful save/update/convert.
   const [activeRecord, setActiveRecord] = useState<QuoteRecord | null>(initialRecord ?? null);
+  // Whether this is (or will become) an invoice rather than a quote —
+  // drives the "Due date" field below, which only invoices get. A saved
+  // record's own status wins once one exists (quote -> invoice conversion
+  // can't happen mid-edit here); a brand-new, not-yet-saved record goes by
+  // which "+ New quote"/"+ New invoice" button started it (createAs).
+  const isInvoice = activeRecord ? activeRecord.status === "invoice" : createAs === "invoice";
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
@@ -1872,6 +1884,7 @@ export default function AdminQuoteBuilder({
       customerCompany: customerCompany || undefined,
       customerEmail: customerEmail || undefined,
       quoteDate,
+      dueDate: isInvoice && dueDate ? dueDate : undefined,
       notes: notes || undefined,
       depositPercent: depositPercent < 100 ? depositPercent : undefined,
       taxRatePercent: taxRatePercent > 0 ? taxRatePercent : undefined,
@@ -2404,7 +2417,7 @@ export default function AdminQuoteBuilder({
             />
           </label>
           <label className="text-xs text-admin-ink/80">
-            Quote date
+            {isInvoice ? "Invoice date" : "Quote date"}
             <input
               type="date"
               value={quoteDate}
@@ -2412,6 +2425,17 @@ export default function AdminQuoteBuilder({
               className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
+          {isInvoice && (
+            <label className="text-xs text-admin-ink/80">
+              Due date (optional)
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+              />
+            </label>
+          )}
         </div>
         <label className="block text-xs text-admin-ink/80 mt-3">
           Notes (optional, printed on the PDF)

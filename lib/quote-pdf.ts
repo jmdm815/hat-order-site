@@ -356,9 +356,15 @@ export async function renderQuotePdf(
               value:
                 invoiceMeta?.invoiceStatus === "paid"
                   ? "Paid"
-                  : invoiceMeta?.invoiceStatus === "partially_paid"
-                    ? "Balance due"
-                    : "Due on receipt",
+                  // A due date (lib/quote.ts's QuoteInput.dueDate, admin-set
+                  // on invoices only) takes priority over the generic
+                  // "Balance due"/"Due on receipt" wording once there is
+                  // one, same as the pay page's "Dates" card.
+                  : quote.dueDate
+                    ? `Due ${formatDate(quote.dueDate)}`
+                    : invoiceMeta?.invoiceStatus === "partially_paid"
+                      ? "Balance due"
+                      : "Due on receipt",
             },
             { label: "Invoice #", value: invoiceMeta?.invoiceNumber || "—" },
           ]

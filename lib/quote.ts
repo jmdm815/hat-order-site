@@ -109,6 +109,14 @@ export type QuoteInput = {
   customerCompany?: string;
   customerEmail?: string;
   quoteDate?: string; // ISO date; defaults to today if absent
+  // Invoice-only — a quote never has (or shows) a due date. See
+  // components/AdminQuoteBuilder.tsx's "Due date" field, which only renders
+  // when editing an invoice, and components/InvoicePayClient.tsx's "Dates"
+  // card, which only shows this line once set. Undefined means "no due
+  // date set" (not "due today") — the pay page never infers or defaults
+  // one, so older invoices created before this field existed just don't
+  // show a due date until an admin adds one.
+  dueDate?: string; // ISO date
   notes?: string;
   lines: QuoteLineInput[];
   // Ids of named, flat setup/digitization charges (see
@@ -212,6 +220,7 @@ export type ComputedQuote = {
   customerCompany?: string;
   customerEmail?: string;
   quoteDate: string;
+  dueDate?: string; // see QuoteInput.dueDate
   notes?: string;
   lines: QuoteLineResult[];
   setupCharges: QuoteSetupCharge[]; // itemized, quote-wide (not tied to any decoration)
@@ -591,6 +600,7 @@ export function computeQuote(
     customerCompany: input.customerCompany,
     customerEmail: input.customerEmail,
     quoteDate: input.quoteDate ?? new Date().toISOString().slice(0, 10),
+    dueDate: input.dueDate,
     notes: input.notes,
     lines,
     setupCharges,
