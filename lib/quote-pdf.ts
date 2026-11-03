@@ -33,7 +33,6 @@ import { getBrandSettings } from "./pricing-store";
 const NAVY = "#292e45";
 const RED = "#cd2229";
 const GREEN = "#1a7f37";
-const AMBER = "#b8860b";
 const CREAM = "#f7f5f1";
 const GRAY = "#666666";
 const BORDER = "#c7c2b8";
@@ -147,14 +146,19 @@ function drawTitleBar(
   left: number,
   pageWidth: number,
   title: string,
-  columns: { label: string; value: string }[]
+  // subLabel/subValue stack a second label+value underneath a column's
+  // main one, in the same column slot — used for "Due Date" underneath
+  // "Invoice Date" (see the invoice barColumns below) rather than as its
+  // own separate column.
+  columns: { label: string; value: string; subLabel?: string; subValue?: string }[]
 ): void {
   doc.moveDown(0.9);
   doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(22).text(title, left, doc.y, { width: pageWidth });
   doc.moveDown(0.5);
 
+  const hasSubRow = columns.some((col) => col.subLabel);
   const barY = doc.y;
-  const barH = 34;
+  const barH = hasSubRow ? 58 : 34;
   doc.rect(left, barY, pageWidth, barH).fill(BAR_BG);
   const colW = pageWidth / columns.length;
   columns.forEach((col, i) => {
@@ -164,6 +168,10 @@ function drawTitleBar(
     }
     doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7).text(col.label.toUpperCase(), cx + 10, barY + 6, { width: colW - 20 });
     doc.fillColor(NAVY).font("Helvetica").fontSize(9.5).text(col.value, cx + 10, barY + 17, { width: colW - 20 });
+    if (col.subLabel) {
+      doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7).text(col.subLabel.toUpperCase(), cx + 10, barY + 32, { width: colW - 20 });
+      doc.fillColor(NAVY).font("Helvetica").fontSize(9.5).text(col.subValue ?? "", cx + 10, barY + 43, { width: colW - 20 });
+    }
   });
   doc.y = barY + barH;
   doc.moveDown(0.7);
@@ -350,21 +358,23 @@ export async function renderQuotePdf(
         ]
       : invoice
         ? [
-            { label: "Invoice Date", value: formatDate(quote.quoteDate) },
+            {
+              label: "Invoice Date",
+              value: formatDate(quote.quoteDate),
+              // Due date (lib/quote.ts's QuoteInput.dueDate, admin-set on
+              // invoices only) stacks right under the invoice date in this
+              // same column instead of overriding the generic "Terms" text
+              // below — only shown once the admin has actually set one.
+              ...(quote.dueDate ? { subLabel: "Due Date", subValue: formatDate(quote.dueDate) } : {}),
+            },
             {
               label: "Terms",
               value:
                 invoiceMeta?.invoiceStatus === "paid"
                   ? "Paid"
-                  // A due date (lib/quote.ts's QuoteInput.dueDate, admin-set
-                  // on invoices only) takes priority over the generic
-                  // "Balance due"/"Due on receipt" wording once there is
-                  // one, same as the pay page's "Dates" card.
-                  : quote.dueDate
-                    ? `Due ${formatDate(quote.dueDate)}`
-                    : invoiceMeta?.invoiceStatus === "partially_paid"
-                      ? "Balance due"
-                      : "Due on receipt",
+                  : invoiceMeta?.invoiceStatus === "partially_paid"
+                    ? "Balance due"
+                    : "Due on receipt",
             },
             { label: "Invoice #", value: invoiceMeta?.invoiceNumber || "—" },
           ]
@@ -409,23 +419,12 @@ export async function renderQuotePdf(
       doc.y = bannerY + 20;
       doc.moveDown(0.6);
     } else if (invoice && invoiceMeta?.invoiceStatus) {
+      // No full-width colored "UNPAID"/"PAID" banner here anymore — see the
+      // quiet "Status: ... · Paid: ..." line printed just under the totals
+      // box below instead. `paid` still gates whether the Pay Online
+      // button + QR code show (no point pushing a customer to pay what's
+      // already settled).
       const paid = invoiceMeta.invoiceStatus === "paid";
-      const partial = invoiceMeta.invoiceStatus === "partially_paid";
-      const bannerColor = paid ? GREEN : partial ? AMBER : RED;
-      const bannerText = paid
-        ? "PAID — thank you!"
-        : partial
-          ? "PARTIALLY PAID — balance due"
-          : "UNPAID — payment due upon receipt";
-      doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(9);
-      const bannerY = doc.y;
-      doc.rect(left, bannerY, pageWidth, 20).fill(bannerColor);
-      doc.fillColor("#ffffff").text(bannerText, left, bannerY + 5, {
-        width: pageWidth,
-        align: "center",
-      });
-      doc.y = bannerY + 20;
-      doc.moveDown(0.6);
 
       if (invoiceMeta?.payPageUrl && !paid) {
         const buttonBottom = drawPayButton(doc, left, doc.y, "PAY ONLINE", invoiceMeta.payPageUrl);
@@ -872,6 +871,31 @@ export async function renderQuotePdf(
       totalsRowY += totalsRowH;
     }
     doc.y = totalsBoxTop + totalsBoxHeight;
+
+    // A quiet, small-caps "Status: ... · Paid: ..." line right under (and
+    // outside of) the totals box — replaces the old full-width colored
+    // "UNPAID"/"PAID" banner up top. Always shows both the status word and
+    // the actual dollar amount paid so far (0.00 if nothing has been paid
+    // yet), per how this invoice's payment state should read on the PDF.
+    if (invoice) {
+      const paidAmountForStatus = invoiceMeta?.amountPaid ?? 0;
+      const statusWord =
+        invoiceMeta?.invoiceStatus === "paid"
+          ? "Paid"
+          : invoiceMeta?.invoiceStatus === "partially_paid"
+            ? "Partially paid"
+            : "Unpaid";
+      doc.moveDown(0.35);
+      doc
+        .font("Helvetica")
+        .fontSize(8.5)
+        .fillColor(GRAY)
+        .text(`Status: ${statusWord}    Paid: ${money(paidAmountForStatus)}`, totalsBoxX, doc.y, {
+          width: totalsBoxWidth,
+          align: "right",
+        });
+      doc.moveDown(0.4);
+    }
 
     // --- Notes + footer -------------------------------------------------
     // Reserve enough room for the notes block plus the closing disclaimer
