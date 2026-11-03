@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { QuoteRecord, InvoicePaymentStatus, DELETED_RETENTION_DAYS } from "@/lib/quotes-store";
+import { responseToNamedObjectUrl } from "@/lib/client-download";
 import AdminInvoicePaymentModal from "./AdminInvoicePaymentModal";
 import AdminSendDocumentModal from "./AdminSendDocumentModal";
 import AdminJobFolderModal from "./AdminJobFolderModal";
@@ -48,8 +49,9 @@ async function downloadPdf(id: string, mode: string) {
       tab?.close();
       return;
     }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+    // Named from the response's Content-Disposition header instead of an
+    // anonymous Blob — see lib/client-download.ts.
+    const url = await responseToNamedObjectUrl(res, "document.pdf");
     if (tab) {
       tab.location.href = url;
     } else {

@@ -13,6 +13,7 @@ import {
 } from "@/lib/types";
 import { getMarkupPercentForCost } from "@/lib/garment-markup";
 import { formatUSD } from "@/lib/pricing";
+import { responseToNamedObjectUrl } from "@/lib/client-download";
 import {
   ManualQuoteProduct,
   ManualQuoteSizeRow,
@@ -2052,8 +2053,11 @@ export default function AdminQuoteBuilder({
         tab?.close();
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      // Named from the response's own Content-Disposition header (e.g.
+      // "INV-0008-maddie-rusling-2026-11-02.pdf") instead of an anonymous
+      // Blob, so "Save As" on the opened tab proposes that name rather
+      // than the object URL's random id — see lib/client-download.ts.
+      const url = await responseToNamedObjectUrl(res, "document.pdf");
       if (tab) {
         tab.location.href = url;
       } else {

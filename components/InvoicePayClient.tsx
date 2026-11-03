@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import InvoicePayForm, { InvoicePaymentMethod } from "./InvoicePayForm";
+import { responseToNamedObjectUrl } from "@/lib/client-download";
 
 type InvoiceSummary = {
   id: string;
@@ -178,8 +179,9 @@ export default function InvoicePayClient({ id }: { id: string }) {
         tab?.close();
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      // Named from the response's Content-Disposition header instead of an
+      // anonymous Blob — see lib/client-download.ts.
+      const url = await responseToNamedObjectUrl(res, "receipt.pdf");
       if (tab) {
         tab.location.href = url;
       } else {

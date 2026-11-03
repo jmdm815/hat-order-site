@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { QuoteRecord } from "@/lib/quotes-store";
 import { itemPhotoUrl } from "@/lib/item-photo";
+import { responseToNamedObjectUrl } from "@/lib/client-download";
 
 type Props = {
   record: QuoteRecord;
@@ -237,8 +238,9 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
         tab?.close();
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      // Named from the response's Content-Disposition header instead of an
+      // anonymous Blob — see lib/client-download.ts.
+      const url = await responseToNamedObjectUrl(res, "job-folder.pdf");
       if (tab) {
         tab.location.href = url;
       } else {
