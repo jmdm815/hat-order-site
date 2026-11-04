@@ -35,6 +35,8 @@ type InvoiceSummary = {
   // undefined/100 means "pay in full", so the heading below shouldn't call
   // this a "deposit".
   depositPercent?: number;
+  // Deposit due under the current terms — see app/api/pay/[id]/route.ts.
+  depositAmount?: number;
   // The admin's saved "amount to pay" (see app/api/pay/[id]/route.ts) —
   // what pre-fills "Amount to pay" below instead of always defaulting to
   // the full balance, matching how a ShopVox-style order page pre-fills a
@@ -201,6 +203,10 @@ export default function InvoicePayClient({ id }: { id: string }) {
   }
 
   const paidInFull = invoice.balance <= 0;
+  const depositRemaining = Math.max(
+    0,
+    Math.round(((invoice.depositAmount ?? invoice.grandTotal) - invoice.amountPaid) * 100) / 100
+  );
   const amountNum = Number(amountInput);
   const amountValid = Number.isFinite(amountNum) && amountNum > 0 && amountNum <= invoice.balance + 0.02;
 
@@ -300,6 +306,13 @@ export default function InvoicePayClient({ id }: { id: string }) {
             <span className="text-white font-medium">{money(invoice.grandTotal)}</span>
           </div>
           <div className="flex justify-between">
+            <span className="text-white/70">
+              Deposit
+              {invoice.depositPercent && invoice.depositPercent < 100 ? ` (${invoice.depositPercent}%)` : ""}
+            </span>
+            <span className="text-white font-medium">{money(invoice.depositAmount ?? invoice.grandTotal)}</span>
+          </div>
+          <div className="flex justify-between">
             <span className="text-white/70">Paid</span>
             <span className="text-white font-medium">{money(invoice.amountPaid)}</span>
           </div>
@@ -357,9 +370,9 @@ export default function InvoicePayClient({ id }: { id: string }) {
           <label className="block text-sm font-medium text-white mb-1" htmlFor="pay-amount">
             Amount to pay
           </label>
-          {invoice.depositPercent && invoice.depositPercent < 100 && invoice.suggestedAmount ? (
+          {invoice.depositPercent && invoice.depositPercent < 100 && depositRemaining > 0 ? (
             <p className="text-xs text-white/60 mb-2">
-              {invoice.depositPercent}% deposit due now: {money(invoice.suggestedAmount)}. The rest is due at pickup.
+              {invoice.depositPercent}% deposit {invoice.amountPaid > 0 ? "still due" : "due now"}: {money(depositRemaining)}. The rest is due at pickup.
             </p>
           ) : null}
           <div className="flex items-center gap-2">

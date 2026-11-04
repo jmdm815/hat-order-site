@@ -59,6 +59,8 @@ type CustomerInvoiceSummary = {
   // quote is on "pay in full" terms, so the pay page shouldn't call this a
   // "deposit" anywhere; only a real partial-deposit quote (< 100) should.
   depositPercent?: number;
+  // Deposit due under the current terms (the full total on pay-in-full terms).
+  depositAmount: number;
   // The admin's saved "amount to pay" (lib/quotes-store.ts's
   // paymentLinkAmount — see setSuggestedPaymentAmount), clamped to the
   // current balance — what InvoicePayClient.tsx pre-fills "Amount to pay"
@@ -84,19 +86,29 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
   const grandTotal = record.computed.grandTotal;
   const amountPaid = Math.round((record.amountPaid ?? 0) * 100) / 100;
   const balance = Math.max(0, Math.round((grandTotal - amountPaid) * 100) / 100);
-  let suggestedAmount =
-    typeof record.paymentLinkAmount === "number" && record.paymentLinkAmount > 0
-      ? Math.min(record.paymentLinkAmount, balance)
-      : undefined;
-  // No amount saved from the admin's payment-link tool, but the quote has
-  // deposit terms (e.g. 50%): pre-fill whatever is still owed toward the
-  // deposit instead of the full balance. Once the deposit is covered this
-  // falls through to the full remaining balance as before.
+  // Deposit due under the record's CURRENT terms, recomputed on every load,
+  // so editing the quote/invoice (terms or items) is reflected the next time
+  // the same link is opened. Pay-in-full terms: the deposit is the full total.
   const depositPercent = record.computed.depositPercent;
-  if (suggestedAmount === undefined && depositPercent && depositPercent < 100) {
-    const depositAmount = Math.round(grandTotal * (depositPercent / 100) * 100) / 100;
-    const depositRemaining = Math.round((depositAmount - amountPaid) * 100) / 100;
-    if (depositRemaining > 0) suggestedAmount = Math.min(depositRemaining, balance);
+  const hasPartialDeposit = Boolean(depositPercent && depositPercent < 100);
+  const depositAmount = hasPartialDeposit
+    ? Math.round(grandTotal * (depositPercent! / 100) * 100) / 100
+    : grandTotal;
+  const depositRemaining = Math.max(0, Math.round((depositAmount - amountPaid) * 100) / 100);
+
+  // What "Amount to pay" is pre-filled with:
+  //  - "deposit-fixed": a specific dollar amount the admin typed — respected.
+  //  - "full": the admin chose to ask for the full balance.
+  //  - otherwise (incl. "deposit-percent" and no saved link amount): follow
+  //    the current terms — what's still owed toward the deposit, then the
+  //    remaining balance once the deposit is covered.
+  let suggestedAmount: number | undefined;
+  if (record.paymentLinkKind === "deposit-fixed" && (record.paymentLinkAmount ?? 0) > 0) {
+    suggestedAmount = Math.min(record.paymentLinkAmount!, balance);
+  } else if (record.paymentLinkKind === "full") {
+    suggestedAmount = balance > 0 ? balance : undefined;
+  } else if (hasPartialDeposit && depositRemaining > 0) {
+    suggestedAmount = Math.min(depositRemaining, balance);
   }
   return {
     id: record.id,
@@ -127,6 +139,7 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
     amountPaid,
     balance,
     depositPercent: record.computed.depositPercent,
+    depositAmount,
     suggestedAmount,
     payments: (record.payments ?? []).map((p) => ({
       id: p.id,
