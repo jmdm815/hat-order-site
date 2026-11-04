@@ -207,6 +207,30 @@ export default function InvoicePayClient({ id }: { id: string }) {
     0,
     Math.round(((invoice.depositAmount ?? invoice.grandTotal) - invoice.amountPaid) * 100) / 100
   );
+  // Deposit row: the full deposit before anything is paid; what's still owed
+  // toward it after a partial payment (e.g. 50% terms, 25% paid -> "Deposit
+  // remaining (25%)"); "Paid" once payments cover it.
+  const hasPartialTerms = Boolean(invoice.depositPercent && invoice.depositPercent < 100);
+  const pctOfTotal = (amount: number) =>
+    invoice.grandTotal > 0 ? Math.round((amount / invoice.grandTotal) * 1000) / 10 : 0;
+  const depositRow =
+    depositRemaining <= 0
+      ? {
+          label: hasPartialTerms ? `Deposit (${invoice.depositPercent}%)` : "Deposit",
+          value: "Paid",
+          met: true,
+        }
+      : invoice.amountPaid > 0
+        ? {
+            label: `Deposit remaining${hasPartialTerms ? ` (${pctOfTotal(depositRemaining)}%)` : ""}`,
+            value: money(depositRemaining),
+            met: false,
+          }
+        : {
+            label: hasPartialTerms ? `Deposit (${invoice.depositPercent}%)` : "Deposit",
+            value: money(invoice.depositAmount ?? invoice.grandTotal),
+            met: false,
+          };
   const amountNum = Number(amountInput);
   const amountValid = Number.isFinite(amountNum) && amountNum > 0 && amountNum <= invoice.balance + 0.02;
 
@@ -306,11 +330,8 @@ export default function InvoicePayClient({ id }: { id: string }) {
             <span className="text-white font-medium">{money(invoice.grandTotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-white/70">
-              Deposit
-              {invoice.depositPercent && invoice.depositPercent < 100 ? ` (${invoice.depositPercent}%)` : ""}
-            </span>
-            <span className="text-white font-medium">{money(invoice.depositAmount ?? invoice.grandTotal)}</span>
+            <span className="text-white/70">{depositRow.label}</span>
+            <span className={`font-medium ${depositRow.met ? "text-green-400" : "text-white"}`}>{depositRow.value}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-white/70">Paid</span>
