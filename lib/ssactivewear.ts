@@ -138,15 +138,42 @@ export async function getSsStyleAsProduct(partNumber: string): Promise<Product |
   // styles/?search=, never styles/?partnumber=) kept working fine. Treat the
   // styles/ call as optional, best-effort enrichment instead of a hard
   // requirement.
-  const [styleResult, skus] = await Promise.all([
-    ssFetch<SsStyle[]>("styles/", { partnumber: target }).catch((err) => {
-      console.error("getSsStyleAsProduct: styles/ lookup failed (non-fatal)", err);
-      return [] as SsStyle[];
-    }),
-    ssFetch<SsProductSku[]>("products/", { style: target }),
-  ]);
-  const style = styleResult?.[0];
-  if (!skus?.length) return undefined;
+  // Find the style record first (best-effort). styles/?partnumber= has been
+  // unreliable, so fall back to a search filtered to the exact part number.
+  let style: SsStyle | undefined;
+  try {
+    const byPart = await ssFetch<SsStyle[]>("styles/", { partnumber: target });
+    style = byPart?.find((s) => s.partNumber === target) ?? byPart?.[0];
+  } catch (err) {
+    console.error("getSsStyleAsProduct: styles/?partnumber lookup failed (non-fatal)", err);
+  }
+  if (!style) {
+    try {
+      const bySearch = await ssFetch<SsStyle[]>("styles/", { search: target });
+      style = bySearch?.find((s) => s.partNumber === target);
+    } catch (err) {
+      console.error("getSsStyleAsProduct: styles/?search lookup failed (non-fatal)", err);
+    }
+  }
+
+  // products/?style= accepts a StyleID, PartNumber or "Brand StyleName", and
+  // a purely numeric part number (e.g. Tultex 202 = "10259") can be read as
+  // a StyleID instead and come back empty or, worse, as a different style.
+  // So when the style record is known, look up by its unambiguous StyleID
+  // first, then by brand + name, and only accept rows for that StyleID.
+  const candidates = style
+    ? [String(style.styleID), `${style.brandName} ${style.styleName}`, target]
+    : [target];
+  let skus: SsProductSku[] = [];
+  for (const key of Array.from(new Set(candidates))) {
+    const rows = await ssFetch<SsProductSku[]>("products/", { style: key });
+    const matching = style ? (rows ?? []).filter((r) => r.styleID === style!.styleID) : rows ?? [];
+    if (matching.length) {
+      skus = matching;
+      break;
+    }
+  }
+  if (!skus.length) return undefined;
 
   // Group the flat one-row-per-SKU product list into one ProductColor per
   // distinct colorName, each with its own sizes array — mirrors

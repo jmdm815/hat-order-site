@@ -5,9 +5,7 @@ import { getSetupCharges } from "@/lib/setup-charges-store";
 import { getGarmentMarkupSettings } from "@/lib/garment-markup-store";
 import { computeQuote, isValidQuoteInput, QuoteInputError } from "@/lib/quote";
 import { createQuote, createInvoice, getQuotes } from "@/lib/quotes-store";
-import { getCatalog } from "@/lib/sanmar";
-import { applyLiveSanmarPricingToProducts } from "@/lib/sanmar-pricing";
-import { Product } from "@/lib/types";
+import { loadQuoteProducts } from "@/lib/quote-products";
 import { isPersistent } from "@/lib/pricing-store";
 
 // Admin-only: saved quotes live here so they persist on the site instead of
@@ -32,26 +30,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const [hats, shirts, polos, decorations, setupCharges, garmentMarkup] = await Promise.all([
-      getCatalog("hat"),
-      getCatalog("shirt"),
-      getCatalog("polo"),
+    const [productsByStyle, decorations, setupCharges, garmentMarkup] = await Promise.all([
+      loadQuoteProducts(body.lines),
       getDecorationTypes(),
       getSetupCharges(),
       getGarmentMarkupSettings(),
     ]);
-    const productsByStyle = new Map<string, Product>();
-    for (const p of [...hats, ...shirts, ...polos]) {
-      productsByStyle.set(p.styleNumber, p);
-    }
-    // Overlay real, account-specific SanMar pricing (lib/sanmar-pricing.ts)
-    // on top of the bulk catalog feed's standard/list price for just the
-    // styles this quote actually uses — see app/api/admin/quote/route.ts for
-    // the full rationale. Falls back to catalog pricing per-style on failure.
-    await applyLiveSanmarPricingToProducts(
-      productsByStyle,
-      body.lines.map((l) => l.styleNumber).filter((s): s is string => Boolean(s))
-    );
 
     const computed = computeQuote(body, productsByStyle, decorations, setupCharges, garmentMarkup.breakpoints);
     // Optional "kind": "invoice" in the request body (not part of QuoteInput

@@ -1894,6 +1894,7 @@ export default function AdminQuoteBuilder({
       taxRatePercent: taxRatePercent > 0 ? taxRatePercent : undefined,
       lines: lines.map((l) => ({
         styleNumber: l.styleNumber,
+        catalogSource: l.catalogSource === "ss" || l.catalogSource === "sanmar" ? l.catalogSource : undefined,
         colorName: l.colorName,
         sizes: l.sizes,
         decorationId: l.decorationId,
