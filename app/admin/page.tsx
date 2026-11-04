@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { isAdminAuthed, usingDefaultPassword } from "@/lib/admin-auth";
+import { isAdminAuthed, adminPasswordMissing } from "@/lib/admin-auth";
 import AdminLogin from "@/components/AdminLogin";
 import AdminDashboard from "@/components/AdminDashboard";
 
@@ -23,11 +23,11 @@ export default async function AdminPage() {
       </header>
       <main className="flex-1 max-w-6xl mx-auto px-4 py-6 sm:py-10 w-full">
         <h1 className="text-2xl font-bold text-admin-ink">Admin</h1>
-      {authed && usingDefaultPassword() && (
+      {adminPasswordMissing() && (
         <p className="mt-3 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 inline-block">
-          You&apos;re using the default admin password. Set an{" "}
+          Admin login is disabled. Set an{" "}
           <code className="font-mono">ADMIN_PASSWORD</code> environment
-          variable on this Vercel project to change it.
+          variable on this Vercel project to enable it.
         </p>
       )}
       <div className="mt-6">
