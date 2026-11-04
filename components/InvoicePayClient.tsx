@@ -357,6 +357,11 @@ export default function InvoicePayClient({ id }: { id: string }) {
           <label className="block text-sm font-medium text-white mb-1" htmlFor="pay-amount">
             Amount to pay
           </label>
+          {invoice.depositPercent && invoice.depositPercent < 100 && invoice.suggestedAmount ? (
+            <p className="text-xs text-white/60 mb-2">
+              {invoice.depositPercent}% deposit due now: {money(invoice.suggestedAmount)}. The rest is due at pickup.
+            </p>
+          ) : null}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">$</span>

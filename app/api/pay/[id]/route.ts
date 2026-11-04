@@ -84,10 +84,20 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
   const grandTotal = record.computed.grandTotal;
   const amountPaid = Math.round((record.amountPaid ?? 0) * 100) / 100;
   const balance = Math.max(0, Math.round((grandTotal - amountPaid) * 100) / 100);
-  const suggestedAmount =
+  let suggestedAmount =
     typeof record.paymentLinkAmount === "number" && record.paymentLinkAmount > 0
       ? Math.min(record.paymentLinkAmount, balance)
       : undefined;
+  // No amount saved from the admin's payment-link tool, but the quote has
+  // deposit terms (e.g. 50%): pre-fill whatever is still owed toward the
+  // deposit instead of the full balance. Once the deposit is covered this
+  // falls through to the full remaining balance as before.
+  const depositPercent = record.computed.depositPercent;
+  if (suggestedAmount === undefined && depositPercent && depositPercent < 100) {
+    const depositAmount = Math.round(grandTotal * (depositPercent / 100) * 100) / 100;
+    const depositRemaining = Math.round((depositAmount - amountPaid) * 100) / 100;
+    if (depositRemaining > 0) suggestedAmount = Math.min(depositRemaining, balance);
+  }
   return {
     id: record.id,
     status: record.status,
