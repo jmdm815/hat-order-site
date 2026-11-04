@@ -393,7 +393,10 @@ export default function InvoicePayClient({ id }: { id: string }) {
           </label>
           {invoice.depositPercent && invoice.depositPercent < 100 && depositRemaining > 0 ? (
             <p className="text-xs text-white/60 mb-2">
-              {invoice.depositPercent}% deposit {invoice.amountPaid > 0 ? "still due" : "due now"}: {money(depositRemaining)}. The rest is due at pickup.
+              {invoice.amountPaid > 0
+                ? `Remaining deposit due now: ${money(depositRemaining)}.`
+                : `${invoice.depositPercent}% deposit due now: ${money(depositRemaining)}.`}{" "}
+              The rest is due at pickup.
             </p>
           ) : null}
           <div className="flex items-center gap-2">
