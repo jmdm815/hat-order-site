@@ -121,12 +121,32 @@ export async function getSsStyleAsProduct(partNumber: string): Promise<Product |
   const target = partNumber.trim();
   if (!target) return undefined;
 
-  const [styles, skus] = await Promise.all([
-    ssFetch<SsStyle[]>("styles/", { partnumber: target }),
+  // The products/ lookup (keyed by StyleID, PartNumber, or "BrandName Name" —
+  // see module comment) is the one call that MUST succeed: every SKU row it
+  // returns already carries brandName/styleName (confirmed against S&S's own
+  // API docs response schema), so a style can be fully described from this
+  // call alone.
+  //
+  // The separate styles/ lookup below is only used to enrich the result with
+  // a couple of fields the products/ rows don't carry (the long descriptive
+  // `title`, `baseCategory`, and a style-level hero photo) — it is NOT
+  // required for the lookup to succeed. Previously this function bailed out
+  // with "Style not found" whenever styles/?partnumber= came back empty, even
+  // though products/?style= had already found real SKU data for the exact
+  // same style — that's the root cause of this style/product lookup failing
+  // for every S&S item while the typeahead search (which only ever calls
+  // styles/?search=, never styles/?partnumber=) kept working fine. Treat the
+  // styles/ call as optional, best-effort enrichment instead of a hard
+  // requirement.
+  const [styleResult, skus] = await Promise.all([
+    ssFetch<SsStyle[]>("styles/", { partnumber: target }).catch((err) => {
+      console.error("getSsStyleAsProduct: styles/ lookup failed (non-fatal)", err);
+      return [] as SsStyle[];
+    }),
     ssFetch<SsProductSku[]>("products/", { style: target }),
   ]);
-  const style = styles?.[0];
-  if (!style || !skus?.length) return undefined;
+  const style = styleResult?.[0];
+  if (!skus?.length) return undefined;
 
   // Group the flat one-row-per-SKU product list into one ProductColor per
   // distinct colorName, each with its own sizes array — mirrors
@@ -169,18 +189,23 @@ export async function getSsStyleAsProduct(partNumber: string): Promise<Product |
   }
   if (!Number.isFinite(basePrice)) basePrice = 0;
 
+  // Fall back to the SKU rows' own brandName/styleName (every products/ row
+  // carries both, per S&S's API docs) whenever the best-effort styles/
+  // lookup above didn't come back with a match.
+  const firstSku = skus[0];
+  const baseCategory = style?.baseCategory;
   const hero = colors[0];
   return {
-    styleNumber: style.partNumber,
-    brandName: style.brandName,
-    productName: style.title || style.styleName,
+    styleNumber: style?.partNumber || target,
+    brandName: style?.brandName || firstSku.brandName,
+    productName: style?.title || style?.styleName || firstSku.styleName,
     description: "",
-    productType: style.baseCategory === "Caps" ? "hat" : "shirt",
-    category: style.baseCategory === "Caps" ? "Trucker" : "T-Shirt",
+    productType: baseCategory === "Caps" ? "hat" : "shirt",
+    category: baseCategory === "Caps" ? "Trucker" : "T-Shirt",
     basePrice,
     colors: colors.length
       ? colors
-      : [{ colorName: "Default", colorHexes: ["#9a9a9a"], imageUrl: ssImageUrl(style.styleImage) || "" }],
-    heroImageUrl: hero?.imageUrl || ssImageUrl(style.styleImage) || "",
+      : [{ colorName: "Default", colorHexes: ["#9a9a9a"], imageUrl: ssImageUrl(style?.styleImage) || "" }],
+    heroImageUrl: hero?.imageUrl || ssImageUrl(style?.styleImage) || "",
   };
 }
