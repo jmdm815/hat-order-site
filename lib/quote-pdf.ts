@@ -600,18 +600,23 @@ export async function renderQuotePdf(
       }
 
       let y = cardTop;
-      gridRow(
-        y,
-        "Size",
-        (i, cx, cy, w) =>
-          doc
-            .fillColor(NAVY)
-            .font("Helvetica-Bold")
-            .fontSize(8)
-            .text(line.sizes[i].size, cx, cy + 4, { width: w, align: "center" }),
-        true
-      );
-      y += GRID_ROW_H;
+      // A single "One Size" column (yard signs, tumblers, other non-sized
+      // items) says nothing useful — show just Qty / Price for those.
+      const sizeless = n === 1 && line.sizes[0].size.trim().toLowerCase() === "one size";
+      if (!sizeless) {
+        gridRow(
+          y,
+          "Size",
+          (i, cx, cy, w) =>
+            doc
+              .fillColor(NAVY)
+              .font("Helvetica-Bold")
+              .fontSize(8)
+              .text(line.sizes[i].size, cx, cy + 4, { width: w, align: "center" }),
+          true
+        );
+        y += GRID_ROW_H;
+      }
 
       gridRow(
         y,
@@ -718,6 +723,13 @@ export async function renderQuotePdf(
         doc.addPage();
       }
 
+      // Non-garment items (signs, tumblers, etc. added as "other" custom or
+      // customer-supplied items) with no decoration shouldn't be described
+      // as garments.
+      const nonGarmentGroup = group.lines.every(
+        (l) => l.customerSupplied && (l.itemType ?? "other") === "other" && !l.decorationId
+      );
+
       // Group heading: product name (only when every line in the group is
       // the same style/product) and the shared decoration.
       doc
@@ -725,19 +737,25 @@ export async function renderQuotePdf(
         .font("Helvetica-Bold")
         .fontSize(11)
         .text(
-          sameStyle ? `${first.brandName} ${first.productName}` : "Multiple garments",
+          sameStyle
+            ? [first.brandName, first.productName].filter(Boolean).join(" ")
+            : nonGarmentGroup
+              ? "Items"
+              : "Multiple garments",
           left,
           doc.y
         );
-      doc
-        .fillColor(GRAY)
-        .font("Helvetica")
-        .fontSize(9)
-        .text(
-          first.decorationLabel
-            ? `${first.decorationLabel}${first.priceColumnLabel ? ` (${first.priceColumnLabel})` : ""}`
-            : "No decoration — garment only"
-        );
+      if (!nonGarmentGroup) {
+        doc
+          .fillColor(GRAY)
+          .font("Helvetica")
+          .fontSize(9)
+          .text(
+            first.decorationLabel
+              ? `${first.decorationLabel}${first.priceColumnLabel ? ` (${first.priceColumnLabel})` : ""}`
+              : "No decoration — garment only"
+          );
+      }
       doc.moveDown(0.4);
 
       for (const line of group.lines) {
