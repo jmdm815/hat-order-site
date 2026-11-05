@@ -20,6 +20,7 @@ type InvoiceSummary = {
   dueDate?: string;
   lines: Array<{
     description: string;
+    details?: string[];
     colorName?: string;
     decorationLabel?: string;
     priceColumnLabel?: string;
@@ -297,6 +298,11 @@ export default function InvoicePayClient({ id }: { id: string }) {
                   {line.quantity} × {line.description}
                   {line.colorName ? ` — ${line.colorName}` : ""}
                 </p>
+                {line.details?.map((d, j) => (
+                  <p key={j} className="text-white/80 text-xs mt-0.5">
+                    {d}
+                  </p>
+                ))}
                 {line.decorationLabel && (
                   <p className="text-white/50 text-xs mt-0.5">
                     {line.decorationLabel}

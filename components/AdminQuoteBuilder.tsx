@@ -3038,7 +3038,7 @@ export default function AdminQuoteBuilder({
                             {line.customerSupplied && line.itemType !== "hat" && line.manualSource !== "custom" ? (
                               <>
                                 <span className="font-medium">Customer-supplied item</span>{" "}
-                                <span className="text-admin-ink/62">({line.itemDescription})</span>
+                                <span className="text-admin-ink/62 whitespace-pre-line">({line.itemDescription})</span>
                               </>
                             ) : (
                               <>
@@ -4114,9 +4114,10 @@ export default function AdminQuoteBuilder({
 
                 <label className="block text-xs text-admin-ink/80 mt-3">
                   {csItemType === "other" ? "Item description" : "Description / notes (optional)"}
-                  <input
+                  <textarea
                     value={csDescription}
                     onChange={(e) => setCsDescription(e.target.value)}
+                    rows={2}
                     className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                     placeholder={
                       csItemType === "apparel"

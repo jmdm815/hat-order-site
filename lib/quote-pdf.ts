@@ -284,6 +284,26 @@ function formatDate(iso: string): string {
   });
 }
 
+// An item's description can span several lines: the first line is its name,
+// the rest are extra details shown underneath (e.g. "466 Poncho shirts").
+function descriptionDetails(productName: string | undefined): string[] {
+  return (productName ?? "")
+    .split("\n")
+    .slice(1)
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
+// Item heading: brand + the first line of the name. Skips the generic
+// "Customer-supplied item" brand when the name already says so.
+function lineTitle(line: { brandName?: string; productName?: string }): string {
+  const name = (line.productName ?? "").split("\n")[0].trim();
+  const brand = (line.brandName ?? "").trim();
+  if (brand && name.toLowerCase().includes(brand.toLowerCase())) return name;
+  if (brand.toLowerCase() === "customer-supplied item" && /customer[- ]supplied/i.test(name)) return name;
+  return [brand, name].filter(Boolean).join(" ") || name;
+}
+
 export async function renderQuotePdf(
   quote: ComputedQuote,
   mode: QuotePdfMode = "customer",
@@ -549,12 +569,15 @@ export async function renderQuotePdf(
           .fillColor(NAVY)
           .font("Helvetica-Bold")
           .fontSize(9.5)
-          .text(
-            [line.brandName, line.productName].filter(Boolean).join(" ") || line.productName,
-            left,
-            cardTop,
-            { width: CARD_TEXT_WIDTH }
-          );
+          .text(lineTitle(line), left, cardTop, { width: CARD_TEXT_WIDTH });
+        const cardDetails = descriptionDetails(line.productName);
+        if (cardDetails.length) {
+          doc
+            .fillColor(NAVY)
+            .font("Helvetica")
+            .fontSize(8)
+            .text(cardDetails.join("\n"), left, doc.y, { width: CARD_TEXT_WIDTH });
+        }
         if (line.styleNumber) {
           doc
             .fillColor(GRAY)
@@ -738,13 +761,21 @@ export async function renderQuotePdf(
         .fontSize(11)
         .text(
           sameStyle
-            ? [first.brandName, first.productName].filter(Boolean).join(" ")
+            ? lineTitle(first)
             : nonGarmentGroup
               ? "Items"
               : "Multiple garments",
           left,
           doc.y
         );
+      // Extra description lines (everything after the first line of an
+      // item's description), shown under the heading.
+      if (sameStyle) {
+        const details = descriptionDetails(first.productName);
+        if (details.length) {
+          doc.fillColor(NAVY).font("Helvetica").fontSize(9.5).text(details.join("\n"), left, doc.y, { width: pageWidth });
+        }
+      }
       if (!nonGarmentGroup) {
         doc
           .fillColor(GRAY)

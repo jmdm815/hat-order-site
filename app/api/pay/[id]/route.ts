@@ -44,6 +44,7 @@ type CustomerInvoiceSummary = {
   dueDate?: string;
   lines: Array<{
     description: string;
+    details?: string[];
     colorName?: string;
     decorationLabel?: string;
     priceColumnLabel?: string;
@@ -125,8 +126,14 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
     dueDate: record.status === "invoice" ? record.computed.dueDate : undefined,
     lines: record.computed.lines.map((l) => ({
       description: l.customerSupplied
-        ? l.itemDescription || "Customer-supplied item"
+        ? (l.itemDescription || "Customer-supplied item").split("\n")[0].trim()
         : [l.brandName, l.productName].filter(Boolean).join(" "),
+      // Extra description lines (everything after the first line).
+      details: (l.customerSupplied ? l.itemDescription ?? "" : "")
+        .split("\n")
+        .slice(1)
+        .map((d) => d.trim())
+        .filter(Boolean),
       colorName: l.customerSupplied ? undefined : l.colorName,
       decorationLabel: l.decorationLabel,
       priceColumnLabel: l.priceColumnLabel,
