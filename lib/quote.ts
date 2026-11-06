@@ -58,6 +58,8 @@ export type QuoteSizeInput = {
 // (if any) applies, priced off this line's own quantity. itemDescription
 // (e.g. "Hat", "Shirt", "Bag", "Custom item") replaces styleNumber/colorName
 // as the line's label in that case, and styleNumber/colorName are omitted.
+export const SHOP_TIME_ZONE = "America/Chicago";
+
 export type QuoteLineInput = {
   styleNumber?: string;
   // Which supplier catalog styleNumber belongs to ("sanmar" or "ss" for S&S
@@ -604,7 +606,9 @@ export function computeQuote(
     customerName: input.customerName,
     customerCompany: input.customerCompany,
     customerEmail: input.customerEmail,
-    quoteDate: input.quoteDate ?? new Date().toISOString().slice(0, 10),
+    // Default to today's date in the shop's time zone — toISOString() is UTC,
+    // which rolled evening quotes over to tomorrow's date.
+    quoteDate: input.quoteDate ?? new Date().toLocaleDateString("en-CA", { timeZone: SHOP_TIME_ZONE }),
     dueDate: input.dueDate,
     notes: input.notes,
     lines,

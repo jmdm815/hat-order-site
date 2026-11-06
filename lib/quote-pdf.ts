@@ -26,7 +26,7 @@ import { PDFDocument as PdfLibDocument } from "pdf-lib";
 import sharp from "sharp";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { ComputedQuote } from "./quote";
+import { ComputedQuote, SHOP_TIME_ZONE } from "./quote";
 import { InvoicePaymentStatus } from "./quotes-store";
 import { getBrandSettings } from "./pricing-store";
 
@@ -394,7 +394,9 @@ export async function renderQuotePdf(
                   ? "Paid"
                   : invoiceMeta?.invoiceStatus === "partially_paid"
                     ? "Balance due"
-                    : "Due on receipt",
+                    : isPartialDeposit
+                      ? `${quote.depositPercent}% deposit`
+                      : "Due on receipt",
             },
             { label: "Invoice #", value: invoiceMeta?.invoiceNumber || "—" },
           ]
@@ -951,7 +953,8 @@ export async function renderQuotePdf(
     // paragraph above the fixed page-footer stamp drawn below — otherwise
     // a quote with enough line items/fees to push doc.y down near the
     // bottom margin can land this text right on top of that stamp.
-    if (doc.y > doc.page.height - doc.page.margins.bottom - 90) {
+    // (Without notes, the closing note below handles its own fit.)
+    if (quote.notes && doc.y > doc.page.height - doc.page.margins.bottom - 90) {
       doc.addPage();
     }
 
@@ -969,28 +972,32 @@ export async function renderQuotePdf(
       }
     }
 
-    doc.moveDown(2);
-    doc
-      .fillColor(GRAY)
-      .font("Helvetica")
-      .fontSize(8)
-      .text(
+    const closingNote =
         invoice
-          ? "Payment is due upon receipt. Thank you for your business!"
+          ? isPartialDeposit
+            ? `A ${quote.depositPercent}% deposit is due to begin your order; the balance is due at pickup. Thank you for your business!`
+            : "Payment is due upon receipt. Thank you for your business!"
           : showPricing
             ? "This quote is an estimate based on current supplier pricing and is valid for 30 days. " +
                 "Final pricing may vary based on artwork, exact stitch/print specifications, and order changes."
             : "Production work order — verify sizes, quantities, and decoration details against the customer's " +
-                "approved artwork before starting.",
-        left,
-        doc.y,
-        { width: pageWidth }
-      );
+                "approved artwork before starting.";
+    // Keep the closing note on the same page when it fits (leaving room for
+    // the printed-on footer stamp) by tightening the gap above it, instead of
+    // spilling a lone line onto a second page.
+    doc.font("Helvetica").fontSize(8);
+    const noteHeight = doc.heightOfString(closingNote, { width: pageWidth });
+    const noteLimit = doc.page.height - doc.page.margins.bottom - 24;
+    const fullGap = doc.currentLineHeight() * 2;
+    if (doc.y + fullGap + noteHeight <= noteLimit) doc.moveDown(2);
+    else if (doc.y + 6 + noteHeight <= noteLimit) doc.y += 6;
+    else doc.addPage();
+    doc.fillColor(GRAY).text(closingNote, left, doc.y, { width: pageWidth });
 
     // --- Page-footer stamp (every page) ------------------------------------
     const pageRange = doc.bufferedPageRange();
     const printedStamp = `PRINTED ON ${new Date()
-      .toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+      .toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: SHOP_TIME_ZONE })
       .toUpperCase()} — JM DIGITAL MEDIA`;
     for (let i = pageRange.start; i < pageRange.start + pageRange.count; i++) {
       doc.switchToPage(i);
@@ -1056,7 +1063,7 @@ export type PaymentReceiptData = {
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+  return d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: SHOP_TIME_ZONE });
 }
 
 export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise<Buffer> {

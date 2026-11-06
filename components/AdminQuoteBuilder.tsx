@@ -425,7 +425,8 @@ function CsCustomItemRows({
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Local calendar date (toISOString() is UTC and rolls evenings over to tomorrow).
+  return new Date().toLocaleDateString("en-CA");
 }
 
 // Remembers the Item Markup hide/show toggle across refreshes and across
