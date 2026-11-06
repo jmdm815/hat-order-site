@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { v4 as uuid } from "uuid";
 import { Product, ProductColor, ProductSize, ProductType } from "@/lib/types";
+import GoogleDriveButton from "@/components/GoogleDriveButton";
 
 type ColorDraft = {
   colorName: string;
@@ -416,6 +417,14 @@ export default function AdminCustomProductForm({
                         className="text-xs"
                       />
                     )}
+                    {!c.imageUrl && (
+                      <GoogleDriveButton
+                        accept="image/*"
+                        disabled={c.uploadingFront}
+                        onFile={(file) => handleUpload(i, "front", file)}
+                        label="From Drive"
+                      />
+                    )}
                     {c.imageUrl && (
                       <button
                         onClick={() => updateColor(i, { imageUrl: "" })}
@@ -441,6 +450,14 @@ export default function AdminCustomProductForm({
                           if (file) handleUpload(i, "back", file);
                         }}
                         className="text-xs"
+                      />
+                    )}
+                    {!c.backImageUrl && (
+                      <GoogleDriveButton
+                        accept="image/*"
+                        disabled={c.uploadingBack}
+                        onFile={(file) => handleUpload(i, "back", file)}
+                        label="From Drive"
                       />
                     )}
                     {c.backImageUrl && (

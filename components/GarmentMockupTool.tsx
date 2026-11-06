@@ -24,6 +24,7 @@ import {
   type PlacementPreset,
   type Rect,
 } from "@/lib/garment-mockup";
+import GoogleDriveButton from "@/components/GoogleDriveButton";
 
 // ---------------------------------------------------------------------------
 // Garment Mockup Tool (admin): blank photo + logo + placement → proof PNG.
@@ -970,6 +971,7 @@ function FilePick({
             }}
           />
         </label>
+        <GoogleDriveButton accept={accept} onFile={(f) => onPick({ url: readFileAsUrl(f), name: f.name })} label="From Drive" />
         {file && (
           <>
             {preview && (

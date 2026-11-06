@@ -16,6 +16,7 @@ import { getDecoration } from "@/lib/decorations";
 import { resolveImageOverride } from "@/lib/default-item-config";
 import DragResizeBox from "./DragResizeBox";
 import GarmentPreview, { GarmentPhotoSource } from "./GarmentPreview";
+import GoogleDriveButton from "@/components/GoogleDriveButton";
 
 const PHOTO_SOURCE_LABEL: Record<GarmentPhotoSource, string> = {
   override: "Showing your uploaded photo",
@@ -463,6 +464,12 @@ export default function AdminItemConfigEditor({
                             }}
                           />
                         </label>
+                        <GoogleDriveButton
+                          accept="image/*"
+                          disabled={uploadingView !== null}
+                          onFile={(file) => handleImageUpload(v, file)}
+                          label="Drive"
+                        />
                         {hasCustom && (
                           <button
                             type="button"

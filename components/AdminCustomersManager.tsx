@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Customer } from "@/lib/types";
+import GoogleDriveButton from "@/components/GoogleDriveButton";
 
 type ApiResponse = { customers: Customer[]; persistent: boolean };
 
@@ -348,6 +349,11 @@ export default function AdminCustomersManager() {
               }}
               disabled={importing}
               className="text-xs text-admin-ink/88"
+            />
+            <GoogleDriveButton
+              accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              disabled={importing}
+              onFile={handleImportFile}
             />
             <button
               onClick={downloadImportTemplate}

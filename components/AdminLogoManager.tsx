@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import GoogleDriveButton from "@/components/GoogleDriveButton";
 
 type ApiResponse = { logoUrl: string; isCustom: boolean; persistent: boolean };
 
@@ -116,6 +117,11 @@ export default function AdminLogoManager() {
             }}
             disabled={uploading}
             className="text-xs text-admin-ink/88"
+          />
+          <GoogleDriveButton
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            disabled={uploading}
+            onFile={handleFileChosen}
           />
           {isCustom && (
             <button

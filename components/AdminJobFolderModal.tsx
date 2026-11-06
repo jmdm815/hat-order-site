@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { QuoteRecord } from "@/lib/quotes-store";
 import { itemPhotoUrl } from "@/lib/item-photo";
+import GoogleDriveButton from "@/components/GoogleDriveButton";
 
 type Props = {
   record: QuoteRecord;
@@ -285,6 +286,9 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
               if (file) handleMockupFileChosen(file);
             }}
           />
+          <div className="mt-2">
+            <GoogleDriveButton accept="image/png,image/jpeg,image/webp" onFile={handleMockupFileChosen} />
+          </div>
 
           {pendingMockupFile && (
             <div className="mt-2 bg-admin-ink/5 rounded-xl p-3">
