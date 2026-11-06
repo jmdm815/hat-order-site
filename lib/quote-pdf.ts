@@ -450,17 +450,9 @@ export async function renderQuotePdf(
 
       if (invoiceMeta?.payPageUrl && !paid) {
         const buttonBottom = drawPayButton(doc, left, doc.y, "PAY ONLINE", invoiceMeta.payPageUrl);
-        doc.y = buttonBottom + 5;
-        doc
-          .fillColor("#1a56cd")
-          .font("Helvetica")
-          .fontSize(8)
-          .text(invoiceMeta.payPageUrl, left, doc.y, {
-            link: invoiceMeta.payPageUrl,
-            underline: true,
-            width: pageWidth,
-          });
-        doc.moveDown(0.5);
+        // The raw URL isn't printed — the button and the QR code both link
+        // to the same pay page.
+        doc.y = buttonBottom + 10;
 
         if (paymentQrPng) {
           const qrSize = 72;
@@ -493,13 +485,9 @@ export async function renderQuotePdf(
         isPartialDeposit ? "PAY DEPOSIT ONLINE" : "PAY ONLINE",
         linkForPdf
       );
-      doc.y = buttonBottom + 5;
-      doc
-        .fillColor("#1a56cd")
-        .font("Helvetica")
-        .fontSize(8)
-        .text(linkForPdf, left, doc.y, { link: linkForPdf, underline: true, width: pageWidth });
-      doc.moveDown(0.5);
+      // The raw URL isn't printed — the button and the QR code both link
+      // to the same pay page.
+      doc.y = buttonBottom + 10;
 
       if (paymentQrPng) {
         const qrSize = 72;
