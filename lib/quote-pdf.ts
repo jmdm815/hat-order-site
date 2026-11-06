@@ -1173,6 +1173,7 @@ export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise
 export type JobFolderPdfPrintFile = {
   label: string;
   path: string;
+  url?: string; // Google Drive link — printed as a QR code + clickable link
 };
 
 export type JobFolderPdfData = {
@@ -1191,8 +1192,14 @@ export type JobFolderPdfData = {
   printFiles: JobFolderPdfPrintFile[];
 };
 
-async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<Buffer> {
+export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<Buffer> {
   const logoBuffer = await loadLogoBuffer();
+  // One small QR per print file that has a Drive link, so someone holding the
+  // printed packet can scan straight to the file. Generated up front because
+  // QRCode.toBuffer is async and pdfkit's drawing below is synchronous.
+  const qrByIndex = await Promise.all(
+    data.printFiles.map((f) => (f.url ? QRCode.toBuffer(f.url, { margin: 0, width: 160 }).catch(() => undefined) : undefined))
+  );
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "LETTER", margin: 50 });
@@ -1271,30 +1278,43 @@ async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<Buffer>
         .text("No print file locations have been added for this job.", left, doc.y);
     } else {
       const rowPadding = 8;
-      for (const file of data.printFiles) {
+      const qrSize = 54;
+      data.printFiles.forEach((file, i) => {
+        const qr = qrByIndex[i];
         // Keep each row's label+path together — pdfkit has no native
         // "don't break this block across pages" so this just checks the
         // (generously estimated) block height against the remaining page
         // space first and adds a page if it won't fit.
-        const estimatedHeight = rowPadding * 2 + 14 + 12;
+        const estimatedHeight = rowPadding * 2 + (qr ? Math.max(qrSize, 40) : 26);
         if (doc.y + estimatedHeight > doc.page.height - doc.page.margins.bottom) {
           doc.addPage();
         }
         const rowTop = doc.y;
+        const textWidth = pageWidth - rowPadding * 2 - (qr ? qrSize + rowPadding : 0);
         doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(10).text(file.label || "Untitled", left + rowPadding, rowTop + rowPadding, {
-          width: pageWidth - rowPadding * 2,
+          width: textWidth,
         });
         doc
           .fillColor(GRAY)
           .font("Helvetica")
           .fontSize(9)
           .text(file.path || "(no path entered)", left + rowPadding, doc.y + 2, {
-            width: pageWidth - rowPadding * 2,
+            width: textWidth,
           });
-        const rowBottom = doc.y + rowPadding;
+        if (file.url) {
+          doc
+            .fillColor("#1d4ed8")
+            .font("Helvetica")
+            .fontSize(8)
+            .text("Open in Google Drive", left + rowPadding, doc.y + 3, { width: textWidth, link: file.url, underline: true });
+        }
+        if (qr) {
+          doc.image(qr, left + pageWidth - rowPadding - qrSize, rowTop + rowPadding, { width: qrSize, height: qrSize });
+        }
+        const rowBottom = Math.max(doc.y, qr ? rowTop + rowPadding + qrSize : 0) + rowPadding;
         doc.strokeColor(BORDER).lineWidth(1).rect(left, rowTop, pageWidth, rowBottom - rowTop).stroke();
         doc.y = rowBottom + 8;
-      }
+      });
     }
 
     doc.end();

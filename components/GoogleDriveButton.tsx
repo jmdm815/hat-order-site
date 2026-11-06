@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DriveLocation, resolveDriveLocation } from "@/lib/drive-location";
 
 // ---------------------------------------------------------------------------
 // "Choose from Google Drive" — admin-only companion to a file <input>.
@@ -44,7 +45,7 @@ const EXTENSION_TYPES: Record<string, string[]> = {
 
 let configPromise: Promise<DriveConfig> | null = null;
 let scriptsPromise: Promise<void> | null = null;
-let cachedToken: { value: string; expiresAt: number } | null = null;
+const cachedTokens: Record<string, { value: string; expiresAt: number } | undefined> = {};
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -88,21 +89,22 @@ function getConfig(): Promise<DriveConfig> {
   return configPromise;
 }
 
-function getToken(clientId: string): Promise<string> {
-  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return Promise.resolve(cachedToken.value);
+function getToken(clientId: string, scope: string = SCOPE): Promise<string> {
+  const cached = cachedTokens[scope];
+  if (cached && cached.expiresAt > Date.now() + 60_000) return Promise.resolve(cached.value);
   return new Promise((resolve, reject) => {
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: SCOPE,
+      scope,
       callback: (resp: { access_token?: string; expires_in?: number; error?: string }) => {
         if (!resp.access_token) return reject(new Error(resp.error ? `Google sign-in failed (${resp.error}).` : "Google sign-in was cancelled."));
-        cachedToken = { value: resp.access_token, expiresAt: Date.now() + (resp.expires_in ?? 3600) * 1000 };
+        cachedTokens[scope] = { value: resp.access_token, expiresAt: Date.now() + (resp.expires_in ?? 3600) * 1000 };
         resolve(resp.access_token);
       },
       error_callback: (err: { type?: string }) =>
         reject(new Error(err?.type === "popup_closed" ? "Google sign-in was closed." : "Google sign-in failed.")),
     });
-    client.requestAccessToken({ prompt: cachedToken ? "" : "select_account" });
+    client.requestAccessToken({ prompt: Object.keys(cachedTokens).length ? "" : "select_account" });
   });
 }
 
@@ -149,12 +151,62 @@ async function downloadFile(doc: PickedDoc, token: string): Promise<File> {
     ? `https://www.googleapis.com/drive/v3/files/${doc.id}/export?mimeType=${encodeURIComponent(XLSX)}`
     : `https://www.googleapis.com/drive/v3/files/${doc.id}?alt=media&supportsAllDrives=true`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (res.status === 401) cachedToken = null;
+  if (res.status === 401) delete cachedTokens[SCOPE];
   if (!res.ok) throw new Error(`Couldn't download "${doc.name}" from Google Drive (${res.status}).`);
   const blob = await res.blob();
   const name = isSheet && !/\.xlsx$/i.test(doc.name) ? `${doc.name}.xlsx` : doc.name;
   return new File([blob], name, { type: isSheet ? XLSX : doc.mimeType || blob.type });
 }
+
+// Read-only access to file *names and folders* (no contents) — enough to
+// work out where a picked file lives. See lib/drive-location.ts.
+const METADATA_SCOPE = "https://www.googleapis.com/auth/drive.metadata.readonly";
+
+function pickForLocation(cfg: DriveConfig, token: string): Promise<PickedDoc | null> {
+  return new Promise((resolve) => {
+    const picker = window.google.picker;
+    new picker.PickerBuilder()
+      .setTitle("Choose the print file in Google Drive")
+      .enableFeature(picker.Feature.SUPPORT_DRIVES)
+      .addView(new picker.DocsView(picker.ViewId.DOCS).setIncludeFolders(true).setSelectFolderEnabled(false))
+      .addView(new picker.DocsView(picker.ViewId.DOCS).setEnableDrives(true).setIncludeFolders(true))
+      .addView(new picker.DocsView(picker.ViewId.RECENTLY_PICKED))
+      .setOAuthToken(token)
+      .setDeveloperKey(cfg.apiKey)
+      .setAppId(cfg.appId)
+      .setOrigin(window.location.protocol + "//" + window.location.host)
+      .setCallback((data: { action: string; docs?: PickedDoc[] }) => {
+        if (data.action === picker.Action.PICKED && data.docs?.[0]) resolve(data.docs[0]);
+        else if (data.action === picker.Action.CANCEL) resolve(null);
+      })
+      .build()
+      .setVisible(true);
+  });
+}
+
+/**
+ * Opens the Drive picker and returns the chosen file's full Drive path
+ * (e.g. "My Drive/Customers/Sugar Mill/FRONT.pdf") and link — nothing is
+ * downloaded. Resolves null if the picker is cancelled.
+ */
+export async function pickDriveFileLocation(): Promise<DriveLocation | null> {
+  const cfg = await getConfig();
+  if (!cfg.configured) {
+    throw new Error(`Google Drive isn't set up yet (missing ${cfg.missing.join(", ")} on Vercel).`);
+  }
+  await loadGoogle();
+  const token = await getToken(cfg.clientId, METADATA_SCOPE);
+  const picked = await pickForLocation(cfg, token);
+  if (!picked) return null;
+  try {
+    return await resolveDriveLocation(picked.id, token);
+  } catch (err) {
+    delete cachedTokens[METADATA_SCOPE];
+    throw err;
+  }
+}
+
+export { DriveIcon };
 
 export default function GoogleDriveButton({
   onFile,

@@ -145,8 +145,15 @@ export type JobFolderPrintFile = {
   // cannot read a real OS file path back from a file picker for security
   // reasons in any browser, so this is intentionally just text instead of
   // a true file reference — see AdminJobFolderModal.tsx's "Browse…" helper,
-  // which can still fill in the filename portion for convenience.
+  // which can still fill in the filename portion for convenience. When the
+  // file was chosen with "Pick from Google Drive", this is filled in
+  // automatically with its full Drive folder chain (e.g. "My Drive/
+  // Customers/Sugar Mill/FRONT.pdf") — see lib/drive-location.ts.
   path: string;
+  // Direct Google Drive link to the file (webViewLink), set only when it was
+  // chosen with "Pick from Google Drive". Shown as an "Open" link in the
+  // admin modal and as a clickable link + QR code in the job-folder PDF.
+  url?: string;
 };
 
 export type JobFolderData = {
