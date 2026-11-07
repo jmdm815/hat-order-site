@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { put, del } from "@vercel/blob";
 import sharp from "sharp";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { getQuote, setJobFolderMockupImage } from "@/lib/quotes-store";
+import { v4 as uuid } from "uuid";
+import {
+  addJobFolderMockup,
+  getJobFolderMockups,
+  getQuote,
+  MAX_JOB_FOLDER_MOCKUPS,
+  removeJobFolderMockup,
+} from "@/lib/quotes-store";
 import { itemPhotoUrl } from "@/lib/item-photo";
 
 export const runtime = "nodejs";
@@ -60,6 +67,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     typeof rawLineItemLabel === "string" && rawLineItemLabel.trim()
       ? rawLineItemLabel.trim().slice(0, 200)
       : "For reference only";
+  // Print location shown as this image's label on the production sheet
+  // (e.g. "Front — Left Chest"). Optional; editable later from the modal.
+  const rawLocation = form.get("location");
+  const location = typeof rawLocation === "string" ? rawLocation.trim().slice(0, 60) : "";
+
+  if (getJobFolderMockups(record.jobFolder).length >= MAX_JOB_FOLDER_MOCKUPS) {
+    return NextResponse.json(
+      { error: `A job folder can hold up to ${MAX_JOB_FOLDER_MOCKUPS} mock-ups — remove one first.` },
+      { status: 400 }
+    );
+  }
 
   try {
     const inputBuffer = Buffer.from(await file.arrayBuffer());
@@ -78,15 +96,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       contentType: "image/jpeg",
     });
 
-    // Best-effort cleanup of the previous mock-up blob, if any — not
-    // critical if it fails (just leaves an orphaned blob behind), so this
-    // never blocks or fails the upload itself.
-    const previousUrl = record.jobFolder?.mockupImageBlobUrl;
-    if (previousUrl && previousUrl !== blob.url) {
-      del(previousUrl).catch(() => {});
-    }
-
-    const { record: updated, persisted } = await setJobFolderMockupImage(id, blob.url, lineItemLabel);
+    const mockupId = uuid();
+    const { record: updated, persisted } = await addJobFolderMockup(id, {
+      id: mockupId,
+      blobUrl: blob.url,
+      lineItemLabel,
+      ...(location ? { location } : {}),
+    });
     if (!updated) {
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     }
@@ -102,8 +118,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-// Removes the mock-up image from this record (keeps printFiles untouched).
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// Removes one mock-up image (?mockupId=...) from this record. Without a
+// mockupId, removes the only/first one (older single-image callers).
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -112,11 +129,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!record) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }
-  const previousUrl = record.jobFolder?.mockupImageBlobUrl;
-  if (previousUrl) {
-    del(previousUrl).catch(() => {});
+  const mockups = getJobFolderMockups(record.jobFolder);
+  const wanted = req.nextUrl.searchParams.get("mockupId");
+  const target = wanted ? mockups.find((m) => m.id === wanted) : mockups[0];
+  if (!target) {
+    return NextResponse.json({ error: "Mock-up not found" }, { status: 404 });
   }
-  const { record: updated, persisted } = await setJobFolderMockupImage(id, null, null);
+  del(target.blobUrl).catch(() => {}); // best-effort; an orphaned blob is harmless
+  const { record: updated, persisted } = await removeJobFolderMockup(id, target.id);
   if (!updated) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }

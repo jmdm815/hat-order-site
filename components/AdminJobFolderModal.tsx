@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
-import { QuoteRecord } from "@/lib/quotes-store";
+import type { JobFolderMockup, JobFolderPress, QuoteRecord } from "@/lib/quotes-store";
+import type { PressPreset } from "@/lib/press-presets-store";
 import { itemPhotoUrl } from "@/lib/item-photo";
 import GoogleDriveButton, { DriveIcon, pickDriveFileLocation } from "@/components/GoogleDriveButton";
 
@@ -79,6 +80,58 @@ function printFileLineLabel(line: QuoteRecord["computed"]["lines"][number]): str
   return `${name} (${line.quantity})`;
 }
 
+// Same as lib/quotes-store.ts's getJobFolderMockups (that module is
+// server-only, so it's mirrored here): folds the legacy single image in.
+function mockupsFromRecord(record: QuoteRecord): JobFolderMockup[] {
+  const jf = record.jobFolder;
+  if (!jf) return [];
+  if (jf.mockups) return jf.mockups;
+  return jf.mockupImageBlobUrl ? [{ id: "legacy", blobUrl: jf.mockupImageBlobUrl, lineItemLabel: jf.mockupLineItemLabel }] : [];
+}
+
+const MAX_MOCKUPS = 4;
+const PRESS_PRESET_NONE = "";
+const PRESS_PRESET_CUSTOM = "__custom__";
+
+// Dropdown of print locations with an "Other…" text box — used for each
+// mock-up's location label (same list as the print-file rows).
+function LocationSelect({ value, onChange, className }: { value: string; onChange: (v: string) => void; className: string }) {
+  const [otherOpen, setOtherOpen] = useState(false);
+  const isPreset = LABEL_SUGGESTIONS.includes(value);
+  const isOther = !isPreset && (value !== "" || otherOpen);
+  return (
+    <div className="flex flex-col gap-1">
+      <select
+        aria-label="Print location"
+        value={isPreset ? value : isOther ? OTHER_LABEL : ""}
+        onChange={(e) => {
+          const v = e.target.value;
+          setOtherOpen(v === OTHER_LABEL);
+          onChange(v === OTHER_LABEL ? "" : v);
+        }}
+        className={className}
+      >
+        <option value="">Location…</option>
+        {LABEL_SUGGESTIONS.map((l) => (
+          <option key={l} value={l}>
+            {l}
+          </option>
+        ))}
+        <option value={OTHER_LABEL}>Other…</option>
+      </select>
+      {isOther && (
+        <input
+          autoFocus={value === ""}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="e.g. Front — Left Chest"
+          className={className}
+        />
+      )}
+    </div>
+  );
+}
+
 function rowsFromRecord(record: QuoteRecord): EditableRow[] {
   const saved = record.jobFolder?.printFiles ?? [];
   return saved.map((f) => ({ id: f.id, label: f.label, path: f.path, url: f.url, appliesTo: f.appliesTo }));
@@ -114,21 +167,81 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   const lineItems = current.computed.lines;
   // De-duplicated short labels for the print-file "Applies to" chips.
   const lineItemChoices = Array.from(new Set(lineItems.map(printFileLineLabel)));
-  // A file picked from "Upload mock-up image"/"Replace image" waits here
-  // until the admin says which line item it's for — the upload itself
-  // doesn't fire until that's answered (see the "assign a line item" panel
-  // below). When the order has no line items at all, there's nothing to
-  // ask, so the upload goes straight through as "For reference only".
+  // A picked mock-up image waits here until the admin chooses its print
+  // location and which line item it shows, then "Upload" sends it.
   const [pendingMockupFile, setPendingMockupFile] = useState<File | null>(null);
+  const [pendingLocation, setPendingLocation] = useState("");
   const [pendingLineItemChoice, setPendingLineItemChoice] = useState<string>(
     lineItems.length > 0 ? "0" : "reference"
   );
 
+  // Uploaded mock-ups + their editable labels (saved with "Save").
+  const [mockups, setMockups] = useState<JobFolderMockup[]>(mockupsFromRecord(record));
+
+  // Press settings for the Heat / Press time boxes, and the saved presets.
+  const [press, setPress] = useState<JobFolderPress | null>(record.jobFolder?.press ?? null);
+  const [presets, setPresets] = useState<PressPreset[]>([]);
+  const [presetsError, setPresetsError] = useState<string | null>(null);
+  const [managingPresets, setManagingPresets] = useState(false);
+  const [presetDraft, setPresetDraft] = useState<PressPreset[]>([]);
+  const [savingPresets, setSavingPresets] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/press-presets", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Couldn't load press presets"))))
+      .then((d) => setPresets(d.presets ?? []))
+      .catch((e) => setPresetsError(e.message));
+  }, []);
+
+  function markDirty() {
+    setRowsDirty(true);
+    setRowsSaved(false);
+  }
+
+  function choosePreset(value: string) {
+    if (value === PRESS_PRESET_NONE) setPress(null);
+    else if (value === PRESS_PRESET_CUSTOM) setPress({ heat: press?.heat ?? "", time: press?.time ?? "", pressure: press?.pressure, notes: press?.notes });
+    else {
+      const p = presets.find((x) => x.id === value);
+      if (p) setPress({ presetId: p.id, name: p.name, heat: p.heat, time: p.time, pressure: p.pressure, notes: p.notes });
+    }
+    markDirty();
+  }
+
+  function editPress(patch: Partial<JobFolderPress>) {
+    // Hand-editing the values detaches them from the preset they came from.
+    setPress((prev) => ({ heat: "", time: "", ...prev, ...patch, presetId: undefined, name: undefined }));
+    markDirty();
+  }
+
+  function openPresetManager() {
+    setPresetDraft(presets.map((p) => ({ ...p })));
+    setManagingPresets(true);
+    setPresetsError(null);
+  }
+
+  async function savePresets() {
+    setSavingPresets(true);
+    setPresetsError(null);
+    try {
+      const res = await fetch("/api/admin/press-presets", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ presets: presetDraft }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Couldn't save presets");
+      setPresets(data.presets);
+      setManagingPresets(false);
+    } catch (e) {
+      setPresetsError(e instanceof Error ? e.message : "Couldn't save presets");
+    } finally {
+      setSavingPresets(false);
+    }
+  }
+
   const [downloading, setDownloading] = useState(false);
 
-  const mockupImageUrl = current.jobFolder?.mockupImageBlobUrl
-    ? itemPhotoUrl(current.jobFolder.mockupImageBlobUrl)
-    : null;
 
   function updateRow(id: string, patch: Partial<EditableRow>) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -198,12 +311,15 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           printFiles: rows.map(({ id, label, path, url, appliesTo }) => ({ id, label, path, url, appliesTo })),
+          press: press && (press.heat || press.time) ? press : null,
+          mockups: mockups.map(({ id, location, lineItemLabel }) => ({ id, location: location ?? "", lineItemLabel })),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to save");
       setCurrent(data.record);
       setRows(rowsFromRecord(data.record));
+      setMockups(mockupsFromRecord(data.record));
       onUpdated(data.record);
       setRowsDirty(false);
       setRowsSaved(true);
@@ -214,17 +330,21 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     }
   }
 
-  async function uploadMockup(file: File, lineItemLabelText: string) {
+  async function uploadMockup(file: File, lineItemLabelText: string, location = "") {
     setUploading(true);
     setMockupError(null);
     try {
       const form = new FormData();
       form.append("file", file);
       form.append("lineItemLabel", lineItemLabelText);
+      if (location) form.append("location", location);
       const res = await fetch(`/api/admin/quotes/${record.id}/job-folder/mockup`, { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
       setCurrent(data.record);
+      // Keep any unsaved label edits on existing images; add the new one.
+      const fresh = mockupsFromRecord(data.record);
+      setMockups((prev) => fresh.map((m) => prev.find((p) => p.id === m.id) ?? m));
       onUpdated(data.record);
     } catch (e) {
       setMockupError(e instanceof Error ? e.message : "Upload failed");
@@ -241,12 +361,11 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   // with none skips straight to uploading as "For reference only" since
   // there's nothing to choose between.
   function handleMockupFileChosen(file: File) {
-    if (lineItems.length === 0) {
-      uploadMockup(file, FOR_REFERENCE_ONLY);
-      return;
-    }
     setMockupError(null);
-    setPendingLineItemChoice("0");
+    setPendingLineItemChoice(lineItems.length > 0 ? "0" : "reference");
+    // Suggest the next usual location: Front first, then Back.
+    const used = mockups.map((m) => m.location);
+    setPendingLocation(!used.includes("Front") ? "Front" : !used.includes("Back") ? "Back" : "");
     setPendingMockupFile(file);
   }
 
@@ -256,7 +375,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       pendingLineItemChoice === "reference"
         ? FOR_REFERENCE_ONLY
         : lineItemLabel(lineItems[Number(pendingLineItemChoice)]);
-    uploadMockup(pendingMockupFile, label);
+    uploadMockup(pendingMockupFile, label, pendingLocation);
     setPendingMockupFile(null);
   }
 
@@ -265,14 +384,20 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     if (mockupInputRef.current) mockupInputRef.current.value = "";
   }
 
-  async function removeMockup() {
+  async function removeMockup(mockupId: string) {
+    if (!window.confirm("Remove this mock-up image?")) return;
     setUploading(true);
     setMockupError(null);
     try {
-      const res = await fetch(`/api/admin/quotes/${record.id}/job-folder/mockup`, { method: "DELETE" });
+      const res = await fetch(
+        `/api/admin/quotes/${record.id}/job-folder/mockup?mockupId=${encodeURIComponent(mockupId)}`,
+        { method: "DELETE" }
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to remove");
       setCurrent(data.record);
+      const fresh = mockupsFromRecord(data.record);
+      setMockups((prev) => fresh.map((m) => prev.find((p) => p.id === m.id) ?? m));
       onUpdated(data.record);
     } catch (e) {
       setMockupError(e instanceof Error ? e.message : "Failed to remove");
@@ -312,26 +437,71 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
           </button>
         </div>
         <p className="mt-2 text-xs text-admin-ink/62">
-          A 2-page handout for production: page 1 is the no-pricing work order, page 2 is the garment
-          mock-up and where to find each print file.
+          A handout for production: page 1 is the no-pricing work order, page 2 is the production sheet —
+          quantities, press settings, mock-ups and where to find each print file.
         </p>
 
-        {/* --- Mock-up image --------------------------------------------- */}
+        {/* --- Mock-ups ---------------------------------------------------- */}
         <div className="mt-4 border-t border-admin-ink/10 pt-4">
-          <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-2">Garment mock-up</p>
-          {mockupImageUrl ? (
-            <>
-              <div className="bg-white rounded-xl p-2 flex items-center justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={mockupImageUrl} alt="Garment mock-up" className="max-h-48 object-contain" />
-              </div>
-              <p className="mt-1.5 text-xs text-admin-ink/62">
-                For: <span className="text-admin-ink/88">{current.jobFolder?.mockupLineItemLabel || FOR_REFERENCE_ONLY}</span>
-              </p>
-            </>
-          ) : (
-            <p className="text-sm text-admin-ink/62 italic">No mock-up uploaded yet.</p>
+          <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-1">Mock-ups</p>
+          <p className="text-xs text-admin-ink/62 mb-2">
+            Add one image per print location (e.g. Front and Back) — they print side by side on the production sheet.
+          </p>
+
+          {mockups.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {mockups.map((m) => (
+                <div key={m.id} className="bg-admin-ink/5 rounded-xl p-2">
+                  <div className="bg-white rounded-lg p-1 flex items-center justify-center h-32">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={itemPhotoUrl(m.blobUrl)} alt={m.location || "Mock-up"} className="max-h-full object-contain" />
+                  </div>
+                  <div className="mt-2 space-y-1.5">
+                    <LocationSelect
+                      value={m.location ?? ""}
+                      onChange={(v) => {
+                        setMockups((prev) => prev.map((x) => (x.id === m.id ? { ...x, location: v } : x)));
+                        markDirty();
+                      }}
+                      className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                    />
+                    {lineItems.length > 0 && (
+                      <select
+                        aria-label="Line item shown"
+                        value={m.lineItemLabel ?? FOR_REFERENCE_ONLY}
+                        onChange={(e) => {
+                          setMockups((prev) => prev.map((x) => (x.id === m.id ? { ...x, lineItemLabel: e.target.value } : x)));
+                          markDirty();
+                        }}
+                        className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                      >
+                        {lineItems.map((line, i) => (
+                          <option key={i} value={lineItemLabel(line)}>
+                            {lineItemLabel(line)}
+                          </option>
+                        ))}
+                        {m.lineItemLabel &&
+                          m.lineItemLabel !== FOR_REFERENCE_ONLY &&
+                          !lineItems.some((line) => lineItemLabel(line) === m.lineItemLabel) && (
+                            <option value={m.lineItemLabel}>{m.lineItemLabel}</option>
+                          )}
+                        <option value={FOR_REFERENCE_ONLY}>{FOR_REFERENCE_ONLY}</option>
+                      </select>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeMockup(m.id)}
+                      disabled={uploading}
+                      className="text-xs text-admin-accent hover:underline disabled:opacity-40"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
+
           <input
             ref={mockupInputRef}
             type="file"
@@ -342,28 +512,29 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
               if (file) handleMockupFileChosen(file);
             }}
           />
-          <div className="mt-2">
-            <GoogleDriveButton accept="image/png,image/jpeg,image/webp" onFile={handleMockupFileChosen} />
-          </div>
 
           {pendingMockupFile && (
-            <div className="mt-2 bg-admin-ink/5 rounded-xl p-3">
+            <div className="mt-2 bg-admin-ink/5 rounded-xl p-3 space-y-2">
               <p className="text-xs text-admin-ink/88">
-                Which line item is <span className="font-medium text-admin-ink">{pendingMockupFile.name}</span> for?
+                Where does <span className="font-medium text-admin-ink">{pendingMockupFile.name}</span> go?
               </p>
-              <select
-                value={pendingLineItemChoice}
-                onChange={(e) => setPendingLineItemChoice(e.target.value)}
-                className="mt-2 w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
-              >
-                {lineItems.map((line, i) => (
-                  <option key={i} value={String(i)}>
-                    {lineItemLabel(line)}
-                  </option>
-                ))}
-                <option value="reference">{FOR_REFERENCE_ONLY}</option>
-              </select>
-              <div className="mt-2 flex items-center gap-2">
+              <LocationSelect value={pendingLocation} onChange={setPendingLocation} className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20" />
+              {lineItems.length > 0 && (
+                <select
+                  aria-label="Line item shown"
+                  value={pendingLineItemChoice}
+                  onChange={(e) => setPendingLineItemChoice(e.target.value)}
+                  className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                >
+                  {lineItems.map((line, i) => (
+                    <option key={i} value={String(i)}>
+                      {lineItemLabel(line)}
+                    </option>
+                  ))}
+                  <option value="reference">{FOR_REFERENCE_ONLY}</option>
+                </select>
+              )}
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={confirmPendingMockupUpload}
@@ -384,27 +555,136 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
             </div>
           )}
 
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => mockupInputRef.current?.click()}
-              disabled={uploading || !!pendingMockupFile}
-              className="text-xs px-3 py-1.5 rounded-xl border border-admin-ink/20 text-admin-ink hover:bg-admin-ink/5 disabled:opacity-40"
-            >
-              {uploading ? "Uploading…" : mockupImageUrl ? "Replace image" : "Upload mock-up image"}
-            </button>
-            {mockupImageUrl && (
+          {mockups.length < MAX_MOCKUPS && !pendingMockupFile && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={removeMockup}
+                onClick={() => mockupInputRef.current?.click()}
                 disabled={uploading}
-                className="text-xs text-admin-accent hover:underline disabled:opacity-40"
+                className="text-xs px-3 py-1.5 rounded-xl border border-admin-ink/20 text-admin-ink hover:bg-admin-ink/5 disabled:opacity-40"
               >
-                Remove
+                {uploading ? "Uploading…" : mockups.length ? "+ Add another mock-up" : "Upload mock-up image"}
+              </button>
+              <GoogleDriveButton accept="image/png,image/jpeg,image/webp" onFile={handleMockupFileChosen} />
+            </div>
+          )}
+          {mockupError && <p className="mt-1.5 text-xs text-admin-accent font-medium">{mockupError}</p>}
+        </div>
+
+        {/* --- Press settings ---------------------------------------------- */}
+        <div className="mt-4 border-t border-admin-ink/10 pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide">Press settings</p>
+            {!managingPresets && (
+              <button type="button" onClick={openPresetManager} className="text-xs text-blue-400 hover:underline">
+                Manage presets
               </button>
             )}
           </div>
-          {mockupError && <p className="mt-1.5 text-xs text-admin-accent font-medium">{mockupError}</p>}
+
+          {!managingPresets ? (
+            <>
+              <select
+                aria-label="Press preset"
+                value={!press ? PRESS_PRESET_NONE : press.presetId && presets.some((p) => p.id === press.presetId) ? press.presetId : PRESS_PRESET_CUSTOM}
+                onChange={(e) => choosePreset(e.target.value)}
+                className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+              >
+                <option value={PRESS_PRESET_NONE}>No press settings</option>
+                {presets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {[p.heat, p.time].filter(Boolean).join(", ")}
+                  </option>
+                ))}
+                <option value={PRESS_PRESET_CUSTOM}>Custom…</option>
+              </select>
+              {press && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <label className="text-[11px] text-admin-ink/72">
+                    Heat
+                    <input value={press.heat} onChange={(e) => editPress({ heat: e.target.value })} placeholder="285°F" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
+                  </label>
+                  <label className="text-[11px] text-admin-ink/72">
+                    Press time
+                    <input value={press.time} onChange={(e) => editPress({ time: e.target.value })} placeholder="4–6 sec" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
+                  </label>
+                  <label className="text-[11px] text-admin-ink/72">
+                    Pressure (optional)
+                    <input value={press.pressure ?? ""} onChange={(e) => editPress({ pressure: e.target.value })} placeholder="Medium" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
+                  </label>
+                  <label className="text-[11px] text-admin-ink/72">
+                    Notes (optional)
+                    <input value={press.notes ?? ""} onChange={(e) => editPress({ notes: e.target.value })} placeholder="Hot peel" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
+                  </label>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
+              {presetDraft.map((p, i) => (
+                <div key={p.id} className="bg-admin-ink/5 rounded-xl p-2 grid grid-cols-2 gap-1.5">
+                  <input
+                    value={p.name}
+                    onChange={(e) => setPresetDraft((d) => d.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                    placeholder="Preset name (e.g. DTF — cotton)"
+                    className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 col-span-2"
+                  />
+                  <input
+                    value={p.heat}
+                    onChange={(e) => setPresetDraft((d) => d.map((x, j) => (j === i ? { ...x, heat: e.target.value } : x)))}
+                    placeholder="Heat (285°F)"
+                    className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                  />
+                  <input
+                    value={p.time}
+                    onChange={(e) => setPresetDraft((d) => d.map((x, j) => (j === i ? { ...x, time: e.target.value } : x)))}
+                    placeholder="Time (4–6 sec)"
+                    className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                  />
+                  <input
+                    value={p.pressure ?? ""}
+                    onChange={(e) => setPresetDraft((d) => d.map((x, j) => (j === i ? { ...x, pressure: e.target.value } : x)))}
+                    placeholder="Pressure (optional)"
+                    className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                  />
+                  <input
+                    value={p.notes ?? ""}
+                    onChange={(e) => setPresetDraft((d) => d.map((x, j) => (j === i ? { ...x, notes: e.target.value } : x)))}
+                    placeholder="Notes (optional)"
+                    className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPresetDraft((d) => d.filter((_, j) => j !== i))}
+                    className="col-span-2 justify-self-start text-xs text-admin-accent hover:underline"
+                  >
+                    Delete preset
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPresetDraft((d) => [...d, { id: uuid(), name: "", heat: "", time: "" }])}
+                className="text-xs text-blue-400 hover:underline"
+              >
+                + Add preset
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={savePresets}
+                  disabled={savingPresets}
+                  className="text-xs px-3 py-1.5 rounded-xl bg-admin-bg text-admin-ink hover:bg-admin-bg/90 disabled:opacity-40"
+                >
+                  {savingPresets ? "Saving…" : "Save presets"}
+                </button>
+                <button type="button" onClick={() => setManagingPresets(false)} className="text-xs text-admin-ink/72 hover:text-admin-ink">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          {presetsError && <p className="mt-1.5 text-xs text-admin-accent font-medium">{presetsError}</p>}
         </div>
 
         {/* --- Print file locations --------------------------------------- */}
@@ -593,7 +873,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
           </button>
           {rowsDirty && (
             <p className="mt-1.5 text-xs text-amber-600">
-              You have unsaved print-file changes — save them first so they&apos;re included.
+              You have unsaved changes — click Save first so they&apos;re included.
             </p>
           )}
         </div>

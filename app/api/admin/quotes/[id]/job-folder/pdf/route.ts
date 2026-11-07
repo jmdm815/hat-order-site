@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { getQuote } from "@/lib/quotes-store";
+import { getJobFolderMockups, getQuote } from "@/lib/quotes-store";
 import { renderJobFolderPdf } from "@/lib/quote-pdf";
 import { isTrustedBlobUrl } from "@/lib/item-photo";
 
@@ -21,24 +21,46 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }
 
-  let mockupImageBuffer: Buffer | undefined;
-  const mockupBlobUrl = record.jobFolder?.mockupImageBlobUrl;
+  // Fetch every mock-up image (private Blob) in parallel; a failed one is
+  // just left off the sheet rather than failing the whole PDF.
   const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (mockupBlobUrl && isTrustedBlobUrl(mockupBlobUrl) && token) {
-    try {
-      const upstream = await fetch(mockupBlobUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (upstream.ok) {
-        mockupImageBuffer = Buffer.from(await upstream.arrayBuffer());
-      } else {
-        console.error(`GET /api/admin/quotes/${id}/job-folder/pdf: mock-up fetch returned ${upstream.status}`);
-      }
-    } catch (err) {
-      console.error(`GET /api/admin/quotes/${id}/job-folder/pdf: mock-up fetch failed`, err);
-    }
-  }
+  const mockups = (
+    await Promise.all(
+      getJobFolderMockups(record.jobFolder).map(async (m) => {
+        if (!token || !isTrustedBlobUrl(m.blobUrl)) return null;
+        try {
+          const upstream = await fetch(m.blobUrl, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+          if (!upstream.ok) {
+            console.error(`GET /api/admin/quotes/${id}/job-folder/pdf: mock-up fetch returned ${upstream.status}`);
+            return null;
+          }
+          return {
+            buffer: Buffer.from(await upstream.arrayBuffer()),
+            location: m.location,
+            caption: m.lineItemLabel && m.lineItemLabel !== "For reference only" ? m.lineItemLabel : undefined,
+          };
+        } catch (err) {
+          console.error(`GET /api/admin/quotes/${id}/job-folder/pdf: mock-up fetch failed`, err);
+          return null;
+        }
+      })
+    )
+  ).filter((m): m is NonNullable<typeof m> => m !== null);
+
+  const lines = record.computed.lines.map((l) => {
+    const custom = l.customerSupplied;
+    const desc = (l.itemDescription || "Customer-supplied item").split("\n")[0];
+    return {
+      name: custom ? desc : [l.brandName, l.styleNumber].filter(Boolean).join(" ") || l.productName,
+      color: custom ? undefined : l.colorName || undefined,
+      short: custom ? desc : [l.styleNumber, l.colorName].filter(Boolean).join(" "),
+      decoration: [l.decorationLabel, l.priceColumnLabel && !/^0/.test(l.priceColumnLabel) ? `(${l.priceColumnLabel})` : ""]
+        .filter(Boolean)
+        .join(" ") || undefined,
+      sizes: l.sizes.map((s) => ({ size: s.size, quantity: s.quantity })),
+      quantity: l.quantity,
+    };
+  });
 
   const docLabel = record.invoiceNumber
     ? `Invoice ${record.invoiceNumber}`
@@ -60,8 +82,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         docLabel,
         customerName: record.computed.customerName,
         customerCompany: record.computed.customerCompany,
-        mockupImageBuffer,
-        mockupLineItemLabel: record.jobFolder?.mockupLineItemLabel,
+        dueDate: record.computed.dueDate,
+        lines,
+        press: record.jobFolder?.press,
+        mockups,
         printFiles: record.jobFolder?.printFiles ?? [],
       }
     );

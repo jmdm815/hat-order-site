@@ -1185,93 +1185,254 @@ export type JobFolderPdfPrintFile = {
   appliesTo?: string[]; // line items this file is for; empty = all items
 };
 
+export type JobFolderPdfMockup = {
+  buffer: Buffer; // pre-fetched image bytes (PNG/JPEG)
+  location?: string; // pill label, e.g. "Front — Left Chest"
+  caption?: string; // e.g. which line item it shows
+};
+
+export type JobFolderPdfLine = {
+  name: string; // e.g. "Port & Company PC54"
+  color?: string;
+  short?: string; // compact row label for multi-item tables, e.g. "PC54 Red"
+  decoration?: string; // e.g. "Digital Print (2 Locations)"
+  sizes: { size: string; quantity: number }[];
+  quantity: number;
+};
+
+export type JobFolderPdfPress = { heat: string; time: string; pressure?: string; notes?: string; name?: string };
+
 export type JobFolderPdfData = {
   docLabel: string; // e.g. "Quote QT-1004" or "Invoice INV-0002"
   customerName?: string;
   customerCompany?: string;
-  // Pre-fetched bytes of the uploaded mock-up image (the route handler
-  // fetches these from Blob before calling in — this module doesn't know
-  // about Blob/network at all). pdfkit's doc.image() auto-detects
-  // PNG/JPEG from the buffer itself, so no content-type is needed here.
+  dueDate?: string; // ISO date — shown as the red "DUE" badge
+  lines?: JobFolderPdfLine[];
+  press?: JobFolderPdfPress;
+  mockups?: JobFolderPdfMockup[];
+  // Legacy single-image fields (older callers) — folded into `mockups`.
   mockupImageBuffer?: Buffer;
-  // See lib/quotes-store.ts's JobFolderData.mockupLineItemLabel — which
-  // line item this mock-up depicts, or "For reference only". Only shown
-  // when an image is actually present.
   mockupLineItemLabel?: string;
   printFiles: JobFolderPdfPrintFile[];
 };
 
+const SIZE_RANK = ["XS", "S", "M", "L", "XL", "2XL", "XXL", "3XL", "4XL", "5XL", "6XL"];
+function sizeRank(size: string): number {
+  const i = SIZE_RANK.indexOf(size.toUpperCase());
+  return i === -1 ? 100 : i;
+}
+
+function roundedBox(doc: PDFKit.PDFDocument, x: number, y: number, w: number, h: number, stroke = BORDER, lineWidth = 1) {
+  doc.save().lineWidth(lineWidth).strokeColor(stroke).roundedRect(x, y, w, h, 6).stroke().restore();
+}
+
+function pill(doc: PDFKit.PDFDocument, text: string, centerX: number, y: number, fill = NAVY) {
+  doc.font("Helvetica-Bold").fontSize(8.5);
+  const w = doc.widthOfString(text) + 18;
+  doc.save().roundedRect(centerX - w / 2, y, w, 16, 8).fill(fill).restore();
+  doc.fillColor("#ffffff").text(text, centerX - w / 2, y + 4, { width: w, align: "center", lineBreak: false });
+}
+
+// Production sheet (job folder page 2) — modeled on the shop's hand-made
+// "Work Order — Press Only" sheet: customer + garment boxes, a size/quantity
+// table, big Heat / Press time boxes, mock-ups side by side with location
+// pills, then where to find each print file.
 export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<Buffer> {
-  const logoBuffer = await loadLogoBuffer();
+  const mockups: JobFolderPdfMockup[] =
+    data.mockups ??
+    (data.mockupImageBuffer ? [{ buffer: data.mockupImageBuffer, caption: data.mockupLineItemLabel }] : []);
+  const lines = data.lines ?? [];
 
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "LETTER", margin: 50 });
+    const doc = new PDFDocument({ size: "LETTER", margin: 40 });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const left = doc.page.margins.left;
+    const pageWidth = doc.page.width - left - doc.page.margins.right;
+    const bottomLimit = () => doc.page.height - doc.page.margins.bottom;
+    const ensureRoom = (h: number) => {
+      if (doc.y + h > bottomLimit()) {
+        doc.addPage();
+        doc.y = doc.page.margins.top;
+      }
+    };
+    const sectionLabel = (text: string) => {
+      doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(text.toUpperCase(), left, doc.y, { characterSpacing: 0.6 });
+      doc.moveDown(0.3);
+    };
 
     // --- Header -------------------------------------------------------------
-    doc.y = 50;
-    drawCompanyBlock(doc, left, pageWidth, logoBuffer);
-    drawTitleBar(doc, left, pageWidth, "Mock-Up & Print Files", [
-      { label: "For", value: data.docLabel },
-      {
-        label: "Customer",
-        value: [data.customerName, data.customerCompany].filter(Boolean).join(" — ") || "—",
-      },
-    ]);
-    doc.moveDown(0.3);
+    const badgeW = 120;
+    const titleW = pageWidth - (data.dueDate ? badgeW + 12 : 0);
+    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(22).text("WORK ORDER — PRODUCTION", left, 40, { width: titleW });
+    doc
+      .fillColor(GRAY)
+      .font("Helvetica")
+      .fontSize(9.5)
+      .text(`${COMPANY_NAME} · Ref: ${data.docLabel}`, left, doc.y + 2, { width: titleW });
+    if (data.dueDate) {
+      const bx = left + pageWidth - badgeW;
+      doc.save().roundedRect(bx, 38, badgeW, 42, 6).fill(RED).restore();
+      doc.fillColor("#ffffff").font("Helvetica").fontSize(9).text("DUE", bx, 44, { width: badgeW - 12, align: "right" });
+      const d = new Date(`${data.dueDate}T12:00:00Z`);
+      const due = d
+        .toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })
+        .toUpperCase();
+      doc.font("Helvetica-Bold").fontSize(15).text(due, bx, 57, { width: badgeW - 12, align: "right" });
+    }
+    const ruleY = Math.max(doc.y + 8, data.dueDate ? 88 : 0);
+    doc.save().moveTo(left, ruleY).lineTo(left + pageWidth, ruleY).lineWidth(2).strokeColor(NAVY).stroke().restore();
+    doc.y = ruleY + 12;
 
-    // --- Mock-up image --------------------------------------------------
-    doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("GARMENT MOCK-UP", left, doc.y);
-    doc.moveDown(0.4);
+    // --- Customer + garment boxes ---------------------------------------------
+    const gap = 12;
+    const halfW = (pageWidth - gap) / 2;
+    const boxTop = doc.y;
+    const garmentLines = lines.slice(0, 4).map((l) => [l.name, l.color].filter(Boolean).join(" — "));
+    if (lines.length > 4) garmentLines.push(`+ ${lines.length - 4} more`);
+    const decorations = Array.from(new Set(lines.map((l) => l.decoration).filter(Boolean))) as string[];
+    const boxH = Math.max(52, 30 + garmentLines.length * 13 + (decorations.length ? 12 : 0));
 
-    const maxImageHeight = 320;
-    if (data.mockupImageBuffer) {
-      try {
-        // fit keeps aspect ratio within the box; pdfkit centers neither
-        // axis by default, so an explicit x/width + a centered y below
-        // mimics a basic "fit and center" without pre-measuring the image.
-        doc.image(data.mockupImageBuffer, left, doc.y, {
-          fit: [pageWidth, maxImageHeight],
-          align: "center",
-        });
-        doc.y += maxImageHeight + 6;
-        doc
-          .fillColor(GRAY)
-          .font("Helvetica-Oblique")
-          .fontSize(9)
-          .text(`For: ${data.mockupLineItemLabel || "For reference only"}`, left, doc.y, {
-            width: pageWidth,
-            align: "center",
-          });
-        doc.moveDown(0.6);
-      } catch (err) {
-        console.error("renderJobFolderExtrasPdf: failed to embed mock-up image", err);
-        doc
-          .fillColor(RED)
-          .font("Helvetica")
-          .fontSize(9)
-          .text("(The uploaded mock-up image couldn't be rendered.)", left, doc.y);
-        doc.moveDown(1);
-      }
-    } else {
-      doc
-        .fillColor(GRAY)
-        .font("Helvetica-Oblique")
-        .fontSize(9)
-        .text("No mock-up image has been uploaded for this job.", left, doc.y);
-      doc.moveDown(1);
+    roundedBox(doc, left, boxTop, halfW, boxH);
+    doc.fillColor(GRAY).font("Helvetica").fontSize(8).text("CUSTOMER", left + 10, boxTop + 8, { characterSpacing: 0.6 });
+    doc.fillColor("#111111").font("Helvetica-Bold").fontSize(12).text(data.customerCompany || data.customerName || "—", left + 10, boxTop + 20, { width: halfW - 20 });
+    if (data.customerCompany && data.customerName) {
+      doc.fillColor("#333333").font("Helvetica").fontSize(10).text(data.customerName, left + 10, doc.y + 1, { width: halfW - 20 });
     }
 
-    // --- Print file locations --------------------------------------------
-    doc.moveDown(0.4);
-    doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("PRINT FILE LOCATIONS", left, doc.y);
-    doc.moveDown(0.5);
+    const gx = left + halfW + gap;
+    roundedBox(doc, gx, boxTop, halfW, boxH);
+    doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(lines.length > 1 ? "GARMENTS" : "GARMENT", gx + 10, boxTop + 8, { characterSpacing: 0.6 });
+    doc.y = boxTop + 20;
+    garmentLines.forEach((g, i) => {
+      doc.fillColor("#111111").font(i === 0 && lines.length === 1 ? "Helvetica-Bold" : "Helvetica-Bold").fontSize(lines.length > 1 ? 10 : 12).text(g, gx + 10, doc.y, { width: halfW - 20 });
+    });
+    if (decorations.length) {
+      doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(decorations.join(" · "), gx + 10, doc.y + 1, { width: halfW - 20 });
+    }
+    doc.y = boxTop + boxH + 12;
+
+    // --- Quantities ---------------------------------------------------------
+    if (lines.length) {
+      const total = lines.reduce((t, l) => t + l.quantity, 0);
+      const sizes = Array.from(new Set(lines.flatMap((l) => l.sizes.map((s) => s.size)))).sort(
+        (a, b) => sizeRank(a) - sizeRank(b)
+      );
+      const multi = lines.length > 1;
+      const labelColW = multi ? Math.min(170, pageWidth * 0.32) : 0;
+      const cols = sizes.length + 1; // + TOTAL
+      const colW = (pageWidth - labelColW) / cols;
+      const headH = 20;
+      const rowH = 24;
+      ensureRoom(16 + headH + rowH * lines.length + (multi ? rowH : 0));
+      sectionLabel(`Quantities — ${total} ${total === 1 ? "piece" : "pieces"}`);
+      const tTop = doc.y;
+      doc.save().rect(left, tTop, pageWidth, headH).fill(NAVY).restore();
+      doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(9);
+      if (multi) doc.text("ITEM", left + 8, tTop + 6, { width: labelColW - 12, lineBreak: false });
+      [...sizes, "TOTAL"].forEach((sz, i) => {
+        doc.text(sz, left + labelColW + i * colW, tTop + 6, { width: colW, align: "center", lineBreak: false });
+      });
+      let y = tTop + headH;
+      const rows = multi
+        ? [...lines.map((l) => ({ label: l.short || [l.name, l.color].filter(Boolean).join(" "), line: l })), { label: "TOTAL", line: null as JobFolderPdfLine | null }]
+        : [{ label: "", line: lines[0] }];
+      rows.forEach((r) => {
+        const isTotal = r.line === null;
+        doc.save().rect(left, y, pageWidth, rowH).lineWidth(1).strokeColor(NAVY).stroke().restore();
+        if (multi) {
+          doc.fillColor("#111111").font(isTotal ? "Helvetica-Bold" : "Helvetica").fontSize(9).text(r.label, left + 8, y + 8, { width: labelColW - 12, lineBreak: false, ellipsis: true });
+        }
+        [...sizes, "TOTAL"].forEach((sz, i) => {
+          const x = left + labelColW + i * colW;
+          doc.save().moveTo(x, y).lineTo(x, y + rowH).lineWidth(0.75).strokeColor(BORDER).stroke().restore();
+          let v: number;
+          if (sz === "TOTAL") v = isTotal ? total : r.line!.quantity;
+          else if (isTotal) v = lines.reduce((t, l) => t + (l.sizes.find((s) => s.size === sz)?.quantity ?? 0), 0);
+          else v = r.line!.sizes.find((s) => s.size === sz)?.quantity ?? 0;
+          doc.fillColor(v ? "#111111" : "#bbbbbb").font(sz === "TOTAL" || isTotal ? "Helvetica-Bold" : "Helvetica").fontSize(12).text(v ? String(v) : "–", x, y + 6, { width: colW, align: "center", lineBreak: false });
+        });
+        y += rowH;
+      });
+      doc.y = y + 14;
+    }
+
+    // --- Heat / Press time ----------------------------------------------------
+    if (data.press && (data.press.heat || data.press.time)) {
+      const h = 58;
+      ensureRoom(h + 30);
+      const boxes = [
+        { label: "HEAT", value: data.press.heat || "—" },
+        { label: "PRESS TIME", value: data.press.time || "—" },
+      ];
+      const y = doc.y;
+      boxes.forEach((b, i) => {
+        const x = left + i * (halfW + gap);
+        roundedBox(doc, x, y, halfW, h, NAVY, 1.5);
+        doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(b.label, x, y + 9, { width: halfW, align: "center", characterSpacing: 0.6 });
+        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(26).text(b.value, x, y + 22, { width: halfW, align: "center", lineBreak: false });
+      });
+      doc.y = y + h + 6;
+      const extra = [data.press.pressure ? `Pressure: ${data.press.pressure}` : "", data.press.notes || ""].filter(Boolean).join("   ·   ");
+      if (extra) {
+        doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(extra, left, doc.y, { width: pageWidth, align: "center" });
+      }
+      doc.moveDown(0.8);
+    }
+
+    // --- Mock-ups -----------------------------------------------------------
+    if (mockups.length) {
+      const perRow = mockups.length === 1 ? 1 : 2;
+      const cardW = perRow === 1 ? pageWidth : halfW;
+      const rowsCount = Math.ceil(mockups.length / perRow);
+      // Leave room for the print-file list below so it stays on this page
+      // whenever the cards can still be a usable size.
+      const reservedForFiles = 36 + Math.max(1, data.printFiles.length) * 64;
+      const remaining = bottomLimit() - doc.y - 8 - reservedForFiles;
+      // Fill the rest of the page when it can; never smaller than 180pt/card.
+      let cardH = Math.min(perRow === 1 ? 280 : 300, Math.max(180, (remaining - (rowsCount - 1) * gap) / rowsCount));
+      if (doc.y + cardH > bottomLimit()) {
+        doc.addPage();
+        doc.y = doc.page.margins.top;
+        cardH = Math.min(300, (bottomLimit() - doc.y - (rowsCount - 1) * gap) / rowsCount);
+      }
+      let rowY = doc.y;
+      mockups.forEach((m, i) => {
+        const col = i % perRow;
+        if (col === 0 && i > 0) rowY += cardH + gap;
+        if (col === 0) {
+          doc.y = rowY;
+          ensureRoom(cardH);
+          rowY = doc.y;
+        }
+        const x = left + col * (cardW + gap);
+        const y = rowY;
+        roundedBox(doc, x, y, cardW, cardH, "#dddddd");
+        const hasPill = !!m.location;
+        const capH = m.caption ? 16 : 0;
+        const imgTop = y + (hasPill ? 26 : 10);
+        const imgH = cardH - (imgTop - y) - capH - 10;
+        try {
+          doc.image(m.buffer, x + 10, imgTop, { fit: [cardW - 20, imgH], align: "center", valign: "center" });
+        } catch (err) {
+          console.error("renderJobFolderExtrasPdf: failed to embed mock-up image", err);
+          doc.fillColor(RED).font("Helvetica").fontSize(9).text("(Image couldn't be rendered.)", x + 10, imgTop + 10, { width: cardW - 20, align: "center" });
+        }
+        if (hasPill) pill(doc, m.location!.toUpperCase(), x + cardW / 2, y + 6);
+        if (m.caption) {
+          doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(m.caption, x + 8, y + cardH - capH - 4, { width: cardW - 16, align: "center", lineBreak: false, ellipsis: true });
+        }
+      });
+      doc.y = rowY + cardH + 14;
+    }
+
+    // --- Print file locations ---------------------------------------------
+    ensureRoom(40);
+    sectionLabel("Print file locations");
+    const pageWidthInner = pageWidth;
 
     if (data.printFiles.length === 0) {
       doc
@@ -1284,16 +1445,13 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
       // Just the label + folder location — staff find the file themselves in
       // Google Drive (web or the Drive folder on their computer); no link/QR.
       data.printFiles.forEach((file) => {
-        // Keep each row's label+path together — pdfkit has no native
-        // "don't break this block across pages" so this just checks the
-        // (generously estimated) block height against the remaining page
-        // space first and adds a page if it won't fit.
         const estimatedHeight = rowPadding * 2 + 40;
-        if (doc.y + estimatedHeight > doc.page.height - doc.page.margins.bottom) {
+        if (doc.y + estimatedHeight > bottomLimit()) {
           doc.addPage();
+          doc.y = doc.page.margins.top;
         }
         const rowTop = doc.y;
-        const textWidth = pageWidth - rowPadding * 2;
+        const textWidth = pageWidthInner - rowPadding * 2;
         doc
           .fillColor(GRAY)
           .font("Helvetica")
@@ -1319,7 +1477,7 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
           .font(file.appliesTo?.length ? "Helvetica" : "Helvetica-Oblique")
           .text(file.appliesTo?.length ? file.appliesTo.join(", ") : "All items");
         const rowBottom = doc.y + rowPadding;
-        doc.strokeColor(BORDER).lineWidth(1).rect(left, rowTop, pageWidth, rowBottom - rowTop).stroke();
+        doc.save().roundedRect(left, rowTop, pageWidthInner, rowBottom - rowTop, 6).lineWidth(1).strokeColor(BORDER).stroke().restore();
         doc.y = rowBottom + 8;
       });
     }

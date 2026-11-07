@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { getQuote, setJobFolderPrintFiles, JobFolderPrintFile } from "@/lib/quotes-store";
+import { getQuote, setJobFolderDetails, JobFolderPress, JobFolderPrintFile } from "@/lib/quotes-store";
+import { cleanPreset } from "@/lib/press-presets-store";
 
 // Admin-only: saves this quote/invoice's job-folder print-file list — a
 // short, freeform "where to find the file" list (label + a path/link the
@@ -52,7 +53,36 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     });
   }
 
-  const { record: updated, persisted } = await setJobFolderPrintFiles(id, printFiles);
+  // Press settings (Heat / Press time boxes on the production sheet):
+  // an object sets them, null clears them, absent leaves them alone.
+  let press: JobFolderPress | null | undefined;
+  if (body.press === null) press = null;
+  else if (body.press !== undefined) {
+    const p = cleanPreset(body.press);
+    press = p
+      ? {
+          heat: p.heat,
+          time: p.time,
+          ...(p.name ? { name: p.name } : {}),
+          ...(p.pressure ? { pressure: p.pressure } : {}),
+          ...(p.notes ? { notes: p.notes } : {}),
+          ...(typeof body.press.presetId === "string" && body.press.presetId ? { presetId: body.press.presetId.slice(0, 60) } : {}),
+        }
+      : null;
+  }
+
+  // Each mock-up's print-location / line-item labels (edited in the modal).
+  const mockupLabels = Array.isArray(body.mockups)
+    ? body.mockups
+        .filter((m: unknown): m is { id: string } => typeof m === "object" && m !== null && typeof (m as { id?: unknown }).id === "string")
+        .map((m: { id: string; location?: unknown; lineItemLabel?: unknown }) => ({
+          id: m.id,
+          location: typeof m.location === "string" ? m.location.trim().slice(0, 60) : undefined,
+          lineItemLabel: typeof m.lineItemLabel === "string" ? m.lineItemLabel.trim().slice(0, 200) : undefined,
+        }))
+    : undefined;
+
+  const { record: updated, persisted } = await setJobFolderDetails(id, { printFiles, press, mockupLabels });
   if (!updated) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }
