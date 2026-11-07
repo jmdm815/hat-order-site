@@ -21,6 +21,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }
 
+  // Mock-ups store the modal's long line label ("30 × Jerzees … True Red");
+  // print the compact form instead ("29M True Red (30)") so it fits.
+  const shortCaption = new Map<string, string>();
+  for (const l of record.computed.lines) {
+    const desc = l.customerSupplied
+      ? l.itemDescription || "Customer-supplied item"
+      : [l.brandName, l.productName, l.colorName].filter(Boolean).join(" ");
+    const short = l.customerSupplied
+      ? (l.itemDescription || "Customer-supplied item").split("\n")[0]
+      : [l.styleNumber, l.colorName].filter(Boolean).join(" ");
+    shortCaption.set(`${l.quantity} × ${desc}`, `${short} (${l.quantity})`);
+  }
+
   // Fetch every mock-up image (private Blob) in parallel; a failed one is
   // just left off the sheet rather than failing the whole PDF.
   const token = process.env.BLOB_READ_WRITE_TOKEN;
@@ -37,7 +50,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           return {
             buffer: Buffer.from(await upstream.arrayBuffer()),
             location: m.location,
-            caption: m.lineItemLabel && m.lineItemLabel !== "For reference only" ? m.lineItemLabel : undefined,
+            caption:
+              m.lineItemLabel && m.lineItemLabel !== "For reference only"
+                ? shortCaption.get(m.lineItemLabel) ?? m.lineItemLabel
+                : undefined,
           };
         } catch (err) {
           console.error(`GET /api/admin/quotes/${id}/job-folder/pdf: mock-up fetch failed`, err);
