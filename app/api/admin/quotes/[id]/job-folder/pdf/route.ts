@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { getJobFolderMockups, getQuote } from "@/lib/quotes-store";
+import { getJobFolderMockups, getJobFolderPressSettings, getQuote } from "@/lib/quotes-store";
 import { renderJobFolderPdf } from "@/lib/quote-pdf";
 import { isTrustedBlobUrl } from "@/lib/item-photo";
 
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         customerCompany: record.computed.customerCompany,
         dueDate: record.computed.dueDate,
         lines,
-        press: record.jobFolder?.press,
+        pressSettings: getJobFolderPressSettings(record.jobFolder),
         mockups,
         printFiles: record.jobFolder?.printFiles ?? [],
       }

@@ -1200,7 +1200,14 @@ export type JobFolderPdfLine = {
   quantity: number;
 };
 
-export type JobFolderPdfPress = { heat: string; time: string; pressure?: string; notes?: string; name?: string };
+export type JobFolderPdfPress = {
+  heat: string;
+  time: string;
+  pressure?: string;
+  notes?: string;
+  name?: string;
+  appliesTo?: string[]; // line items this setting is for; empty = all items
+};
 
 export type JobFolderPdfData = {
   docLabel: string; // e.g. "Quote QT-1004" or "Invoice INV-0002"
@@ -1208,7 +1215,8 @@ export type JobFolderPdfData = {
   customerCompany?: string;
   dueDate?: string; // ISO date — shown as the red "DUE" badge
   lines?: JobFolderPdfLine[];
-  press?: JobFolderPdfPress;
+  press?: JobFolderPdfPress; // legacy single setting — folded into pressSettings
+  pressSettings?: JobFolderPdfPress[];
   mockups?: JobFolderPdfMockup[];
   // Legacy single-image fields (older callers) — folded into `mockups`.
   mockupImageBuffer?: Buffer;
@@ -1361,26 +1369,48 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
     }
 
     // --- Heat / Press time ----------------------------------------------------
-    if (data.press && (data.press.heat || data.press.time)) {
-      const h = 58;
-      ensureRoom(h + 30);
-      const boxes = [
-        { label: "HEAT", value: data.press.heat || "—" },
-        { label: "PRESS TIME", value: data.press.time || "—" },
-      ];
+    // One setting for the whole order → two big boxes (like the shop's
+    // hand-made sheet). Several (e.g. cotton vs. polyester) → one compact
+    // row per setting, each labeled with the items it's for.
+    const pressList = (data.pressSettings ?? (data.press ? [data.press] : [])).filter((p) => p.heat || p.time);
+    const drawPressBoxes = (p: JobFolderPdfPress, h: number, valueSize: number) => {
       const y = doc.y;
-      boxes.forEach((b, i) => {
+      [
+        { label: "HEAT", value: p.heat || "—" },
+        { label: "PRESS TIME", value: p.time || "—" },
+      ].forEach((b, i) => {
         const x = left + i * (halfW + gap);
         roundedBox(doc, x, y, halfW, h, NAVY, 1.5);
-        doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(b.label, x, y + 9, { width: halfW, align: "center", characterSpacing: 0.6 });
-        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(26).text(b.value, x, y + 22, { width: halfW, align: "center", lineBreak: false });
+        doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(b.label, x, y + 7, { width: halfW, align: "center", characterSpacing: 0.6 });
+        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(valueSize).text(b.value, x, y + h / 2 - valueSize / 2 + 5, { width: halfW, align: "center", lineBreak: false });
       });
-      doc.y = y + h + 6;
-      const extra = [data.press.pressure ? `Pressure: ${data.press.pressure}` : "", data.press.notes || ""].filter(Boolean).join("   ·   ");
-      if (extra) {
-        doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(extra, left, doc.y, { width: pageWidth, align: "center" });
-      }
+      doc.y = y + h + 5;
+      const extra = [p.pressure ? `Pressure: ${p.pressure}` : "", p.notes || ""].filter(Boolean).join("   ·   ");
+      if (extra) doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(extra, left, doc.y, { width: pageWidth, align: "center" });
+    };
+    if (pressList.length === 1 && !pressList[0].appliesTo?.length) {
+      ensureRoom(58 + 30);
+      drawPressBoxes(pressList[0], 58, 26);
       doc.moveDown(0.8);
+    } else if (pressList.length) {
+      ensureRoom(30);
+      sectionLabel("Heat press settings");
+      pressList.forEach((p) => {
+        ensureRoom(18 + 44 + 18);
+        doc
+          .fillColor(GRAY)
+          .font("Helvetica")
+          .fontSize(9)
+          .text("For: ", left, doc.y, { width: pageWidth, continued: true })
+          .fillColor(NAVY)
+          .font("Helvetica-Bold")
+          .fontSize(10)
+          .text(p.appliesTo?.length ? p.appliesTo.join(", ") : "All other items");
+        doc.y += 3;
+        drawPressBoxes(p, 44, 20);
+        doc.moveDown(0.6);
+      });
+      doc.moveDown(0.2);
     }
 
     // --- Mock-ups -----------------------------------------------------------
@@ -1393,7 +1423,7 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
       const reservedForFiles = 36 + Math.max(1, data.printFiles.length) * 64;
       const remaining = bottomLimit() - doc.y - 8 - reservedForFiles;
       // Fill the rest of the page when it can; never smaller than 180pt/card.
-      let cardH = Math.min(perRow === 1 ? 280 : 300, Math.max(180, (remaining - (rowsCount - 1) * gap) / rowsCount));
+      let cardH = Math.min(perRow === 1 ? 280 : 300, Math.max(150, (remaining - (rowsCount - 1) * gap) / rowsCount));
       if (doc.y + cardH > bottomLimit()) {
         doc.addPage();
         doc.y = doc.page.margins.top;
@@ -1430,7 +1460,8 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
     }
 
     // --- Print file locations ---------------------------------------------
-    ensureRoom(40);
+    // Keep the heading with at least the first file row.
+    ensureRoom(data.printFiles.length ? 90 : 40);
     sectionLabel("Print file locations");
     const pageWidthInner = pageWidth;
 
