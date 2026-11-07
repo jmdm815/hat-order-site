@@ -154,6 +154,12 @@ export type JobFolderPrintFile = {
   // chosen with "Pick from Google Drive". Kept for reference only — the
   // modal and job-folder PDF show just the folder path (shop request).
   url?: string;
+  // Which of the order's line items this file is for — e.g. an adult print
+  // for "ST450 Black (49)" + "ST450 True Royal (51)" and a separate youth
+  // print for "YST450 True Royal (15)". Stored as the short line labels
+  // shown in AdminJobFolderModal.tsx (printFileLineLabel) at the time of
+  // saving, not re-validated later. Empty/undefined means "all items".
+  appliesTo?: string[];
 };
 
 export type JobFolderData = {

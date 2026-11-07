@@ -37,7 +37,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       typeof raw.url === "string" && /^https:\/\/(drive|docs)\.google\.com\//.test(raw.url.trim())
         ? raw.url.trim()
         : undefined;
-    printFiles.push(url ? { id, label, path, url } : { id, label, path });
+    const appliesTo = Array.isArray(raw.appliesTo)
+      ? raw.appliesTo
+          .filter((x: unknown): x is string => typeof x === "string" && x.trim() !== "")
+          .map((x: string) => x.trim().slice(0, 200))
+          .slice(0, 50)
+      : [];
+    printFiles.push({
+      id,
+      label,
+      path,
+      ...(url ? { url } : {}),
+      ...(appliesTo.length ? { appliesTo } : {}),
+    });
   }
 
   const { record: updated, persisted } = await setJobFolderPrintFiles(id, printFiles);

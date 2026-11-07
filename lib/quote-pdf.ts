@@ -1182,6 +1182,7 @@ export type JobFolderPdfPrintFile = {
   label: string;
   path: string;
   url?: string; // Google Drive link (kept on the record; not printed)
+  appliesTo?: string[]; // line items this file is for; empty = all items
 };
 
 export type JobFolderPdfData = {
@@ -1287,7 +1288,7 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
         // "don't break this block across pages" so this just checks the
         // (generously estimated) block height against the remaining page
         // space first and adds a page if it won't fit.
-        const estimatedHeight = rowPadding * 2 + 26;
+        const estimatedHeight = rowPadding * 2 + 40;
         if (doc.y + estimatedHeight > doc.page.height - doc.page.margins.bottom) {
           doc.addPage();
         }
@@ -1309,6 +1310,14 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
           .text("File location: ", left + rowPadding, doc.y + 3, { width: textWidth, continued: true })
           .fillColor("#1c1917")
           .text(file.path || "(no path entered)");
+        doc
+          .fillColor(GRAY)
+          .font("Helvetica")
+          .fontSize(9)
+          .text("For: ", left + rowPadding, doc.y + 3, { width: textWidth, continued: true })
+          .fillColor("#1c1917")
+          .font(file.appliesTo?.length ? "Helvetica" : "Helvetica-Oblique")
+          .text(file.appliesTo?.length ? file.appliesTo.join(", ") : "All items");
         const rowBottom = doc.y + rowPadding;
         doc.strokeColor(BORDER).lineWidth(1).rect(left, rowTop, pageWidth, rowBottom - rowTop).stroke();
         doc.y = rowBottom + 8;

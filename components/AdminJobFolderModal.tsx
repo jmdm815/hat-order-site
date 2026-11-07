@@ -25,7 +25,7 @@ type Props = {
 // "Pick from Drive" (below) is the exception: Google's own Drive picker can
 // report where a file lives, so it fills in the full Drive path plus a
 // direct link (`url`) automatically — see lib/drive-location.ts.
-type EditableRow = { id: string; label: string; path: string; url?: string };
+type EditableRow = { id: string; label: string; path: string; url?: string; appliesTo?: string[] };
 
 // Print locations offered in each row's dropdown. "Other…" reveals a text
 // box for anything not listed; a saved custom label still shows (as itself).
@@ -69,9 +69,19 @@ function mergePathWithFilename(path: string, filename: string): string {
   return trimmed.slice(0, lastSep + 1) + filename;
 }
 
+// Short label for a line item in the print-file "Applies to" chips and on the
+// job-folder PDF — style + color + piece count, e.g. "ST450 Black (49)".
+// Customer-supplied/custom lines use the first line of their description.
+function printFileLineLabel(line: QuoteRecord["computed"]["lines"][number]): string {
+  const name = line.customerSupplied
+    ? (line.itemDescription || "Customer-supplied item").split("\n")[0]
+    : [line.styleNumber, line.colorName].filter(Boolean).join(" ") || line.productName || "Item";
+  return `${name} (${line.quantity})`;
+}
+
 function rowsFromRecord(record: QuoteRecord): EditableRow[] {
   const saved = record.jobFolder?.printFiles ?? [];
-  return saved.map((f) => ({ id: f.id, label: f.label, path: f.path, url: f.url }));
+  return saved.map((f) => ({ id: f.id, label: f.label, path: f.path, url: f.url, appliesTo: f.appliesTo }));
 }
 
 // "Create Job Folder" popup — opened from AdminSavedQuotesList.tsx. Lets the
@@ -102,6 +112,8 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   const browseInputRef = useRef<HTMLInputElement>(null);
 
   const lineItems = current.computed.lines;
+  // De-duplicated short labels for the print-file "Applies to" chips.
+  const lineItemChoices = Array.from(new Set(lineItems.map(printFileLineLabel)));
   // A file picked from "Upload mock-up image"/"Replace image" waits here
   // until the admin says which line item it's for — the upload itself
   // doesn't fire until that's answered (see the "assign a line item" panel
@@ -184,7 +196,9 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       const res = await fetch(`/api/admin/quotes/${record.id}/job-folder`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ printFiles: rows.map(({ id, label, path, url }) => ({ id, label, path, url })) }),
+        body: JSON.stringify({
+          printFiles: rows.map(({ id, label, path, url, appliesTo }) => ({ id, label, path, url, appliesTo })),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to save");
@@ -487,6 +501,59 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                     ✕
                   </button>
                 </div>
+                {lineItemChoices.length > 1 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-admin-ink/62 mr-0.5">Applies to:</span>
+                    <button
+                      type="button"
+                      onClick={() => updateRow(row.id, { appliesTo: [] })}
+                      className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                        !row.appliesTo?.length
+                          ? "bg-admin-accent text-white border-admin-accent"
+                          : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"
+                      }`}
+                    >
+                      All items
+                    </button>
+                    {lineItemChoices.map((choice) => {
+                      const on = !!row.appliesTo?.includes(choice);
+                      return (
+                        <button
+                          key={choice}
+                          type="button"
+                          onClick={() => {
+                            const cur = row.appliesTo ?? [];
+                            const next = on ? cur.filter((c) => c !== choice) : [...cur, choice];
+                            updateRow(row.id, { appliesTo: next });
+                          }}
+                          className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                            on
+                              ? "bg-admin-accent text-white border-admin-accent"
+                              : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"
+                          }`}
+                        >
+                          {choice}
+                        </button>
+                      );
+                    })}
+                    {/* A saved choice that no longer matches a current line
+                        (the order was edited since) — still shown so it can
+                        be cleared. */}
+                    {(row.appliesTo ?? [])
+                      .filter((c) => !lineItemChoices.includes(c))
+                      .map((stale) => (
+                        <button
+                          key={stale}
+                          type="button"
+                          title="No longer matches an item on this order — click to remove"
+                          onClick={() => updateRow(row.id, { appliesTo: (row.appliesTo ?? []).filter((c) => c !== stale) })}
+                          className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-admin-accent text-admin-accent"
+                        >
+                          {stale} ✕
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
