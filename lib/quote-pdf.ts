@@ -1283,12 +1283,17 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
     // --- Header -------------------------------------------------------------
     const badgeW = 120;
     const titleW = pageWidth - (data.dueDate ? badgeW + 12 : 0);
-    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(22).text("WORK ORDER — PRODUCTION", left, 40, { width: titleW });
+    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(22).text("PRODUCTION SHEET", left, 40, { width: titleW });
     doc
       .fillColor(GRAY)
       .font("Helvetica")
       .fontSize(9.5)
-      .text(`${COMPANY_NAME} · Ref: ${data.docLabel}`, left, doc.y + 2, { width: titleW });
+      .text(
+        [data.customerCompany || data.customerName, `Ref: ${data.docLabel}`, COMPANY_NAME].filter(Boolean).join(" · "),
+        left,
+        doc.y + 2,
+        { width: titleW }
+      );
     if (data.dueDate) {
       const bx = left + pageWidth - badgeW;
       doc.save().roundedRect(bx, 38, badgeW, 42, 6).fill(RED).restore();
@@ -1303,78 +1308,11 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
     doc.save().moveTo(left, ruleY).lineTo(left + pageWidth, ruleY).lineWidth(2).strokeColor(NAVY).stroke().restore();
     doc.y = ruleY + 12;
 
-    // --- Customer + garment boxes ---------------------------------------------
+    // Customer/garment boxes and the size table used to repeat here, but
+    // page 1 (the work order) already lists them — this page starts at the
+    // press settings.
     const gap = 12;
     const halfW = (pageWidth - gap) / 2;
-    const boxTop = doc.y;
-    const garmentLines = lines.slice(0, 4).map((l) => [l.name, l.color].filter(Boolean).join(" — "));
-    if (lines.length > 4) garmentLines.push(`+ ${lines.length - 4} more`);
-    const decorations = Array.from(new Set(lines.map((l) => l.decoration).filter(Boolean))) as string[];
-    const boxH = Math.max(52, 30 + garmentLines.length * 13 + (decorations.length ? 12 : 0));
-
-    roundedBox(doc, left, boxTop, halfW, boxH);
-    doc.fillColor(GRAY).font("Helvetica").fontSize(8).text("CUSTOMER", left + 10, boxTop + 8, { characterSpacing: 0.6 });
-    doc.fillColor("#111111").font("Helvetica-Bold").fontSize(12).text(data.customerCompany || data.customerName || "—", left + 10, boxTop + 20, { width: halfW - 20 });
-    if (data.customerCompany && data.customerName) {
-      doc.fillColor("#333333").font("Helvetica").fontSize(10).text(data.customerName, left + 10, doc.y + 1, { width: halfW - 20 });
-    }
-
-    const gx = left + halfW + gap;
-    roundedBox(doc, gx, boxTop, halfW, boxH);
-    doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(lines.length > 1 ? "GARMENTS" : "GARMENT", gx + 10, boxTop + 8, { characterSpacing: 0.6 });
-    doc.y = boxTop + 20;
-    garmentLines.forEach((g, i) => {
-      doc.fillColor("#111111").font(i === 0 && lines.length === 1 ? "Helvetica-Bold" : "Helvetica-Bold").fontSize(lines.length > 1 ? 10 : 12).text(g, gx + 10, doc.y, { width: halfW - 20 });
-    });
-    if (decorations.length) {
-      doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(decorations.join(" · "), gx + 10, doc.y + 1, { width: halfW - 20 });
-    }
-    doc.y = boxTop + boxH + 12;
-
-    // --- Quantities ---------------------------------------------------------
-    if (lines.length) {
-      const total = lines.reduce((t, l) => t + l.quantity, 0);
-      const sizes = Array.from(new Set(lines.flatMap((l) => l.sizes.map((s) => s.size)))).sort(
-        (a, b) => sizeRank(a) - sizeRank(b)
-      );
-      const multi = lines.length > 1;
-      const labelColW = multi ? Math.min(170, pageWidth * 0.32) : 0;
-      const cols = sizes.length + 1; // + TOTAL
-      const colW = (pageWidth - labelColW) / cols;
-      const headH = 20;
-      const rowH = 24;
-      ensureRoom(26 + headH + rowH * lines.length + (multi ? rowH : 0));
-      sectionBand("Quantities", `${total} ${total === 1 ? "piece" : "pieces"}`);
-      const tTop = doc.y;
-      doc.save().rect(left, tTop, pageWidth, headH).fill("#e8eaf0").restore();
-      doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(9);
-      if (multi) doc.text("ITEM", left + 8, tTop + 6, { width: labelColW - 12, lineBreak: false });
-      [...sizes, "TOTAL"].forEach((sz, i) => {
-        doc.text(sz, left + labelColW + i * colW, tTop + 6, { width: colW, align: "center", lineBreak: false });
-      });
-      let y = tTop + headH;
-      const rows = multi
-        ? [...lines.map((l) => ({ label: l.short || [l.name, l.color].filter(Boolean).join(" "), line: l })), { label: "TOTAL", line: null as JobFolderPdfLine | null }]
-        : [{ label: "", line: lines[0] }];
-      rows.forEach((r) => {
-        const isTotal = r.line === null;
-        doc.save().rect(left, y, pageWidth, rowH).lineWidth(1).strokeColor(NAVY).stroke().restore();
-        if (multi) {
-          doc.fillColor("#111111").font(isTotal ? "Helvetica-Bold" : "Helvetica").fontSize(9).text(r.label, left + 8, y + 8, { width: labelColW - 12, lineBreak: false, ellipsis: true });
-        }
-        [...sizes, "TOTAL"].forEach((sz, i) => {
-          const x = left + labelColW + i * colW;
-          doc.save().moveTo(x, y).lineTo(x, y + rowH).lineWidth(0.75).strokeColor(BORDER).stroke().restore();
-          let v: number;
-          if (sz === "TOTAL") v = isTotal ? total : r.line!.quantity;
-          else if (isTotal) v = lines.reduce((t, l) => t + (l.sizes.find((s) => s.size === sz)?.quantity ?? 0), 0);
-          else v = r.line!.sizes.find((s) => s.size === sz)?.quantity ?? 0;
-          doc.fillColor(v ? "#111111" : "#bbbbbb").font(sz === "TOTAL" || isTotal ? "Helvetica-Bold" : "Helvetica").fontSize(12).text(v ? String(v) : "–", x, y + 6, { width: colW, align: "center", lineBreak: false });
-        });
-        y += rowH;
-      });
-      doc.y = y + 14;
-    }
 
     // --- Heat / Press time ----------------------------------------------------
     // With mock-ups, the big Heat / Press time boxes sit inside each mock-up
