@@ -379,8 +379,8 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
           <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-1">Print file locations</p>
           <p className="text-xs text-admin-ink/62 mb-3">
             Use <span className="font-medium text-admin-ink/80">Drive</span> to pick the print file in Google
-            Drive — its full folder path and a link fill in automatically (and print on the job folder with a QR
-            code). You can still type or paste a path by hand; &quot;Browse…&quot; only fills in a file name.
+            Drive — its full folder path fills in automatically, so whoever runs the job can find it in Google
+            Drive. You can still type or paste a path by hand; &quot;Browse…&quot; only fills in a file name.
           </p>
 
           <datalist id="job-folder-label-suggestions">
@@ -434,16 +434,6 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                     ✕
                   </button>
                 </div>
-                {row.url && (
-                  <a
-                    href={row.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1.5 ml-[8.5rem] inline-block text-xs text-blue-400 hover:underline"
-                  >
-                    Open in Google Drive ↗
-                  </a>
-                )}
               </div>
             ))}
           </div>

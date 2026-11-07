@@ -151,8 +151,8 @@ export type JobFolderPrintFile = {
   // Customers/Sugar Mill/FRONT.pdf") — see lib/drive-location.ts.
   path: string;
   // Direct Google Drive link to the file (webViewLink), set only when it was
-  // chosen with "Pick from Google Drive". Shown as an "Open" link in the
-  // admin modal and as a clickable link + QR code in the job-folder PDF.
+  // chosen with "Pick from Google Drive". Kept for reference only — the
+  // modal and job-folder PDF show just the folder path (shop request).
   url?: string;
 };
 
