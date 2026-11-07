@@ -1267,9 +1267,17 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
         doc.y = doc.page.margins.top;
       }
     };
-    const sectionLabel = (text: string) => {
-      doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(text.toUpperCase(), left, doc.y, { characterSpacing: 0.6 });
-      doc.moveDown(0.3);
+    // Solid navy header bar for each section, so it's obvious where one
+    // part of the sheet ends and the next begins.
+    const sectionBand = (title: string, note?: string) => {
+      const h = 18;
+      const y = doc.y;
+      doc.save().roundedRect(left, y, pageWidth, h, 3).fill(NAVY).restore();
+      doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(9).text(title.toUpperCase(), left + 8, y + 5, { width: pageWidth - 16, characterSpacing: 0.8, lineBreak: false });
+      if (note) {
+        doc.fillColor("#cfd3dc").font("Helvetica").fontSize(8.5).text(note, left + 8, y + 5.5, { width: pageWidth - 16, align: "right", lineBreak: false });
+      }
+      doc.y = y + h + 8;
     };
 
     // --- Header -------------------------------------------------------------
@@ -1335,11 +1343,11 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
       const colW = (pageWidth - labelColW) / cols;
       const headH = 20;
       const rowH = 24;
-      ensureRoom(16 + headH + rowH * lines.length + (multi ? rowH : 0));
-      sectionLabel(`Quantities — ${total} ${total === 1 ? "piece" : "pieces"}`);
+      ensureRoom(26 + headH + rowH * lines.length + (multi ? rowH : 0));
+      sectionBand("Quantities", `${total} ${total === 1 ? "piece" : "pieces"}`);
       const tTop = doc.y;
-      doc.save().rect(left, tTop, pageWidth, headH).fill(NAVY).restore();
-      doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(9);
+      doc.save().rect(left, tTop, pageWidth, headH).fill("#e8eaf0").restore();
+      doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(9);
       if (multi) doc.text("ITEM", left + 8, tTop + 6, { width: labelColW - 12, lineBreak: false });
       [...sizes, "TOTAL"].forEach((sz, i) => {
         doc.text(sz, left + labelColW + i * colW, tTop + 6, { width: colW, align: "center", lineBreak: false });
@@ -1389,12 +1397,13 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
       if (extra) doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(extra, left, doc.y, { width: pageWidth, align: "center" });
     };
     if (pressList.length === 1 && !pressList[0].appliesTo?.length) {
-      ensureRoom(58 + 30);
+      ensureRoom(26 + 58 + 30);
+      sectionBand("Heat press settings", "All items");
       drawPressBoxes(pressList[0], 58, 26);
-      doc.moveDown(0.8);
+      doc.moveDown(1);
     } else if (pressList.length) {
-      ensureRoom(30);
-      sectionLabel("Heat press settings");
+      ensureRoom(26 + 80);
+      sectionBand("Heat press settings");
       pressList.forEach((p) => {
         ensureRoom(18 + 44 + 18);
         doc
@@ -1410,17 +1419,31 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
         drawPressBoxes(p, 44, 20);
         doc.moveDown(0.6);
       });
-      doc.moveDown(0.2);
+      doc.moveDown(0.5);
     }
+
+    // Which press setting (if any) covers a given line item — used to tag
+    // each mock-up so e.g. a hat next to the shirt mock-ups clearly isn't
+    // being heat pressed. A setting with no appliesTo covers everything
+    // that no other setting claims.
+    const pressFor = (caption?: string): JobFolderPdfPress | undefined => {
+      if (!caption || !pressList.length) return undefined;
+      return (
+        pressList.find((p) => p.appliesTo?.includes(caption)) ??
+        pressList.find((p) => !p.appliesTo?.length)
+      );
+    };
 
     // --- Mock-ups -----------------------------------------------------------
     if (mockups.length) {
+      ensureRoom(26 + 150);
+      sectionBand("Mock-ups");
       const perRow = mockups.length === 1 ? 1 : 2;
       const cardW = perRow === 1 ? pageWidth : halfW;
       const rowsCount = Math.ceil(mockups.length / perRow);
       // Leave room for the print-file list below so it stays on this page
       // whenever the cards can still be a usable size.
-      const reservedForFiles = 36 + Math.max(1, data.printFiles.length) * 64;
+      const reservedForFiles = 44 + Math.max(1, data.printFiles.length) * 64;
       const remaining = bottomLimit() - doc.y - 8 - reservedForFiles;
       // Fill the rest of the page when it can; never smaller than 180pt/card.
       let cardH = Math.min(perRow === 1 ? 280 : 300, Math.max(150, (remaining - (rowsCount - 1) * gap) / rowsCount));
@@ -1442,7 +1465,8 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
         const y = rowY;
         roundedBox(doc, x, y, cardW, cardH, "#dddddd");
         const hasPill = !!m.location;
-        const capH = m.caption ? 16 : 0;
+        const press = pressFor(m.caption);
+        const capH = (m.caption ? 16 : 0) + (press ? 14 : 0);
         const imgTop = y + (hasPill ? 26 : 10);
         const imgH = cardH - (imgTop - y) - capH - 10;
         try {
@@ -1455,14 +1479,18 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
         if (m.caption) {
           doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(m.caption, x + 8, y + cardH - capH - 4, { width: cardW - 16, align: "center", lineBreak: false, ellipsis: true });
         }
+        if (press) {
+          const tag = `Press: ${[press.heat, press.time].filter(Boolean).join(" · ")}`;
+          doc.fillColor(RED).font("Helvetica-Bold").fontSize(9).text(tag, x + 8, y + cardH - 16, { width: cardW - 16, align: "center", lineBreak: false, ellipsis: true });
+        }
       });
       doc.y = rowY + cardH + 14;
     }
 
     // --- Print file locations ---------------------------------------------
     // Keep the heading with at least the first file row.
-    ensureRoom(data.printFiles.length ? 90 : 40);
-    sectionLabel("Print file locations");
+    ensureRoom(data.printFiles.length ? 100 : 50);
+    sectionBand("Print file locations");
     const pageWidthInner = pageWidth;
 
     if (data.printFiles.length === 0) {
