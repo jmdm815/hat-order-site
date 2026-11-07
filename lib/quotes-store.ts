@@ -162,7 +162,34 @@ export type JobFolderPrintFile = {
   appliesTo?: string[];
 };
 
+// One garment mock-up image on the job folder's production sheet — e.g. a
+// "Front — Left Chest" and a "Back — Upper Back" image shown side by side.
+export type JobFolderMockup = {
+  id: string;
+  blobUrl: string; // private Vercel Blob URL (served via lib/item-photo.ts)
+  location?: string; // print location shown as the image's pill label
+  lineItemLabel?: string; // which line item it depicts, or "For reference only"
+};
+
+// Heat-press settings printed in the production sheet's Heat / Press time
+// boxes. Copied from a saved preset (lib/press-presets-store.ts) when picked,
+// then editable per job — so editing or deleting a preset later never
+// changes what an existing job folder says.
+export type JobFolderPress = {
+  presetId?: string;
+  name?: string;
+  heat: string;
+  time: string;
+  pressure?: string;
+  notes?: string;
+};
+
 export type JobFolderData = {
+  // Mock-up images for the production sheet (up to 4). Older records only
+  // have the single mockupImageBlobUrl/mockupLineItemLabel below — read
+  // through getJobFolderMockups(), which folds that in as one entry.
+  mockups?: JobFolderMockup[];
+  press?: JobFolderPress;
   // The raw, private Vercel Blob URL (never shown to the client directly —
   // see lib/item-photo.ts's itemPhotoUrl(), reused here as-is since it's
   // just a generic "serve a private blob" proxy). Undefined once no
@@ -878,4 +905,78 @@ export async function resetInvoicePayments(
   };
   const { persisted } = await writeRecord(updated);
   return { record: updated, persisted };
+}
+
+
+// ---------------------------------------------------------------------------
+// Job-folder mock-ups (multi-image) + press settings
+// ---------------------------------------------------------------------------
+
+export const MAX_JOB_FOLDER_MOCKUPS = 4;
+
+/** All mock-ups on a record, folding in the legacy single-image fields. */
+export function getJobFolderMockups(jobFolder: JobFolderData | undefined): JobFolderMockup[] {
+  if (!jobFolder) return [];
+  if (jobFolder.mockups) return jobFolder.mockups;
+  if (jobFolder.mockupImageBlobUrl) {
+    return [{ id: "legacy", blobUrl: jobFolder.mockupImageBlobUrl, lineItemLabel: jobFolder.mockupLineItemLabel }];
+  }
+  return [];
+}
+
+async function updateJobFolder(
+  id: string,
+  change: (jf: JobFolderData) => JobFolderData
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { record: null, persisted: true };
+  const base: JobFolderData = { printFiles: [], ...existing.jobFolder };
+  const next = change({ ...base, mockups: getJobFolderMockups(base) });
+  // Once a record is on the multi-image list, drop the legacy single fields.
+  delete next.mockupImageBlobUrl;
+  delete next.mockupLineItemLabel;
+  const updated: QuoteRecord = { ...existing, jobFolder: next, updatedAt: new Date().toISOString() };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+export function addJobFolderMockup(id: string, mockup: JobFolderMockup) {
+  return updateJobFolder(id, (jf) => ({
+    ...jf,
+    mockups: [...(jf.mockups ?? []), mockup].slice(-MAX_JOB_FOLDER_MOCKUPS),
+  }));
+}
+
+export function removeJobFolderMockup(id: string, mockupId: string) {
+  return updateJobFolder(id, (jf) => ({ ...jf, mockups: (jf.mockups ?? []).filter((m) => m.id !== mockupId) }));
+}
+
+/**
+ * Saves the job folder's editable details in one go — print files, press
+ * settings, and each mock-up's location/line-item labels (images themselves
+ * are only added/removed through the mockup route). Fields left undefined
+ * are kept as they are; press: null clears the press settings.
+ */
+export function setJobFolderDetails(
+  id: string,
+  details: {
+    printFiles?: JobFolderPrintFile[];
+    press?: JobFolderPress | null;
+    mockupLabels?: { id: string; location?: string; lineItemLabel?: string }[];
+  }
+) {
+  return updateJobFolder(id, (jf) => {
+    const next: JobFolderData = { ...jf };
+    if (details.printFiles) next.printFiles = details.printFiles;
+    if (details.press === null) delete next.press;
+    else if (details.press) next.press = details.press;
+    if (details.mockupLabels) {
+      const byId = new Map(details.mockupLabels.map((m) => [m.id, m]));
+      next.mockups = (jf.mockups ?? []).map((m) => {
+        const patch = byId.get(m.id);
+        return patch ? { ...m, location: patch.location || undefined, lineItemLabel: patch.lineItemLabel || m.lineItemLabel } : m;
+      });
+    }
+    return next;
+  });
 }
