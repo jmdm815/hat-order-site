@@ -1435,110 +1435,128 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
     };
 
     // --- Mock-ups -----------------------------------------------------------
-    if (mockups.length) {
-      ensureRoom(26 + 150);
-      sectionBand("Mock-ups");
-      const perRow = mockups.length === 1 ? 1 : 2;
+    // Each mock-up gets at least a quarter page so the artwork is readable.
+    // If that won't fit below the press settings, the print files go here
+    // instead and the mock-ups get a page
+    // of their own: 1 image fills it, 2 stack at half a page each, 3–4 go
+    // in a 2×2 grid.
+    const MIN_CARD_H = 300;
+    const drawMockupCards = (perRow: number, cardH: number) => {
       const cardW = perRow === 1 ? pageWidth : halfW;
-      const rowsCount = Math.ceil(mockups.length / perRow);
-      // Leave room for the print-file list below so it stays on this page
-      // whenever the cards can still be a usable size.
-      const reservedForFiles = 44 + Math.max(1, data.printFiles.length) * 64;
-      const remaining = bottomLimit() - doc.y - 8 - reservedForFiles;
-      // Fill the rest of the page when it can; never smaller than 180pt/card.
-      let cardH = Math.min(perRow === 1 ? 280 : 300, Math.max(150, (remaining - (rowsCount - 1) * gap) / rowsCount));
-      if (doc.y + cardH > bottomLimit()) {
-        doc.addPage();
-        doc.y = doc.page.margins.top;
-        cardH = Math.min(300, (bottomLimit() - doc.y - (rowsCount - 1) * gap) / rowsCount);
-      }
       let rowY = doc.y;
       mockups.forEach((m, i) => {
         const col = i % perRow;
         if (col === 0 && i > 0) rowY += cardH + gap;
-        if (col === 0) {
-          doc.y = rowY;
-          ensureRoom(cardH);
-          rowY = doc.y;
-        }
         const x = left + col * (cardW + gap);
         const y = rowY;
         roundedBox(doc, x, y, cardW, cardH, "#dddddd");
         const hasPill = !!m.location;
         const press = pressFor(m.caption);
         const capH = (m.caption ? 16 : 0) + (press ? 14 : 0);
-        const imgTop = y + (hasPill ? 26 : 10);
-        const imgH = cardH - (imgTop - y) - capH - 10;
+        const imgTop = y + (hasPill ? 26 : 8);
+        const imgH = cardH - (imgTop - y) - capH - 8;
         try {
-          doc.image(m.buffer, x + 10, imgTop, { fit: [cardW - 20, imgH], align: "center", valign: "center" });
+          doc.image(m.buffer, x + 6, imgTop, { fit: [cardW - 12, imgH], align: "center", valign: "center" });
         } catch (err) {
           console.error("renderJobFolderExtrasPdf: failed to embed mock-up image", err);
           doc.fillColor(RED).font("Helvetica").fontSize(9).text("(Image couldn't be rendered.)", x + 10, imgTop + 10, { width: cardW - 20, align: "center" });
         }
         if (hasPill) pill(doc, m.location!.toUpperCase(), x + cardW / 2, y + 6);
         if (m.caption) {
-          doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(m.caption, x + 8, y + cardH - capH - 4, { width: cardW - 16, align: "center", lineBreak: false, ellipsis: true });
+          doc.fillColor("#333333").font("Helvetica").fontSize(10).text(m.caption, x + 8, y + cardH - capH - 4, { width: cardW - 16, align: "center", lineBreak: false, ellipsis: true });
         }
         if (press) {
           const tag = `Press: ${[press.heat, press.time].filter(Boolean).join(" · ")}`;
-          doc.fillColor(RED).font("Helvetica-Bold").fontSize(9).text(tag, x + 8, y + cardH - 16, { width: cardW - 16, align: "center", lineBreak: false, ellipsis: true });
+          doc.fillColor(RED).font("Helvetica-Bold").fontSize(9.5).text(tag, x + 8, y + cardH - 16, { width: cardW - 16, align: "center", lineBreak: false, ellipsis: true });
         }
       });
       doc.y = rowY + cardH + 14;
-    }
+    };
 
-    // --- Print file locations ---------------------------------------------
-    // Keep the heading with at least the first file row.
-    ensureRoom(data.printFiles.length ? 100 : 50);
-    sectionBand("Print file locations");
-    const pageWidthInner = pageWidth;
+    const drawPrintFiles = () => {
+      // --- Print file locations ---------------------------------------------
+      // Keep the heading with at least the first file row.
+      ensureRoom(data.printFiles.length ? 100 : 50);
+      sectionBand("Print file locations");
+      const pageWidthInner = pageWidth;
 
-    if (data.printFiles.length === 0) {
-      doc
-        .fillColor(GRAY)
-        .font("Helvetica-Oblique")
-        .fontSize(9)
-        .text("No print file locations have been added for this job.", left, doc.y);
+      if (data.printFiles.length === 0) {
+        doc
+          .fillColor(GRAY)
+          .font("Helvetica-Oblique")
+          .fontSize(9)
+          .text("No print file locations have been added for this job.", left, doc.y);
+      } else {
+        const rowPadding = 8;
+        // Just the label + folder location — staff find the file themselves in
+        // Google Drive (web or the Drive folder on their computer); no link/QR.
+        data.printFiles.forEach((file) => {
+          const estimatedHeight = rowPadding * 2 + 40;
+          if (doc.y + estimatedHeight > bottomLimit()) {
+            doc.addPage();
+            doc.y = doc.page.margins.top;
+          }
+          const rowTop = doc.y;
+          const textWidth = pageWidthInner - rowPadding * 2;
+          doc
+            .fillColor(GRAY)
+            .font("Helvetica")
+            .fontSize(9)
+            .text("Print location: ", left + rowPadding, rowTop + rowPadding, { width: textWidth, continued: true })
+            .fillColor(NAVY)
+            .font("Helvetica-Bold")
+            .fontSize(10)
+            .text(file.label || "Not specified");
+          doc
+            .fillColor(GRAY)
+            .font("Helvetica")
+            .fontSize(9)
+            .text("File location: ", left + rowPadding, doc.y + 3, { width: textWidth, continued: true })
+            .fillColor("#1c1917")
+            .text(file.path || "(no path entered)");
+          doc
+            .fillColor(GRAY)
+            .font("Helvetica")
+            .fontSize(9)
+            .text("For: ", left + rowPadding, doc.y + 3, { width: textWidth, continued: true })
+            .fillColor("#1c1917")
+            .font(file.appliesTo?.length ? "Helvetica" : "Helvetica-Oblique")
+            .text(file.appliesTo?.length ? file.appliesTo.join(", ") : "All items");
+          const rowBottom = doc.y + rowPadding;
+          doc.save().roundedRect(left, rowTop, pageWidthInner, rowBottom - rowTop, 6).lineWidth(1).strokeColor(BORDER).stroke().restore();
+          doc.y = rowBottom + 8;
+        });
+      }
+    };
+
+    if (!mockups.length) {
+      drawPrintFiles();
     } else {
-      const rowPadding = 8;
-      // Just the label + folder location — staff find the file themselves in
-      // Google Drive (web or the Drive folder on their computer); no link/QR.
-      data.printFiles.forEach((file) => {
-        const estimatedHeight = rowPadding * 2 + 40;
-        if (doc.y + estimatedHeight > bottomLimit()) {
-          doc.addPage();
-          doc.y = doc.page.margins.top;
-        }
-        const rowTop = doc.y;
-        const textWidth = pageWidthInner - rowPadding * 2;
-        doc
-          .fillColor(GRAY)
-          .font("Helvetica")
-          .fontSize(9)
-          .text("Print location: ", left + rowPadding, rowTop + rowPadding, { width: textWidth, continued: true })
-          .fillColor(NAVY)
-          .font("Helvetica-Bold")
-          .fontSize(10)
-          .text(file.label || "Not specified");
-        doc
-          .fillColor(GRAY)
-          .font("Helvetica")
-          .fontSize(9)
-          .text("File location: ", left + rowPadding, doc.y + 3, { width: textWidth, continued: true })
-          .fillColor("#1c1917")
-          .text(file.path || "(no path entered)");
-        doc
-          .fillColor(GRAY)
-          .font("Helvetica")
-          .fontSize(9)
-          .text("For: ", left + rowPadding, doc.y + 3, { width: textWidth, continued: true })
-          .fillColor("#1c1917")
-          .font(file.appliesTo?.length ? "Helvetica" : "Helvetica-Oblique")
-          .text(file.appliesTo?.length ? file.appliesTo.join(", ") : "All items");
-        const rowBottom = doc.y + rowPadding;
-        doc.save().roundedRect(left, rowTop, pageWidthInner, rowBottom - rowTop, 6).lineWidth(1).strokeColor(BORDER).stroke().restore();
-        doc.y = rowBottom + 8;
-      });
+      const inlinePerRow = mockups.length === 1 ? 1 : 2;
+      const inlineRows = Math.ceil(mockups.length / inlinePerRow);
+      // Mock-ups right under the press settings take priority (like the
+      // shop's original press sheet); the print files then follow, on the
+      // next page if needed.
+      const inlineSpace = bottomLimit() - doc.y - 26 - (inlineRows - 1) * gap;
+      const inlineCardH = Math.min(mockups.length === 1 ? 380 : 340, inlineSpace / inlineRows);
+
+      if (inlineCardH >= MIN_CARD_H) {
+        // Room right under the press settings (e.g. a single-style order).
+        sectionBand("Mock-ups");
+        drawMockupCards(inlinePerRow, inlineCardH);
+        drawPrintFiles();
+      } else {
+        drawPrintFiles();
+        doc.addPage();
+        doc.y = doc.page.margins.top;
+        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(16).text("MOCK-UPS", left, doc.y, { width: pageWidth, continued: true })
+          .fillColor(GRAY).font("Helvetica").fontSize(10).text(`   ${data.customerCompany || data.customerName || ""} · ${data.docLabel}`);
+        doc.y += 8;
+        const perRow = mockups.length <= 2 ? 1 : 2;
+        const rows = Math.ceil(mockups.length / perRow);
+        const cardH = (bottomLimit() - doc.y - (rows - 1) * gap - 4) / rows;
+        drawMockupCards(perRow, cardH);
+      }
     }
 
     doc.end();
