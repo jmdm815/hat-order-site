@@ -257,7 +257,11 @@ async function fetchBlobJson<T>(pathname: string): Promise<T | null> {
     const { blobs } = await list({ prefix: pathname, limit: 1 });
     const match = blobs.find((b) => b.pathname === pathname);
     if (!match) return null;
-    const res = await fetch(match.url, {
+    // A unique query string on every read so Blob's CDN can't hand back a
+    // cached copy from before the latest write (overwrites keep the same
+    // URL) — without it, a save could take minutes to show up in PDFs.
+    const sep = match.url.includes("?") ? "&" : "?";
+    const res = await fetch(`${match.url}${sep}t=${Date.now()}`, {
       cache: "no-store",
       headers: { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
     });
