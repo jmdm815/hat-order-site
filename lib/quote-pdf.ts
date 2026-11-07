@@ -320,7 +320,8 @@ export async function renderQuotePdf(
     mode === "invoice"
       ? invoiceMeta?.invoiceStatus === "paid"
       : (invoiceMeta?.amountPaid ?? 0) >= quote.grandTotal - 0.005;
-  const linkForPdf = paidInFull ? undefined : invoiceMeta?.payPageUrl;
+  const linkForPdf = paidInFull || quote.hidePaymentLink ? undefined : invoiceMeta?.payPageUrl;
+  const netTerms = quote.netTermsDays ? `Net ${quote.netTermsDays}` : undefined;
 
   // Generated up front (QRCode.toBuffer is async; pdfkit's drawing calls
   // below are not) so the PNG bytes are ready by the time doc.image() needs
@@ -361,7 +362,7 @@ export async function renderQuotePdf(
     doc.y = 50;
     drawCompanyBlock(doc, left, pageWidth, logoBuffer);
 
-    const isPartialDeposit = Boolean(quote.depositPercent && quote.depositPercent < 100);
+    const isPartialDeposit = !netTerms && Boolean(quote.depositPercent && quote.depositPercent < 100);
     const titleText = internal
       ? `Internal Quote${invoiceMeta?.quoteNumber ? ` ${invoiceMeta.quoteNumber}` : ""}`
       : workOrder
@@ -398,9 +399,11 @@ export async function renderQuotePdf(
                   ? "Paid"
                   : invoiceMeta?.invoiceStatus === "partially_paid"
                     ? "Balance due"
-                    : isPartialDeposit
-                      ? `${quote.depositPercent}% deposit`
-                      : "Due on receipt",
+                    : netTerms
+                      ? netTerms
+                      : isPartialDeposit
+                        ? `${quote.depositPercent}% deposit`
+                        : "Due on receipt",
             },
             { label: "Invoice #", value: invoiceMeta?.invoiceNumber || "—" },
           ]
@@ -410,7 +413,7 @@ export async function renderQuotePdf(
               value: formatDate(quote.quoteDate),
               ...(quote.dueDate ? { subLabel: "Due Date", subValue: formatDate(quote.dueDate) } : {}),
             },
-            { label: "Terms", value: isPartialDeposit ? `${quote.depositPercent}% deposit` : "Due in full" },
+            { label: "Terms", value: netTerms ?? (isPartialDeposit ? `${quote.depositPercent}% deposit` : "Due in full") },
             { label: "Quote #", value: invoiceMeta?.quoteNumber || "—" },
           ];
 
@@ -456,7 +459,7 @@ export async function renderQuotePdf(
       // already settled).
       const paid = invoiceMeta.invoiceStatus === "paid";
 
-      if (invoiceMeta?.payPageUrl && !paid) {
+      if (invoiceMeta?.payPageUrl && !paid && !quote.hidePaymentLink) {
         const buttonBottom = drawPayButton(doc, left, doc.y, "PAY ONLINE", invoiceMeta.payPageUrl);
         // The raw URL isn't printed — the button and the QR code both link
         // to the same pay page.
@@ -485,7 +488,7 @@ export async function renderQuotePdf(
       // the quote actually has a partial depositPercent set — a quote on
       // "pay in full" terms (depositPercent undefined/100) is paid in full
       // through this same link, so it says just "Pay online" instead.
-      const isPartialDeposit = Boolean(quote.depositPercent && quote.depositPercent < 100);
+      const isPartialDeposit = !netTerms && Boolean(quote.depositPercent && quote.depositPercent < 100);
       const buttonBottom = drawPayButton(
         doc,
         left,
@@ -889,7 +892,7 @@ export async function renderQuotePdf(
         const remaining = Math.max(0, quote.grandTotal - amountPaid);
         totalsRows.push({ label: "Paid to date", value: money(amountPaid) });
         totalsRows.push({ label: "Balance remaining", value: money(remaining), bold: true });
-      } else if (quote.depositPercent && quote.depositPercent < 100) {
+      } else if (!netTerms && quote.depositPercent && quote.depositPercent < 100) {
         const depositAmount = quote.grandTotal * (quote.depositPercent / 100);
         const balanceAmount = quote.grandTotal - depositAmount;
         totalsRows.push({ label: `Deposit due now (${quote.depositPercent}%)`, value: money(depositAmount) });
@@ -969,7 +972,9 @@ export async function renderQuotePdf(
     }
 
     const closingNote =
-        invoice
+        netTerms && showPricing
+          ? `Payment terms: ${netTerms} — payment is due within ${quote.netTermsDays} days of the invoice date. Thank you for your business!`
+          : invoice
           ? isPartialDeposit
             ? `A ${quote.depositPercent}% deposit is due to begin your order; the balance is due at pickup. Thank you for your business!`
             : "Payment is due upon receipt. Thank you for your business!"

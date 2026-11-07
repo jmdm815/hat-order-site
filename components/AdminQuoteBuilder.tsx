@@ -583,6 +583,10 @@ export default function AdminQuoteBuilder({
   // QuoteInput.dueDate). No default: with none set, nothing shows, rather
   // than silently assuming "today" or some fixed number of days out.
   const [dueDate, setDueDate] = useState(() => initialRecord?.input.dueDate ?? "");
+  // Net terms (e.g. 60 = "Net 60") and whether the PDF shows the pay button
+  // + QR — see lib/quote.ts's QuoteInput.netTermsDays / hidePaymentLink.
+  const [netTermsDays, setNetTermsDays] = useState<number>(() => initialRecord?.input.netTermsDays ?? 0);
+  const [hidePaymentLink, setHidePaymentLink] = useState<boolean>(() => initialRecord?.input.hidePaymentLink ?? false);
   const [notes, setNotes] = useState(() => initialRecord?.input.notes ?? "");
   // Payment terms — 100 means "pay in full" (the common case); anything
   // less is a deposit-now / balance-later split (most often 50-50). See
@@ -1888,6 +1892,8 @@ export default function AdminQuoteBuilder({
       customerEmail: customerEmail || undefined,
       quoteDate,
       dueDate: dueDate || undefined,
+      netTermsDays: netTermsDays || undefined,
+      hidePaymentLink: hidePaymentLink || undefined,
       notes: notes || undefined,
       depositPercent: depositPercent < 100 ? depositPercent : undefined,
       taxRatePercent: taxRatePercent > 0 ? taxRatePercent : undefined,
@@ -2471,6 +2477,31 @@ export default function AdminQuoteBuilder({
               onChange={(e) => setDueDate(e.target.value)}
               className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
+          </label>
+          <label className="text-xs text-admin-ink/80">
+            Net terms
+            <select
+              value={netTermsDays}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setNetTermsDays(v);
+                // Net-terms accounts usually pay by PO/check — hide the pay
+                // button by default when net terms are picked (still toggleable).
+                if (v && !netTermsDays) setHidePaymentLink(true);
+              }}
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+            >
+              <option value={0}>None (use payment terms)</option>
+              {[15, 30, 45, 60, 90].map((d) => (
+                <option key={d} value={d}>
+                  Net {d}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs text-admin-ink/80 flex items-center gap-2 mt-5">
+            <input type="checkbox" checked={hidePaymentLink} onChange={(e) => setHidePaymentLink(e.target.checked)} />
+            Hide online payment link on PDF
           </label>
         </div>
         <label className="block text-xs text-admin-ink/80 mt-3">
