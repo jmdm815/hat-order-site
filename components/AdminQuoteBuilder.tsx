@@ -579,11 +579,9 @@ export default function AdminQuoteBuilder({
   );
   const [customerEmail, setCustomerEmail] = useState(() => initialRecord?.input.customerEmail ?? "");
   const [quoteDate, setQuoteDate] = useState(() => initialRecord?.input.quoteDate ?? todayIso());
-  // Invoice-only (see lib/quote.ts's QuoteInput.dueDate) — never set on a
-  // quote, so this just stays "" and is omitted from buildQuoteInput()
-  // below whenever isInvoice is false. No default: an invoice with no due
-  // date set just doesn't show one, rather than silently assuming "today"
-  // or some fixed number of days out.
+  // Optional due date for quotes and invoices (see lib/quote.ts's
+  // QuoteInput.dueDate). No default: with none set, nothing shows, rather
+  // than silently assuming "today" or some fixed number of days out.
   const [dueDate, setDueDate] = useState(() => initialRecord?.input.dueDate ?? "");
   const [notes, setNotes] = useState(() => initialRecord?.input.notes ?? "");
   // Payment terms — 100 means "pay in full" (the common case); anything
@@ -1889,7 +1887,7 @@ export default function AdminQuoteBuilder({
       customerCompany: customerCompany || undefined,
       customerEmail: customerEmail || undefined,
       quoteDate,
-      dueDate: isInvoice && dueDate ? dueDate : undefined,
+      dueDate: dueDate || undefined,
       notes: notes || undefined,
       depositPercent: depositPercent < 100 ? depositPercent : undefined,
       taxRatePercent: taxRatePercent > 0 ? taxRatePercent : undefined,
@@ -2391,7 +2389,7 @@ export default function AdminQuoteBuilder({
           Quote tab): no customer to look up, no payment terms to set. */}
       {mode === "full" && (
       <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-admin-ink mb-3">Quote details</h3>
+        <h3 className="text-sm font-semibold text-admin-ink mb-3">{isInvoice ? "Invoice details" : "Quote details"}</h3>
 
         {customers.length > 0 && (
           <div className="relative max-w-sm mb-3">
@@ -2465,17 +2463,15 @@ export default function AdminQuoteBuilder({
               className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
-          {isInvoice && (
-            <label className="text-xs text-admin-ink/80">
-              Due date (optional)
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
-              />
-            </label>
-          )}
+          <label className="text-xs text-admin-ink/80">
+            Due date (optional)
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+            />
+          </label>
         </div>
         <label className="block text-xs text-admin-ink/80 mt-3">
           Notes (optional, printed on the PDF)

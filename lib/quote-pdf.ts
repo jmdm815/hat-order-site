@@ -373,7 +373,11 @@ export async function renderQuotePdf(
     const barColumns = workOrder
       ? [
           { label: "Order Date", value: formatDate(quote.quoteDate) },
-          { label: "Status", value: "Production" },
+          // Production needs the due date front and center; fall back to the
+          // old "Status: Production" slot when none has been set.
+          quote.dueDate
+            ? { label: "Due Date", value: formatDate(quote.dueDate) }
+            : { label: "Status", value: "Production" },
           { label: "Order #", value: invoiceMeta?.quoteNumber || "—" },
         ]
       : invoice
@@ -401,7 +405,11 @@ export async function renderQuotePdf(
             { label: "Invoice #", value: invoiceMeta?.invoiceNumber || "—" },
           ]
         : [
-            { label: "Quote Date", value: formatDate(quote.quoteDate) },
+            {
+              label: "Quote Date",
+              value: formatDate(quote.quoteDate),
+              ...(quote.dueDate ? { subLabel: "Due Date", subValue: formatDate(quote.dueDate) } : {}),
+            },
             { label: "Terms", value: isPartialDeposit ? `${quote.depositPercent}% deposit` : "Due in full" },
             { label: "Quote #", value: invoiceMeta?.quoteNumber || "—" },
           ];
@@ -430,7 +438,7 @@ export async function renderQuotePdf(
     if (internal || workOrder) {
       const bannerText = internal
         ? "INTERNAL USE ONLY — includes garment cost. Do not send to customer."
-        : "PRODUCTION COPY — no pricing shown.";
+        : "PRODUCTION COPY";
       doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(9);
       const bannerY = doc.y;
       doc.rect(left, bannerY, pageWidth, 20).fill(internal ? RED : NAVY);

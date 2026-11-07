@@ -116,10 +116,11 @@ export type QuoteInput = {
   customerCompany?: string;
   customerEmail?: string;
   quoteDate?: string; // ISO date; defaults to today if absent
-  // Invoice-only — a quote never has (or shows) a due date. See
-  // components/AdminQuoteBuilder.tsx's "Due date" field, which only renders
-  // when editing an invoice, and components/InvoicePayClient.tsx's "Dates"
-  // card, which only shows this line once set. Undefined means "no due
+  // Optional on quotes and invoices — set via components/AdminQuoteBuilder.tsx's
+  // "Due date" field. Printed on the quote/invoice PDF under the date, and
+  // as the "Due Date" column on the work order / job folder (production
+  // copy). The customer pay page (components/InvoicePayClient.tsx) still
+  // only shows it for invoices. Undefined means "no due
   // date set" (not "due today") — the pay page never infers or defaults
   // one, so older invoices created before this field existed just don't
   // show a due date until an admin adds one.
