@@ -378,7 +378,7 @@ export async function renderQuotePdf(
           quote.dueDate
             ? { label: "Due Date", value: formatDate(quote.dueDate) }
             : { label: "Status", value: "Production" },
-          { label: "Order #", value: invoiceMeta?.quoteNumber || "—" },
+          { label: "Order #", value: invoiceMeta?.quoteNumber || invoiceMeta?.invoiceNumber || "—" },
         ]
       : invoice
         ? [
