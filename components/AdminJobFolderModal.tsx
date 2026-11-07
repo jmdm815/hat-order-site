@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { QuoteRecord } from "@/lib/quotes-store";
 import { itemPhotoUrl } from "@/lib/item-photo";
-import GoogleDriveButton from "@/components/GoogleDriveButton";
+import GoogleDriveButton, { DriveIcon, pickDriveFileLocation } from "@/components/GoogleDriveButton";
 
 type Props = {
   record: QuoteRecord;
@@ -22,7 +22,10 @@ type Props = {
 // Finder's Option-right-click "Copy as Pathname" on a mounted Google Drive
 // folder, or a Drive share link), then "Browse…" swaps in different
 // filenames quickly for the rest of that job's rows.
-type EditableRow = { id: string; label: string; path: string };
+// "Pick from Drive" (below) is the exception: Google's own Drive picker can
+// report where a file lives, so it fills in the full Drive path plus a
+// direct link (`url`) automatically — see lib/drive-location.ts.
+type EditableRow = { id: string; label: string; path: string; url?: string };
 
 const LABEL_SUGGESTIONS = ["Front", "Back", "Left Sleeve", "Right Sleeve", "Left Chest", "Nape"];
 const FOR_REFERENCE_ONLY = "For reference only";
@@ -53,7 +56,7 @@ function mergePathWithFilename(path: string, filename: string): string {
 
 function rowsFromRecord(record: QuoteRecord): EditableRow[] {
   const saved = record.jobFolder?.printFiles ?? [];
-  return saved.map((f) => ({ id: f.id, label: f.label, path: f.path }));
+  return saved.map((f) => ({ id: f.id, label: f.label, path: f.path, url: f.url }));
 }
 
 // "Create Job Folder" popup — opened from AdminSavedQuotesList.tsx. Lets the
@@ -118,6 +121,26 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     setRowsSaved(false);
   }
 
+  // Which row is waiting on the Drive picker, and the last Drive error.
+  const [drivePickingId, setDrivePickingId] = useState<string | null>(null);
+  const [driveError, setDriveError] = useState<string | null>(null);
+
+  async function pickFromDriveFor(id: string) {
+    setDriveError(null);
+    setDrivePickingId(id);
+    try {
+      const loc = await pickDriveFileLocation();
+      if (!loc) return;
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, path: loc.path, url: loc.url } : r)));
+      setRowsDirty(true);
+      setRowsSaved(false);
+    } catch (err) {
+      setDriveError(err instanceof Error ? err.message : "Something went wrong with Google Drive.");
+    } finally {
+      setDrivePickingId(null);
+    }
+  }
+
   function openBrowseFor(id: string) {
     browseRowIdRef.current = id;
     browseInputRef.current?.click();
@@ -129,7 +152,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     e.target.value = ""; // allow picking the same filename again later
     if (!file || !rowId) return;
     setRows((prev) =>
-      prev.map((r) => (r.id === rowId ? { ...r, path: mergePathWithFilename(r.path, file.name) } : r))
+      prev.map((r) => (r.id === rowId ? { ...r, path: mergePathWithFilename(r.path, file.name), url: undefined } : r))
     );
     setRowsDirty(true);
     setRowsSaved(false);
@@ -142,7 +165,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       const res = await fetch(`/api/admin/quotes/${record.id}/job-folder`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ printFiles: rows.map(({ id, label, path }) => ({ id, label, path })) }),
+        body: JSON.stringify({ printFiles: rows.map(({ id, label, path, url }) => ({ id, label, path, url })) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to save");
@@ -355,9 +378,9 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
         <div className="mt-4 border-t border-admin-ink/10 pt-4">
           <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-1">Print file locations</p>
           <p className="text-xs text-admin-ink/62 mb-3">
-            Paste the path yourself (⌥-right-click a file in Finder → &quot;Copy as Pathname&quot;, or paste a
-            Google Drive link) — browsers can&apos;t hand a website a real file path. &quot;Browse…&quot; can
-            still fill in just the file name for you.
+            Use <span className="font-medium text-admin-ink/80">Drive</span> to pick the print file in Google
+            Drive — its full folder path and a link fill in automatically (and print on the job folder with a QR
+            code). You can still type or paste a path by hand; &quot;Browse…&quot; only fills in a file name.
           </p>
 
           <datalist id="job-folder-label-suggestions">
@@ -380,10 +403,20 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                   />
                   <input
                     value={row.path}
-                    onChange={(e) => updateRow(row.id, { path: e.target.value })}
+                    onChange={(e) => updateRow(row.id, { path: e.target.value, url: undefined })}
                     placeholder="Shared drives/.../FRONT.pdf"
                     className="flex-1 min-w-0 bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
                   />
+                  <button
+                    type="button"
+                    onClick={() => pickFromDriveFor(row.id)}
+                    disabled={drivePickingId !== null}
+                    title="Pick the file in Google Drive to fill in its full folder path and link"
+                    className="shrink-0 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-admin-ink/20 text-admin-ink hover:bg-admin-ink/10 disabled:opacity-40"
+                  >
+                    <DriveIcon />
+                    {drivePickingId === row.id ? "Opening…" : "Drive"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => openBrowseFor(row.id)}
@@ -401,9 +434,20 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                     ✕
                   </button>
                 </div>
+                {row.url && (
+                  <a
+                    href={row.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1.5 ml-[8.5rem] inline-block text-xs text-blue-400 hover:underline"
+                  >
+                    Open in Google Drive ↗
+                  </a>
+                )}
               </div>
             ))}
           </div>
+          {driveError && <p className="mt-2 text-xs text-admin-accent font-medium">{driveError}</p>}
 
           <button
             type="button"

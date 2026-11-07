@@ -31,7 +31,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const path = typeof raw.path === "string" ? raw.path.trim() : "";
     if (!label && !path) continue; // drop fully-blank rows silently
     const id = typeof raw.id === "string" && raw.id ? raw.id : uuid();
-    printFiles.push({ id, label, path });
+    // Only keep Google Drive/Docs links — this is printed as a QR code and
+    // clickable link on the job-folder PDF, so don't accept arbitrary URLs.
+    const url =
+      typeof raw.url === "string" && /^https:\/\/(drive|docs)\.google\.com\//.test(raw.url.trim())
+        ? raw.url.trim()
+        : undefined;
+    printFiles.push(url ? { id, label, path, url } : { id, label, path });
   }
 
   const { record: updated, persisted } = await setJobFolderPrintFiles(id, printFiles);
