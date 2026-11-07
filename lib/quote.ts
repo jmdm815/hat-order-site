@@ -125,6 +125,14 @@ export type QuoteInput = {
   // one, so older invoices created before this field existed just don't
   // show a due date until an admin adds one.
   dueDate?: string; // ISO date
+  // Net payment terms (e.g. 60 → "Net 60") for accounts billed on credit.
+  // When set, the PDF prints "Net 60" as the terms, drops all deposit
+  // wording/rows, and says payment is due within that many days.
+  netTermsDays?: number;
+  // Hide the "Pay online" button + QR code on this record's PDFs (e.g. a
+  // corporate customer that pays by PO/check on net terms). The pay page
+  // itself still exists; it just isn't advertised.
+  hidePaymentLink?: boolean;
   notes?: string;
   lines: QuoteLineInput[];
   // Ids of named, flat setup/digitization charges (see
@@ -229,6 +237,8 @@ export type ComputedQuote = {
   customerEmail?: string;
   quoteDate: string;
   dueDate?: string; // see QuoteInput.dueDate
+  netTermsDays?: number; // see QuoteInput.netTermsDays
+  hidePaymentLink?: boolean; // see QuoteInput.hidePaymentLink
   notes?: string;
   lines: QuoteLineResult[];
   setupCharges: QuoteSetupCharge[]; // itemized, quote-wide (not tied to any decoration)
@@ -611,6 +621,8 @@ export function computeQuote(
     // which rolled evening quotes over to tomorrow's date.
     quoteDate: input.quoteDate ?? new Date().toLocaleDateString("en-CA", { timeZone: SHOP_TIME_ZONE }),
     dueDate: input.dueDate,
+    ...(input.netTermsDays && input.netTermsDays > 0 ? { netTermsDays: Math.round(input.netTermsDays) } : {}),
+    ...(input.hidePaymentLink ? { hidePaymentLink: true } : {}),
     notes: input.notes,
     lines,
     setupCharges,
