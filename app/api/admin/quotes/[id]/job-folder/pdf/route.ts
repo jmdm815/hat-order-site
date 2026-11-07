@@ -16,7 +16,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const record = await getQuote(id);
+  // ?after=<updatedAt> (sent by the modal right after a save): Blob storage
+  // can take a few seconds to serve a just-written record everywhere, so
+  // wait briefly (up to ~12s) for that version rather than printing the
+  // previous one.
+  const after = req.nextUrl.searchParams.get("after");
+  let record = await getQuote(id);
+  if (after && record) {
+    for (let i = 0; i < 16 && record && record.updatedAt < after; i++) {
+      await new Promise((r) => setTimeout(r, 750));
+      record = (await getQuote(id)) ?? record;
+    }
+  }
   if (!record) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }

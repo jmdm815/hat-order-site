@@ -329,7 +329,9 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     setRowsSaved(false);
   }
 
-  async function saveRows(): Promise<boolean> {
+  // Returns the saved record's updatedAt on success (used by "Save &
+  // Download" so the PDF route waits for that version), or null.
+  async function saveRows(): Promise<string | null> {
     setSavingRows(true);
     setRowsError(null);
     try {
@@ -351,10 +353,10 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       onUpdated(data.record);
       setRowsDirty(false);
       setRowsSaved(true);
-      return true;
+      return data.record.updatedAt as string;
     } catch (e) {
       setRowsError(e instanceof Error ? e.message : "Failed to save");
-      return false;
+      return null;
     } finally {
       setSavingRows(false);
     }
@@ -451,16 +453,20 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     setDownloading(true);
     const url = `/api/admin/quotes/${record.id}/job-folder/pdf?v=${Date.now()}`;
     if (!rowsDirty) {
-      const tab = window.open(url, "_blank");
-      if (!tab) window.location.href = url;
+      // Still pin to the latest version this modal knows about, in case a
+      // save happened moments ago.
+      const pinned = current.updatedAt ? `${url}&after=${encodeURIComponent(current.updatedAt)}` : url;
+      const tab = window.open(pinned, "_blank");
+      if (!tab) window.location.href = pinned;
       setDownloading(false);
       return;
     }
     const tab = window.open("about:blank", "_blank");
-    const ok = await saveRows();
-    if (ok) {
-      if (tab) tab.location.href = url;
-      else window.location.href = url;
+    const savedAt = await saveRows();
+    if (savedAt) {
+      const fresh = `${url}&after=${encodeURIComponent(savedAt)}`;
+      if (tab) tab.location.href = fresh;
+      else window.location.href = fresh;
     } else {
       tab?.close();
     }
