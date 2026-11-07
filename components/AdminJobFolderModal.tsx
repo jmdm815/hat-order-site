@@ -329,7 +329,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     setRowsSaved(false);
   }
 
-  async function saveRows() {
+  async function saveRows(): Promise<boolean> {
     setSavingRows(true);
     setRowsError(null);
     try {
@@ -351,8 +351,10 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       onUpdated(data.record);
       setRowsDirty(false);
       setRowsSaved(true);
+      return true;
     } catch (e) {
       setRowsError(e instanceof Error ? e.message : "Failed to save");
+      return false;
     } finally {
       setSavingRows(false);
     }
@@ -441,11 +443,27 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   // fetch()-built Blob object URL (the route's own "inline; filename=..."
   // Content-Disposition only reliably determines the saved filename on a
   // real navigation).
-  function downloadJobFolder() {
+  //
+  // Unsaved changes are saved first so they're never left off the PDF. The
+  // tab is opened synchronously (blank) so popup blockers allow it, then
+  // pointed at the PDF once the save finishes.
+  async function downloadJobFolder() {
     setDownloading(true);
-    const url = `/api/admin/quotes/${record.id}/job-folder/pdf`;
-    const tab = window.open(url, "_blank");
-    if (!tab) window.open(url, "_blank");
+    const url = `/api/admin/quotes/${record.id}/job-folder/pdf?v=${Date.now()}`;
+    if (!rowsDirty) {
+      const tab = window.open(url, "_blank");
+      if (!tab) window.location.href = url;
+      setDownloading(false);
+      return;
+    }
+    const tab = window.open("about:blank", "_blank");
+    const ok = await saveRows();
+    if (ok) {
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+    } else {
+      tab?.close();
+    }
     setDownloading(false);
   }
 
@@ -665,7 +683,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                         <button
                           type="button"
                           onClick={() => updatePress(p.id!, { appliesTo: [] })}
-                          className={`text-[11px] px-2 py-0.5 rounded-full border ${!p.appliesTo?.length ? "bg-admin-accent text-white border-admin-accent" : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"}`}
+                          className={`text-[11px] px-2 py-0.5 rounded-full border ${!p.appliesTo?.length ? "bg-admin-accent text-admin-accent-ink border-admin-accent font-medium" : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"}`}
                         >
                           {pressList.length > 1 ? "All other items" : "All items"}
                         </button>
@@ -679,7 +697,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                                 const cur = p.appliesTo ?? [];
                                 updatePress(p.id!, { appliesTo: on ? cur.filter((c) => c !== choice) : [...cur, choice] });
                               }}
-                              className={`text-[11px] px-2 py-0.5 rounded-full border ${on ? "bg-admin-accent text-white border-admin-accent" : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"}`}
+                              className={`text-[11px] px-2 py-0.5 rounded-full border ${on ? "bg-admin-accent text-admin-accent-ink border-admin-accent font-medium" : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"}`}
                             >
                               {choice}
                             </button>
@@ -877,7 +895,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                       onClick={() => updateRow(row.id, { appliesTo: [] })}
                       className={`text-[11px] px-2 py-0.5 rounded-full border ${
                         !row.appliesTo?.length
-                          ? "bg-admin-accent text-white border-admin-accent"
+                          ? "bg-admin-accent text-admin-accent-ink border-admin-accent font-medium"
                           : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"
                       }`}
                     >
@@ -896,7 +914,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                           }}
                           className={`text-[11px] px-2 py-0.5 rounded-full border ${
                             on
-                              ? "bg-admin-accent text-white border-admin-accent"
+                              ? "bg-admin-accent text-admin-accent-ink border-admin-accent font-medium"
                               : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"
                           }`}
                         >
@@ -935,35 +953,32 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
             + Add print file
           </button>
 
-          <div className="mt-3 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={saveRows}
-              disabled={savingRows || !rowsDirty}
-              className="text-sm px-4 py-1.5 rounded-xl bg-admin-bg text-admin-ink hover:bg-admin-bg/90 disabled:opacity-40"
-            >
-              {savingRows ? "Saving…" : "Save"}
-            </button>
-            {rowsSaved && !rowsDirty && <span className="text-xs text-green-700">Saved.</span>}
-          </div>
-          {rowsError && <p className="mt-1.5 text-xs text-admin-accent font-medium">{rowsError}</p>}
         </div>
 
-        {/* --- Download ----------------------------------------------------- */}
-        <div className="mt-4 border-t border-admin-ink/10 pt-4">
-          <button
-            type="button"
-            onClick={downloadJobFolder}
-            disabled={downloading}
-            className="w-full py-2.5 rounded-xl bg-admin-bg text-admin-ink font-semibold hover:bg-admin-bg/90 disabled:opacity-40"
-          >
-            {downloading ? "Generating…" : "Download Job Folder PDF"}
-          </button>
-          {rowsDirty && (
-            <p className="mt-1.5 text-xs text-amber-600">
-              You have unsaved changes — click Save first so they&apos;re included.
-            </p>
+        {/* --- Save / Download — pinned to the bottom of the popup --------- */}
+        <div className="sticky -bottom-5 -mx-5 -mb-5 mt-4 px-5 py-3 bg-admin-card border-t border-admin-ink/15 rounded-b-2xl">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => saveRows()}
+              disabled={savingRows || !rowsDirty}
+              className="shrink-0 text-sm px-4 py-2.5 rounded-xl border border-admin-ink/25 text-admin-ink hover:bg-admin-ink/10 disabled:opacity-40"
+            >
+              {savingRows ? "Saving…" : rowsDirty ? "Save" : "Saved"}
+            </button>
+            <button
+              type="button"
+              onClick={downloadJobFolder}
+              disabled={downloading || savingRows}
+              className="flex-1 py-2.5 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent-dim disabled:opacity-40"
+            >
+              {downloading ? "Saving & generating…" : rowsDirty ? "Save & Download Job Folder PDF" : "Download Job Folder PDF"}
+            </button>
+          </div>
+          {rowsDirty && !savingRows && (
+            <p className="mt-1.5 text-xs text-amber-300">You have unsaved changes.</p>
           )}
+          {rowsError && <p className="mt-1.5 text-xs text-red-300 font-medium">{rowsError}</p>}
         </div>
       </div>
     </div>
