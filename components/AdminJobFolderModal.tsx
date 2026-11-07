@@ -90,7 +90,6 @@ function mockupsFromRecord(record: QuoteRecord): JobFolderMockup[] {
 }
 
 const MAX_MOCKUPS = 4;
-const PRESS_PRESET_NONE = "";
 const PRESS_PRESET_CUSTOM = "__custom__";
 
 // Dropdown of print locations with an "Other…" text box — used for each
@@ -130,6 +129,14 @@ function LocationSelect({ value, onChange, className }: { value: string; onChang
       )}
     </div>
   );
+}
+
+// Mirrors lib/quotes-store.ts's getJobFolderPressSettings (server-only).
+function pressFromRecord(record: QuoteRecord): JobFolderPress[] {
+  const jf = record.jobFolder;
+  if (!jf) return [];
+  const list = jf.pressSettings ?? (jf.press ? [jf.press] : []);
+  return list.map((p) => ({ ...p, id: p.id || uuid() }));
 }
 
 function rowsFromRecord(record: QuoteRecord): EditableRow[] {
@@ -179,7 +186,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   const [mockups, setMockups] = useState<JobFolderMockup[]>(mockupsFromRecord(record));
 
   // Press settings for the Heat / Press time boxes, and the saved presets.
-  const [press, setPress] = useState<JobFolderPress | null>(record.jobFolder?.press ?? null);
+  const [pressList, setPressList] = useState<JobFolderPress[]>(pressFromRecord(record));
   const [presets, setPresets] = useState<PressPreset[]>([]);
   const [presetsError, setPresetsError] = useState<string | null>(null);
   const [managingPresets, setManagingPresets] = useState(false);
@@ -198,19 +205,39 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     setRowsSaved(false);
   }
 
-  function choosePreset(value: string) {
-    if (value === PRESS_PRESET_NONE) setPress(null);
-    else if (value === PRESS_PRESET_CUSTOM) setPress({ heat: press?.heat ?? "", time: press?.time ?? "", pressure: press?.pressure, notes: press?.notes });
-    else {
-      const p = presets.find((x) => x.id === value);
-      if (p) setPress({ presetId: p.id, name: p.name, heat: p.heat, time: p.time, pressure: p.pressure, notes: p.notes });
-    }
+  function updatePress(id: string, patch: Partial<JobFolderPress>) {
+    setPressList((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
     markDirty();
   }
 
-  function editPress(patch: Partial<JobFolderPress>) {
-    // Hand-editing the values detaches them from the preset they came from.
-    setPress((prev) => ({ heat: "", time: "", ...prev, ...patch, presetId: undefined, name: undefined }));
+  function choosePreset(id: string, value: string) {
+    const cur = pressList.find((p) => p.id === id);
+    if (!cur) return;
+    if (value === PRESS_PRESET_CUSTOM) updatePress(id, { presetId: undefined, name: undefined });
+    else {
+      const p = presets.find((x) => x.id === value);
+      if (p) updatePress(id, { presetId: p.id, name: p.name, heat: p.heat, time: p.time, pressure: p.pressure, notes: p.notes });
+    }
+  }
+
+  // Hand-editing the values detaches them from the preset they came from.
+  function editPress(id: string, patch: Partial<JobFolderPress>) {
+    updatePress(id, { ...patch, presetId: undefined, name: undefined });
+  }
+
+  function addPress() {
+    const first = presets[0];
+    setPressList((prev) => [
+      ...prev,
+      first
+        ? { id: uuid(), presetId: first.id, name: first.name, heat: first.heat, time: first.time, pressure: first.pressure, notes: first.notes }
+        : { id: uuid(), heat: "", time: "" },
+    ]);
+    markDirty();
+  }
+
+  function removePress(id: string) {
+    setPressList((prev) => prev.filter((p) => p.id !== id));
     markDirty();
   }
 
@@ -311,7 +338,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           printFiles: rows.map(({ id, label, path, url, appliesTo }) => ({ id, label, path, url, appliesTo })),
-          press: press && (press.heat || press.time) ? press : null,
+          pressSettings: pressList.filter((p) => p.heat || p.time),
           mockups: mockups.map(({ id, location, lineItemLabel }) => ({ id, location: location ?? "", lineItemLabel })),
         }),
       });
@@ -320,6 +347,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       setCurrent(data.record);
       setRows(rowsFromRecord(data.record));
       setMockups(mockupsFromRecord(data.record));
+      setPressList(pressFromRecord(data.record));
       onUpdated(data.record);
       setRowsDirty(false);
       setRowsSaved(true);
@@ -584,40 +612,100 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
 
           {!managingPresets ? (
             <>
-              <select
-                aria-label="Press preset"
-                value={!press ? PRESS_PRESET_NONE : press.presetId && presets.some((p) => p.id === press.presetId) ? press.presetId : PRESS_PRESET_CUSTOM}
-                onChange={(e) => choosePreset(e.target.value)}
-                className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
-              >
-                <option value={PRESS_PRESET_NONE}>No press settings</option>
-                {presets.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — {[p.heat, p.time].filter(Boolean).join(", ")}
-                  </option>
-                ))}
-                <option value={PRESS_PRESET_CUSTOM}>Custom…</option>
-              </select>
-              {press && (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <label className="text-[11px] text-admin-ink/72">
-                    Heat
-                    <input value={press.heat} onChange={(e) => editPress({ heat: e.target.value })} placeholder="285°F" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
-                  </label>
-                  <label className="text-[11px] text-admin-ink/72">
-                    Press time
-                    <input value={press.time} onChange={(e) => editPress({ time: e.target.value })} placeholder="4–6 sec" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
-                  </label>
-                  <label className="text-[11px] text-admin-ink/72">
-                    Pressure (optional)
-                    <input value={press.pressure ?? ""} onChange={(e) => editPress({ pressure: e.target.value })} placeholder="Medium" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
-                  </label>
-                  <label className="text-[11px] text-admin-ink/72">
-                    Notes (optional)
-                    <input value={press.notes ?? ""} onChange={(e) => editPress({ notes: e.target.value })} placeholder="Hot peel" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
-                  </label>
-                </div>
+              {pressList.length === 0 && (
+                <p className="text-xs text-admin-ink/62 mb-2">No press settings on this job yet.</p>
               )}
+              <div className="space-y-2">
+                {pressList.map((p) => (
+                  <div key={p.id} className="bg-admin-ink/5 rounded-xl p-2.5">
+                    <div className="flex items-center gap-2">
+                      <select
+                        aria-label="Press preset"
+                        value={p.presetId && presets.some((x) => x.id === p.presetId) ? p.presetId : PRESS_PRESET_CUSTOM}
+                        onChange={(e) => choosePreset(p.id!, e.target.value)}
+                        className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                      >
+                        {presets.map((x) => (
+                          <option key={x.id} value={x.id}>
+                            {x.name} — {[x.heat, x.time].filter(Boolean).join(", ")}
+                          </option>
+                        ))}
+                        <option value={PRESS_PRESET_CUSTOM}>Custom…</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => removePress(p.id!)}
+                        title="Remove this press setting"
+                        className="shrink-0 text-admin-ink/62 hover:text-admin-accent text-sm px-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label className="text-[11px] text-admin-ink/72">
+                        Heat
+                        <input value={p.heat} onChange={(e) => editPress(p.id!, { heat: e.target.value })} placeholder="285°F" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
+                      </label>
+                      <label className="text-[11px] text-admin-ink/72">
+                        Press time
+                        <input value={p.time} onChange={(e) => editPress(p.id!, { time: e.target.value })} placeholder="4–6 sec" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
+                      </label>
+                      <label className="text-[11px] text-admin-ink/72">
+                        Pressure (optional)
+                        <input value={p.pressure ?? ""} onChange={(e) => editPress(p.id!, { pressure: e.target.value })} placeholder="Medium" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
+                      </label>
+                      <label className="text-[11px] text-admin-ink/72">
+                        Notes (optional)
+                        <input value={p.notes ?? ""} onChange={(e) => editPress(p.id!, { notes: e.target.value })} placeholder="Hot peel" className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20 mt-0.5" />
+                      </label>
+                    </div>
+                    {lineItemChoices.length > 1 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] text-admin-ink/62 mr-0.5">Applies to:</span>
+                        <button
+                          type="button"
+                          onClick={() => updatePress(p.id!, { appliesTo: [] })}
+                          className={`text-[11px] px-2 py-0.5 rounded-full border ${!p.appliesTo?.length ? "bg-admin-accent text-white border-admin-accent" : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"}`}
+                        >
+                          {pressList.length > 1 ? "All other items" : "All items"}
+                        </button>
+                        {lineItemChoices.map((choice) => {
+                          const on = !!p.appliesTo?.includes(choice);
+                          return (
+                            <button
+                              key={choice}
+                              type="button"
+                              onClick={() => {
+                                const cur = p.appliesTo ?? [];
+                                updatePress(p.id!, { appliesTo: on ? cur.filter((c) => c !== choice) : [...cur, choice] });
+                              }}
+                              className={`text-[11px] px-2 py-0.5 rounded-full border ${on ? "bg-admin-accent text-white border-admin-accent" : "border-admin-ink/20 text-admin-ink/80 hover:bg-admin-ink/10"}`}
+                            >
+                              {choice}
+                            </button>
+                          );
+                        })}
+                        {(p.appliesTo ?? [])
+                          .filter((c) => !lineItemChoices.includes(c))
+                          .map((stale) => (
+                            <button
+                              key={stale}
+                              type="button"
+                              title="No longer matches an item on this order — click to remove"
+                              onClick={() => updatePress(p.id!, { appliesTo: (p.appliesTo ?? []).filter((c) => c !== stale) })}
+                              className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-admin-accent text-admin-accent"
+                            >
+                              {stale} ✕
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={addPress} className="mt-2 text-xs text-blue-400 hover:underline">
+                {pressList.length ? "+ Add another press setting (e.g. for polyester)" : "+ Add press setting"}
+              </button>
             </>
           ) : (
             <div className="space-y-2">

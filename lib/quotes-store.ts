@@ -176,6 +176,10 @@ export type JobFolderMockup = {
 // then editable per job — so editing or deleting a preset later never
 // changes what an existing job folder says.
 export type JobFolderPress = {
+  id?: string; // set on entries in JobFolderData.pressSettings
+  // Line items this setting is for (same short labels as print files'
+  // appliesTo, e.g. "ST450 Black (49)"); empty/undefined = all items.
+  appliesTo?: string[];
   presetId?: string;
   name?: string;
   heat: string;
@@ -189,6 +193,10 @@ export type JobFolderData = {
   // have the single mockupImageBlobUrl/mockupLineItemLabel below — read
   // through getJobFolderMockups(), which folds that in as one entry.
   mockups?: JobFolderMockup[];
+  // Heat-press settings — one per material when an order mixes them (e.g.
+  // cotton tees vs. polyester), each with its own appliesTo. Older records
+  // have the single `press` below; read through getJobFolderPressSettings().
+  pressSettings?: JobFolderPress[];
   press?: JobFolderPress;
   // The raw, private Vercel Blob URL (never shown to the client directly —
   // see lib/item-photo.ts's itemPhotoUrl(), reused here as-is since it's
@@ -940,6 +948,13 @@ async function updateJobFolder(
   return { record: updated, persisted };
 }
 
+/** All press settings on a record, folding in the legacy single `press`. */
+export function getJobFolderPressSettings(jobFolder: JobFolderData | undefined): JobFolderPress[] {
+  if (!jobFolder) return [];
+  if (jobFolder.pressSettings) return jobFolder.pressSettings;
+  return jobFolder.press ? [{ id: "legacy", ...jobFolder.press }] : [];
+}
+
 export function addJobFolderMockup(id: string, mockup: JobFolderMockup) {
   return updateJobFolder(id, (jf) => ({
     ...jf,
@@ -955,21 +970,23 @@ export function removeJobFolderMockup(id: string, mockupId: string) {
  * Saves the job folder's editable details in one go — print files, press
  * settings, and each mock-up's location/line-item labels (images themselves
  * are only added/removed through the mockup route). Fields left undefined
- * are kept as they are; press: null clears the press settings.
+ * are kept as they are; pressSettings: [] clears the press settings.
  */
 export function setJobFolderDetails(
   id: string,
   details: {
     printFiles?: JobFolderPrintFile[];
-    press?: JobFolderPress | null;
+    pressSettings?: JobFolderPress[];
     mockupLabels?: { id: string; location?: string; lineItemLabel?: string }[];
   }
 ) {
   return updateJobFolder(id, (jf) => {
     const next: JobFolderData = { ...jf };
     if (details.printFiles) next.printFiles = details.printFiles;
-    if (details.press === null) delete next.press;
-    else if (details.press) next.press = details.press;
+    if (details.pressSettings) {
+      next.pressSettings = details.pressSettings;
+      delete next.press; // superseded by the list
+    }
     if (details.mockupLabels) {
       const byId = new Map(details.mockupLabels.map((m) => [m.id, m]));
       next.mockups = (jf.mockups ?? []).map((m) => {

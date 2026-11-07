@@ -53,22 +53,40 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     });
   }
 
-  // Press settings (Heat / Press time boxes on the production sheet):
-  // an object sets them, null clears them, absent leaves them alone.
-  let press: JobFolderPress | null | undefined;
-  if (body.press === null) press = null;
-  else if (body.press !== undefined) {
-    const p = cleanPreset(body.press);
-    press = p
-      ? {
-          heat: p.heat,
-          time: p.time,
-          ...(p.name ? { name: p.name } : {}),
-          ...(p.pressure ? { pressure: p.pressure } : {}),
-          ...(p.notes ? { notes: p.notes } : {}),
-          ...(typeof body.press.presetId === "string" && body.press.presetId ? { presetId: body.press.presetId.slice(0, 60) } : {}),
-        }
-      : null;
+  // Press settings (Heat / Press time on the production sheet) — a list so
+  // an order mixing materials can have one per material, each with its own
+  // appliesTo. Accepts the older single `press` object too. Absent = keep.
+  const rawPress: unknown[] | undefined = Array.isArray(body.pressSettings)
+    ? body.pressSettings
+    : body.press === null
+      ? []
+      : body.press !== undefined
+        ? [body.press]
+        : undefined;
+  let pressSettings: JobFolderPress[] | undefined;
+  if (rawPress) {
+    pressSettings = [];
+    for (const raw of rawPress.slice(0, 10)) {
+      const p = cleanPreset(raw);
+      if (!p || (!p.heat && !p.time)) continue;
+      const r = raw as { id?: unknown; presetId?: unknown; appliesTo?: unknown };
+      const appliesTo = Array.isArray(r.appliesTo)
+        ? r.appliesTo
+            .filter((x): x is string => typeof x === "string" && x.trim() !== "")
+            .map((x) => x.trim().slice(0, 200))
+            .slice(0, 50)
+        : [];
+      pressSettings.push({
+        id: typeof r.id === "string" && r.id ? r.id.slice(0, 60) : uuid(),
+        heat: p.heat,
+        time: p.time,
+        ...(p.name ? { name: p.name } : {}),
+        ...(p.pressure ? { pressure: p.pressure } : {}),
+        ...(p.notes ? { notes: p.notes } : {}),
+        ...(typeof r.presetId === "string" && r.presetId ? { presetId: r.presetId.slice(0, 60) } : {}),
+        ...(appliesTo.length ? { appliesTo } : {}),
+      });
+    }
   }
 
   // Each mock-up's print-location / line-item labels (edited in the modal).
@@ -82,7 +100,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         }))
     : undefined;
 
-  const { record: updated, persisted } = await setJobFolderDetails(id, { printFiles, press, mockupLabels });
+  const { record: updated, persisted } = await setJobFolderDetails(id, { printFiles, pressSettings, mockupLabels });
   if (!updated) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }
