@@ -1293,16 +1293,22 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
         }
         const rowTop = doc.y;
         const textWidth = pageWidth - rowPadding * 2;
-        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(10).text(file.label || "Untitled", left + rowPadding, rowTop + rowPadding, {
-          width: textWidth,
-        });
         doc
           .fillColor(GRAY)
           .font("Helvetica")
           .fontSize(9)
-          .text(file.path || "(no path entered)", left + rowPadding, doc.y + 2, {
-            width: textWidth,
-          });
+          .text("Print location: ", left + rowPadding, rowTop + rowPadding, { width: textWidth, continued: true })
+          .fillColor(NAVY)
+          .font("Helvetica-Bold")
+          .fontSize(10)
+          .text(file.label || "Not specified");
+        doc
+          .fillColor(GRAY)
+          .font("Helvetica")
+          .fontSize(9)
+          .text("File location: ", left + rowPadding, doc.y + 3, { width: textWidth, continued: true })
+          .fillColor("#1c1917")
+          .text(file.path || "(no path entered)");
         const rowBottom = doc.y + rowPadding;
         doc.strokeColor(BORDER).lineWidth(1).rect(left, rowTop, pageWidth, rowBottom - rowTop).stroke();
         doc.y = rowBottom + 8;

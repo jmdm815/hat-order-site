@@ -27,7 +27,22 @@ type Props = {
 // direct link (`url`) automatically — see lib/drive-location.ts.
 type EditableRow = { id: string; label: string; path: string; url?: string };
 
-const LABEL_SUGGESTIONS = ["Front", "Back", "Left Sleeve", "Right Sleeve", "Left Chest", "Nape"];
+// Print locations offered in each row's dropdown. "Other…" reveals a text
+// box for anything not listed; a saved custom label still shows (as itself).
+const LABEL_SUGGESTIONS = [
+  "Front",
+  "Back",
+  "Left Chest",
+  "Right Chest",
+  "Left Sleeve",
+  "Right Sleeve",
+  "Nape",
+  "Hat Front",
+  "Hat Left Side",
+  "Hat Right Side",
+  "Hat Back",
+];
+const OTHER_LABEL = "__other__";
 const FOR_REFERENCE_ONLY = "For reference only";
 
 // Same label text shown to the customer for each line item (see
@@ -120,6 +135,10 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     setRowsDirty(true);
     setRowsSaved(false);
   }
+
+  // Rows where "Other…" was chosen in the print-location dropdown but no
+  // custom text has been typed yet (so the text box stays open while empty).
+  const [otherRowIds, setOtherRowIds] = useState<Set<string>>(new Set());
 
   // Which row is waiting on the Drive picker, and the last Drive error.
   const [drivePickingId, setDrivePickingId] = useState<string | null>(null);
@@ -383,24 +402,58 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
             Drive. You can still type or paste a path by hand; &quot;Browse…&quot; only fills in a file name.
           </p>
 
-          <datalist id="job-folder-label-suggestions">
-            {LABEL_SUGGESTIONS.map((l) => (
-              <option key={l} value={l} />
-            ))}
-          </datalist>
           <input ref={browseInputRef} type="file" className="hidden" onChange={handleBrowseFileChosen} />
 
           <div className="space-y-2">
             {rows.map((row) => (
               <div key={row.id} className="bg-admin-ink/5 rounded-xl p-2.5">
                 <div className="flex items-center gap-2">
-                  <input
-                    list="job-folder-label-suggestions"
-                    value={row.label}
-                    onChange={(e) => updateRow(row.id, { label: e.target.value })}
-                    placeholder="Front"
-                    className="w-32 shrink-0 bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
-                  />
+                  {(() => {
+                    const isPreset = LABEL_SUGGESTIONS.includes(row.label);
+                    const isOther = !isPreset && (row.label !== "" || otherRowIds.has(row.id));
+                    const fieldClass =
+                      "w-32 shrink-0 bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20";
+                    return (
+                      <div className="w-32 shrink-0 flex flex-col gap-1">
+                        <select
+                          aria-label="Print location"
+                          value={isPreset ? row.label : isOther ? OTHER_LABEL : ""}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === OTHER_LABEL) {
+                              setOtherRowIds((prev) => new Set(prev).add(row.id));
+                              updateRow(row.id, { label: "" });
+                            } else {
+                              setOtherRowIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(row.id);
+                                return next;
+                              });
+                              updateRow(row.id, { label: v });
+                            }
+                          }}
+                          className={fieldClass}
+                        >
+                          <option value="">Print location…</option>
+                          {LABEL_SUGGESTIONS.map((l) => (
+                            <option key={l} value={l}>
+                              {l}
+                            </option>
+                          ))}
+                          <option value={OTHER_LABEL}>Other…</option>
+                        </select>
+                        {isOther && (
+                          <input
+                            autoFocus={row.label === ""}
+                            value={row.label}
+                            onChange={(e) => updateRow(row.id, { label: e.target.value })}
+                            placeholder="Type location"
+                            className={fieldClass}
+                          />
+                        )}
+                      </div>
+                    );
+                  })()}
                   <input
                     value={row.path}
                     onChange={(e) => updateRow(row.id, { path: e.target.value, url: undefined })}
