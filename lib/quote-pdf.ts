@@ -1377,49 +1377,79 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
     }
 
     // --- Heat / Press time ----------------------------------------------------
-    // One setting for the whole order → two big boxes (like the shop's
-    // hand-made sheet). Several (e.g. cotton vs. polyester) → one compact
-    // row per setting, each labeled with the items it's for.
+    // With mock-ups, the big Heat / Press time boxes sit inside each mock-up
+    // card (see drawMockupCards) and this section is a compact summary table.
+    // Without mock-ups, the big boxes go here so they're never lost.
     const pressList = (data.pressSettings ?? (data.press ? [data.press] : [])).filter((p) => p.heat || p.time);
-    const drawPressBoxes = (p: JobFolderPdfPress, h: number, valueSize: number) => {
+    const drawPressBoxes = (p: JobFolderPdfPress, x0: number, width: number, h: number, valueSize: number) => {
       const y = doc.y;
+      const boxW = (width - gap) / 2;
       [
         { label: "HEAT", value: p.heat || "—" },
         { label: "PRESS TIME", value: p.time || "—" },
       ].forEach((b, i) => {
-        const x = left + i * (halfW + gap);
-        roundedBox(doc, x, y, halfW, h, NAVY, 1.5);
-        doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(b.label, x, y + 7, { width: halfW, align: "center", characterSpacing: 0.6 });
-        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(valueSize).text(b.value, x, y + h / 2 - valueSize / 2 + 5, { width: halfW, align: "center", lineBreak: false });
+        const x = x0 + i * (boxW + gap);
+        roundedBox(doc, x, y, boxW, h, NAVY, 1.5);
+        doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(b.label, x, y + 6, { width: boxW, align: "center", characterSpacing: 0.6 });
+        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(valueSize).text(b.value, x, y + h / 2 - valueSize / 2 + 5, { width: boxW, align: "center", lineBreak: false });
       });
-      doc.y = y + h + 5;
+      doc.y = y + h + 4;
       const extra = [p.pressure ? `Pressure: ${p.pressure}` : "", p.notes || ""].filter(Boolean).join("   ·   ");
-      if (extra) doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text(extra, left, doc.y, { width: pageWidth, align: "center" });
+      if (extra) doc.fillColor("#333333").font("Helvetica").fontSize(9).text(extra, x0, doc.y, { width, align: "center", lineBreak: false, ellipsis: true });
     };
-    if (pressList.length === 1 && !pressList[0].appliesTo?.length) {
-      ensureRoom(26 + 58 + 30);
-      sectionBand("Heat press settings", "All items");
-      drawPressBoxes(pressList[0], 58, 26);
-      doc.moveDown(1);
-    } else if (pressList.length) {
+    const pressExtraLine = (p: JobFolderPdfPress) => !!(p.pressure || p.notes);
+
+    if (pressList.length && !mockups.length) {
       ensureRoom(26 + 80);
-      sectionBand("Heat press settings");
+      sectionBand("Heat press settings", pressList.length === 1 && !pressList[0].appliesTo?.length ? "All items" : undefined);
       pressList.forEach((p) => {
-        ensureRoom(18 + 44 + 18);
-        doc
-          .fillColor(GRAY)
-          .font("Helvetica")
-          .fontSize(9)
-          .text("For: ", left, doc.y, { width: pageWidth, continued: true })
-          .fillColor(NAVY)
-          .font("Helvetica-Bold")
-          .fontSize(10)
-          .text(p.appliesTo?.length ? p.appliesTo.join(", ") : "All other items");
-        doc.y += 3;
-        drawPressBoxes(p, 44, 20);
-        doc.moveDown(0.6);
+        ensureRoom(18 + 58 + 18);
+        if (pressList.length > 1 || p.appliesTo?.length) {
+          doc
+            .fillColor(GRAY).font("Helvetica").fontSize(9)
+            .text("For: ", left, doc.y, { width: pageWidth, continued: true })
+            .fillColor(NAVY).font("Helvetica-Bold").fontSize(10)
+            .text(p.appliesTo?.length ? p.appliesTo.join(", ") : "All other items");
+          doc.y += 3;
+        }
+        drawPressBoxes(p, left, pageWidth, 58, 26);
+        doc.moveDown(0.8);
       });
-      doc.moveDown(0.5);
+    } else if (pressList.length) {
+      // Compact table: For | Heat | Time | Pressure | Notes
+      const cols = [
+        { label: "FOR", w: pageWidth * 0.42 },
+        { label: "HEAT", w: pageWidth * 0.13 },
+        { label: "TIME", w: pageWidth * 0.13 },
+        { label: "PRESSURE", w: pageWidth * 0.13 },
+        { label: "NOTES", w: pageWidth * 0.19 },
+      ];
+      ensureRoom(26 + 18 + 22 * pressList.length);
+      sectionBand("Heat press settings");
+      const top = doc.y;
+      doc.save().rect(left, top, pageWidth, 18).fill("#e8eaf0").restore();
+      let cx = left;
+      cols.forEach((c) => {
+        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(8.5).text(c.label, cx + 6, top + 5, { width: c.w - 12, lineBreak: false });
+        cx += c.w;
+      });
+      let y = top + 18;
+      pressList.forEach((p) => {
+        const forText = p.appliesTo?.length ? p.appliesTo.join(", ") : pressList.length > 1 ? "All other items" : "All items";
+        doc.font("Helvetica").fontSize(9);
+        const rowH = Math.max(22, doc.heightOfString(forText, { width: cols[0].w - 12 }) + 10);
+        doc.save().rect(left, y, pageWidth, rowH).lineWidth(0.75).strokeColor(BORDER).stroke().restore();
+        const vals = [forText, p.heat || "—", p.time || "—", p.pressure || "—", p.notes || "—"];
+        cx = left;
+        vals.forEach((v, i) => {
+          const bold = i === 1 || i === 2;
+          doc.fillColor(bold ? NAVY : "#222222").font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(bold ? 11 : 9)
+            .text(v, cx + 6, y + (bold ? 5 : 6), { width: cols[i].w - 12, ...(i === 0 ? {} : { lineBreak: false, ellipsis: true }) });
+          cx += cols[i].w;
+        });
+        y += rowH;
+      });
+      doc.y = y + 14;
     }
 
     // Which press setting (if any) covers a given line item — used to tag
@@ -1452,7 +1482,12 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
         roundedBox(doc, x, y, cardW, cardH, "#dddddd");
         const hasPill = !!m.location;
         const press = pressFor(m.caption);
-        const capH = (m.caption ? 16 : 0) + (press ? 14 : 0);
+        // Big Heat / Press time boxes at the bottom of the card when a press
+        // setting covers this mock-up's item.
+        const boxH = cardW > halfW + 1 ? 54 : 46;
+        const boxValue = cardW > halfW + 1 ? 24 : 18;
+        const pressH = press ? boxH + 8 + (pressExtraLine(press) ? 13 : 0) : 0;
+        const capH = (m.caption ? 16 : 0) + pressH;
         const imgTop = y + (hasPill ? 26 : 8);
         const imgH = cardH - (imgTop - y) - capH - 8;
         try {
@@ -1466,8 +1501,8 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
           doc.fillColor("#333333").font("Helvetica").fontSize(10).text(m.caption, x + 8, y + cardH - capH - 4, { width: cardW - 16, align: "center", lineBreak: false, ellipsis: true });
         }
         if (press) {
-          const tag = `Press: ${[press.heat, press.time].filter(Boolean).join(" · ")}`;
-          doc.fillColor(RED).font("Helvetica-Bold").fontSize(9.5).text(tag, x + 8, y + cardH - 16, { width: cardW - 16, align: "center", lineBreak: false, ellipsis: true });
+          doc.y = y + cardH - pressH - 2;
+          drawPressBoxes(press, x + 10, cardW - 20, boxH, boxValue);
         }
       });
       doc.y = rowY + cardH + 14;
