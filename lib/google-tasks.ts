@@ -23,7 +23,8 @@ import {
 //   4. Set GOOGLE_TASKS_CLIENT_ID / GOOGLE_TASKS_CLIENT_SECRET as env vars.
 // ---------------------------------------------------------------------------
 
-const SCOPE = "https://www.googleapis.com/auth/tasks";
+// openid + email let the Tasks tab show which account is connected.
+const SCOPE = "openid email https://www.googleapis.com/auth/tasks";
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const API_BASE = "https://tasks.googleapis.com/tasks/v1";
