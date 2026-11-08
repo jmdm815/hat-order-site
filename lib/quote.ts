@@ -34,6 +34,19 @@ export type QuoteSizeInput = {
   // product/color + the admin's garment-markup breakpoint table instead.
   garmentCost?: number;
   garmentMarkupPercent?: number;
+  // Catalog lines only (SanMar / S&S / curated): per-size overrides of the
+  // looked-up garment pricing, mirroring the Item Cost / Item Markup (%) /
+  // Item Price columns. Precedence, highest first:
+  //   garmentPriceOverride        → the garment price, full stop
+  //   garmentMarkupPercentOverride → (cost override or catalog cost) × (1 + %)
+  //   neither                      → (cost override or catalog cost) through
+  //                                  the garment-markup breakpoint table
+  // Decoration is still added on top; priceOverride below still wins over
+  // the whole unit price. Ignored for customer-supplied/custom lines, which
+  // use garmentCost/garmentMarkupPercent above.
+  garmentCostOverride?: number;
+  garmentMarkupPercentOverride?: number;
+  garmentPriceOverride?: number;
   // Manual price override for this one size row — lets the admin type an
   // exact Unit Price or Total, or apply a Discount %, directly over the
   // computed garment + decoration price (matching a reference quoting
@@ -168,6 +181,12 @@ export type QuoteSizeResult = {
   garmentCost: number; // raw vendor cost before the configured garment markup
   garmentMarkupAmount: number;
   garmentUnitPrice: number; // garment selling price after markup
+  // Effective markup % (garmentUnitPrice vs garmentCost) — for display.
+  garmentMarkupPercent?: number;
+  // Catalog lines: the looked-up vendor cost and the price the breakpoint
+  // table would give it, kept for "revert" hints when overrides are set.
+  catalogGarmentCost?: number;
+  catalogGarmentUnitPrice?: number;
   decorationUnitPrice: number;
   unitPrice: number; // garment + decoration, after any priceOverride below
   lineTotal: number; // unitPrice * quantity
@@ -338,6 +357,10 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
       if (typeof sz.size !== "string" || typeof sz.quantity !== "number") return false;
       if (sz.garmentCost !== undefined && typeof sz.garmentCost !== "number") return false;
       if (sz.garmentMarkupPercent !== undefined && typeof sz.garmentMarkupPercent !== "number") return false;
+      for (const k of ["garmentCostOverride", "garmentMarkupPercentOverride", "garmentPriceOverride"]) {
+        const v = sz[k];
+        if (v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v < 0)) return false;
+      }
       if (sz.priceOverride !== undefined) {
         if (typeof sz.priceOverride !== "object" || sz.priceOverride === null) return false;
         const ov = sz.priceOverride as Record<string, unknown>;
@@ -535,9 +558,18 @@ export function computeQuote(
 
     const sizes: QuoteSizeResult[] = line.sizes.map((s) => {
       const sizeInfo = color.sizes?.find((sz) => sz.name === s.size);
-      const garmentCost = sizeInfo?.price ?? product.basePrice;
-      const garmentUnitPrice = money(applyGarmentMarkup(garmentCost, garmentMarkupBreakpoints));
+      const catalogCost = sizeInfo?.price ?? product.basePrice;
+      const catalogGarmentUnitPrice = money(applyGarmentMarkup(catalogCost, garmentMarkupBreakpoints));
+      const garmentCost = s.garmentCostOverride ?? catalogCost;
+      const garmentUnitPrice =
+        s.garmentPriceOverride !== undefined
+          ? money(s.garmentPriceOverride)
+          : s.garmentMarkupPercentOverride !== undefined
+            ? money(garmentCost * (1 + s.garmentMarkupPercentOverride / 100))
+            : money(applyGarmentMarkup(garmentCost, garmentMarkupBreakpoints));
       const garmentMarkupAmount = money(garmentUnitPrice - garmentCost);
+      const garmentMarkupPercent =
+        garmentCost > 0 ? Math.round((garmentUnitPrice / garmentCost - 1) * 10000) / 100 : 0;
       const computedUnitPrice = money(garmentUnitPrice + decorationUnitPrice);
       const priced = applySizeOverride(computedUnitPrice, s.quantity, s.priceOverride);
       return {
@@ -546,6 +578,9 @@ export function computeQuote(
         garmentCost: money(garmentCost),
         garmentMarkupAmount,
         garmentUnitPrice,
+        garmentMarkupPercent,
+        catalogGarmentCost: money(catalogCost),
+        catalogGarmentUnitPrice,
         decorationUnitPrice,
         unitPrice: priced.unitPrice,
         lineTotal: priced.lineTotal,

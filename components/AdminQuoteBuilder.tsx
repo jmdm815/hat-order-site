@@ -694,6 +694,9 @@ export default function AdminQuoteBuilder({
   const [foundProductLive, setFoundProductLive] = useState(false);
   const [selectedColor, setSelectedColor] = useState("");
   const [sizeQty, setSizeQty] = useState<Record<string, number>>({});
+  // Per-size Item Cost / Item Markup (%) / Item Price edits in the catalog
+  // picker, applied as overrides when the line is added (see GarmentEdit).
+  const [garmentEdits, setGarmentEdits] = useState<Record<string, GarmentEdit>>({});
 
   // Ad-hoc (non-catalog-lookup) item form — shared by both
   // CatalogSource === "customer-supplied" and CatalogSource === "custom"
@@ -1381,6 +1384,7 @@ export default function AdminQuoteBuilder({
     setFoundProductLive(false);
     setSelectedColor("");
     setSizeQty({});
+    setGarmentEdits({});
     setLookupError(null);
   }
 
@@ -1463,6 +1467,7 @@ export default function AdminQuoteBuilder({
         initialQty[ONE_SIZE_LABEL] = 0;
       }
       setSizeQty(initialQty);
+      setGarmentEdits({});
     } catch {
       setLookupError("Failed to load that product — check your connection and try again.");
     } finally {
@@ -1495,9 +1500,24 @@ export default function AdminQuoteBuilder({
 
   function addLine() {
     if (!foundProduct) return;
+    const pickedColor = foundProduct.colors.find((c) => c.colorName === selectedColor);
     const sizes = Object.entries(sizeQty)
       .filter(([, qty]) => qty > 0)
-      .map(([size, quantity]) => ({ size, quantity }));
+      .map(([size, quantity]): QuoteSizeInput => {
+        const e = garmentEdits[size];
+        const hasEdit = e && (e.cost !== undefined || e.markup !== undefined || e.price !== undefined);
+        // Pin the cost the admin saw in the picker (live vendor pricing)
+        // whenever they edited this size, so markup applies to that cost.
+        const shownCost = pickedColor?.sizes.find((r) => r.name === size)?.cost;
+        const cost = e?.cost ?? (hasEdit ? shownCost : undefined);
+        return {
+          size,
+          quantity,
+          ...(cost !== undefined ? { garmentCostOverride: cost } : {}),
+          ...(e?.markup !== undefined ? { garmentMarkupPercentOverride: e.markup } : {}),
+          ...(e?.price !== undefined ? { garmentPriceOverride: e.price } : {}),
+        };
+      });
     if (sizes.length === 0) {
       setLookupError("Enter a quantity for at least one size before adding.");
       return;
@@ -1663,6 +1683,32 @@ export default function AdminQuoteBuilder({
           ? { ...l, sizes: l.sizes.map((s) => (s.size === size ? { ...s, priceOverride: override } : s)) }
           : l
       )
+    );
+  }
+
+  // Item Cost / Item Markup (%) / Item Price on a catalog line's size row.
+  // Item Price is the final word when set; editing cost or markup clears it
+  // (and any Unit/Total override) so the new cost × markup flows through.
+  function updateSizeGarment(lineKey: string, size: string, field: keyof GarmentEdit, value: number | undefined) {
+    setLines((prev) =>
+      prev.map((l) => {
+        if (l.key !== lineKey) return l;
+        return {
+          ...l,
+          sizes: l.sizes.map((s) => {
+            if (s.size !== size) return s;
+            const n: QuoteSizeInput = { ...s };
+            if (field === "cost") n.garmentCostOverride = value;
+            if (field === "markup") n.garmentMarkupPercentOverride = value;
+            if (field === "price") n.garmentPriceOverride = value;
+            if (value !== undefined && field !== "price") n.garmentPriceOverride = undefined;
+            if (value !== undefined && n.priceOverride && n.priceOverride.kind !== "discountPercent") {
+              n.priceOverride = undefined;
+            }
+            return n;
+          }),
+        };
+      })
     );
   }
 
@@ -3193,16 +3239,57 @@ export default function AdminQuoteBuilder({
                                       {showMarkup && (
                                         <>
                                           <td className="pr-3 py-1">
-                                            ${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}
+                                            {!line.customerSupplied ? (
+                                              <GarmentInput
+                                                prefix="$"
+                                                step="0.01"
+                                                value={rawSize?.garmentCostOverride ?? s.garmentCost}
+                                                active={rawSize?.garmentCostOverride !== undefined}
+                                                onChange={(v) => updateSizeGarment(line.key, s.size, "cost", v)}
+                                                resetTitle={`Revert to catalog cost ($${(s.catalogGarmentCost ?? s.garmentCost).toFixed(2)})`}
+                                                title="Item cost — marked up by the item markup"
+                                              />
+                                            ) : (
+                                              `$${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}`
+                                            )}
                                           </td>
                                           <td className="pr-3 py-1">
-                                            {(s.garmentMarkupAmount ?? 0) > 0
-                                              ? `+$${(s.garmentMarkupAmount ?? 0).toFixed(2)}`
-                                              : "—"}
+                                            {!line.customerSupplied ? (
+                                              <GarmentInput
+                                                suffix="%"
+                                                step="1"
+                                                value={
+                                                  rawSize?.garmentMarkupPercentOverride ??
+                                                  Math.round((s.garmentMarkupPercent ?? 0) * 10) / 10
+                                                }
+                                                active={rawSize?.garmentMarkupPercentOverride !== undefined}
+                                                onChange={(v) => updateSizeGarment(line.key, s.size, "markup", v)}
+                                                resetTitle="Revert to the markup table"
+                                                title={`Item markup % (+$${(s.garmentMarkupAmount ?? 0).toFixed(2)})`}
+                                              />
+                                            ) : (s.garmentMarkupAmount ?? 0) > 0 ? (
+                                              `+$${(s.garmentMarkupAmount ?? 0).toFixed(2)}`
+                                            ) : (
+                                              "—"
+                                            )}
                                           </td>
                                         </>
                                       )}
-                                      <td className="pr-3 py-1">${s.garmentUnitPrice.toFixed(2)}</td>
+                                      <td className="pr-3 py-1">
+                                        {!line.customerSupplied ? (
+                                          <GarmentInput
+                                            prefix="$"
+                                            step="0.01"
+                                            value={rawSize?.garmentPriceOverride ?? s.garmentUnitPrice}
+                                            active={rawSize?.garmentPriceOverride !== undefined}
+                                            onChange={(v) => updateSizeGarment(line.key, s.size, "price", v)}
+                                            resetTitle={`Revert to cost × markup`}
+                                            title="Item price — overrides cost and markup when set"
+                                          />
+                                        ) : (
+                                          `$${s.garmentUnitPrice.toFixed(2)}`
+                                        )}
+                                      </td>
                                       <td className="pr-3 py-1">
                                         {s.decorationUnitPrice > 0 ? `+$${s.decorationUnitPrice.toFixed(2)}` : "—"}
                                       </td>
@@ -4336,6 +4423,7 @@ export default function AdminQuoteBuilder({
                         next[ONE_SIZE_LABEL] = 0;
                       }
                       setSizeQty(next);
+                      setGarmentEdits({});
                     }}
                     className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
                   >
@@ -4382,6 +4470,9 @@ export default function AdminQuoteBuilder({
                       sizeQty={sizeQty}
                       setSizeQty={setSizeQty}
                       showMarkup={showMarkup}
+                      edits={garmentEdits}
+                      setEdits={setGarmentEdits}
+                      markupBreakpoints={garmentMarkupBreakpoints}
                     />
                   </div>
                 ) : (
@@ -4592,7 +4683,13 @@ function SizeGrid({
   sizeQty,
   setSizeQty,
   showMarkup,
+  edits,
+  setEdits,
+  markupBreakpoints,
 }: {
+  edits: Record<string, GarmentEdit>;
+  setEdits: (updater: (prev: Record<string, GarmentEdit>) => Record<string, GarmentEdit>) => void;
+  markupBreakpoints: GarmentMarkupBreakpoint[];
   sizes: ManualQuoteSizeRow[];
   sizeQty: Record<string, number>;
   setSizeQty: (updater: (prev: Record<string, number>) => Record<string, number>) => void;
@@ -4606,6 +4703,26 @@ function SizeGrid({
   // while building a line, so there's no need to add it all up by hand
   // before hitting "Add to quote".
   const totalQty = sizes.reduce((sum, sz) => sum + (sizeQty[sz.name] ?? 0), 0);
+
+  // Effective cost / markup / price for a size after any edits — same
+  // precedence as the quote engine: price > cost × markup > catalog.
+  function effective(sz: ManualQuoteSizeRow) {
+    const e = edits[sz.name] ?? {};
+    const cost = e.cost ?? sz.cost;
+    const markup =
+      e.markup ?? (e.cost !== undefined ? getMarkupPercentForCost(markupBreakpoints, cost) : sz.markupPercent);
+    const price =
+      e.price ??
+      (e.cost === undefined && e.markup === undefined ? sz.price : Math.round(cost * (1 + markup / 100) * 100) / 100);
+    return { e, cost, markup, price };
+  }
+  function setEdit(size: string, field: keyof GarmentEdit, value: number | undefined) {
+    setEdits((prev) => {
+      const cur: GarmentEdit = { ...(prev[size] ?? {}), [field]: value };
+      if (value !== undefined && field !== "price") cur.price = undefined;
+      return { ...prev, [size]: cur };
+    });
+  }
 
   return (
     <div className="mt-2 overflow-x-auto">
@@ -4647,29 +4764,60 @@ function SizeGrid({
             <>
               <tr className="border-t border-admin-ink/5">
                 <td className="pr-3 py-1 text-admin-ink/72">Item Cost</td>
-                {sizes.map((sz) => (
-                  <td key={sz.name} className="px-2 py-1 text-center text-admin-ink/88">
-                    ${sz.cost.toFixed(2)}
-                  </td>
-                ))}
+                {sizes.map((sz) => {
+                  const ef = effective(sz);
+                  return (
+                    <td key={sz.name} className="px-1 py-1 text-center">
+                      <GarmentInput
+                        prefix="$"
+                        step="0.01"
+                        value={ef.cost}
+                        active={ef.e.cost !== undefined}
+                        onChange={(v) => setEdit(sz.name, "cost", v)}
+                        resetTitle={`Revert to $${sz.cost.toFixed(2)}`}
+                      />
+                    </td>
+                  );
+                })}
               </tr>
               <tr className="border-t border-admin-ink/5">
                 <td className="pr-3 py-1 text-admin-ink/72">Item Markup (%)</td>
-                {sizes.map((sz) => (
-                  <td key={sz.name} className="px-2 py-1 text-center text-admin-ink/88">
-                    {sz.markupPercent}
-                  </td>
-                ))}
+                {sizes.map((sz) => {
+                  const ef = effective(sz);
+                  return (
+                    <td key={sz.name} className="px-1 py-1 text-center">
+                      <GarmentInput
+                        suffix="%"
+                        step="1"
+                        value={Math.round(ef.markup * 10) / 10}
+                        active={ef.e.markup !== undefined}
+                        onChange={(v) => setEdit(sz.name, "markup", v)}
+                        resetTitle="Revert to the markup table"
+                      />
+                    </td>
+                  );
+                })}
               </tr>
             </>
           )}
           <tr className="border-t border-admin-ink/5">
             <td className="pr-3 py-1 text-admin-ink/72">Item Price</td>
-            {sizes.map((sz) => (
-              <td key={sz.name} className="px-2 py-1 text-center font-medium text-admin-ink">
-                ${sz.price.toFixed(2)}
-              </td>
-            ))}
+            {sizes.map((sz) => {
+              const ef = effective(sz);
+              return (
+                <td key={sz.name} className="px-1 py-1 text-center font-medium">
+                  <GarmentInput
+                    prefix="$"
+                    step="0.01"
+                    value={ef.price}
+                    active={ef.e.price !== undefined}
+                    onChange={(v) => setEdit(sz.name, "price", v)}
+                    resetTitle="Revert to cost × markup"
+                    title="Item price — overrides cost and markup when set"
+                  />
+                </td>
+              );
+            })}
           </tr>
           <tr className="border-t border-admin-ink/10">
             <td className="pr-3 py-1 text-admin-ink/72">Line total</td>
@@ -4677,7 +4825,7 @@ function SizeGrid({
               const qty = sizeQty[sz.name] ?? 0;
               return (
                 <td key={sz.name} className="px-2 py-1 text-center text-admin-ink/88">
-                  {qty > 0 ? `$${(qty * sz.price).toFixed(2)}` : "—"}
+                  {qty > 0 ? `$${(qty * effective(sz).price).toFixed(2)}` : "—"}
                 </td>
               );
             })}
@@ -4685,5 +4833,61 @@ function SizeGrid({
         </tbody>
       </table>
     </div>
+  );
+}
+
+// Item Cost / Item Markup (%) / Item Price edits for one catalog size.
+// Precedence matches lib/quote.ts: price > cost × markup > catalog default.
+type GarmentEdit = { cost?: number; markup?: number; price?: number };
+
+// Small number input used for the editable garment pricing cells. Amber
+// when overridden, with a ↺ to revert; clearing the field also reverts.
+function GarmentInput({
+  value,
+  active,
+  onChange,
+  prefix,
+  suffix,
+  step,
+  title,
+  resetTitle,
+}: {
+  value: number;
+  active: boolean;
+  onChange: (v: number | undefined) => void;
+  prefix?: string;
+  suffix?: string;
+  step?: string;
+  title?: string;
+  resetTitle?: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {prefix}
+      <input
+        type="number"
+        step={step}
+        min="0"
+        value={value}
+        title={title}
+        onChange={(e) =>
+          onChange(e.target.value === "" ? undefined : Math.max(0, Number(e.target.value) || 0))
+        }
+        className={`w-16 border rounded px-1 py-0.5 ${
+          active ? "border-amber-400 bg-amber-50 text-amber-900" : "border-admin-ink/20 bg-transparent"
+        }`}
+      />
+      {suffix}
+      {active && (
+        <button
+          type="button"
+          onClick={() => onChange(undefined)}
+          title={resetTitle}
+          className="text-admin-ink/50 hover:text-admin-ink shrink-0"
+        >
+          ↺
+        </button>
+      )}
+    </span>
   );
 }
