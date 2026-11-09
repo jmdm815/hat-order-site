@@ -122,6 +122,9 @@ export type QuoteLineInput = {
   // "use the computed decoration price" exactly as before this field
   // existed.
   decorationUnitPriceOverride?: number;
+  // An alternate shown for comparison ("Option") — priced and printed like
+  // any other line, but left out of the quantity, subtotal, tax and total.
+  optional?: boolean;
 };
 
 export type QuoteInput = {
@@ -215,6 +218,8 @@ export type QuoteLineResult = {
   sizes: QuoteSizeResult[];
   quantity: number; // sum of this line's size quantities
   subtotal: number; // sum of sizes[].lineTotal
+  // See QuoteLineInput.optional — excluded from every quote total.
+  optional?: boolean;
   // See QuoteLineInput — when true, this line has no real catalog garment;
   // styleNumber/colorName above are empty placeholders and itemDescription
   // is what should actually be shown for this line.
@@ -545,6 +550,7 @@ export function computeQuote(
         quantity,
         subtotal,
         taxable: line.taxable ?? true,
+      ...(line.optional ? { optional: true } : {}),
         decorationUnitPriceOverridden,
         computedDecorationUnitPrice,
       };
@@ -606,6 +612,7 @@ export function computeQuote(
       quantity,
       subtotal,
       taxable: line.taxable ?? true,
+      ...(line.optional ? { optional: true } : {}),
       decorationUnitPriceOverridden,
       computedDecorationUnitPrice,
     };
@@ -626,11 +633,13 @@ export function computeQuote(
     };
   });
 
-  const totalQuantity = lines.reduce((sum, l) => sum + l.quantity, 0);
+  // Optional (alternate) lines are shown but never counted.
+  const countedLines = lines.filter((l) => !l.optional);
+  const totalQuantity = countedLines.reduce((sum, l) => sum + l.quantity, 0);
   const totalSetupFees = money(setupCharges.reduce((sum, c) => sum + c.price, 0));
   const totalMiscFees = money(miscFees.reduce((sum, f) => sum + f.lineTotal, 0));
   const totalGarmentAndDecoration = money(
-    lines.reduce((sum, l) => sum + l.sizes.reduce((s, sz) => s + sz.lineTotal, 0), 0)
+    countedLines.reduce((sum, l) => sum + l.sizes.reduce((s, sz) => s + sz.lineTotal, 0), 0)
   );
   const subtotalBeforeTax = money(totalGarmentAndDecoration + totalSetupFees + totalMiscFees);
 
@@ -638,7 +647,7 @@ export function computeQuote(
   // taxable (defaults true) — see QuoteInput.taxRatePercent and each
   // line/setupCharge/miscFee's own `taxable` flag above.
   const taxRatePercent = input.taxRatePercent ?? 0;
-  const taxableLinesTotal = lines.reduce(
+  const taxableLinesTotal = countedLines.reduce(
     (sum, l) => sum + (l.taxable ? l.sizes.reduce((s, sz) => s + sz.lineTotal, 0) : 0),
     0
   );

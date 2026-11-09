@@ -35,7 +35,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Mock-ups store the modal's long line label ("30 × Jerzees … True Red");
   // print the compact form instead ("29M True Red (30)") so it fits.
   const shortCaption = new Map<string, string>();
-  for (const l of record.computed.lines) {
+  for (const l of record.computed.lines.filter((x) => !x.optional)) {
     const desc = l.customerSupplied
       ? l.itemDescription || "Customer-supplied item"
       : [l.brandName, l.productName, l.colorName].filter(Boolean).join(" ");
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     )
   ).filter((m): m is NonNullable<typeof m> => m !== null);
 
-  const lines = record.computed.lines.map((l) => {
+  const lines = record.computed.lines.filter((x) => !x.optional).map((l) => {
     const custom = l.customerSupplied;
     const desc = (l.itemDescription || "Customer-supplied item").split("\n")[0];
     return {

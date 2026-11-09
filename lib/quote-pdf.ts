@@ -31,6 +31,7 @@ import { InvoicePaymentStatus } from "./quotes-store";
 import { getBrandSettings } from "./pricing-store";
 
 const NAVY = "#292e45";
+const ACCENT_FOR_OPTION = "#b45309"; // amber — "Option" line totals
 const RED = "#cd2229";
 const GREEN = "#1a7f37";
 const CREAM = "#f7f5f1";
@@ -711,7 +712,15 @@ export async function renderQuotePdf(
           .fillColor(GRAY)
           .font("Helvetica-Bold")
           .fontSize(8.5)
-          .text(`Line total: ${money(line.subtotal)}`, gridX, bottom + 2, { width: gridWidth, align: "right" });
+          .fillColor(line.optional ? ACCENT_FOR_OPTION : GRAY)
+          .text(
+            line.optional
+              ? `OPTION (not included in total): ${money(line.subtotal)}`
+              : `Line total: ${money(line.subtotal)}`,
+            gridX,
+            bottom + 2,
+            { width: gridWidth, align: "right" }
+          );
         bottom = doc.y;
       }
 
@@ -726,6 +735,8 @@ export async function renderQuotePdf(
     const groups: Group[] = [];
     const groupIndexByKey = new Map<string, number>();
     for (const line of quote.lines) {
+      // Alternates priced for comparison don't belong on a production copy.
+      if (line.optional && !showPricing) continue;
       const key = `${line.decorationId ?? ""}::${line.priceColumnId ?? ""}`;
       let idx = groupIndexByKey.get(key);
       if (idx === undefined) {

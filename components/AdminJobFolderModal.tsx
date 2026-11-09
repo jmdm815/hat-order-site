@@ -171,7 +171,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   const browseRowIdRef = useRef<string | null>(null);
   const browseInputRef = useRef<HTMLInputElement>(null);
 
-  const lineItems = current.computed.lines;
+  const lineItems = current.computed.lines.filter((l) => !l.optional);
   // De-duplicated short labels for the print-file "Applies to" chips.
   const lineItemChoices = Array.from(new Set(lineItems.map(printFileLineLabel)));
   // A picked mock-up image waits here until the admin chooses its print
