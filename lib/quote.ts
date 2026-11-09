@@ -145,6 +145,9 @@ export type QuoteInput = {
   // When set, the PDF prints "Net 60" as the terms, drops all deposit
   // wording/rows, and says payment is due within that many days.
   netTermsDays?: number;
+  // Leave the Terms box blank ("—") on the PDF — for a pricing-only quote
+  // where no payment terms have been agreed yet.
+  termsBlank?: boolean;
   // Hide the "Pay online" button + QR code on this record's PDFs (e.g. a
   // corporate customer that pays by PO/check on net terms). The pay page
   // itself still exists; it just isn't advertised.
@@ -262,6 +265,7 @@ export type ComputedQuote = {
   quoteDate: string;
   dueDate?: string; // see QuoteInput.dueDate
   netTermsDays?: number; // see QuoteInput.netTermsDays
+  termsBlank?: boolean; // see QuoteInput.termsBlank
   hidePaymentLink?: boolean; // see QuoteInput.hidePaymentLink
   notes?: string;
   lines: QuoteLineResult[];
@@ -667,6 +671,7 @@ export function computeQuote(
     dueDate: input.dueDate,
     ...(input.netTermsDays && input.netTermsDays > 0 ? { netTermsDays: Math.round(input.netTermsDays) } : {}),
     ...(input.hidePaymentLink ? { hidePaymentLink: true } : {}),
+    ...(input.termsBlank && !(input.netTermsDays && input.netTermsDays > 0) ? { termsBlank: true } : {}),
     notes: input.notes,
     lines,
     setupCharges,

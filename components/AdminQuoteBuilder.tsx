@@ -586,7 +586,10 @@ export default function AdminQuoteBuilder({
   const [dueDate, setDueDate] = useState(() => initialRecord?.input.dueDate ?? "");
   // Net terms (e.g. 60 = "Net 60") and whether the PDF shows the pay button
   // + QR — see lib/quote.ts's QuoteInput.netTermsDays / hidePaymentLink.
-  const [netTermsDays, setNetTermsDays] = useState<number>(() => initialRecord?.input.netTermsDays ?? 0);
+  // -1 = "Blank" (QuoteInput.termsBlank): no terms printed on a quote.
+  const [netTermsDays, setNetTermsDays] = useState<number>(() =>
+    initialRecord?.input.termsBlank ? -1 : (initialRecord?.input.netTermsDays ?? 0)
+  );
   const [hidePaymentLink, setHidePaymentLink] = useState<boolean>(() => initialRecord?.input.hidePaymentLink ?? false);
   const [notes, setNotes] = useState(() => initialRecord?.input.notes ?? "");
   // Payment terms — 100 means "pay in full" (the common case); anything
@@ -1939,7 +1942,8 @@ export default function AdminQuoteBuilder({
       customerEmail: customerEmail || undefined,
       quoteDate,
       dueDate: dueDate || undefined,
-      netTermsDays: netTermsDays || undefined,
+      netTermsDays: netTermsDays > 0 ? netTermsDays : undefined,
+      termsBlank: netTermsDays === -1 || undefined,
       hidePaymentLink: hidePaymentLink || undefined,
       notes: notes || undefined,
       depositPercent: depositPercent < 100 ? depositPercent : undefined,
@@ -2535,11 +2539,12 @@ export default function AdminQuoteBuilder({
                 setNetTermsDays(v);
                 // Net-terms accounts usually pay by PO/check — hide the pay
                 // button by default when net terms are picked (still toggleable).
-                if (v && !netTermsDays) setHidePaymentLink(true);
+                if (v && netTermsDays <= 0) setHidePaymentLink(true);
               }}
               className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             >
               <option value={0}>None (use payment terms)</option>
+              <option value={-1}>Blank (pricing-only quote)</option>
               {[15, 30, 45, 60, 90].map((d) => (
                 <option key={d} value={d}>
                   Net {d}

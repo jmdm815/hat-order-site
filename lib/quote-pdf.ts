@@ -414,7 +414,12 @@ export async function renderQuotePdf(
               value: formatDate(quote.quoteDate),
               ...(quote.dueDate ? { subLabel: "Due Date", subValue: formatDate(quote.dueDate) } : {}),
             },
-            { label: "Terms", value: netTerms ?? (isPartialDeposit ? `${quote.depositPercent}% deposit` : "Due in full") },
+            {
+              label: "Terms",
+              value: quote.termsBlank
+                ? "—"
+                : (netTerms ?? (isPartialDeposit ? `${quote.depositPercent}% deposit` : "Due in full")),
+            },
             { label: "Quote #", value: invoiceMeta?.quoteNumber || "—" },
           ];
 
