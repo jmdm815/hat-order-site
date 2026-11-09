@@ -953,8 +953,12 @@ export async function renderQuotePdf(
     // a quote with enough line items/fees to push doc.y down near the
     // bottom margin can land this text right on top of that stamp.
     // (Without notes, the closing note below handles its own fit.)
-    if (quote.notes && doc.y > doc.page.height - doc.page.margins.bottom - 90) {
-      doc.addPage();
+    if (quote.notes) {
+      // Measure the actual notes (they can run several lines) so the whole
+      // block lands on one page instead of being cut off at the margin.
+      doc.font("Helvetica").fontSize(9.5);
+      const notesH = doc.heightOfString(quote.notes, { width: pageWidth }) + 40;
+      if (doc.y + notesH > doc.page.height - doc.page.margins.bottom - 50) doc.addPage();
     }
 
     if (quote.notes) {
