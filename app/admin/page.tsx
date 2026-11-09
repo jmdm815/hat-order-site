@@ -13,12 +13,16 @@ export default async function AdminPage() {
           <span className="font-heading font-semibold text-sm sm:text-lg tracking-wide text-admin-ink uppercase truncate">
             JM Digital Media · Admin
           </span>
-          <Link
-            href="/"
-            className="shrink-0 text-sm text-admin-ink/80 hover:text-admin-ink hover:underline"
-          >
-            ← Back to site
-          </Link>
+          <div className="shrink-0 flex items-center gap-4">
+            {authed && (
+              <Link href="/admin/sewouts" className="text-sm text-admin-ink/80 hover:text-admin-ink hover:underline">
+                Sewout Library
+              </Link>
+            )}
+            <Link href="/" className="text-sm text-admin-ink/80 hover:text-admin-ink hover:underline">
+              ← Back to site
+            </Link>
+          </div>
         </div>
       </header>
       <main className="flex-1 max-w-6xl mx-auto px-4 py-6 sm:py-10 w-full">
