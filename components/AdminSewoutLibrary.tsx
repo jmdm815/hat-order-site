@@ -19,6 +19,7 @@ type Sewout = {
   customerName: string;
   designName: string;
   photoUrls: string[];
+  coverUrl?: string; // square crop of just the swatch, for cards
   stitchCount?: number;
   widthIn?: number;
   heightIn?: number;
@@ -255,10 +256,10 @@ export default function AdminSewoutLibrary() {
             onClick={() => setViewing(s)}
             className="text-left rounded-xl overflow-hidden bg-admin-card border border-admin-ink/15 hover:border-admin-ink/50 transition-colors"
           >
-            <div className="aspect-square bg-white">
-              {s.photoUrls[0] ? (
+            <div className="aspect-square bg-white overflow-hidden">
+              {s.coverUrl || s.photoUrls[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={s.photoUrls[0]} alt={`${s.customerName} sew-out`} className="w-full h-full object-contain" loading="lazy" />
+                <img src={s.coverUrl || s.photoUrls[0]} alt={`${s.customerName} sew-out`} className="w-full h-full object-cover" loading="lazy" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">No photo</div>
               )}
@@ -328,6 +329,7 @@ function SewoutDetail({
 }) {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [cropping, setCropping] = useState(false);
   const photo = record.photoUrls[Math.min(photoIndex, record.photoUrls.length - 1)];
 
   async function addPhoto(file: File) {
@@ -431,6 +433,41 @@ function SewoutDetail({
             </label>
           )}
         </div>
+
+        {photo && (
+          <div className="mt-3 flex items-center gap-3">
+            <div className="w-14 h-14 rounded-lg overflow-hidden bg-white border border-admin-ink/15 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={record.coverUrl || photo} alt="Card image" className="w-full h-full object-cover" />
+            </div>
+            <div className="text-xs text-admin-ink/70 min-w-0">
+              <p className="font-semibold text-admin-ink">Card image</p>
+              <p>{record.coverUrl ? "Cropped to the swatch." : "Not cropped yet. Crop it so the card shows just the sew-out."}</p>
+            </div>
+            <button
+              onClick={() => setCropping(true)}
+              className="ml-auto shrink-0 px-3 py-1.5 rounded-lg border border-admin-ink/30 text-sm hover:border-admin-ink/60"
+            >
+              {record.coverUrl ? "Re-crop" : "Crop for card"}
+            </button>
+          </div>
+        )}
+        {cropping && photo && (
+          <CoverCropper
+            src={photo}
+            onCancel={() => setCropping(false)}
+            onSave={async (blob) => {
+              const fd = new FormData();
+              fd.append("cover", blob, "cover.jpg");
+              const res = await fetch(`/api/admin/sewouts/${record.id}/cover`, { method: "POST", body: fd });
+              const data = await res.json().catch(() => ({}));
+              if (res.ok && data.record) {
+                onChanged(data.record);
+                setCropping(false);
+              } else window.alert(data.error || "Couldn't save the crop");
+            }}
+          />
+        )}
 
         <dl className="mt-4 divide-y divide-admin-ink/10 text-sm">
           {rows
@@ -669,5 +706,127 @@ function SewoutForm({
         </button>
       </div>
     </Modal>
+  );
+}
+
+// Square crop tool: drag the box over the stitched swatch, resize with the
+// corner handle or slider, save. Output is an 800px square JPEG.
+function CoverCropper({ src, onCancel, onSave }: { src: string; onCancel: () => void; onSave: (b: Blob) => Promise<void> }) {
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
+  // box in natural-pixel coordinates
+  const [box, setBox] = useState<{ x: number; y: number; size: number } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const drag = useRef<{ mode: "move" | "resize"; startX: number; startY: number; box: { x: number; y: number; size: number } } | null>(null);
+
+  function onLoad() {
+    const img = imgRef.current;
+    if (!img) return;
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    setNat({ w, h });
+    const size = Math.round(Math.min(w, h) * 0.6);
+    setBox({ x: Math.round((w - size) / 2), y: Math.round((h - size) / 2), size });
+  }
+
+  const scale = () => {
+    const img = imgRef.current;
+    return img && nat ? nat.w / img.clientWidth : 1;
+  };
+  const clamp = (b: { x: number; y: number; size: number }) => {
+    if (!nat) return b;
+    const size = Math.max(40, Math.min(b.size, nat.w, nat.h));
+    return { size, x: Math.max(0, Math.min(b.x, nat.w - size)), y: Math.max(0, Math.min(b.y, nat.h - size)) };
+  };
+
+  function start(e: React.PointerEvent, mode: "move" | "resize") {
+    if (!box) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as Element).setPointerCapture(e.pointerId);
+    drag.current = { mode, startX: e.clientX, startY: e.clientY, box };
+  }
+  function move(e: React.PointerEvent) {
+    const d = drag.current;
+    if (!d) return;
+    const k = scale();
+    const dx = (e.clientX - d.startX) * k;
+    const dy = (e.clientY - d.startY) * k;
+    if (d.mode === "move") setBox(clamp({ ...d.box, x: d.box.x + dx, y: d.box.y + dy }));
+    else setBox(clamp({ ...d.box, size: d.box.size + Math.max(dx, dy) }));
+  }
+  function end() {
+    drag.current = null;
+  }
+
+  async function save() {
+    const img = imgRef.current;
+    if (!img || !box) return;
+    setSaving(true);
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 800;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return setSaving(false);
+    ctx.drawImage(img, box.x, box.y, box.size, box.size, 0, 0, 800, 800);
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.9));
+    if (blob) await onSave(blob);
+    setSaving(false);
+  }
+
+  const pct = (v: number, of: number) => `${(v / of) * 100}%`;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-3" onClick={(e) => e.stopPropagation()}>
+      <p className="text-white text-sm mb-2">Drag the square over the stitched swatch</p>
+      <div className="relative max-w-full touch-none select-none" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img ref={imgRef} src={src} alt="" onLoad={onLoad} className="block max-w-[92vw] max-h-[70vh]" draggable={false} />
+        {nat && box && (
+          <div
+            className="absolute border-2 border-white cursor-move"
+            style={{
+              left: pct(box.x, nat.w),
+              top: pct(box.y, nat.h),
+              width: pct(box.size, nat.w),
+              height: pct(box.size, nat.h),
+              boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
+            }}
+            onPointerDown={(e) => start(e, "move")}
+          >
+            <div
+              className="absolute -right-2.5 -bottom-2.5 w-5 h-5 rounded-full bg-white border-2 border-black cursor-nwse-resize"
+              onPointerDown={(e) => start(e, "resize")}
+            />
+          </div>
+        )}
+      </div>
+      {nat && box && (
+        <input
+          type="range"
+          min={40}
+          max={Math.min(nat.w, nat.h)}
+          value={box.size}
+          onChange={(e) => {
+            const size = Number(e.target.value);
+            const cx = box.x + box.size / 2;
+            const cy = box.y + box.size / 2;
+            setBox(clamp({ size, x: cx - size / 2, y: cy - size / 2 }));
+          }}
+          className="mt-3 w-64"
+          aria-label="Crop size"
+        />
+      )}
+      <div className="mt-3 flex gap-2">
+        <button onClick={onCancel} className="px-4 py-2 rounded-xl bg-white/15 text-white text-sm">Cancel</button>
+        <button
+          onClick={save}
+          disabled={!box || saving}
+          className="px-4 py-2 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold text-sm disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save card image"}
+        </button>
+      </div>
+    </div>
   );
 }

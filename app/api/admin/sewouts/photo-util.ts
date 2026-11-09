@@ -20,3 +20,21 @@ export async function storeSewoutPhoto(file: File, folder: string): Promise<stri
   });
   return blob.url;
 }
+
+// Square card image (already cropped in the browser): normalized to an
+// 800px square JPEG.
+export async function storeSewoutCover(file: File, folder: string): Promise<string> {
+  const input = Buffer.from(await file.arrayBuffer());
+  const processed = await sharp(input)
+    .rotate()
+    .flatten({ background: "#ffffff" })
+    .resize(800, 800, { fit: "cover" })
+    .jpeg({ quality: 88 })
+    .toBuffer();
+  const blob = await put(`sewout-photos/${folder}/cover-${Date.now()}.jpg`, processed, {
+    access: "private",
+    addRandomSuffix: true,
+    contentType: "image/jpeg",
+  });
+  return blob.url;
+}

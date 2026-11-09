@@ -3,7 +3,7 @@ import { v4 as uuid } from "uuid";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { createSewout, getSewouts, scoreSewout, SewoutFields } from "@/lib/sewouts-store";
 import { itemPhotoUrl } from "@/lib/item-photo";
-import { MAX_SEWOUT_UPLOAD_BYTES, storeSewoutPhoto } from "./photo-util";
+import { MAX_SEWOUT_UPLOAD_BYTES, storeSewoutCover, storeSewoutPhoto } from "./photo-util";
 
 export const runtime = "nodejs";
 
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
   const all = await getSewouts();
-  const withUrls = all.map((s) => ({ ...s, photoUrls: s.photos.map((p) => itemPhotoUrl(p.blobUrl)) }));
+  const withUrls = all.map((s) => ({ ...s, photoUrls: s.photos.map((p) => itemPhotoUrl(p.blobUrl)), coverUrl: s.coverBlobUrl ? itemPhotoUrl(s.coverBlobUrl) : undefined }));
   if (!q) return NextResponse.json({ sewouts: withUrls });
   const ranked = withUrls
     .map((s) => ({ s, score: scoreSewout(s, q) }))
@@ -50,8 +50,18 @@ export async function POST(req: NextRequest) {
   try {
     const photos = [];
     for (const f of files.slice(0, 6)) photos.push({ blobUrl: await storeSewoutPhoto(f, id), addedAt: new Date().toISOString() });
-    const { record, persisted } = await createSewout(id, fields, photos);
-    return NextResponse.json({ ok: true, record: { ...record, photoUrls: photos.map((p) => itemPhotoUrl(p.blobUrl)) }, persisted });
+    const cover = form.get("cover");
+    const coverBlobUrl = cover instanceof File && cover.size > 0 ? await storeSewoutCover(cover, id) : undefined;
+    const { record, persisted } = await createSewout(id, fields, photos, coverBlobUrl);
+    return NextResponse.json({
+      ok: true,
+      record: {
+        ...record,
+        photoUrls: photos.map((p) => itemPhotoUrl(p.blobUrl)),
+        coverUrl: coverBlobUrl ? itemPhotoUrl(coverBlobUrl) : undefined,
+      },
+      persisted,
+    });
   } catch (err) {
     console.error("POST /api/admin/sewouts failed", err);
     return NextResponse.json({ error: "Couldn't save that sew-out" }, { status: 500 });

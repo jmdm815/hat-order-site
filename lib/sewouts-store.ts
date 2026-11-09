@@ -23,6 +23,9 @@ export type Sewout = {
   customerName: string;
   designName: string;
   photos: SewoutPhoto[];
+  // Square crop of just the stitched swatch, shown on library cards so they
+  // look clean (no worksheet/paper around it). Made with the crop tool.
+  coverBlobUrl?: string;
   stitchCount?: number;
   widthIn?: number;
   heightIn?: number;
@@ -125,9 +128,16 @@ function clean(fields: Partial<SewoutFields>): Partial<SewoutFields> {
   };
 }
 
-export async function createSewout(id: string, fields: Partial<SewoutFields>, photos: SewoutPhoto[]) {
+export async function createSewout(id: string, fields: Partial<SewoutFields>, photos: SewoutPhoto[], coverBlobUrl?: string) {
   const now = new Date().toISOString();
-  const record: Sewout = { ...(clean(fields) as SewoutFields), id, photos, createdAt: now, updatedAt: now };
+  const record: Sewout = {
+    ...(clean(fields) as SewoutFields),
+    id,
+    photos,
+    ...(coverBlobUrl ? { coverBlobUrl } : {}),
+    createdAt: now,
+    updatedAt: now,
+  };
   const { persisted } = await writeSewout(record);
   return { record, persisted };
 }
@@ -138,6 +148,14 @@ export async function updateSewout(id: string, fields: Partial<SewoutFields>, ba
   const record: Sewout = { ...existing, ...(clean(fields) as SewoutFields), updatedAt: new Date().toISOString() };
   const { persisted } = await writeSewout(record);
   return { record, persisted };
+}
+
+export async function setSewoutCover(id: string, coverBlobUrl: string | undefined) {
+  const existing = await getSewout(id);
+  if (!existing) return { record: null, previous: undefined, persisted: true };
+  const record: Sewout = { ...existing, coverBlobUrl, updatedAt: new Date().toISOString() };
+  const { persisted } = await writeSewout(record);
+  return { record, previous: existing.coverBlobUrl, persisted };
 }
 
 export async function setSewoutPhotos(id: string, photos: SewoutPhoto[]) {
@@ -154,6 +172,7 @@ export async function deleteSewout(id: string) {
   if (!isPersistent()) return { deleted: !!existing };
   await del(pathFor(id)).catch(() => {});
   for (const p of existing?.photos ?? []) await del(p.blobUrl).catch(() => {});
+  if (existing?.coverBlobUrl) await del(existing.coverBlobUrl).catch(() => {});
   return { deleted: !!existing };
 }
 
