@@ -748,9 +748,14 @@ export async function setInvoicePaymentLink(
 // can still type a different amount there, up to the current balance.
 export async function setSuggestedPaymentAmount(
   id: string,
-  suggestion: { amount: number; kind: "full" | "deposit-percent" | "deposit-fixed" }
+  suggestion: { amount: number; kind: "full" | "deposit-percent" | "deposit-fixed" },
+  // The record as just written by the caller, when it has one. Blob reads
+  // right after a write can still return the previous version, so
+  // re-reading here would write the OLD content back over a fresh edit
+  // (this silently reverted price changes saved through PUT).
+  base?: QuoteRecord
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
-  const existing = await readRecord(id);
+  const existing = base ?? (await readRecord(id));
   if (!existing) return { record: null, persisted: true };
   const updated: QuoteRecord = {
     ...existing,

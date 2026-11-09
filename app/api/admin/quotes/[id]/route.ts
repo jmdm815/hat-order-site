@@ -69,10 +69,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               ? Math.round(grandTotal * (depositPercent / 100) * 100) / 100
               : grandTotal;
         if (Math.abs(targetAmount - (record.paymentLinkAmount ?? -1)) > 0.004 && targetAmount > 0) {
-          const { record: withAmount } = await setSuggestedPaymentAmount(id, {
-            amount: targetAmount,
-            kind: record.paymentLinkKind,
-          });
+          const { record: withAmount } = await setSuggestedPaymentAmount(
+            id,
+            { amount: targetAmount, kind: record.paymentLinkKind },
+            record
+          );
           if (withAmount) finalRecord = withAmount;
         }
       } catch (err) {
