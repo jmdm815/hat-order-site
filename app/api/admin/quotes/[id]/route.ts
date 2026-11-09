@@ -34,6 +34,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Invalid quote input" }, { status: 400 });
   }
 
+  // Edit-conflict check: the builder sends the contentUpdatedAt of the
+  // version it opened. If the stored record is NEWER than that, someone else saved in
+  // the meantime — refuse with 409 so the admin can choose to reload or
+  // overwrite (resent without the header). Only "newer" counts: a Blob read
+  // that briefly returns an older copy must not raise a false alarm.
+  const expected = req.headers.get("x-expected-updated-at");
+  if (expected) {
+    const current = await getQuote(id);
+    if (current?.contentUpdatedAt && current.contentUpdatedAt > expected) {
+      return NextResponse.json(
+        { error: "conflict", conflict: { updatedAt: current.contentUpdatedAt } },
+        { status: 409 }
+      );
+    }
+  }
+
   try {
     const [productsByStyle, decorations, setupCharges, garmentMarkup] = await Promise.all([
       loadQuoteProducts(body.lines),
