@@ -7,7 +7,7 @@ import { MAX_SEWOUT_UPLOAD_BYTES, storeSewoutPhoto } from "../../photo-util";
 
 export const runtime = "nodejs";
 
-const withUrls = <T extends { photos: { blobUrl: string }[] }>(r: T) => ({ ...r, photoUrls: r.photos.map((p) => itemPhotoUrl(p.blobUrl)) });
+const withUrls = <T extends { photos: { blobUrl: string }[] }>(r: T) => ({ ...r, photoUrls: r.photos.map((p) => itemPhotoUrl(p.blobUrl)), coverUrl: (r as { coverBlobUrl?: string }).coverBlobUrl ? itemPhotoUrl((r as { coverBlobUrl?: string }).coverBlobUrl!) : undefined });
 
 // POST multipart "photo": adds a photo to this sew-out (max 6).
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

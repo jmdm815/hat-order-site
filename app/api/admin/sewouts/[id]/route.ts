@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const record = await getSewout(id);
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ record: { ...record, photoUrls: record.photos.map((p) => itemPhotoUrl(p.blobUrl)) } });
+  return NextResponse.json({ record: { ...record, photoUrls: record.photos.map((p) => itemPhotoUrl(p.blobUrl)), coverUrl: record.coverBlobUrl ? itemPhotoUrl(record.coverBlobUrl) : undefined } });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
   const { record, persisted } = await updateSewout(id, body);
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ ok: true, record: { ...record, photoUrls: record.photos.map((p) => itemPhotoUrl(p.blobUrl)) }, persisted });
+  return NextResponse.json({ ok: true, record: { ...record, photoUrls: record.photos.map((p) => itemPhotoUrl(p.blobUrl)), coverUrl: record.coverBlobUrl ? itemPhotoUrl(record.coverBlobUrl) : undefined }, persisted });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
