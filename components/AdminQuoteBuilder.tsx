@@ -756,6 +756,9 @@ export default function AdminQuoteBuilder({
   const isInvoice = activeRecord ? activeRecord.status === "invoice" : createAs === "invoice";
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  // Set when a save was refused because someone else saved this quote after
+  // it was opened here (PUT → 409). While set, autosave pauses.
+  const [editConflict, setEditConflict] = useState<{ updatedAt: string } | null>(null);
   const [converting, setConverting] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
@@ -2043,7 +2046,7 @@ export default function AdminQuoteBuilder({
   const autosavePendingRef = useRef(false);
   const saveQuoteRef = useRef<() => void>(() => {});
   useEffect(() => {
-    saveQuoteRef.current = saveQuote;
+    saveQuoteRef.current = () => saveQuote();
   });
   useEffect(() => {
     if (skipNextAutosaveRef.current) {
@@ -2141,23 +2144,34 @@ export default function AdminQuoteBuilder({
     }
   }
 
-  async function saveQuote() {
+  async function saveQuote(opts?: { force?: boolean }) {
+    // Autosave stays quiet while a conflict is waiting on the admin's choice.
+    if (editConflict && !opts?.force) return;
     setSaving(true);
     setSaveMessage(null);
     setQuoteError(null);
     try {
       const isUpdate = !!activeRecord;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (isUpdate && !opts?.force && activeRecord!.contentUpdatedAt) {
+        headers["x-expected-updated-at"] = activeRecord!.contentUpdatedAt;
+      }
       const res = await fetch(isUpdate ? `/api/admin/quotes/${activeRecord!.id}` : "/api/admin/quotes", {
         method: isUpdate ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(isUpdate ? buildQuoteInput() : { ...buildQuoteInput(), kind: createAs }),
       });
       const data = await res.json();
+      if (res.status === 409 && data.conflict) {
+        setEditConflict({ updatedAt: data.conflict.updatedAt });
+        return;
+      }
       if (!res.ok) {
         setQuoteError(data.error || "Failed to save quote");
         return;
       }
       const record = data.record as QuoteRecord;
+      setEditConflict(null);
       setActiveRecord(record);
       setQuote(record.computed);
       setSaveMessage(
@@ -2292,10 +2306,37 @@ export default function AdminQuoteBuilder({
             visible: Save, and Send to customer; Preview/refresh, Convert to
             invoice, Create a copy, and all four PDF downloads move into the
             menu. */}
+        {editConflict && (
+          <div className="mt-2.5 rounded-xl border border-amber-400 bg-amber-50 text-amber-900 px-3 py-2.5 text-xs">
+            <p className="font-semibold">Someone else saved changes to this {activeRecord?.status === "invoice" ? "invoice" : "quote"}.</p>
+            <p className="mt-0.5">
+              It was saved on another device at{" "}
+              {new Date(editConflict.updatedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}, after you
+              opened it here. Your latest changes have <strong>not</strong> been saved yet.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700"
+              >
+                Load their version (discard mine)
+              </button>
+              <button
+                type="button"
+                onClick={() => saveQuote({ force: true })}
+                className="px-3 py-1.5 rounded-lg border border-amber-500 hover:bg-amber-100"
+              >
+                Keep mine (overwrite theirs)
+              </button>
+            </div>
+          </div>
+        )}
+
         {mode === "full" && (
           <div className="flex items-center gap-2 flex-wrap pt-2.5 border-t border-admin-ink/10">
             <button
-              onClick={saveQuote}
+              onClick={() => saveQuote()}
               disabled={saving}
               className="text-xs px-3 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent/90 disabled:opacity-40"
             >
@@ -2973,7 +3014,7 @@ export default function AdminQuoteBuilder({
       {mode === "full" && !activeRecord && (
         <div className="flex flex-col items-start gap-2">
           <button
-            onClick={saveQuote}
+            onClick={() => saveQuote()}
             disabled={saving}
             className="text-sm font-semibold px-6 py-2.5 rounded-xl bg-green-600 text-admin-ink hover:bg-green-700 disabled:opacity-40"
           >

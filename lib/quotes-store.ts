@@ -52,6 +52,10 @@ export type QuoteRecord = {
   quoteNumber?: string;
   createdAt: string;
   updatedAt: string;
+  // When the quote's content (customer, lines, terms…) was last saved —
+  // unlike updatedAt, not bumped by payments, job folders or pay links.
+  // The builder uses it to warn when someone else edited the same quote.
+  contentUpdatedAt?: string;
   input: QuoteInput;
   computed: ComputedQuote;
   status: QuoteRecordStatus;
@@ -497,11 +501,13 @@ export async function updateQuoteContent(
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
   const existing = await readRecord(id);
   if (!existing) return { record: null, persisted: true };
+  const now = new Date().toISOString();
   const updated: QuoteRecord = {
     ...existing,
     input,
     computed,
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
+    contentUpdatedAt: now,
   };
   const { persisted } = await writeRecord(updated);
   return { record: updated, persisted };
