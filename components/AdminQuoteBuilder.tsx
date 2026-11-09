@@ -504,6 +504,7 @@ function linesFromRecord(record: QuoteRecord): PendingLine[] {
       manualSource: l.manualSource,
       brandNameInput: l.brandNameInput,
       taxable: l.taxable ?? true,
+      optional: l.optional,
       brandName: computedLine?.brandName ?? "",
       productName: computedLine?.productName ?? "",
     };
@@ -1957,6 +1958,7 @@ export default function AdminQuoteBuilder({
         brandNameInput: l.brandNameInput,
         taxable: l.taxable,
         decorationUnitPriceOverride: l.decorationUnitPriceOverride,
+        ...(l.optional ? { optional: true } : {}),
       })),
       setupChargeIds: selectedSetupChargeIds,
       miscFees:
@@ -3173,7 +3175,12 @@ export default function AdminQuoteBuilder({
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
                             {computedLine && (
-                              <span className="text-sm font-semibold text-admin-ink whitespace-nowrap">
+                              <span
+                                className={`text-sm font-semibold whitespace-nowrap ${
+                                  line.optional ? "text-admin-ink/50 line-through decoration-admin-ink/30" : "text-admin-ink"
+                                }`}
+                                title={line.optional ? "Option — not included in the total" : undefined}
+                              >
                                 ${computedLine.subtotal.toFixed(2)}
                               </span>
                             )}
@@ -3191,6 +3198,21 @@ export default function AdminQuoteBuilder({
                               >
                                 Copy Style
                               </button>
+                              <label
+                                className="flex items-center gap-1 text-xs text-admin-ink/88 cursor-pointer"
+                                title="Show this line as an option for comparison — priced, but not added to the total"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={!!line.optional}
+                                  onChange={(e) =>
+                                    setLines((prev) =>
+                                      prev.map((l) => (l.key === line.key ? { ...l, optional: e.target.checked || undefined } : l))
+                                    )
+                                  }
+                                />
+                                Option only
+                              </label>
                               <button
                                 onClick={() => removeLine(line.key)}
                                 className="text-xs text-red-600 hover:underline"
