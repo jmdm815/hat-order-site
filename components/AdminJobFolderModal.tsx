@@ -424,6 +424,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       form.append("file", file);
       form.append("lineItemLabel", lineItemLabelText);
       if (location) form.append("location", location);
+      if (links.length) form.append("lines", JSON.stringify(links));
       const res = await fetch(`/api/admin/quotes/${record.id}/job-folder/mockup`, { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
@@ -431,10 +432,9 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       // Keep any unsaved edits on existing images; add the new one with the
       // line items picked before uploading, then save those links.
       const fresh = mockupStatesFromRecord(data.record);
-      const next = fresh.map((m) => mockups.find((p) => p.id === m.id) ?? { ...m, lines: links, showOnQuote: true });
-      setMockups(next);
+      // Links were saved with the upload itself (fresh already has them).
+      setMockups(fresh.map((m) => mockups.find((p) => p.id === m.id) ?? m));
       onUpdated(data.record);
-      if (links.length) await saveRows(next);
     } catch (e) {
       setMockupError(e instanceof Error ? e.message : "Upload failed");
     } finally {

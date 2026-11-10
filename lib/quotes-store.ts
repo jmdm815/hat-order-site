@@ -1013,10 +1013,24 @@ export function getJobFolderPressSettings(jobFolder: JobFolderData | undefined):
 }
 
 export function addJobFolderMockup(id: string, mockup: JobFolderMockup) {
-  return updateJobFolder(id, (jf) => ({
-    ...jf,
-    mockups: [...(jf.mockups ?? []), mockup].slice(-MAX_JOB_FOLDER_MOCKUPS),
-  }));
+  return updateJobFolder(id, (jf, record) => {
+    // lineIds may hold "idx:N" tokens for lines that had no id yet.
+    let m = mockup;
+    if (m.lineIds?.length) {
+      const valid = new Set(record.computed.lines.map((l) => l.lineId).filter(Boolean) as string[]);
+      const ids = m.lineIds
+        .map((t) => (t.startsWith("idx:") ? record.computed.lines[Number(t.slice(4))]?.lineId : t))
+        .filter((t): t is string => !!t && valid.has(t));
+      m = { ...m, lineIds: [...new Set(ids)] };
+      if (!m.lineIds?.length) {
+        const rest = { ...m };
+        delete rest.lineIds;
+        delete rest.showOnQuote;
+        m = rest;
+      }
+    }
+    return { ...jf, mockups: [...(jf.mockups ?? []), m].slice(-MAX_JOB_FOLDER_MOCKUPS) };
+  });
 }
 
 export function removeJobFolderMockup(id: string, mockupId: string) {
