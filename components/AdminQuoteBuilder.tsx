@@ -1,9 +1,10 @@
 "use client";
 
+import { itemPhotoUrl } from "@/lib/item-photo";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ComputedQuote, QuoteLineInput, QuoteSizeInput } from "@/lib/quote";
-import { QuoteRecord } from "@/lib/quotes-store";
+import type { JobFolderMockup, QuoteRecord } from "@/lib/quotes-store";
 import {
   DecorationOption,
   SetupChargeType,
@@ -493,6 +494,7 @@ function linesFromRecord(record: QuoteRecord): PendingLine[] {
     const computedLine = record.computed.lines[i];
     return {
       key: `${l.customerSupplied ? "cs" : l.styleNumber}-${l.colorName ?? ""}-${i}-${Date.now()}`,
+      lineId: l.lineId,
       styleNumber: l.styleNumber,
       colorName: l.colorName,
       sizes: l.sizes,
@@ -748,6 +750,11 @@ export default function AdminQuoteBuilder({
   // "unsaved, brand-new quote." Set at mount from initialRecord, or by a
   // successful save/update/convert.
   const [activeRecord, setActiveRecord] = useState<QuoteRecord | null>(initialRecord ?? null);
+  // Job-folder mock-ups linked to a given line (see JobFolderMockup.lineIds).
+  function mockupsForLine(lineId: string | undefined): JobFolderMockup[] {
+    if (!lineId) return [];
+    return (activeRecord?.jobFolder?.mockups ?? []).filter((m) => m.lineIds?.includes(lineId));
+  }
   // Whether this is (or will become) an invoice rather than a quote —
   // drives the "Due date" field below, which only invoices get. A saved
   // record's own status wins once one exists (quote -> invoice conversion
@@ -1952,6 +1959,8 @@ export default function AdminQuoteBuilder({
       depositPercent: depositPercent < 100 ? depositPercent : undefined,
       taxRatePercent: taxRatePercent > 0 ? taxRatePercent : undefined,
       lines: lines.map((l) => ({
+        // Stable id (job-folder mock-ups link to it); new lines use their key.
+        lineId: l.lineId || l.key,
         styleNumber: l.styleNumber,
         catalogSource: l.catalogSource === "ss" || l.catalogSource === "sanmar" ? l.catalogSource : undefined,
         colorName: l.colorName,
@@ -3175,6 +3184,34 @@ export default function AdminQuoteBuilder({
                                 )}
                               </>
                             )}
+                            {(() => {
+                              const linked = mockupsForLine(line.lineId || line.key);
+                              return linked.length > 0 ? (
+                                <div className="mt-1 flex items-center flex-wrap gap-1.5">
+                                  {linked.map((m) => (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      key={m.id}
+                                      src={itemPhotoUrl(m.blobUrl)}
+                                      alt={`Mock-up${m.location ? ` — ${m.location}` : ""}`}
+                                      title={`Mock-up${m.location ? ` — ${m.location}` : ""}${m.showOnQuote === false ? " (internal only)" : ""}`}
+                                      className="w-11 h-11 rounded-md object-contain bg-white border border-admin-ink/15"
+                                    />
+                                  ))}
+                                  <span className="text-[11px] text-admin-ink/62">
+                                    Mock-up{linked.length > 1 ? "s" : ""} from job folder
+                                    {(() => {
+                                      const hidden = linked.filter((m) => m.showOnQuote === false).length;
+                                      return hidden === linked.length
+                                        ? " · internal only"
+                                        : hidden > 0
+                                          ? ` · ${linked.length - hidden} shown on PDF, ${hidden} internal only`
+                                          : " · shown on PDF";
+                                    })()}
+                                  </span>
+                                </div>
+                              ) : null;
+                            })()}
                             {decoration && (
                               <div className="text-xs text-admin-ink/80 mt-0.5 flex items-center flex-wrap gap-x-2 gap-y-1">
                                 <span>

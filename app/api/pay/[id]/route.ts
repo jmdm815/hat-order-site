@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getQuote, recordInvoicePayment, QuoteRecord } from "@/lib/quotes-store";
 import { getSquareClient, getSquareLocationId, isSquareConfigured } from "@/lib/square-client";
 import { sendInvoicePaymentNotification, sendInvoiceReceiptEmail } from "@/lib/email";
+import { loadLineMockups } from "@/lib/mockup-links";
 import { renderQuotePdf } from "@/lib/quote-pdf";
 
 // Loose email format check — good enough to catch obvious typos before
@@ -276,6 +277,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       try {
         const payPageUrl = `${req.nextUrl.origin}/pay/${id}`;
         const pdfBuffer = await renderQuotePdf(updated.computed, updated.status === "invoice" ? "invoice" : "customer", {
+      lineMockups: await loadLineMockups(updated, "customer"),
           invoiceNumber: updated.invoiceNumber,
           invoiceStatus: updated.invoiceStatus,
           quoteNumber: updated.quoteNumber,

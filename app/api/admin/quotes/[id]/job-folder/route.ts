@@ -93,10 +93,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const mockupLabels = Array.isArray(body.mockups)
     ? body.mockups
         .filter((m: unknown): m is { id: string } => typeof m === "object" && m !== null && typeof (m as { id?: unknown }).id === "string")
-        .map((m: { id: string; location?: unknown; lineItemLabel?: unknown }) => ({
+        .map((m: { id: string; location?: unknown; lineItemLabel?: unknown; lines?: unknown; showOnQuote?: unknown }) => ({
           id: m.id,
           location: typeof m.location === "string" ? m.location.trim().slice(0, 60) : undefined,
           lineItemLabel: typeof m.lineItemLabel === "string" ? m.lineItemLabel.trim().slice(0, 200) : undefined,
+          // Linked quote lines: lineIds, or "idx:N" for lines without an id yet.
+          lines: Array.isArray(m.lines)
+            ? m.lines.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length < 100).slice(0, 50)
+            : undefined,
+          showOnQuote: typeof m.showOnQuote === "boolean" ? m.showOnQuote : undefined,
         }))
     : undefined;
 

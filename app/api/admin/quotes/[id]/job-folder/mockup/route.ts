@@ -71,6 +71,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // (e.g. "Front — Left Chest"). Optional; editable later from the modal.
   const rawLocation = form.get("location");
   const location = typeof rawLocation === "string" ? rawLocation.trim().slice(0, 60) : "";
+  // Linked quote lines (JSON array of lineIds / "idx:N" tokens), saved in
+  // this same write so a link can't be lost to a second back-to-back save.
+  let lineTokens: string[] = [];
+  try {
+    const raw = form.get("lines");
+    const parsed = typeof raw === "string" && raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) lineTokens = parsed.filter((x): x is string => typeof x === "string").slice(0, 50);
+  } catch {
+    lineTokens = [];
+  }
+  const showOnQuote = form.get("showOnQuote") !== "false";
 
   if (getJobFolderMockups(record.jobFolder).length >= MAX_JOB_FOLDER_MOCKUPS) {
     return NextResponse.json(
@@ -102,6 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       blobUrl: blob.url,
       lineItemLabel,
       ...(location ? { location } : {}),
+      ...(lineTokens.length ? { lineIds: lineTokens, showOnQuote } : {}),
     });
     if (!updated) {
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
+import { loadLineMockups } from "@/lib/mockup-links";
 import { renderQuotePdf, QuotePdfMode } from "@/lib/quote-pdf";
 import { getQuote } from "@/lib/quotes-store";
 import { sendQuoteDocumentEmail, isReceiptEmailConfigured } from "@/lib/email";
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     const pdfBuffer = await renderQuotePdf(record.computed, mode, {
+      lineMockups: await loadLineMockups(record, "customer"),
       invoiceNumber: record.invoiceNumber,
       invoiceStatus: record.invoiceStatus,
       paymentLinkUrl: record.paymentLinkUrl,

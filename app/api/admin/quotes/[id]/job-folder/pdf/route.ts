@@ -61,8 +61,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           return {
             buffer: Buffer.from(await upstream.arrayBuffer()),
             location: m.location,
-            caption:
-              m.lineItemLabel && m.lineItemLabel !== "For reference only"
+            caption: m.lineIds?.length
+              ? record.computed.lines
+                  .filter((l) => l.lineId && m.lineIds!.includes(l.lineId))
+                  .map((l) =>
+                    l.customerSupplied
+                      ? `${(l.itemDescription || "Customer-supplied item").split("\n")[0]} (${l.quantity})`
+                      : `${[l.styleNumber, l.colorName].filter(Boolean).join(" ")} (${l.quantity})`,
+                  )
+                  .join(", ") || undefined
+              : m.lineItemLabel && m.lineItemLabel !== "For reference only"
                 ? shortCaption.get(m.lineItemLabel) ?? m.lineItemLabel
                 : undefined,
           };

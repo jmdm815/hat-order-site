@@ -172,7 +172,14 @@ export type JobFolderMockup = {
   id: string;
   blobUrl: string; // private Vercel Blob URL (served via lib/item-photo.ts)
   location?: string; // print location shown as the image's pill label
-  lineItemLabel?: string; // which line item it depicts, or "For reference only"
+  lineItemLabel?: string; // which line item it depicts, or "For reference only" (legacy text link)
+  // Quote/invoice lines this mock-up belongs to (QuoteLineInput.lineId) —
+  // one mock-up can cover several lines (e.g. the same left-chest logo on
+  // polos and jackets). Empty/undefined = not linked ("for reference only").
+  lineIds?: string[];
+  // Show this mock-up under its linked line(s) on the customer quote/invoice
+  // PDF. Defaults to true once linked; internal/work-order copies always show it.
+  showOnQuote?: boolean;
 };
 
 // Heat-press settings printed in the production sheet's Heat / Press time
@@ -502,13 +509,15 @@ export async function updateQuoteContent(
   const existing = await readRecord(id);
   if (!existing) return { record: null, persisted: true };
   const now = new Date().toISOString();
-  const updated: QuoteRecord = {
+  // Keep stable line ids (job-folder mock-up links point at them) even when
+  // the caller didn't send them back, and align computed lines with them.
+  const updated: QuoteRecord = ensureLineIds({
     ...existing,
-    input,
+    input: { ...input, lines: inheritLineIds(existing.input.lines, input.lines) },
     computed,
     updatedAt: now,
     contentUpdatedAt: now,
-  };
+  });
   const { persisted } = await writeRecord(updated);
   return { record: updated, persisted };
 }
@@ -947,14 +956,47 @@ export function getJobFolderMockups(jobFolder: JobFolderData | undefined): JobFo
   return [];
 }
 
+/**
+ * Gives every line on a record a stable lineId (input + computed, which are
+ * aligned the same way computeQuote aligns them: computed lines are the input
+ * lines that have at least one size with quantity > 0). Pure — returns the
+ * same record object when nothing was missing. Doesn't touch pricing or
+ * contentUpdatedAt (ids aren't user-visible content).
+ */
+export function ensureLineIds(record: QuoteRecord): QuoteRecord {
+  const inputLines = record.input.lines ?? [];
+  if (inputLines.every((l) => l.lineId)) {
+    // Computed lines may still lack ids on records saved before lineId existed.
+    const counted = inputLines.filter((l) => l.sizes.some((s) => s.quantity > 0));
+    if (record.computed.lines.every((l, i) => l.lineId || !counted[i])) {
+      if (record.computed.lines.every((l) => l.lineId)) return record;
+    }
+  }
+  const lines = inputLines.map((l, i) => (l.lineId ? l : { ...l, lineId: `ln-${Date.now().toString(36)}-${i}-${Math.random().toString(36).slice(2, 7)}` }));
+  const counted = lines.filter((l) => l.sizes.some((s) => s.quantity > 0));
+  const computedLines = record.computed.lines.map((l, i) => (counted[i]?.lineId ? { ...l, lineId: counted[i].lineId } : l));
+  return {
+    ...record,
+    input: { ...record.input, lines },
+    computed: { ...record.computed, lines: computedLines },
+  };
+}
+
+/** Keep existing line ids when an edit (API caller, older client) omits them — matched by position. */
+export function inheritLineIds(previous: QuoteRecord["input"]["lines"] | undefined, next: QuoteRecord["input"]["lines"]) {
+  if (!previous) return next;
+  return next.map((l, i) => (l.lineId || !previous[i]?.lineId ? l : { ...l, lineId: previous[i].lineId }));
+}
+
 async function updateJobFolder(
   id: string,
-  change: (jf: JobFolderData) => JobFolderData
+  change: (jf: JobFolderData, record: QuoteRecord) => JobFolderData
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
-  const existing = await readRecord(id);
-  if (!existing) return { record: null, persisted: true };
+  const raw = await readRecord(id);
+  if (!raw) return { record: null, persisted: true };
+  const existing = ensureLineIds(raw);
   const base: JobFolderData = { printFiles: [], ...existing.jobFolder };
-  const next = change({ ...base, mockups: getJobFolderMockups(base) });
+  const next = change({ ...base, mockups: getJobFolderMockups(base) }, existing);
   // Once a record is on the multi-image list, drop the legacy single fields.
   delete next.mockupImageBlobUrl;
   delete next.mockupLineItemLabel;
@@ -971,10 +1013,24 @@ export function getJobFolderPressSettings(jobFolder: JobFolderData | undefined):
 }
 
 export function addJobFolderMockup(id: string, mockup: JobFolderMockup) {
-  return updateJobFolder(id, (jf) => ({
-    ...jf,
-    mockups: [...(jf.mockups ?? []), mockup].slice(-MAX_JOB_FOLDER_MOCKUPS),
-  }));
+  return updateJobFolder(id, (jf, record) => {
+    // lineIds may hold "idx:N" tokens for lines that had no id yet.
+    let m = mockup;
+    if (m.lineIds?.length) {
+      const valid = new Set(record.computed.lines.map((l) => l.lineId).filter(Boolean) as string[]);
+      const ids = m.lineIds
+        .map((t) => (t.startsWith("idx:") ? record.computed.lines[Number(t.slice(4))]?.lineId : t))
+        .filter((t): t is string => !!t && valid.has(t));
+      m = { ...m, lineIds: [...new Set(ids)] };
+      if (!m.lineIds?.length) {
+        const rest = { ...m };
+        delete rest.lineIds;
+        delete rest.showOnQuote;
+        m = rest;
+      }
+    }
+    return { ...jf, mockups: [...(jf.mockups ?? []), m].slice(-MAX_JOB_FOLDER_MOCKUPS) };
+  });
 }
 
 export function removeJobFolderMockup(id: string, mockupId: string) {
@@ -992,10 +1048,10 @@ export function setJobFolderDetails(
   details: {
     printFiles?: JobFolderPrintFile[];
     pressSettings?: JobFolderPress[];
-    mockupLabels?: { id: string; location?: string; lineItemLabel?: string }[];
+    mockupLabels?: { id: string; location?: string; lineItemLabel?: string; lines?: string[]; showOnQuote?: boolean }[];
   }
 ) {
-  return updateJobFolder(id, (jf) => {
+  return updateJobFolder(id, (jf, record) => {
     const next: JobFolderData = { ...jf };
     if (details.printFiles) next.printFiles = details.printFiles;
     if (details.pressSettings) {
@@ -1006,7 +1062,21 @@ export function setJobFolderDetails(
       const byId = new Map(details.mockupLabels.map((m) => [m.id, m]));
       next.mockups = (jf.mockups ?? []).map((m) => {
         const patch = byId.get(m.id);
-        return patch ? { ...m, location: patch.location || undefined, lineItemLabel: patch.lineItemLabel || m.lineItemLabel } : m;
+        if (!patch) return m;
+        const updated: JobFolderMockup = { ...m, location: patch.location || undefined, lineItemLabel: patch.lineItemLabel || m.lineItemLabel };
+        if (patch.lines) {
+          // Each entry is a lineId, or "idx:N" (Nth computed line) for a line
+          // that had no id yet when the editor loaded — resolved here now
+          // that ensureLineIds has given every line one.
+          const valid = new Set(record.computed.lines.map((l) => l.lineId).filter(Boolean) as string[]);
+          const ids = patch.lines
+            .map((t) => (t.startsWith("idx:") ? record.computed.lines[Number(t.slice(4))]?.lineId : t))
+            .filter((t): t is string => !!t && valid.has(t));
+          updated.lineIds = [...new Set(ids)];
+          if (updated.lineIds.length === 0) delete updated.lineIds;
+        }
+        if (patch.showOnQuote !== undefined) updated.showOnQuote = patch.showOnQuote;
+        return updated;
       });
     }
     return next;

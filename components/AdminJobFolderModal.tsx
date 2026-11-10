@@ -89,7 +89,46 @@ function mockupsFromRecord(record: QuoteRecord): JobFolderMockup[] {
   return jf.mockupImageBlobUrl ? [{ id: "legacy", blobUrl: jf.mockupImageBlobUrl, lineItemLabel: jf.mockupLineItemLabel }] : [];
 }
 
+// A mock-up in the editor, plus the quote lines it's linked to as "tokens":
+// a line's stable lineId, or "idx:N" (its index in computed.lines) for a
+// line on an older record that has no id yet — the server resolves those.
+type MockupState = JobFolderMockup & { lines: string[] };
+
+function lineToken(record: QuoteRecord, index: number): string {
+  return record.computed.lines[index]?.lineId ?? `idx:${index}`;
+}
+
+function mockupStatesFromRecord(record: QuoteRecord): MockupState[] {
+  return mockupsFromRecord(record).map((m) => {
+    let lines: string[] = [];
+    if (m.lineIds?.length) {
+      lines = m.lineIds;
+    } else if (m.lineItemLabel && m.lineItemLabel !== FOR_REFERENCE_ONLY) {
+      // Legacy text link → the matching line, if it still exists.
+      const i = record.computed.lines.findIndex((l) => lineItemLabel(l) === m.lineItemLabel);
+      if (i >= 0) lines = [lineToken(record, i)];
+    }
+    return { ...m, lines };
+  });
+}
+
 const MAX_MOCKUPS = 4;
+
+// Cache-busting job-folder PDF URL (module-level so the component body stays pure).
+function jobFolderPdfUrl(id: string): string {
+  return `/api/admin/quotes/${id}/job-folder/pdf?v=${Date.now()}`;
+}
+
+// Point an already-opened tab at `url`, or open one (falling back to this tab
+// if a popup blocker refuses).
+function openInTab(url: string, tab?: Window | null) {
+  if (tab) {
+    tab.location.href = url;
+    return;
+  }
+  const opened = window.open(url, "_blank");
+  if (!opened) window.location.href = url;
+}
 const PRESS_PRESET_CUSTOM = "__custom__";
 
 // Dropdown of print locations with an "Other…" text box — used for each
@@ -172,18 +211,20 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   const browseInputRef = useRef<HTMLInputElement>(null);
 
   const lineItems = current.computed.lines.filter((l) => !l.optional);
+  // Line items a mock-up can be linked to, with their link tokens.
+  const lineOptions = current.computed.lines
+    .map((line, i) => ({ line, token: lineToken(current, i) }))
+    .filter((o) => !o.line.optional);
   // De-duplicated short labels for the print-file "Applies to" chips.
   const lineItemChoices = Array.from(new Set(lineItems.map(printFileLineLabel)));
   // A picked mock-up image waits here until the admin chooses its print
   // location and which line item it shows, then "Upload" sends it.
   const [pendingMockupFile, setPendingMockupFile] = useState<File | null>(null);
   const [pendingLocation, setPendingLocation] = useState("");
-  const [pendingLineItemChoice, setPendingLineItemChoice] = useState<string>(
-    lineItems.length > 0 ? "0" : "reference"
-  );
+  const [pendingLines, setPendingLines] = useState<string[]>([]);
 
   // Uploaded mock-ups + their editable labels (saved with "Save").
-  const [mockups, setMockups] = useState<JobFolderMockup[]>(mockupsFromRecord(record));
+  const [mockups, setMockups] = useState<MockupState[]>(mockupStatesFromRecord(record));
 
   // Press settings for the Heat / Press time boxes, and the saved presets.
   const [pressList, setPressList] = useState<JobFolderPress[]>(pressFromRecord(record));
@@ -331,7 +372,13 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
 
   // Returns the saved record's updatedAt on success (used by "Save &
   // Download" so the PDF route waits for that version), or null.
-  async function saveRows(): Promise<string | null> {
+  function linkedLabel(tokens: string[]): string {
+    const first = lineOptions.find((o) => tokens.includes(o.token));
+    return first ? lineItemLabel(first.line) : FOR_REFERENCE_ONLY;
+  }
+
+  async function saveRows(mockupsOverride?: MockupState[]): Promise<string | null> {
+    const mockupList = mockupsOverride ?? mockups;
     setSavingRows(true);
     setRowsError(null);
     try {
@@ -341,14 +388,21 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
         body: JSON.stringify({
           printFiles: rows.map(({ id, label, path, url, appliesTo }) => ({ id, label, path, url, appliesTo })),
           pressSettings: pressList.filter((p) => p.heat || p.time),
-          mockups: mockups.map(({ id, location, lineItemLabel }) => ({ id, location: location ?? "", lineItemLabel })),
+          mockups: mockupList.map((m) => ({
+            id: m.id,
+            location: m.location ?? "",
+            // Keep the readable text label in sync for older readers.
+            lineItemLabel: linkedLabel(m.lines),
+            lines: m.lines,
+            showOnQuote: m.showOnQuote !== false,
+          })),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to save");
       setCurrent(data.record);
       setRows(rowsFromRecord(data.record));
-      setMockups(mockupsFromRecord(data.record));
+      setMockups(mockupStatesFromRecord(data.record));
       setPressList(pressFromRecord(data.record));
       onUpdated(data.record);
       setRowsDirty(false);
@@ -362,7 +416,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     }
   }
 
-  async function uploadMockup(file: File, lineItemLabelText: string, location = "") {
+  async function uploadMockup(file: File, lineItemLabelText: string, location = "", links: string[] = []) {
     setUploading(true);
     setMockupError(null);
     try {
@@ -370,13 +424,16 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       form.append("file", file);
       form.append("lineItemLabel", lineItemLabelText);
       if (location) form.append("location", location);
+      if (links.length) form.append("lines", JSON.stringify(links));
       const res = await fetch(`/api/admin/quotes/${record.id}/job-folder/mockup`, { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
       setCurrent(data.record);
-      // Keep any unsaved label edits on existing images; add the new one.
-      const fresh = mockupsFromRecord(data.record);
-      setMockups((prev) => fresh.map((m) => prev.find((p) => p.id === m.id) ?? m));
+      // Keep any unsaved edits on existing images; add the new one with the
+      // line items picked before uploading, then save those links.
+      const fresh = mockupStatesFromRecord(data.record);
+      // Links were saved with the upload itself (fresh already has them).
+      setMockups(fresh.map((m) => mockups.find((p) => p.id === m.id) ?? m));
       onUpdated(data.record);
     } catch (e) {
       setMockupError(e instanceof Error ? e.message : "Upload failed");
@@ -394,7 +451,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   // there's nothing to choose between.
   function handleMockupFileChosen(file: File) {
     setMockupError(null);
-    setPendingLineItemChoice(lineItems.length > 0 ? "0" : "reference");
+    setPendingLines(lineOptions.length === 1 ? [lineOptions[0].token] : []);
     // Suggest the next usual location: Front first, then Back.
     const used = mockups.map((m) => m.location);
     setPendingLocation(!used.includes("Front") ? "Front" : !used.includes("Back") ? "Back" : "");
@@ -403,11 +460,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
 
   function confirmPendingMockupUpload() {
     if (!pendingMockupFile) return;
-    const label =
-      pendingLineItemChoice === "reference"
-        ? FOR_REFERENCE_ONLY
-        : lineItemLabel(lineItems[Number(pendingLineItemChoice)]);
-    uploadMockup(pendingMockupFile, label, pendingLocation);
+    uploadMockup(pendingMockupFile, linkedLabel(pendingLines), pendingLocation, pendingLines);
     setPendingMockupFile(null);
   }
 
@@ -428,7 +481,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to remove");
       setCurrent(data.record);
-      const fresh = mockupsFromRecord(data.record);
+      const fresh = mockupStatesFromRecord(data.record);
       setMockups((prev) => fresh.map((m) => prev.find((p) => p.id === m.id) ?? m));
       onUpdated(data.record);
     } catch (e) {
@@ -451,13 +504,12 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   // pointed at the PDF once the save finishes.
   async function downloadJobFolder() {
     setDownloading(true);
-    const url = `/api/admin/quotes/${record.id}/job-folder/pdf?v=${Date.now()}`;
+    const url = jobFolderPdfUrl(record.id);
     if (!rowsDirty) {
       // Still pin to the latest version this modal knows about, in case a
       // save happened moments ago.
       const pinned = current.updatedAt ? `${url}&after=${encodeURIComponent(current.updatedAt)}` : url;
-      const tab = window.open(pinned, "_blank");
-      if (!tab) window.location.href = pinned;
+      openInTab(pinned);
       setDownloading(false);
       return;
     }
@@ -465,8 +517,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     const savedAt = await saveRows();
     if (savedAt) {
       const fresh = `${url}&after=${encodeURIComponent(savedAt)}`;
-      if (tab) tab.location.href = fresh;
-      else window.location.href = fresh;
+      openInTab(fresh, tab);
     } else {
       tab?.close();
     }
@@ -517,28 +568,28 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                       }}
                       className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
                     />
-                    {lineItems.length > 0 && (
-                      <select
-                        aria-label="Line item shown"
-                        value={m.lineItemLabel ?? FOR_REFERENCE_ONLY}
-                        onChange={(e) => {
-                          setMockups((prev) => prev.map((x) => (x.id === m.id ? { ...x, lineItemLabel: e.target.value } : x)));
+                    {lineOptions.length > 0 && (
+                      <MockupLineLinks
+                        options={lineOptions.map((o) => ({ token: o.token, label: printFileLineLabel(o.line) }))}
+                        selected={m.lines}
+                        onChange={(lines) => {
+                          setMockups((prev) => prev.map((x) => (x.id === m.id ? { ...x, lines } : x)));
                           markDirty();
                         }}
-                        className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
-                      >
-                        {lineItems.map((line, i) => (
-                          <option key={i} value={lineItemLabel(line)}>
-                            {lineItemLabel(line)}
-                          </option>
-                        ))}
-                        {m.lineItemLabel &&
-                          m.lineItemLabel !== FOR_REFERENCE_ONLY &&
-                          !lineItems.some((line) => lineItemLabel(line) === m.lineItemLabel) && (
-                            <option value={m.lineItemLabel}>{m.lineItemLabel}</option>
-                          )}
-                        <option value={FOR_REFERENCE_ONLY}>{FOR_REFERENCE_ONLY}</option>
-                      </select>
+                      />
+                    )}
+                    {m.lines.length > 0 && (
+                      <label className="flex items-center gap-1.5 text-[11px] text-admin-ink/80">
+                        <input
+                          type="checkbox"
+                          checked={m.showOnQuote !== false}
+                          onChange={(e) => {
+                            setMockups((prev) => prev.map((x) => (x.id === m.id ? { ...x, showOnQuote: e.target.checked } : x)));
+                            markDirty();
+                          }}
+                        />
+                        Show to customer on quote/invoice
+                      </label>
                     )}
                     <button
                       type="button"
@@ -571,20 +622,12 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                 Where does <span className="font-medium text-admin-ink">{pendingMockupFile.name}</span> go?
               </p>
               <LocationSelect value={pendingLocation} onChange={setPendingLocation} className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20" />
-              {lineItems.length > 0 && (
-                <select
-                  aria-label="Line item shown"
-                  value={pendingLineItemChoice}
-                  onChange={(e) => setPendingLineItemChoice(e.target.value)}
-                  className="w-full bg-admin-card border border-admin-ink/20 rounded-lg px-2 py-1 text-xs outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
-                >
-                  {lineItems.map((line, i) => (
-                    <option key={i} value={String(i)}>
-                      {lineItemLabel(line)}
-                    </option>
-                  ))}
-                  <option value="reference">{FOR_REFERENCE_ONLY}</option>
-                </select>
+              {lineOptions.length > 0 && (
+                <MockupLineLinks
+                  options={lineOptions.map((o) => ({ token: o.token, label: printFileLineLabel(o.line) }))}
+                  selected={pendingLines}
+                  onChange={setPendingLines}
+                />
               )}
               <div className="flex items-center gap-2">
                 <button
@@ -987,6 +1030,38 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
           {rowsError && <p className="mt-1.5 text-xs text-red-300 font-medium">{rowsError}</p>}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Checkbox list linking a mock-up to one or more quote/invoice line items.
+// Nothing checked = "For reference only" (not tied to an item).
+function MockupLineLinks({
+  options,
+  selected,
+  onChange,
+}: {
+  options: { token: string; label: string }[];
+  selected: string[];
+  onChange: (lines: string[]) => void;
+}) {
+  return (
+    <div className="bg-admin-card border border-admin-ink/15 rounded-lg px-2 py-1.5">
+      <p className="text-[10px] uppercase tracking-wide text-admin-ink/62 mb-1">Linked items</p>
+      <div className="space-y-1 max-h-28 overflow-y-auto">
+        {options.map((o) => (
+          <label key={o.token} className="flex items-start gap-1.5 text-[11px] text-admin-ink/88 leading-tight">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={selected.includes(o.token)}
+              onChange={(e) => onChange(e.target.checked ? [...selected, o.token] : selected.filter((t) => t !== o.token))}
+            />
+            {o.label}
+          </label>
+        ))}
+      </div>
+      {selected.length === 0 && <p className="text-[10px] text-admin-ink/50 mt-1">{FOR_REFERENCE_ONLY}</p>}
     </div>
   );
 }

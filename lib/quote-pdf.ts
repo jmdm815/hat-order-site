@@ -269,6 +269,9 @@ export type InvoiceMeta = {
   // QuoteRecord.quoteNumber) — shown as "Quote #: ..." on a non-invoice PDF,
   // the same way invoiceNumber shows as "Invoice #: ..." on an invoice one.
   quoteNumber?: string;
+  // Job-folder mock-ups linked to lines (lineId -> images), drawn under the
+  // first line each one is linked to. See lib/mockup-links.ts.
+  lineMockups?: Record<string, { id: string; buffer: Buffer; location?: string }[]>;
 };
 
 function money(n: number): string {
@@ -545,6 +548,39 @@ export async function renderQuotePdf(
       return Math.max(rows * GRID_ROW_H, 40) + 14;
     }
 
+    // Each linked mock-up is drawn once, under the first line it belongs to.
+    const drawnMockups = new Set<string>();
+    const MOCKUP_H = 78;
+    function drawLineMockups(line: (typeof quote.lines)[number]) {
+      const all = line.lineId ? invoiceMeta?.lineMockups?.[line.lineId] ?? [] : [];
+      const imgs = all.filter((m) => !drawnMockups.has(m.id));
+      if (imgs.length === 0) return;
+      if (doc.y + MOCKUP_H + 24 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+      const top = doc.y;
+      doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7).text("MOCK-UP", left, top);
+      let x = left;
+      const imgTop = top + 10;
+      let rowBottom = imgTop;
+      for (const m of imgs) {
+        const boxW = 104;
+        if (x + boxW > left + pageWidth) break;
+        try {
+          doc.rect(x, imgTop, boxW, MOCKUP_H).fill("#ffffff");
+          doc.strokeColor(BORDER).lineWidth(0.5).rect(x, imgTop, boxW, MOCKUP_H).stroke();
+          doc.image(m.buffer, x + 3, imgTop + 3, { fit: [boxW - 6, MOCKUP_H - 6], align: "center", valign: "center" });
+          if (m.location) {
+            doc.fillColor(GRAY).font("Helvetica").fontSize(6.5).text(m.location, x, imgTop + MOCKUP_H + 2, { width: boxW, align: "center" });
+          }
+          rowBottom = Math.max(rowBottom, imgTop + MOCKUP_H + (m.location ? 11 : 2));
+          drawnMockups.add(m.id);
+          x += boxW + 8;
+        } catch (err) {
+          console.error("quote-pdf: couldn't draw mock-up", err);
+        }
+      }
+      doc.y = rowBottom + 8;
+    }
+
     function drawGarmentCard(line: (typeof quote.lines)[number], sameStyle: boolean) {
       const cardTop = doc.y;
       const gridX = left + CARD_TEXT_WIDTH + CARD_GRID_GAP;
@@ -730,6 +766,7 @@ export async function renderQuotePdf(
       }
 
       doc.y = bottom + 10;
+      drawLineMockups(line);
     }
 
     // Group lines that share the same decoration + pricing column (i.e. the
