@@ -49,6 +49,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Fetch every mock-up image (private Blob) in parallel; a failed one is
   // just left off the sheet rather than failing the whole PDF.
   const token = process.env.BLOB_READ_WRITE_TOKEN;
+  type Line = ComputedQuote["lines"][number];
+  // Same label the job folder modal uses for "Applies to" chips.
+  const appliesLabel = (l: Line) => {
+    const name = l.customerSupplied
+      ? (l.itemDescription || "Customer-supplied item").split("\n")[0]
+      : [l.styleNumber, l.colorName].filter(Boolean).join(" ") || l.productName || "Item";
+    return `${name} (${l.quantity})`;
+  };
+
   const mockups = (
     await Promise.all(
       getJobFolderMockups(record.jobFolder).map(async (m) => {
@@ -61,6 +70,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           }
           return {
             lineIds: m.lineIds ?? [],
+            itemLabels: m.lineIds?.length
+              ? record.computed.lines.filter((l) => l.lineId && m.lineIds!.includes(l.lineId)).map(appliesLabel)
+              : undefined,
             lineItemLabel: m.lineItemLabel,
             buffer: Buffer.from(await upstream.arrayBuffer()),
             location: m.location,
@@ -85,7 +97,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     )
   ).filter((m): m is NonNullable<typeof m> => m !== null);
 
-  type Line = ComputedQuote["lines"][number];
   const toPdfLine = (l: Line) => {
     const custom = l.customerSupplied;
     const desc = (l.itemDescription || "Customer-supplied item").split("\n")[0];
@@ -107,13 +118,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         ? l.itemDescription || "Customer-supplied item"
         : [l.brandName, l.productName, l.colorName].filter(Boolean).join(" ")
     }`;
-  // Same label the job folder modal uses for "Applies to" chips.
-  const appliesLabel = (l: Line) => {
-    const name = l.customerSupplied
-      ? (l.itemDescription || "Customer-supplied item").split("\n")[0]
-      : [l.styleNumber, l.colorName].filter(Boolean).join(" ") || l.productName || "Item";
-    return `${name} (${l.quantity})`;
-  };
 
   const docLabel = record.invoiceNumber
     ? `Invoice ${record.invoiceNumber}`
@@ -130,7 +134,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const pressSettings = getJobFolderPressSettings(record.jobFolder);
   const printFiles = record.jobFolder?.printFiles ?? [];
   const activeLines = record.computed.lines.filter((x) => !x.optional);
-  const stripMockup = ({ buffer, location, caption }: (typeof mockups)[number]) => ({ buffer, location, caption });
+  const stripMockup = ({ buffer, location, caption, itemLabels }: (typeof mockups)[number]) => ({ buffer, location, caption, itemLabels });
 
   // ?split=decoration — one work order + production sheet per decoration
   // type (Digital Print, Embroidery, …). Falls back to the full packet when
