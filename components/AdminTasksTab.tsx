@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { GoogleTask, GoogleTaskList } from "@/lib/google-tasks";
+import ShopTasksPanel from "@/components/ShopTasksPanel";
 
 type StatusResponse = {
   configured: boolean;
@@ -18,7 +19,7 @@ type StatusResponse = {
 // for the whole site (not per-admin-user) — see that store's header
 // comment. Before anything's connected, this is just a "Connect Google
 // account" button; Google's own consent screen handles the actual sign-in.
-export default function AdminTasksTab() {
+function GoogleTasksSection() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -330,6 +331,17 @@ export default function AdminTasksTab() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Built-in shop tasks (incl. ones the email watcher creates) on top; the
+// optional Google Tasks integration below.
+export default function AdminTasksTab() {
+  return (
+    <div className="space-y-6">
+      <ShopTasksPanel />
+      <GoogleTasksSection />
     </div>
   );
 }
