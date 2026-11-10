@@ -74,6 +74,11 @@ export type QuoteSizeInput = {
 export const SHOP_TIME_ZONE = "America/Chicago";
 
 export type QuoteLineInput = {
+  // Stable id for this line across edits — lets other data (e.g. job-folder
+  // mock-ups, see lib/quotes-store.ts's JobFolderMockup.lineIds) point at a
+  // specific line even after lines are reordered or edited. Assigned by the
+  // quote builder; older records get one lazily (ensureLineIds).
+  lineId?: string;
   styleNumber?: string;
   // Which supplier catalog styleNumber belongs to ("sanmar" or "ss" for S&S
   // Activewear). Lets the server look the garment up in the right place —
@@ -210,6 +215,7 @@ export type QuoteSizeResult = {
 };
 
 export type QuoteLineResult = {
+  lineId?: string; // copied from QuoteLineInput.lineId
   styleNumber: string;
   brandName: string;
   productName: string;
@@ -620,6 +626,12 @@ export function computeQuote(
       decorationUnitPriceOverridden,
       computedDecorationUnitPrice,
     };
+  });
+
+  // Carry each line's stable id through to the computed result.
+  lines.forEach((l, i) => {
+    const lineId = cleanedLines[i]?.lineId;
+    if (typeof lineId === "string" && lineId) l.lineId = lineId;
   });
 
   // Ad-hoc miscellaneous fees — see QuoteInput.miscFees. Unlike setup
