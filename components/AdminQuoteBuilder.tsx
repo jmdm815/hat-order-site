@@ -3200,7 +3200,14 @@ export default function AdminQuoteBuilder({
                                   ))}
                                   <span className="text-[11px] text-admin-ink/62">
                                     Mock-up{linked.length > 1 ? "s" : ""} from job folder
-                                    {linked.every((m) => m.showOnQuote === false) ? " · internal only" : " · shown on PDF"}
+                                    {(() => {
+                                      const hidden = linked.filter((m) => m.showOnQuote === false).length;
+                                      return hidden === linked.length
+                                        ? " · internal only"
+                                        : hidden > 0
+                                          ? ` · ${linked.length - hidden} shown on PDF, ${hidden} internal only`
+                                          : " · shown on PDF";
+                                    })()}
                                   </span>
                                 </div>
                               ) : null;
