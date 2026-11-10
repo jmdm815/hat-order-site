@@ -1,5 +1,6 @@
 import { put, list, del } from "@vercel/blob";
 import { v4 as uuid } from "uuid";
+import { createHash } from "node:crypto";
 import { ComputedQuote, QuoteInput } from "./quote";
 import { isPersistent } from "./pricing-store";
 
@@ -50,6 +51,9 @@ export type QuoteRecord = {
   // this field existed don't have one; createQuote always sets it on any
   // new record going forward.
   quoteNumber?: string;
+  // Set when an automated creator (inbox watcher) passed one, e.g.
+  // "email:purchasing:<messageId>" — saving again with it returns this record.
+  dedupeKey?: string;
   createdAt: string;
   updatedAt: string;
   // When the quote's content (customer, lines, terms…) was last saved —
@@ -444,28 +448,112 @@ export async function getQuote(id: string): Promise<QuoteRecord | undefined> {
   return record ?? undefined;
 }
 
-// Scanning every existing quote for the current max number (rather than a
-// dedicated counter blob) mirrors nextInvoiceNumber() below — see its
-// comment for the narrow race-condition tradeoff this accepts. Starts at
-// 1001 so numbers read like a real sequence rather than starting at 1.
-function nextQuoteNumber(all: QuoteRecord[]): string {
-  let max = 1000;
+// Numbers start from the highest one visible in the store (QT-1001 first),
+// then are CLAIMED atomically: each number gets a marker blob written with
+// allowOverwrite:false, which the Blob API rejects if it already exists.
+// The store's list() can lag a few seconds behind a write, so two quotes
+// saved close together used to see the same "max" and both get it (two
+// QT-1025s on 11/10/26). The claim makes the second one move on to 1026.
+function maxNumber(all: QuoteRecord[], field: "quoteNumber" | "invoiceNumber", re: RegExp, floor: number): number {
+  let max = floor;
   for (const q of all) {
-    const match = q.quoteNumber?.match(/^QT-(\d+)$/);
+    const match = q[field]?.match(re);
     if (match) max = Math.max(max, parseInt(match[1], 10));
   }
-  return `QT-${max + 1}`;
+  return max;
+}
+
+const isAlreadyExists = (err: unknown) => err instanceof Error && /already exists/i.test(err.message);
+
+// Writes `pathname` only if nothing is there yet. true = we own it,
+// false = someone else already wrote it. Other errors are thrown.
+async function claimBlob(pathname: string, body: string): Promise<boolean> {
+  try {
+    await put(pathname, body, {
+      access: "private",
+      addRandomSuffix: false,
+      allowOverwrite: false,
+      contentType: "application/json",
+    });
+    return true;
+  } catch (err) {
+    if (isAlreadyExists(err)) return false;
+    throw err;
+  }
+}
+
+async function claimNextNumber(start: number, format: (n: number) => string): Promise<string> {
+  if (!isPersistent()) return format(start);
+  for (let n = start, tries = 0; tries < 50; n++, tries++) {
+    const label = format(n);
+    try {
+      if (await claimBlob(`quote-numbers/${label}.json`, JSON.stringify({ claimedAt: new Date().toISOString() }))) {
+        return label;
+      }
+    } catch (err) {
+      // Blob trouble other than "taken": fall back to the old behaviour
+      // rather than failing the save.
+      console.error(`quotes-store: number claim failed for ${label}`, err);
+      return label;
+    }
+  }
+  return format(start + 50);
+}
+
+async function nextQuoteNumber(all: QuoteRecord[]): Promise<string> {
+  return claimNextNumber(maxNumber(all, "quoteNumber", /^QT-(\d+)$/, 1000) + 1, (n) => `QT-${n}`);
+}
+
+// Optional idempotency for automated creators (the inbox watcher): the
+// first save with a given key claims quote-dedupe/<hash>.json pointing at
+// its record id; any later save with the same key gets that record back
+// instead of a new one. A claim blob (not a list() scan) so it holds even
+// when the store hasn't caught up with the first save yet.
+async function claimDedupe(dedupeKey: string | undefined, id: string): Promise<string | null> {
+  if (!dedupeKey || !isPersistent()) return null;
+  const path = `quote-dedupe/${createHash("sha256").update(dedupeKey).digest("hex")}.json`;
+  try {
+    if (await claimBlob(path, JSON.stringify({ id, dedupeKey }))) return null;
+  } catch (err) {
+    console.error("quotes-store: dedupe claim failed", err);
+    return null;
+  }
+  const existing = await fetchBlobJson<{ id: string }>(path);
+  return existing?.id ?? null;
+}
+
+export type CreateResult = { record: QuoteRecord; persisted: boolean; duplicateOf?: string };
+
+async function existingFor(existingId: string): Promise<CreateResult> {
+  // The first save may still be settling; retry briefly.
+  for (let i = 0; i < 4; i++) {
+    const record = await readRecord(existingId);
+    if (record) return { record, persisted: true, duplicateOf: existingId };
+    await new Promise((r) => setTimeout(r, 750));
+  }
+  throw new QuoteDuplicatePendingError(existingId);
+}
+
+export class QuoteDuplicatePendingError extends Error {
+  constructor(public existingId: string) {
+    super(`A quote for this dedupeKey was already created (${existingId}) and is still saving`);
+  }
 }
 
 export async function createQuote(
   input: QuoteInput,
-  computed: ComputedQuote
-): Promise<{ record: QuoteRecord; persisted: boolean }> {
+  computed: ComputedQuote,
+  dedupeKey?: string
+): Promise<CreateResult> {
+  const id = uuid();
+  const existingId = await claimDedupe(dedupeKey, id);
+  if (existingId) return existingFor(existingId);
   const all = await getQuotes();
   const now = new Date().toISOString();
   const record: QuoteRecord = {
-    id: uuid(),
-    quoteNumber: nextQuoteNumber(all),
+    id,
+    ...(dedupeKey ? { dedupeKey } : {}),
+    quoteNumber: await nextQuoteNumber(all),
     createdAt: now,
     updatedAt: now,
     input,
@@ -483,18 +571,23 @@ export async function createQuote(
 // no way back to a quote — conversion only runs quote -> invoice.
 export async function createInvoice(
   input: QuoteInput,
-  computed: ComputedQuote
-): Promise<{ record: QuoteRecord; persisted: boolean }> {
+  computed: ComputedQuote,
+  dedupeKey?: string
+): Promise<CreateResult> {
+  const id = uuid();
+  const existingId = await claimDedupe(dedupeKey, id);
+  if (existingId) return existingFor(existingId);
   const all = await getQuotes();
   const now = new Date().toISOString();
   const record: QuoteRecord = {
-    id: uuid(),
+    id,
+    ...(dedupeKey ? { dedupeKey } : {}),
     createdAt: now,
     updatedAt: now,
     input,
     computed,
     status: "invoice",
-    invoiceNumber: nextInvoiceNumber(all),
+    invoiceNumber: await nextInvoiceNumber(all),
     invoiceStatus: "unpaid",
   };
   const { persisted } = await writeRecord(record);
@@ -558,13 +651,8 @@ export async function permanentlyDeleteQuote(id: string): Promise<{ deleted: boo
   return { deleted: true, persisted };
 }
 
-function nextInvoiceNumber(all: QuoteRecord[]): string {
-  let max = 0;
-  for (const q of all) {
-    const match = q.invoiceNumber?.match(/^INV-(\d+)$/);
-    if (match) max = Math.max(max, parseInt(match[1], 10));
-  }
-  return `INV-${String(max + 1).padStart(4, "0")}`;
+async function nextInvoiceNumber(all: QuoteRecord[]): Promise<string> {
+  return claimNextNumber(maxNumber(all, "invoiceNumber", /^INV-(\d+)$/, 0) + 1, (n) => `INV-${String(n).padStart(4, "0")}`);
 }
 
 // Converts a quote into an invoice by creating a brand-new, separate invoice
@@ -623,7 +711,7 @@ export async function convertQuoteToInvoice(
     input: existing.input,
     computed: existing.computed,
     status: "invoice",
-    invoiceNumber: nextInvoiceNumber(all),
+    invoiceNumber: await nextInvoiceNumber(all),
     invoiceStatus,
     convertedAt: now,
     paidAt: invoiceStatus === "paid" ? now : existing.paidAt,
@@ -682,8 +770,8 @@ export async function duplicateQuote(
     computed: source.computed,
     status: kind,
     ...(kind === "invoice"
-      ? { invoiceNumber: nextInvoiceNumber(all), invoiceStatus: "unpaid" as InvoicePaymentStatus }
-      : { quoteNumber: nextQuoteNumber(all) }),
+      ? { invoiceNumber: await nextInvoiceNumber(all), invoiceStatus: "unpaid" as InvoicePaymentStatus }
+      : { quoteNumber: await nextQuoteNumber(all) }),
   };
   const { persisted } = await writeRecord(record);
   return { record, persisted };

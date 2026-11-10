@@ -4,7 +4,7 @@ import { getDecorationTypes } from "@/lib/decoration-types-store";
 import { getSetupCharges } from "@/lib/setup-charges-store";
 import { getGarmentMarkupSettings } from "@/lib/garment-markup-store";
 import { computeQuote, isValidQuoteInput, QuoteInputError } from "@/lib/quote";
-import { createQuote, createInvoice, getQuotes } from "@/lib/quotes-store";
+import { createQuote, createInvoice, getQuotes, QuoteDuplicatePendingError } from "@/lib/quotes-store";
 import { loadQuoteProducts } from "@/lib/quote-products";
 import { isPersistent } from "@/lib/pricing-store";
 
@@ -44,9 +44,18 @@ export async function POST(req: NextRequest) {
     // directly, instead of always starting as a quote (the default, and the
     // only option before quotes/invoices became separate linkable records).
     const kind = (body as { kind?: unknown }).kind === "invoice" ? "invoice" : "quote";
-    const { record, persisted } = kind === "invoice" ? await createInvoice(body, computed) : await createQuote(body, computed);
-    return NextResponse.json({ ok: true, record, persisted });
+    // Optional "dedupeKey" (also outside QuoteInput): the inbox watcher sends
+    // "email:<inbox>:<messageId>" so a retry returns the first quote instead
+    // of saving a second copy.
+    const rawKey = (body as { dedupeKey?: unknown }).dedupeKey;
+    const dedupeKey = typeof rawKey === "string" && rawKey.trim() ? rawKey.trim().slice(0, 300) : undefined;
+    const { record, persisted, duplicateOf } =
+      kind === "invoice" ? await createInvoice(body, computed, dedupeKey) : await createQuote(body, computed, dedupeKey);
+    return NextResponse.json({ ok: true, record, persisted, ...(duplicateOf ? { duplicate: true } : {}) });
   } catch (err) {
+    if (err instanceof QuoteDuplicatePendingError) {
+      return NextResponse.json({ error: err.message, duplicate: true, existingId: err.existingId }, { status: 409 });
+    }
     if (err instanceof QuoteInputError) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
