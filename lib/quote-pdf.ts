@@ -1254,6 +1254,9 @@ export type JobFolderPdfMockup = {
   buffer: Buffer; // pre-fetched image bytes (PNG/JPEG)
   location?: string; // pill label, e.g. "Front — Left Chest"
   caption?: string; // e.g. which line item it shows
+  // "Applies to" labels of every line item it shows (e.g. "ST450 Black (49)"),
+  // used to find its press setting when it covers several items.
+  itemLabels?: string[];
 };
 
 export type JobFolderPdfLine = {
@@ -1471,10 +1474,12 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
     // each mock-up so e.g. a hat next to the shirt mock-ups clearly isn't
     // being heat pressed. A setting with no appliesTo covers everything
     // that no other setting claims.
-    const pressFor = (caption?: string): JobFolderPdfPress | undefined => {
-      if (!caption || !pressList.length) return undefined;
+    const pressFor = (m: JobFolderPdfMockup): JobFolderPdfPress | undefined => {
+      if (!pressList.length) return undefined;
+      const labels = m.itemLabels?.length ? m.itemLabels : m.caption ? [m.caption, ...m.caption.split(", ")] : [];
+      if (!labels.length) return undefined;
       return (
-        pressList.find((p) => p.appliesTo?.includes(caption)) ??
+        pressList.find((p) => p.appliesTo?.some((a) => labels.includes(a))) ??
         pressList.find((p) => !p.appliesTo?.length)
       );
     };
@@ -1496,7 +1501,7 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
         const y = rowY;
         roundedBox(doc, x, y, cardW, cardH, "#dddddd");
         const hasPill = !!m.location;
-        const press = pressFor(m.caption);
+        const press = pressFor(m);
         // Big Heat / Press time boxes at the bottom of the card when a press
         // setting covers this mock-up's item.
         const boxH = cardW > halfW + 1 ? 54 : 46;
