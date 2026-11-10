@@ -272,6 +272,9 @@ export type InvoiceMeta = {
   // Job-folder mock-ups linked to lines (lineId -> images), drawn under the
   // first line each one is linked to. See lib/mockup-links.ts.
   lineMockups?: Record<string, { id: string; buffer: Buffer; location?: string }[]>;
+  // Work order split by decoration type: which section this copy covers,
+  // e.g. "Embroidery". Shown in the title bar.
+  workOrderSection?: string;
 };
 
 function money(n: number): string {
@@ -370,7 +373,7 @@ export async function renderQuotePdf(
     const titleText = internal
       ? `Internal Quote${invoiceMeta?.quoteNumber ? ` ${invoiceMeta.quoteNumber}` : ""}`
       : workOrder
-        ? `Work Order${invoiceMeta?.quoteNumber ? ` ${invoiceMeta.quoteNumber}` : ""}`
+        ? `Work Order${invoiceMeta?.quoteNumber ? ` ${invoiceMeta.quoteNumber}` : ""}${invoiceMeta?.workOrderSection ? ` — ${invoiceMeta.workOrderSection}` : ""}`
         : invoice
           ? `Invoice${invoiceMeta?.invoiceNumber ? ` ${invoiceMeta.invoiceNumber}` : ""}`
           : `Quote${invoiceMeta?.quoteNumber ? ` ${invoiceMeta.quoteNumber}` : ""}`;
@@ -1284,6 +1287,10 @@ export type JobFolderPdfData = {
   mockupImageBuffer?: Buffer;
   mockupLineItemLabel?: string;
   printFiles: JobFolderPdfPrintFile[];
+  // Set when the packet is split by decoration type — e.g. "Embroidery".
+  section?: string;
+  sectionIndex?: number; // 1-based, for "Section 2 of 3"
+  sectionCount?: number;
 };
 
 const SIZE_RANK = ["XS", "S", "M", "L", "XL", "2XL", "XXL", "3XL", "4XL", "5XL", "6XL"];
@@ -1346,6 +1353,14 @@ export async function renderJobFolderExtrasPdf(data: JobFolderPdfData): Promise<
     const badgeW = 120;
     const titleW = pageWidth - (data.dueDate ? badgeW + 12 : 0);
     doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(22).text("PRODUCTION SHEET", left, 40, { width: titleW });
+    if (data.section) {
+      const of = data.sectionCount && data.sectionCount > 1 ? `   ${data.sectionIndex} of ${data.sectionCount}` : "";
+      doc
+        .fillColor(RED).font("Helvetica-Bold").fontSize(13)
+        .text(data.section.toUpperCase(), left, doc.y + 1, { width: titleW, continued: !!of })
+        .fillColor(GRAY).font("Helvetica").fontSize(9.5);
+      if (of) doc.text(of);
+    }
     doc
       .fillColor(GRAY)
       .font("Helvetica")
@@ -1622,4 +1637,18 @@ export async function renderJobFolderPdf(
   const workOrderPdf = await renderQuotePdf(quote, "work-order", workOrderMeta);
   const extrasPdf = await renderJobFolderExtrasPdf(jobFolderData);
   return mergePdfBuffers([workOrderPdf, extrasPdf]);
+}
+
+// Job folder split by decoration type: one work order + production sheet per
+// section (e.g. Digital Print, then Embroidery), all in one PDF so each
+// department can pull its own pages.
+export async function renderJobFolderPdfSections(
+  sections: { quote: ComputedQuote; workOrderMeta: InvoiceMeta | undefined; data: JobFolderPdfData }[]
+): Promise<Buffer> {
+  const parts: Buffer[] = [];
+  for (const s of sections) {
+    parts.push(await renderQuotePdf(s.quote, "work-order", s.workOrderMeta));
+    parts.push(await renderJobFolderExtrasPdf(s.data));
+  }
+  return mergePdfBuffers(parts);
 }

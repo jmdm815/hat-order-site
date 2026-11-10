@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { getJobFolderMockups, getJobFolderPressSettings, getQuote } from "@/lib/quotes-store";
-import { renderJobFolderPdf } from "@/lib/quote-pdf";
+import { renderJobFolderPdf, renderJobFolderPdfSections } from "@/lib/quote-pdf";
+import type { ComputedQuote } from "@/lib/quote";
 import { isTrustedBlobUrl } from "@/lib/item-photo";
 
 export const runtime = "nodejs";
@@ -59,6 +60,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             return null;
           }
           return {
+            lineIds: m.lineIds ?? [],
+            lineItemLabel: m.lineItemLabel,
             buffer: Buffer.from(await upstream.arrayBuffer()),
             location: m.location,
             caption: m.lineIds?.length
@@ -82,7 +85,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     )
   ).filter((m): m is NonNullable<typeof m> => m !== null);
 
-  const lines = record.computed.lines.filter((x) => !x.optional).map((l) => {
+  type Line = ComputedQuote["lines"][number];
+  const toPdfLine = (l: Line) => {
     const custom = l.customerSupplied;
     const desc = (l.itemDescription || "Customer-supplied item").split("\n")[0];
     return {
@@ -95,35 +99,122 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       sizes: l.sizes.map((s) => ({ size: s.size, quantity: s.quantity })),
       quantity: l.quantity,
     };
-  });
+  };
+  // Older mock-ups store "30 × Jerzees 29M True Red" instead of lineIds.
+  const legacyLabel = (l: Line) =>
+    `${l.quantity} × ${
+      l.customerSupplied
+        ? l.itemDescription || "Customer-supplied item"
+        : [l.brandName, l.productName, l.colorName].filter(Boolean).join(" ")
+    }`;
+  // Same label the job folder modal uses for "Applies to" chips.
+  const appliesLabel = (l: Line) => {
+    const name = l.customerSupplied
+      ? (l.itemDescription || "Customer-supplied item").split("\n")[0]
+      : [l.styleNumber, l.colorName].filter(Boolean).join(" ") || l.productName || "Item";
+    return `${name} (${l.quantity})`;
+  };
 
   const docLabel = record.invoiceNumber
     ? `Invoice ${record.invoiceNumber}`
     : record.quoteNumber
       ? `Quote ${record.quoteNumber}`
       : "this job";
+  const workOrderMeta = {
+    invoiceNumber: record.invoiceNumber,
+    invoiceStatus: record.invoiceStatus,
+    quoteNumber: record.quoteNumber,
+    payPageUrl: `${req.nextUrl.origin}/pay/${record.id}`,
+    amountPaid: record.amountPaid,
+  };
+  const pressSettings = getJobFolderPressSettings(record.jobFolder);
+  const printFiles = record.jobFolder?.printFiles ?? [];
+  const activeLines = record.computed.lines.filter((x) => !x.optional);
+  const stripMockup = ({ buffer, location, caption }: (typeof mockups)[number]) => ({ buffer, location, caption });
+
+  // ?split=decoration — one work order + production sheet per decoration
+  // type (Digital Print, Embroidery, …). Falls back to the full packet when
+  // the job only has one type.
+  const groups = new Map<string, Line[]>();
+  for (const l of activeLines) {
+    const key = l.decorationLabel?.trim() || "No decoration";
+    groups.set(key, [...(groups.get(key) ?? []), l]);
+  }
+  const split = req.nextUrl.searchParams.get("split") === "decoration" && groups.size > 1;
 
   try {
-    const pdfBuffer = await renderJobFolderPdf(
-      record.computed,
-      {
-        invoiceNumber: record.invoiceNumber,
-        invoiceStatus: record.invoiceStatus,
-        quoteNumber: record.quoteNumber,
-        payPageUrl: `${req.nextUrl.origin}/pay/${record.id}`,
-        amountPaid: record.amountPaid,
-      },
-      {
+    let pdfBuffer: Buffer;
+    if (!split) {
+      pdfBuffer = await renderJobFolderPdf(record.computed, workOrderMeta, {
         docLabel,
         customerName: record.computed.customerName,
         customerCompany: record.computed.customerCompany,
         dueDate: record.computed.dueDate,
-        lines,
-        pressSettings: getJobFolderPressSettings(record.jobFolder),
-        mockups,
-        printFiles: record.jobFolder?.printFiles ?? [],
-      }
-    );
+        lines: activeLines.map(toPdfLine),
+        pressSettings,
+        mockups: mockups.map(stripMockup),
+        printFiles,
+      });
+    } else {
+      const entries = [...groups.entries()];
+      const sections = entries.map(([section, groupLines], i) => {
+        const ids = new Set(groupLines.map((l) => l.lineId).filter(Boolean) as string[]);
+        const labels = new Set(groupLines.map(appliesLabel));
+        const words = section.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3);
+        // Linked mock-ups go with the sections of their lines; unlinked
+        // (reference) ones and legacy single-label ones are matched by label,
+        // else shown in every section.
+        const groupMockups = mockups.filter((m) => {
+          if (m.lineIds.length) return m.lineIds.some((id) => ids.has(id));
+          if (m.lineItemLabel && m.lineItemLabel !== "For reference only") {
+            return groupLines.some((l) => m.lineItemLabel === legacyLabel(l));
+          }
+          return true;
+        });
+        // Settings / files tagged for specific items follow those items;
+        // untagged ones ("All items") appear in every section.
+        const forGroup = <T extends { appliesTo?: string[] }>(x: T): T | null => {
+          if (!x.appliesTo?.length) return x;
+          const kept = x.appliesTo.filter((a) => labels.has(a));
+          return kept.length ? { ...x, appliesTo: kept } : null;
+        };
+        const sectionPress = pressSettings.map(forGroup).filter((x): x is NonNullable<typeof x> => x !== null);
+        const sectionFiles = printFiles.map(forGroup).filter((x): x is NonNullable<typeof x> => x !== null);
+        // Setup items that name a different decoration are left off.
+        const otherWords = entries
+          .filter(([other]) => other !== section)
+          .flatMap(([other]) => other.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3 && !words.includes(w)));
+        const setupCharges = record.computed.setupCharges.filter((c) => {
+          const label = c.label.toLowerCase();
+          if (words.some((w) => label.includes(w.slice(0, 5)))) return true;
+          return !otherWords.some((w) => label.includes(w.slice(0, 5)));
+        });
+        const quote: ComputedQuote = {
+          ...record.computed,
+          lines: groupLines,
+          setupCharges,
+          totalQuantity: groupLines.reduce((n, l) => n + l.quantity, 0),
+        };
+        return {
+          quote,
+          workOrderMeta: { ...workOrderMeta, workOrderSection: section },
+          data: {
+            docLabel,
+            customerName: record.computed.customerName,
+            customerCompany: record.computed.customerCompany,
+            dueDate: record.computed.dueDate,
+            lines: groupLines.map(toPdfLine),
+            pressSettings: sectionPress,
+            mockups: groupMockups.map(stripMockup),
+            printFiles: sectionFiles,
+            section,
+            sectionIndex: i + 1,
+            sectionCount: entries.length,
+          },
+        };
+      });
+      pdfBuffer = await renderJobFolderPdfSections(sections);
+    }
 
     const fileNameSafe = (record.computed.customerName || "job").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
     return new NextResponse(new Uint8Array(pdfBuffer), {
@@ -131,7 +222,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       headers: {
         "Content-Type": "application/pdf",
         // "inline" — see app/api/admin/quotes/[id]/pdf/route.ts's comment.
-        "Content-Disposition": `inline; filename="job-folder-${fileNameSafe}-${record.computed.quoteDate}.pdf"`,
+        "Content-Disposition": `inline; filename="job-folder${split ? "-by-decoration" : ""}-${fileNameSafe}-${record.computed.quoteDate}.pdf"`,
       },
     });
   } catch (err) {

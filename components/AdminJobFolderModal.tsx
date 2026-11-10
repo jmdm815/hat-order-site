@@ -115,8 +115,17 @@ function mockupStatesFromRecord(record: QuoteRecord): MockupState[] {
 const MAX_MOCKUPS = 4;
 
 // Cache-busting job-folder PDF URL (module-level so the component body stays pure).
-function jobFolderPdfUrl(id: string): string {
-  return `/api/admin/quotes/${id}/job-folder/pdf?v=${Date.now()}`;
+function jobFolderPdfUrl(id: string, byDecoration = false): string {
+  return `/api/admin/quotes/${id}/job-folder/pdf?v=${Date.now()}${byDecoration ? "&split=decoration" : ""}`;
+}
+
+const SHEET_MODE_KEY = "jobFolderSheetMode";
+function readSheetMode(): "full" | "decoration" {
+  try {
+    return window.localStorage.getItem(SHEET_MODE_KEY) === "decoration" ? "decoration" : "full";
+  } catch {
+    return "full";
+  }
 }
 
 // Point an already-opened tab at `url`, or open one (falling back to this tab
@@ -217,6 +226,9 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
     .filter((o) => !o.line.optional);
   // De-duplicated short labels for the print-file "Applies to" chips.
   const lineItemChoices = Array.from(new Set(lineItems.map(printFileLineLabel)));
+  // Decoration types on this job — the split option only shows with 2+.
+  const decorationGroups = Array.from(new Set(lineItems.map((l) => l.decorationLabel?.trim() || "No decoration")));
+  const canSplit = decorationGroups.length > 1;
   // A picked mock-up image waits here until the admin chooses its print
   // location and which line item it shows, then "Upload" sends it.
   const [pendingMockupFile, setPendingMockupFile] = useState<File | null>(null);
@@ -309,6 +321,16 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   }
 
   const [downloading, setDownloading] = useState(false);
+  // Full packet, or one work order + production sheet per decoration type.
+  const [sheetMode, setSheetModeState] = useState<"full" | "decoration">(() =>
+    typeof window === "undefined" ? "full" : readSheetMode(),
+  );
+  const setSheetMode = (m: "full" | "decoration") => {
+    setSheetModeState(m);
+    try {
+      window.localStorage.setItem(SHEET_MODE_KEY, m);
+    } catch {}
+  };
 
 
   function updateRow(id: string, patch: Partial<EditableRow>) {
@@ -503,8 +525,9 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
   // tab is opened synchronously (blank) so popup blockers allow it, then
   // pointed at the PDF once the save finishes.
   async function downloadJobFolder() {
+    const byDecoration = canSplit && sheetMode === "decoration";
     setDownloading(true);
-    const url = jobFolderPdfUrl(record.id);
+    const url = jobFolderPdfUrl(record.id, byDecoration);
     if (!rowsDirty) {
       // Still pin to the latest version this modal knows about, in case a
       // save happened moments ago.
@@ -1006,6 +1029,34 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
 
         {/* --- Save / Download — pinned to the bottom of the popup --------- */}
         <div className="sticky -bottom-5 -mx-5 -mb-5 mt-4 px-5 py-3 bg-admin-card border-t border-admin-ink/15 rounded-b-2xl">
+          {canSplit && (
+            <div className="mb-2.5">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-admin-ink/72 shrink-0">Production sheet:</span>
+                <div className="inline-flex rounded-lg border border-admin-ink/20 overflow-hidden">
+                  {([
+                    ["full", "Full"],
+                    ["decoration", "By decoration type"],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setSheetMode(value)}
+                      aria-pressed={sheetMode === value}
+                      className={`px-2.5 py-1 ${sheetMode === value ? "bg-admin-accent text-admin-accent-ink font-medium" : "text-admin-ink/80 hover:bg-admin-ink/10"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {sheetMode === "decoration" && (
+                <p className="mt-1 text-[11px] text-admin-ink/62">
+                  {decorationGroups.length} sections, each with its own work order and production sheet: {decorationGroups.join(", ")}.
+                </p>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <button
               type="button"
