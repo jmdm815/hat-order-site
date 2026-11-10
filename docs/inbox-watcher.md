@@ -23,6 +23,10 @@ quotes/invoices.
    /api/admin/decoration-types), match customer/past quotes, compute
    (`POST /api/admin/quote`) and save (`POST /api/admin/quotes`) with notes starting
    "DRAFT from email — review before sending." + assumptions; PATCH the task with quoteId.
+   ALWAYS include `"dedupeKey": "email:<inbox>:<messageId>"` in the save body (same key
+   as the task). Save ONCE: if the response has `"duplicate": true` (or a 409), that quote
+   already exists — use its record, never save again. Don't re-check the quote list to
+   decide whether a save worked; it can lag a few seconds.
    Then `create_draft` (reply_to_message_id) — short, friendly, restates the order, gives the
    price if quoted, asks only for missing details; PATCH task draftReply:true.
 6. No draft replies for vendors or sensitive matters (complaints, disputes) — task only.
