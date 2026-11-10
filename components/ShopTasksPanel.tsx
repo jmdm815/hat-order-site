@@ -92,14 +92,14 @@ export default function ShopTasksPanel() {
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="Add a task…"
-          className="flex-1 min-w-[12rem] rounded-lg border border-admin-ink/20 px-3 py-2 text-base bg-white"
+          className="flex-1 min-w-[12rem] rounded-lg border border-admin-ink/20 px-3 py-2 text-base bg-white text-black"
         />
-        <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="rounded-lg border border-admin-ink/20 px-3 py-2 bg-white" />
+        <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="rounded-lg border border-admin-ink/20 px-3 py-2 bg-white text-black" />
         <button onClick={add} disabled={busy === "new" || !title.trim()} className="px-4 py-2 rounded-lg bg-admin-accent text-admin-accent-ink font-semibold disabled:opacity-50">
           Add
         </button>
       </div>
-      {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
 
       <ul className="mt-4 divide-y divide-admin-ink/10">
         {loading && <li className="py-3 text-sm text-admin-ink/62">Loading…</li>}
@@ -111,12 +111,12 @@ export default function ShopTasksPanel() {
               <input type="checkbox" className="mt-1 w-5 h-5 shrink-0" checked={t.status === "done"} disabled={busy === t.id} onChange={() => toggle(t)} aria-label="Done" />
               <div className="min-w-0 flex-1">
                 <p className={`font-medium text-admin-ink ${t.status === "done" ? "line-through" : ""}`}>
-                  {t.priority === "high" && <span className="mr-1.5 text-xs font-bold text-red-700 uppercase">Urgent</span>}
+                  {t.priority === "high" && <span className="mr-1.5 px-1.5 py-0.5 rounded bg-red-600 text-white text-[10px] font-bold uppercase align-middle">Urgent</span>}
                   {t.title}
                 </p>
                 <p className="text-xs text-admin-ink/62 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
                   {t.source === "email" && t.from && <span>✉️ {t.from}{t.account ? ` → ${t.account}` : ""}</span>}
-                  {t.due && <span className={overdue ? "text-red-700 font-semibold" : ""}>Due {t.due}{overdue ? " (overdue)" : ""}</span>}
+                  {t.due && <span className={overdue ? "text-red-300 font-semibold" : ""}>Due {t.due}{overdue ? " (overdue)" : ""}</span>}
                   <span>Added {new Date(t.createdAt).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
                 </p>
                 {t.notes && <p className="text-sm text-admin-ink/80 mt-1 whitespace-pre-line">{t.notes}</p>}
@@ -124,7 +124,7 @@ export default function ShopTasksPanel() {
                   {t.emailUrl && <a href={t.emailUrl} target="_blank" rel="noreferrer" className="underline text-admin-ink">Open email</a>}
                   {t.quoteId && <a href={`/admin/quotes/${encodeURIComponent(t.quoteId)}`} className="underline text-admin-ink">Open draft quote</a>}
                   {t.draftReply && <span className="text-admin-ink/62">Draft reply waiting in Gmail</span>}
-                  <button onClick={() => remove(t)} className="text-admin-ink/50 hover:text-red-700">Delete</button>
+                  <button onClick={() => remove(t)} className="text-admin-ink/50 hover:text-red-300">Delete</button>
                 </div>
               </div>
             </li>
