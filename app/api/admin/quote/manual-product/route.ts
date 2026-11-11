@@ -11,6 +11,7 @@ import { Product } from "@/lib/types";
 export type ManualQuoteSizeRow = {
   name: string;
   cost: number; // raw vendor cost (live SanMar pricing when available, else catalog/list price)
+  costSource?: "live" | "catalog"; // SanMar only — "catalog" means list price, not this account's
   markupPercent: number;
   price: number; // cost marked up — what actually feeds the quote as garmentUnitPrice
   inventory?: number;
@@ -149,6 +150,7 @@ export async function GET(req: NextRequest) {
         return {
           name: s.name,
           cost: s.price,
+          ...(s.priceSource ? { costSource: s.priceSource } : {}),
           markupPercent,
           price: Math.round(s.price * (1 + markupPercent / 100) * 100) / 100,
           inventory: s.inventory,
