@@ -168,6 +168,18 @@ export async function getLiveSanmarPricing(
   style: string,
   color?: string
 ): Promise<SanmarLivePriceRow[] | null> {
+  // One retry: a transient SanMar hiccup must not leave a quote on catalog
+  // list price (the shop never quotes from list price — see price-check.ts).
+  const first = await fetchLiveSanmarPricing(style, color);
+  if (first) return first;
+  await new Promise((r) => setTimeout(r, 600));
+  return fetchLiveSanmarPricing(style, color);
+}
+
+async function fetchLiveSanmarPricing(
+  style: string,
+  color?: string
+): Promise<SanmarLivePriceRow[] | null> {
   if (!haveCredentials()) return null;
 
   const cacheKey = `${style}::${color ?? ""}`;

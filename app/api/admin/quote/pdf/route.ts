@@ -5,6 +5,7 @@ import { getSetupCharges } from "@/lib/setup-charges-store";
 import { getGarmentMarkupSettings } from "@/lib/garment-markup-store";
 import { computeQuote, QuoteInput, QuoteInputError } from "@/lib/quote";
 import { renderQuotePdf, QuotePdfMode } from "@/lib/quote-pdf";
+import { unconfirmedSanmarCosts, unconfirmedCostMessage } from "@/lib/price-check";
 import { loadQuoteProducts } from "@/lib/quote-products";
 
 export const runtime = "nodejs";
@@ -33,6 +34,12 @@ export async function POST(req: NextRequest) {
     ]);
 
     const quote = computeQuote(body, productsByStyle, decorations, setupCharges, garmentMarkup.breakpoints);
+    if (mode === "customer") {
+      const unconfirmed = unconfirmedSanmarCosts(quote);
+      if (unconfirmed.length) {
+        return NextResponse.json({ error: unconfirmedCostMessage(unconfirmed), unconfirmed }, { status: 409 });
+      }
+    }
     const pdfBuffer = await renderQuotePdf(quote, mode);
     const fileNameSafe = (quote.customerName || "quote").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
     const filePrefix = mode === "work-order" ? "work-order" : "quote";

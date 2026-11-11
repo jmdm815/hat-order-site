@@ -3,6 +3,7 @@ import { isAdminAuthed } from "@/lib/admin-auth";
 import { loadLineMockups } from "@/lib/mockup-links";
 import { renderQuotePdf, QuotePdfMode } from "@/lib/quote-pdf";
 import { getQuote } from "@/lib/quotes-store";
+import { unconfirmedSanmarCosts, unconfirmedCostMessage } from "@/lib/price-check";
 import { sendQuoteDocumentEmail, isReceiptEmailConfigured } from "@/lib/email";
 
 export const runtime = "nodejs";
@@ -34,6 +35,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const record = await getQuote(id);
   if (!record) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
+  }
+  const unconfirmed = unconfirmedSanmarCosts(record.computed);
+  if (unconfirmed.length) {
+    return NextResponse.json({ error: unconfirmedCostMessage(unconfirmed), unconfirmed }, { status: 409 });
   }
 
   const body = await req.json().catch(() => null);
