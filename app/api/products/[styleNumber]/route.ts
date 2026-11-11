@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getProductByStyleNumber } from "@/lib/sanmar";
-import { getLiveSanmarPricing, toPriceLookup } from "@/lib/sanmar-pricing";
+import { getLiveSanmarPricing, livePriceResolver } from "@/lib/sanmar-pricing";
 import { getCustomProductByStyleNumber } from "@/lib/custom-products-store";
 import { getHiddenStyleNumbers } from "@/lib/catalog-selection";
 import { getGarmentMarkupSettings } from "@/lib/garment-markup-store";
@@ -50,11 +50,11 @@ export async function GET(
   if (!customProduct) {
     const liveRows = await getLiveSanmarPricing(product.styleNumber);
     if (liveRows) {
-      const priceByColorSize = toPriceLookup(liveRows);
+      const priceFor = livePriceResolver(liveRows, product.colors.map((c) => c.colorName));
       const pricedColors = product.colors.map((c) => {
         if (!c.sizes) return c;
         const sizes = c.sizes.map((s) => {
-          const live = priceByColorSize.get(`${c.colorName.toLowerCase()}::${s.name.toLowerCase()}`);
+          const live = priceFor(c.colorName, s.name);
           return live ? { ...s, price: live } : s;
         });
         return { ...c, sizes };
