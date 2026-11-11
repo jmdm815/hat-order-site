@@ -263,3 +263,31 @@ export function toPriceLookup(rows: SanmarLivePriceRow[]): Map<string, number> {
   }
   return map;
 }
+
+// Admin-only diagnostic: makes the same live call as getLiveSanmarPricing
+// (bypassing the cache) and reports what came back, so a silent fallback to
+// catalog pricing can be explained. Never includes credentials.
+export async function debugSanmarPricing(style: string, color?: string) {
+  const out: Record<string, unknown> = { style, color: color ?? null, haveCredentials: haveCredentials() };
+  if (!haveCredentials()) return out;
+  try {
+    const res = await fetch(PRICING_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "text/xml;charset=UTF-8", SOAPAction: "" },
+      body: buildRequestEnvelope(style, color),
+      signal: AbortSignal.timeout(10000),
+    });
+    out.httpStatus = res.status;
+    const text = await res.text();
+    const parsed = parseGetPricingResponse(text);
+    out.errorOccurred = parsed.errorOccurred;
+    out.message = parsed.message ?? null;
+    out.rowCount = parsed.rows.length;
+    out.colors = Array.from(new Set(parsed.rows.map((r) => r.color ?? "")));
+    out.sampleRows = parsed.rows.slice(0, 12);
+    if (!parsed.rows.length) out.rawStart = text.slice(0, 1500);
+  } catch (err) {
+    out.fetchError = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  }
+  return out;
+}
