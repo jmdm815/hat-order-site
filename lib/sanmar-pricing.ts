@@ -226,11 +226,11 @@ export async function applyLiveSanmarPricingToProducts(
       if (!product) return;
       const rows = await getLiveSanmarPricing(styleNumber);
       if (!rows) return;
-      const priceByColorSize = toPriceLookup(rows);
+      const priceFor = livePriceResolver(rows, product.colors.map((c) => c.colorName));
       const colors = product.colors.map((c) => {
         if (!c.sizes) return c;
         const sizes = c.sizes.map((s) => {
-          const live = priceByColorSize.get(`${c.colorName.toLowerCase()}::${s.name.toLowerCase()}`);
+          const live = priceFor(c.colorName, s.name);
           return live ? { ...s, price: live } : s;
         });
         return { ...c, sizes };
@@ -253,7 +253,9 @@ export async function applyLiveSanmarPricingToProducts(
 // Convenience map for overlaying prices onto a Product-shaped catalog
 // entry: { "<colorName>::<size>": effectivePrice }. Color/size matching is
 // case-insensitive since SanMar's two services don't necessarily agree on
-// casing.
+// casing. NOTE: keyed by the PRICING service's color names, which are
+// SanMar's abbreviated codes ("True Royl TB") — use livePriceResolver() to
+// look prices up by catalog color name ("True Royal Triblend").
 export function toPriceLookup(rows: SanmarLivePriceRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const row of rows) {
@@ -262,6 +264,85 @@ export function toPriceLookup(rows: SanmarLivePriceRow[]): Map<string, number> {
     if (price > 0) map.set(key, price);
   }
   return map;
+}
+
+const compact = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+// True when `abbr` can be read as an abbreviation of `full`: same first
+// character and every character of abbr appears in full, in order
+// ("trueroyltb" in "trueroyaltriblend", "sldtrryltb" in
+// "solidtrueroyaltriblend").
+function isAbbreviationOf(abbr: string, full: string): boolean {
+  if (!abbr || !full || abbr[0] !== full[0]) return false;
+  let i = 0;
+  for (const ch of full) {
+    if (ch === abbr[i]) i++;
+    if (i === abbr.length) return true;
+  }
+  return false;
+}
+
+// SanMar's pricing service names colors with short codes ("True Royl TB",
+// "SldTrRylTb", "Athl Grey TB") while the catalog feed uses full names
+// ("True Royal Triblend"), so an exact-name lookup silently missed and every
+// quote fell back to the catalog's list price (BC3413: $8.94 instead of the
+// account's $6.29 sale price, Nov 2026). Resolves a price per catalog
+// color + size by, in order:
+//   1. exact (case-insensitive) color name,
+//   2. abbreviation match, assigned one-to-one best-first so "Navy TB" goes
+//      to "Navy Triblend" and "Navy Ht TB" to "Navy Heather Triblend",
+//   3. the style's single price for that size when every color agrees.
+export function livePriceResolver(
+  rows: SanmarLivePriceRow[],
+  catalogColorNames: string[]
+): (colorName: string, size: string) => number | undefined {
+  const byColor = new Map<string, Map<string, number>>();
+  const bySize = new Map<string, Set<number>>();
+  for (const row of rows) {
+    const price = effectivePriceFromRow(row);
+    if (!(price > 0)) continue;
+    const color = row.color ?? "";
+    const size = (row.size ?? "").toLowerCase();
+    if (!byColor.has(color)) byColor.set(color, new Map());
+    byColor.get(color)!.set(size, price);
+    if (!bySize.has(size)) bySize.set(size, new Set());
+    bySize.get(size)!.add(price);
+  }
+  const liveColors = Array.from(byColor.keys());
+  const match = new Map<string, string>(); // catalog name (lower) -> live color
+  const usedLive = new Set<string>();
+  for (const name of catalogColorNames) {
+    const exact = liveColors.find((c) => c.toLowerCase() === name.toLowerCase());
+    if (exact) {
+      match.set(name.toLowerCase(), exact);
+      usedLive.add(exact);
+    }
+  }
+  const pairs: { cat: string; live: string; score: number }[] = [];
+  for (const name of catalogColorNames) {
+    if (match.has(name.toLowerCase())) continue;
+    const full = compact(name);
+    for (const live of liveColors) {
+      if (usedLive.has(live)) continue;
+      const abbr = compact(live);
+      if (isAbbreviationOf(abbr, full)) pairs.push({ cat: name.toLowerCase(), live, score: abbr.length / full.length });
+    }
+  }
+  pairs.sort((a, b) => b.score - a.score);
+  for (const p of pairs) {
+    if (match.has(p.cat) || usedLive.has(p.live)) continue;
+    match.set(p.cat, p.live);
+    usedLive.add(p.live);
+  }
+  return (colorName, size) => {
+    const sz = size.toLowerCase();
+    const live = match.get(colorName.toLowerCase());
+    const direct = live ? byColor.get(live)?.get(sz) : undefined;
+    if (direct) return direct;
+    const prices = bySize.get(sz);
+    if (prices && prices.size === 1) return Array.from(prices)[0];
+    return undefined;
+  };
 }
 
 // Admin-only diagnostic: makes the same live call as getLiveSanmarPricing
