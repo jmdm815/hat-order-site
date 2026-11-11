@@ -198,6 +198,11 @@ export type QuoteSizeResult = {
   // table would give it, kept for "revert" hints when overrides are set.
   catalogGarmentCost?: number;
   catalogGarmentUnitPrice?: number;
+  // Where catalogGarmentCost came from (SanMar lines): "live" account
+  // pricing, or "catalog" list price because the live lookup failed — the
+  // quote builder warns on "catalog". Absent for S&S/custom lines and for
+  // quotes saved before this was tracked.
+  costSource?: "live" | "catalog";
   decorationUnitPrice: number;
   unitPrice: number; // garment + decoration, after any priceOverride below
   lineTotal: number; // unitPrice * quantity
@@ -597,6 +602,7 @@ export function computeQuote(
         garmentMarkupPercent,
         catalogGarmentCost: money(catalogCost),
         catalogGarmentUnitPrice,
+        ...(sizeInfo?.priceSource ? { costSource: sizeInfo.priceSource } : {}),
         decorationUnitPrice,
         unitPrice: priced.unitPrice,
         lineTotal: priced.lineTotal,

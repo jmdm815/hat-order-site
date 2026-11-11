@@ -225,13 +225,24 @@ export async function applyLiveSanmarPricingToProducts(
       const product = productsByStyle.get(styleNumber);
       if (!product) return;
       const rows = await getLiveSanmarPricing(styleNumber);
-      if (!rows) return;
+      if (!rows) {
+        // Mark every size so quotes can warn that this is list price.
+        productsByStyle.set(styleNumber, {
+          ...product,
+          colors: product.colors.map((c) =>
+            c.sizes ? { ...c, sizes: c.sizes.map((s) => ({ ...s, priceSource: "catalog" as const })) } : c
+          ),
+        });
+        return;
+      }
       const priceFor = livePriceResolver(rows, product.colors.map((c) => c.colorName));
       const colors = product.colors.map((c) => {
         if (!c.sizes) return c;
         const sizes = c.sizes.map((s) => {
           const live = priceFor(c.colorName, s.name);
-          return live ? { ...s, price: live } : s;
+          return live
+            ? { ...s, price: live, priceSource: "live" as const }
+            : { ...s, priceSource: "catalog" as const };
         });
         return { ...c, sizes };
       });

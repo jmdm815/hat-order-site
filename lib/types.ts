@@ -22,7 +22,16 @@ export type ProductCategory =
   | "Ladies Polo"
   | "Youth Polo";
 
-export type ProductSize = { name: string; price: number; inventory: number };
+export type ProductSize = {
+  name: string;
+  price: number;
+  inventory: number;
+  // SanMar only: "live" = this account's price from SanMar's pricing
+  // service (sale price when one is active); "catalog" = the live lookup
+  // failed or didn't match, so price is the catalog feed's list price,
+  // which runs higher than what the shop actually pays.
+  priceSource?: "live" | "catalog";
+};
 
 export type ProductColor = {
   colorName: string;

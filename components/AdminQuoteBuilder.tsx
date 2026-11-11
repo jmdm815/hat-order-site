@@ -3306,6 +3306,41 @@ export default function AdminQuoteBuilder({
                           </div>
                         </div>
 
+                        {/* SanMar cost fell back to catalog list price
+                            (live account pricing failed or didn't match) —
+                            the customer price would be built on a cost the
+                            shop doesn't actually pay. */}
+                        {(() => {
+                          const listSizes = (computedLine?.sizes ?? []).filter(
+                            (s) =>
+                              s.costSource === "catalog" &&
+                              line.sizes.find((rs) => rs.size === s.size)?.garmentCostOverride === undefined,
+                          );
+                          if (!listSizes.length) return null;
+                          return (
+                            <div
+                              role="alert"
+                              className="mt-2 flex items-start gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                            >
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+                                <path d="M12 9v4" />
+                                <path d="M12 17h.01" />
+                              </svg>
+                              <p className="m-0">
+                                <span className="font-semibold">Not your SanMar price.</span>{" "}
+                                Couldn&apos;t get your live account price for{" "}
+                                {listSizes.length === computedLine!.sizes.length
+                                  ? "this item"
+                                  : `size${listSizes.length > 1 ? "s" : ""} ${listSizes.map((s) => s.size).join(", ")}`}
+                                , so the cost is SanMar&apos;s catalog list price (usually higher than what you pay).
+                                Check the price in your SanMar account and enter it in the Cost column, or re-save the
+                                quote to try the live price again.
+                              </p>
+                            </div>
+                          );
+                        })()}
+
                         {/* Per-size price grid — the merged-in "Preview"
                             table for this one line. */}
                         <div className="mt-2 overflow-x-auto">
