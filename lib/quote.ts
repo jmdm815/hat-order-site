@@ -202,7 +202,9 @@ export type QuoteSizeResult = {
   // pricing, or "catalog" list price because the live lookup failed — the
   // quote builder warns on "catalog". Absent for S&S/custom lines and for
   // quotes saved before this was tracked.
-  costSource?: "live" | "catalog";
+  // "manual" = the admin typed a cost/garment price/unit price, so the
+  // looked-up cost no longer drives the price.
+  costSource?: "live" | "catalog" | "manual";
   decorationUnitPrice: number;
   unitPrice: number; // garment + decoration, after any priceOverride below
   lineTotal: number; // unitPrice * quantity
@@ -602,7 +604,14 @@ export function computeQuote(
         garmentMarkupPercent,
         catalogGarmentCost: money(catalogCost),
         catalogGarmentUnitPrice,
-        ...(sizeInfo?.priceSource ? { costSource: sizeInfo.priceSource } : {}),
+        ...(sizeInfo?.priceSource
+          ? {
+              costSource:
+                s.garmentCostOverride !== undefined || s.garmentPriceOverride !== undefined || s.priceOverride
+                  ? ("manual" as const)
+                  : sizeInfo.priceSource,
+            }
+          : {}),
         decorationUnitPrice,
         unitPrice: priced.unitPrice,
         lineTotal: priced.lineTotal,

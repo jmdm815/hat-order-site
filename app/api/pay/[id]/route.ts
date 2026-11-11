@@ -3,6 +3,7 @@ import { getQuote, recordInvoicePayment, QuoteRecord } from "@/lib/quotes-store"
 import { getSquareClient, getSquareLocationId, isSquareConfigured } from "@/lib/square-client";
 import { sendInvoicePaymentNotification, sendInvoiceReceiptEmail } from "@/lib/email";
 import { loadLineMockups } from "@/lib/mockup-links";
+import { unconfirmedSanmarCosts, unconfirmedCostMessage } from "@/lib/price-check";
 import { renderQuotePdf } from "@/lib/quote-pdf";
 
 // Loose email format check — good enough to catch obvious typos before
@@ -165,6 +166,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!record) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  if (unconfirmedSanmarCosts(record.computed).length) {
+    return NextResponse.json(
+      { error: "This quote is still being finalized. Please check back shortly or contact us.", pending: true },
+      { status: 409 }
+    );
+  }
   return NextResponse.json({ invoice: toCustomerSummary(record) });
 }
 
@@ -173,6 +180,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const record = await getQuote(id);
   if (!record) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (unconfirmedSanmarCosts(record.computed).length) {
+    return NextResponse.json(
+      { error: "This quote is still being finalized. Please check back shortly or contact us.", pending: true },
+      { status: 409 }
+    );
   }
 
   const body = await req.json().catch(() => null);

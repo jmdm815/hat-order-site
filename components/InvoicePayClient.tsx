@@ -100,6 +100,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
   const [invoice, setInvoice] = useState<InvoiceSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [pending, setPending] = useState(false);
   const [amountInput, setAmountInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -110,7 +111,8 @@ export default function InvoicePayClient({ id }: { id: string }) {
     fetch(`/api/pay/${id}`)
       .then(async (r) => {
         if (!r.ok) {
-          setNotFound(true);
+          if (r.status === 409) setPending(true);
+          else setNotFound(true);
           return null;
         }
         return r.json();
@@ -189,6 +191,17 @@ export default function InvoicePayClient({ id }: { id: string }) {
 
   if (loading) {
     return <p className="text-white/40 text-sm">Loading…</p>;
+  }
+
+  if (pending) {
+    return (
+      <div className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-6">
+        <h1 className="text-xl font-bold text-white">Almost ready</h1>
+        <p className="mt-2 text-sm text-white/60">
+          This quote is still being finalized. Please check back shortly, or contact us if you have questions.
+        </p>
+      </div>
+    );
   }
 
   if (notFound || !invoice) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { loadLineMockups } from "@/lib/mockup-links";
 import { renderQuotePdf, QuotePdfMode } from "@/lib/quote-pdf";
+import { unconfirmedSanmarCosts, unconfirmedCostMessage } from "@/lib/price-check";
 import { getQuote } from "@/lib/quotes-store";
 
 export const runtime = "nodejs";
@@ -31,6 +32,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         : rawMode === "invoice" && record.status === "invoice"
           ? "invoice"
           : "customer";
+
+  if (mode === "customer" || mode === "invoice") {
+    const unconfirmed = unconfirmedSanmarCosts(record.computed);
+    if (unconfirmed.length) {
+      const message = unconfirmedCostMessage(unconfirmed).replace("Not sent:", "No customer PDF:");
+      // Opened by navigating a new tab (see AdminQuoteBuilder) — show a
+      // readable page there instead of raw JSON.
+      if ((req.headers.get("accept") ?? "").includes("text/html")) {
+        const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return new NextResponse(
+          `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Live SanMar price needed</title><body style="font-family:system-ui,sans-serif;max-width:640px;margin:48px auto;padding:0 16px;color:#222a44;background:#fff"><h1 style="font-size:22px;color:#b91c1c">Live SanMar price needed</h1><p style="font-size:16px;line-height:1.5">${esc(message)}</p><p style="font-size:14px;color:#555">Internal and work-order PDFs still work. Close this tab to get back to the quote.</p></body>`,
+          { status: 409, headers: { "Content-Type": "text/html; charset=utf-8" } }
+        );
+      }
+      return NextResponse.json({ error: message, unconfirmed }, { status: 409 });
+    }
+  }
 
   try {
     const pdfBuffer = await renderQuotePdf(record.computed, mode, {
