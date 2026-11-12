@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
   outputFileTracingIncludes: {
     "/api/admin/sanmar-web/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/admin/sanmar-order/send-to-box": ["./node_modules/@sparticuz/chromium/bin/**/*"],
   },
   images: {
     remotePatterns: [
