@@ -214,14 +214,36 @@ export async function addToShoppingBox(
       primer.variant
     );
     await page.select("#style-color-0", primer.variant);
-    await page.waitForSelector("#product-row-0 .qo-inv-input", { timeout: 15000 });
+    await page
+      .waitForFunction(
+        (size) =>
+          Array.from(document.querySelectorAll("#product-row-0 .qo-inv-size-label")).some(
+            (l) => (l.textContent || "").trim().toUpperCase() === String(size).toUpperCase()
+          ),
+        { timeout: 15000 },
+        primer.size
+      )
+      .catch(() => null);
     const sizeBox = await page.evaluateHandle((size) => {
       const boxes = Array.from(document.querySelectorAll("#product-row-0 .qo-label-inv-input"));
       const box = boxes.find((b) => (b.querySelector(".qo-inv-size-label")?.textContent || "").trim().toUpperCase() === size.toUpperCase());
       return box?.querySelector("input") ?? null;
     }, primer.size);
     const sizeEl = sizeBox.asElement() as import("puppeteer-core").ElementHandle<HTMLInputElement> | null;
-    if (!sizeEl) return { ok: false, added: [], problems, boxBefore, detail: "Quick Order page layout changed (size box not found)." };
+    if (!sizeEl) {
+      const seen = await page.evaluate(() => ({
+        style: (document.querySelector("#style-number-0") as HTMLInputElement | null)?.value,
+        color: (document.querySelector("#style-color-0") as HTMLSelectElement | null)?.value,
+        labels: Array.from(document.querySelectorAll("#product-row-0 .qo-inv-size-label")).map((l) => (l.textContent || "").trim()),
+      }));
+      return {
+        ok: false,
+        added: [],
+        problems,
+        boxBefore,
+        detail: `Quick Order size box for ${primer.size} not found (row shows style ${seen.style}, color ${seen.color}, sizes ${seen.labels.join("/") || "none"}).`,
+      };
+    }
     await sizeEl.click();
     await page.keyboard.type(String(primer.qty));
     await page.keyboard.press("Tab");
