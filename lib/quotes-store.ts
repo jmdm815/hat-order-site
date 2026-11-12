@@ -245,7 +245,7 @@ export type InvoicePaymentEntry = {
   // How a "manual" payment was actually collected (cash in hand, a check,
   // etc.) — unset/irrelevant for method: "square_card" since that's always a
   // card charge. Shown in the admin payment-history list.
-  tender?: "cash" | "check" | "other";
+  tender?: "cash" | "check" | "card" | "shopvox" | "zelle" | "other";
   // Check number, for tender: "check" payments.
   checkNumber?: string;
   createdAt: string;

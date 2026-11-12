@@ -12,6 +12,9 @@ type Props = {
 const TENDER_LABEL: Record<string, string> = {
   cash: "Cash",
   check: "Check",
+  card: "Card",
+  shopvox: "ShopVox",
+  zelle: "Zelle",
   other: "Other",
 };
 
@@ -216,60 +219,6 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
           </div>
         )}
 
-        <div className="mt-4 border-t border-admin-ink/10 pt-4">
-          <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-2">Pay page link</p>
-          <div className="flex items-center gap-2 mb-2 bg-admin-ink/5 rounded-xl px-3 py-2">
-            <span className="text-xs text-admin-ink/88 truncate flex-1">{payPageUrl}</span>
-            <button
-              onClick={handleCopyLink}
-              className="shrink-0 text-xs text-blue-400 hover:underline"
-            >
-              Copy
-            </button>
-          </div>
-          <div className="flex items-end gap-2">
-            <div>
-              <label className="block text-xs text-admin-ink/80 mb-1" htmlFor="link-amount">
-                Amount to pre-fill
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-admin-ink/72 text-sm">$</span>
-                <input
-                  id="link-amount"
-                  value={linkAmount}
-                  onChange={(e) => setLinkAmount(e.target.value)}
-                  inputMode="decimal"
-                  className="w-28 bg-admin-card border border-admin-ink/20 rounded-xl pl-6 pr-2 py-1.5 text-sm outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
-                />
-              </div>
-            </div>
-            <button
-              onClick={handleSaveDepositAmount}
-              disabled={linkBusy || !linkAmountValid}
-              className="py-1.5 px-3 rounded-xl border border-blue-400 text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-40"
-            >
-              {linkBusy ? "…" : record.paymentLinkAmount !== undefined ? "Update amount" : "Save deposit amount"}
-            </button>
-          </div>
-          {!isInvoice && (
-            <p className="mt-1.5 text-xs text-admin-ink/62">
-              {depositAmount !== undefined
-                ? `Defaults to this quote's ${depositPercent}% deposit (${money(depositAmount)}) — type a different amount for a custom deposit.`
-                : "No deposit payment terms set on this quote — defaults to the full total. Type a smaller amount for a custom deposit."}
-            </p>
-          )}
-          <p className="mt-1.5 text-xs text-admin-ink/62">
-            This is always the same single link — it never changes. The amount above just
-            pre-fills &quot;Amount to pay&quot; when the customer opens it (they can still change
-            it up to the current balance); it&apos;s not a separate link for the deposit vs. the
-            rest.
-          </p>
-          {!linkAmountValid && linkAmount !== "" && (
-            <p className="mt-1 text-xs text-admin-accent">Enter an amount between $0.01 and {money(grandTotal)}.</p>
-          )}
-          {linkMessage && <p className="mt-1.5 text-xs text-green-700">{linkMessage}</p>}
-        </div>
-
         {error && <p className="mt-3 text-sm text-admin-accent font-medium">{error}</p>}
 
         {balance > 0 ? (
@@ -303,6 +252,9 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                 >
                   <option value="cash">Cash</option>
                   <option value="check">Check</option>
+                  <option value="card">Card (outside this site)</option>
+                  <option value="shopvox">ShopVox</option>
+                  <option value="zelle">Zelle</option>
                   <option value="other">Other</option>
                 </select>
               </div>
@@ -359,6 +311,60 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
             {isInvoice ? "This invoice is paid in full." : "This quote is fully paid."}
           </p>
         )}
+
+        <div className="mt-4 border-t border-admin-ink/10 pt-4">
+          <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide mb-2">Pay page link</p>
+          <div className="flex items-center gap-2 mb-2 bg-admin-ink/5 rounded-xl px-3 py-2">
+            <span className="text-xs text-admin-ink/88 truncate flex-1">{payPageUrl}</span>
+            <button
+              onClick={handleCopyLink}
+              className="shrink-0 text-xs text-blue-400 hover:underline"
+            >
+              Copy
+            </button>
+          </div>
+          <div className="flex items-end gap-2">
+            <div>
+              <label className="block text-xs text-admin-ink/80 mb-1" htmlFor="link-amount">
+                Amount to pre-fill
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-admin-ink/72 text-sm">$</span>
+                <input
+                  id="link-amount"
+                  value={linkAmount}
+                  onChange={(e) => setLinkAmount(e.target.value)}
+                  inputMode="decimal"
+                  className="w-28 bg-admin-card border border-admin-ink/20 rounded-xl pl-6 pr-2 py-1.5 text-sm outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleSaveDepositAmount}
+              disabled={linkBusy || !linkAmountValid}
+              className="py-1.5 px-3 rounded-xl border border-blue-400 text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-40"
+            >
+              {linkBusy ? "…" : record.paymentLinkAmount !== undefined ? "Update amount" : "Save deposit amount"}
+            </button>
+          </div>
+          {!isInvoice && (
+            <p className="mt-1.5 text-xs text-admin-ink/62">
+              {depositAmount !== undefined
+                ? `Defaults to this quote's ${depositPercent}% deposit (${money(depositAmount)}) — type a different amount for a custom deposit.`
+                : "No deposit payment terms set on this quote — defaults to the full total. Type a smaller amount for a custom deposit."}
+            </p>
+          )}
+          <p className="mt-1.5 text-xs text-admin-ink/62">
+            This is always the same single link — it never changes. The amount above just
+            pre-fills &quot;Amount to pay&quot; when the customer opens it (they can still change
+            it up to the current balance); it&apos;s not a separate link for the deposit vs. the
+            rest.
+          </p>
+          {!linkAmountValid && linkAmount !== "" && (
+            <p className="mt-1 text-xs text-admin-accent">Enter an amount between $0.01 and {money(grandTotal)}.</p>
+          )}
+          {linkMessage && <p className="mt-1.5 text-xs text-green-700">{linkMessage}</p>}
+        </div>
 
         {payments.length > 0 && (
           <button

@@ -13,6 +13,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TENDER_LABEL: Record<string, string> = {
   cash: "Cash",
   check: "Check",
+  card: "Card",
+  shopvox: "ShopVox",
+  zelle: "Zelle",
   other: "Other",
 };
 

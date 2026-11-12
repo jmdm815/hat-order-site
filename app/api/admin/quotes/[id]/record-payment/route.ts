@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { getQuote, recordInvoicePayment, resetInvoicePayments, InvoicePaymentEntry } from "@/lib/quotes-store";
 
-const VALID_TENDERS: InvoicePaymentEntry["tender"][] = ["cash", "check", "other"];
+const VALID_TENDERS: InvoicePaymentEntry["tender"][] = ["cash", "check", "card", "shopvox", "zelle", "other"];
 
 // Admin-only: manually record a payment against a quote or an invoice (e.g.
 // "customer paid $40 in cash") — the counterpart to the real Square card
