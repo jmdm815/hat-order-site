@@ -290,7 +290,7 @@ export default function AdminSanmarOrder() {
                   {order.status === "in-shopping-box" ? "Back to draft" : "Mark added to box"}
                 </button>
                 <button
-                  className={`${btn} border border-red-300 text-red-700`}
+                  className={`${btn} border border-red-300 text-red-300`}
                   disabled={busy}
                   onClick={() => confirm("Clear the whole order list?") && post({ action: "clear" })}
                 >
@@ -345,7 +345,7 @@ export default function AdminSanmarOrder() {
                                   value={i.qty}
                                   onChange={(e) => setQty(i, Number(e.target.value))}
                                   onBlur={() => order && saveItems(order.items)}
-                                  className="w-16 border border-admin-ink/20 rounded-lg px-2 py-0.5 bg-white"
+                                  className="w-16 border border-admin-ink/20 rounded-lg px-2 py-0.5"
                                 />
                               </td>
                               <td className="px-2 text-right">{s?.cost ? money(s.cost) : l === "loading" ? "…" : "—"}</td>
@@ -354,15 +354,15 @@ export default function AdminSanmarOrder() {
                                 {l === "loading" ? (
                                   "…"
                                 ) : l === "error" ? (
-                                  <span className="text-red-700">couldn&apos;t check</span>
+                                  <span className="text-red-300">couldn&apos;t check</span>
                                 ) : !s ? (
-                                  <span className="text-red-700">size not found</span>
+                                  <span className="text-red-300">size not found</span>
                                 ) : short ? (
-                                  <span className="text-amber-700">
+                                  <span className="text-amber-300">
                                     Dallas {s.dallas} — {alt ? `${alt.name} has ${alt.qty}` : `only ${s.total} total`}
                                   </span>
                                 ) : (
-                                  <span className="text-green-700">Dallas {s.dallas}</span>
+                                  <span className="text-green-300">Dallas {s.dallas}</span>
                                 )}
                               </td>
                             </tr>
@@ -380,7 +380,7 @@ export default function AdminSanmarOrder() {
               </span>
               <span>
                 <span className="text-admin-ink/70">Est. cost:</span> <b>{money(totals.cost)}</b>
-                {totals.unpriced > 0 && <span className="text-amber-700"> (+{totals.unpriced} unpriced)</span>}
+                {totals.unpriced > 0 && <span className="text-amber-300"> (+{totals.unpriced} unpriced)</span>}
               </span>
             </div>
           </div>
@@ -391,7 +391,7 @@ export default function AdminSanmarOrder() {
       <section className={card}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <h2 className="font-heading font-semibold uppercase tracking-wide">Add from quotes</h2>
-          <button className={`${btn} bg-admin-ink text-white`} disabled={busy || !picked.size} onClick={addQuotes}>
+          <button className={`${btn} bg-admin-accent text-admin-accent-ink font-semibold`} disabled={busy || !picked.size} onClick={addQuotes}>
             Add {picked.size || ""} selected
           </button>
         </div>
@@ -425,7 +425,7 @@ export default function AdminSanmarOrder() {
                         {q.sanmarPieces} pcs · {q.styles} · {q.status} · {shortDate(q.createdAt)}
                       </div>
                     </div>
-                    {added && <span className="text-xs text-green-700">on list</span>}
+                    {added && <span className="text-xs text-green-300">on list</span>}
                   </li>
                 );
               })}
@@ -453,9 +453,9 @@ export default function AdminSanmarOrder() {
             value={style}
             onChange={(e) => setStyle(e.target.value)}
             placeholder="Style number, e.g. PC54"
-            className="flex-1 border border-admin-ink/20 rounded-xl px-3 py-1.5 bg-white text-sm uppercase"
+            className="flex-1 border border-admin-ink/20 rounded-xl px-3 py-1.5 text-sm uppercase"
           />
-          <button className={`${btn} bg-admin-ink text-white`} type="submit">
+          <button className={`${btn} bg-admin-accent text-admin-accent-ink font-semibold`} type="submit">
             Look up
           </button>
         </form>
@@ -468,7 +468,7 @@ export default function AdminSanmarOrder() {
                 setSearchColor(e.target.value);
                 lookupStyle(e.target.value);
               }}
-              className="border border-admin-ink/20 rounded-xl px-3 py-1.5 bg-white text-sm"
+              className="border border-admin-ink/20 rounded-xl px-3 py-1.5 text-sm bg-admin-card"
             >
               <option value="">Pick a color ({search.colors.length})</option>
               {search.colors.map((c) => (
@@ -479,7 +479,7 @@ export default function AdminSanmarOrder() {
             </select>
             {search.color && (
               <>
-                {!search.priced && <p className="text-xs text-amber-700">Live price unavailable right now — stock only.</p>}
+                {!search.priced && <p className="text-xs text-amber-300">Live price unavailable right now — stock only.</p>}
                 <div className="overflow-x-auto">
                   <table className="text-sm">
                     <thead className="text-xs text-admin-ink/60">
@@ -504,7 +504,7 @@ export default function AdminSanmarOrder() {
                               min={0}
                               value={searchQty[s.size] ?? ""}
                               onChange={(e) => setSearchQty({ ...searchQty, [s.size]: e.target.value })}
-                              className="w-16 border border-admin-ink/20 rounded-lg px-2 py-0.5 bg-white"
+                              className="w-16 border border-admin-ink/20 rounded-lg px-2 py-0.5"
                             />
                           </td>
                         </tr>
@@ -512,7 +512,7 @@ export default function AdminSanmarOrder() {
                     </tbody>
                   </table>
                 </div>
-                <button className={`${btn} bg-admin-ink text-white`} disabled={busy} onClick={addSearched}>
+                <button className={`${btn} bg-admin-accent text-admin-accent-ink font-semibold`} disabled={busy} onClick={addSearched}>
                   Add to list
                 </button>
               </>
@@ -525,7 +525,7 @@ export default function AdminSanmarOrder() {
       <section className={card}>
         <h2 className="font-heading font-semibold uppercase tracking-wide mb-2">Recent SanMar orders</h2>
         {historyError ? (
-          <p className="text-sm text-red-700">{historyError}</p>
+          <p className="text-sm text-red-300">{historyError}</p>
         ) : !history ? (
           <p className="text-sm text-admin-ink/70">Checking SanMar…</p>
         ) : history.length === 0 ? (
@@ -547,7 +547,7 @@ export default function AdminSanmarOrder() {
                     )}
                   </div>
                   {t === "loading" && <p className="text-xs text-admin-ink/60 mt-1">Loading…</p>}
-                  {t === "error" && <p className="text-xs text-red-700 mt-1">Couldn&apos;t get tracking.</p>}
+                  {t === "error" && <p className="text-xs text-red-300 mt-1">Couldn&apos;t get tracking.</p>}
                   {Array.isArray(t) &&
                     (t.length === 0 ? (
                       <p className="text-xs text-admin-ink/60 mt-1">No shipments yet.</p>
