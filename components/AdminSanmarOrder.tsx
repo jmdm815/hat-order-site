@@ -47,6 +47,14 @@ export default function AdminSanmarOrder() {
   const [order, setOrder] = useState<OrderList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{
+    ok: boolean;
+    detail?: string;
+    problems: string[];
+    added: { style: string; color: string; size: string; qty: number; warehouse: string }[];
+    boxAfter?: { count: number; total: string };
+  } | null>(null);
   const [info, setInfo] = useState<Record<string, Lookup | "loading" | "error">>({});
 
   const [quotes, setQuotes] = useState<QuoteRow[] | null>(null);
@@ -181,6 +189,24 @@ export default function AdminSanmarOrder() {
     }
   }
 
+  async function sendToBox() {
+    if (!order || !confirm(`Add ${totals.pieces} pieces to your SanMar shopping box? (It won't check out.)`)) return;
+    setSending(true);
+    setSendResult(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/sanmar-order/send-to-box", { method: "POST" });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSendResult(data);
+      if (data.ok) await loadOrder();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't reach SanMar");
+    } finally {
+      setSending(false);
+    }
+  }
+
   async function saveItems(items: Item[], status?: OrderList["status"]) {
     setBusy(true);
     setError(null);
@@ -276,12 +302,17 @@ export default function AdminSanmarOrder() {
             <p className="text-xs text-admin-ink/70">
               {order?.status === "in-shopping-box"
                 ? `In your SanMar shopping box${order.addedToBoxAt ? ` since ${shortDate(order.addedToBoxAt)}` : ""} — check out on sanmar.com.`
-                : "Draft — when it's ready, ask Claude to add it to your SanMar shopping box."}
+                : "Draft — when it's ready, send it to your SanMar shopping box. Checkout stays on sanmar.com."}
             </p>
           </div>
           <div className="flex gap-2">
             {order && order.items.length > 0 && (
               <>
+                {order.status === "draft" && (
+                  <button className={`${btn} bg-admin-accent text-admin-accent-ink font-semibold`} disabled={busy || sending} onClick={sendToBox}>
+                    {sending ? "Adding to SanMar… (~30s)" : "Send to SanMar shopping box"}
+                  </button>
+                )}
                 <button
                   className={`${btn} border border-admin-ink/25`}
                   disabled={busy}
@@ -301,6 +332,25 @@ export default function AdminSanmarOrder() {
           </div>
         </div>
 
+        {sendResult && (
+          <div className={`mb-3 rounded-xl px-3 py-2 text-sm ${sendResult.ok ? "bg-green-50 text-green-900" : "bg-red-50 text-red-900"}`}>
+            <p className="font-medium">
+              {sendResult.ok
+                ? `Added to your SanMar shopping box${sendResult.boxAfter?.total ? ` — box now ${sendResult.boxAfter.count} items, ${sendResult.boxAfter.total}` : ""}.`
+                : sendResult.detail || "Couldn't add to the shopping box."}
+            </p>
+            {sendResult.added.some((a) => a.warehouse !== "Dallas") && (
+              <p className="text-xs mt-1">
+                From other warehouses:{" "}
+                {sendResult.added
+                  .filter((a) => a.warehouse !== "Dallas")
+                  .map((a) => `${a.style} ${a.color} ${a.size} ×${a.qty} (${a.warehouse})`)
+                  .join(", ")}
+              </p>
+            )}
+            {sendResult.problems.length > 0 && <p className="text-xs mt-1">{sendResult.problems.join(" · ")}</p>}
+          </div>
+        )}
         {!order ? (
           <p className="text-sm text-admin-ink/70">Loading…</p>
         ) : order.items.length === 0 ? (
