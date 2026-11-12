@@ -30,6 +30,38 @@ export async function GET(req: NextRequest) {
     if (login.ok && path) {
       await page.goto(`${SANMAR_WEB}${path}`, { waitUntil: "networkidle2", timeout: 30000 }).catch(() => null);
     }
+    // ?try=K540|Red — fill Quick Order row 0 (never clicks Add) and report the row.
+    const trial = req.nextUrl.searchParams.get("try");
+    if (login.ok && trial && path === "/quick-order") {
+      const [st, col] = trial.split("|");
+      await page.click("#style-number-0");
+      await page.keyboard.type(st, { delay: 60 });
+      await new Promise((r) => setTimeout(r, 2500));
+      out.afterType = await page.evaluate(() => {
+        const row = document.querySelector("#style-number-0")?.closest("div[class*=row], li, tr, .quick-order-item, form > div") as HTMLElement | null;
+        const sugg = Array.from(document.querySelectorAll("ul li, [role=option], .autocomplete-suggestion, .tt-suggestion"))
+          .filter((e) => (e as HTMLElement).offsetParent !== null)
+          .map((e) => (e.textContent || "").trim().slice(0, 60))
+          .filter(Boolean)
+          .slice(0, 10);
+        return { rowHtml: row?.outerHTML.slice(0, 3000) ?? null, suggestions: sugg };
+      });
+      await page.keyboard.press("Enter");
+      await new Promise((r) => setTimeout(r, 2500));
+      const opts = await page.$$eval("#style-color-0 option", (os) => os.map((o) => `${(o as HTMLOptionElement).value}=${o.textContent?.trim()}`));
+      out.colorOptions = opts.slice(0, 40);
+      if (col) {
+        const val = await page.$$eval("#style-color-0 option", (os, c) => (os as HTMLOptionElement[]).find((o) => o.textContent?.trim().toLowerCase() === String(c).toLowerCase())?.value ?? null, col);
+        if (val) await page.select("#style-color-0", val);
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+      out.rowAfter = await page.evaluate(() => {
+        const sel = document.querySelector("#style-color-0");
+        let row: HTMLElement | null = sel as HTMLElement | null;
+        for (let i = 0; i < 6 && row && row.querySelectorAll("input[type=text]").length < 5; i++) row = row.parentElement;
+        return row ? row.outerHTML.replace(/\s+/g, " ").slice(0, 6000) : null;
+      });
+    }
     out.url = page.url();
     out.title = await page.title();
     out.page = await page.evaluate(() => {
