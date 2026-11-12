@@ -572,6 +572,10 @@ export async function renderQuotePdf(
       return Math.max(rows * GRID_ROW_H, 40) + 14;
     }
 
+    // Every line item on the document (garment cards, setup charges, misc
+    // fees) gets a running number — 1, 2, 3… — like the old ShopVox invoices.
+    let itemNo = 0;
+
     // Each linked mock-up is drawn once, under the first line it belongs to.
     const drawnMockups = new Set<string>();
     const MOCKUP_H = 78;
@@ -607,6 +611,7 @@ export async function renderQuotePdf(
 
     function drawGarmentCard(line: (typeof quote.lines)[number], sameStyle: boolean) {
       const cardTop = doc.y;
+      const num = `${++itemNo}. `;
       const gridX = left + CARD_TEXT_WIDTH + CARD_GRID_GAP;
       const gridWidth = pageWidth - CARD_TEXT_WIDTH - CARD_GRID_GAP;
       const n = line.sizes.length;
@@ -624,19 +629,22 @@ export async function renderQuotePdf(
             .fillColor(NAVY)
             .font("Helvetica-Bold")
             .fontSize(9.5)
-            .text(line.colorName, left, cardTop, { width: CARD_TEXT_WIDTH });
+            .text(num + line.colorName, left, cardTop, { width: CARD_TEXT_WIDTH });
         } else {
-          // Nothing to show above the grid (e.g. a Custom non-hat item with
-          // no style/color) — still need doc.y to land at cardTop so the
-          // grid rows below start at the right height.
-          doc.y = cardTop;
+          // No color to show (e.g. a Custom non-hat item) — still show the
+          // line number so every item is numbered.
+          doc
+            .fillColor(NAVY)
+            .font("Helvetica-Bold")
+            .fontSize(9.5)
+            .text(num.trim(), left, cardTop, { width: CARD_TEXT_WIDTH });
         }
       } else {
         doc
           .fillColor(NAVY)
           .font("Helvetica-Bold")
           .fontSize(9.5)
-          .text(lineTitle(line), left, cardTop, { width: CARD_TEXT_WIDTH });
+          .text(num + lineTitle(line), left, cardTop, { width: CARD_TEXT_WIDTH });
         const cardDetails = descriptionDetails(line.productName);
         if (cardDetails.length) {
           doc
@@ -895,8 +903,9 @@ export async function renderQuotePdf(
       doc.moveDown(0.2);
       doc.font("Helvetica").fontSize(9.5);
       for (const charge of quote.setupCharges) {
+        const n = ++itemNo;
         doc.fillColor(NAVY).text(
-          showPricing ? `${charge.label} — ${money(charge.price)}` : charge.label,
+          `${n}. ${showPricing ? `${charge.label} — ${money(charge.price)}` : charge.label}`,
           left,
           doc.y
         );
@@ -914,17 +923,45 @@ export async function renderQuotePdf(
       if (doc.y > doc.page.height - doc.page.margins.bottom - 60) {
         doc.addPage();
       }
-      doc
-        .fillColor(GRAY)
-        .font("Helvetica-Bold")
-        .fontSize(9)
-        .text("OTHER", left, doc.y, { width: pageWidth });
-      doc.moveDown(0.2);
-      doc.font("Helvetica").fontSize(9.5);
+      // Numbered table like the old ShopVox invoices: # / Item / Qty /
+      // Unit price / Total. Heading says "ITEMS" when these are the whole
+      // invoice (no garments), "ADDITIONAL ITEMS" otherwise.
+      const colNum = left;
+      const colItem = left + 22;
+      const colTotalW = 70;
+      const colPriceW = 64;
+      const colQtyW = 34;
+      const colTotal = left + pageWidth - colTotalW;
+      const colPrice = colTotal - colPriceW;
+      const colQty = colPrice - colQtyW;
+      const itemW = colQty - colItem - 8;
+      const headY = doc.y;
+      doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7.5);
+      doc.text("#", colNum, headY, { width: 18 });
+      doc.text(groups.length ? "ADDITIONAL ITEMS" : "ITEMS", colItem, headY, { width: itemW });
+      doc.text("QTY", colQty, headY, { width: colQtyW, align: "right" });
+      doc.text("PRICE", colPrice, headY, { width: colPriceW, align: "right" });
+      doc.text("TOTAL", colTotal, headY, { width: colTotalW, align: "right" });
+      doc.y = headY + 11;
+      doc.strokeColor(BORDER).lineWidth(0.5).moveTo(left, doc.y).lineTo(left + pageWidth, doc.y).stroke();
+      doc.y += 5;
       for (const fee of quote.miscFees) {
-        const qtyLabel = fee.quantity > 1 ? ` x${fee.quantity} @ ${money(fee.amount)}` : "";
-        doc.fillColor(NAVY).text(`${fee.label}${qtyLabel} — ${money(fee.lineTotal)}`, left, doc.y);
+        const n = ++itemNo;
+        doc.font("Helvetica").fontSize(9.5);
+        const h = doc.heightOfString(fee.label, { width: itemW });
+        if (doc.y + h > doc.page.height - doc.page.margins.bottom - 20) doc.addPage();
+        const rowY = doc.y;
+        doc.fillColor(NAVY).font("Helvetica-Bold").text(String(n), colNum, rowY, { width: 18 });
+        doc.font("Helvetica");
+        doc.text(String(fee.quantity), colQty, rowY, { width: colQtyW, align: "right" });
+        doc.text(money(fee.amount), colPrice, rowY, { width: colPriceW, align: "right" });
+        doc.text(money(fee.lineTotal), colTotal, rowY, { width: colTotalW, align: "right" });
+        doc.text(fee.label, colItem, rowY, { width: itemW });
+        doc.y = rowY + h + 3;
+        doc.strokeColor(BORDER).lineWidth(0.3).moveTo(left, doc.y).lineTo(left + pageWidth, doc.y).stroke();
+        doc.y += 5;
       }
+      doc.x = left;
       doc.moveDown(1);
     }
 
