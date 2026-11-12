@@ -62,6 +62,33 @@ export async function GET(req: NextRequest) {
         return row ? row.outerHTML.replace(/\s+/g, " ").slice(0, 6000) : null;
       });
     }
+    // ?js=1 — on the current page: list same-origin endpoint strings from its scripts
+    // and sample the Quick Order JSON lookups (read-only GETs).
+    if (login.ok && req.nextUrl.searchParams.get("js") === "1") {
+      out.js = await page.evaluate(async () => {
+        const srcs = Array.from(document.scripts).map((s) => s.src).filter((u) => u && u.includes("sanmar.com"));
+        const inline = Array.from(document.scripts).filter((s) => !s.src).map((s) => s.textContent || "").join("\n");
+        const hits = new Set<string>();
+        const ctx: string[] = [];
+        const scan = (txt: string) => {
+          const re = /["'`](\/?(?:quick-order|cart|shoppingbox|savedcarts)\/[\w\-\/.]*)["'`]/g;
+          let m: RegExpExecArray | null;
+          while ((m = re.exec(txt))) {
+            if (!hits.has(m[1])) {
+              hits.add(m[1]);
+              if (/add|cart|box/i.test(m[1]) && ctx.length < 12) ctx.push(txt.slice(Math.max(0, m.index - 250), m.index + 250));
+            }
+          }
+        };
+        scan(inline);
+        for (const u of srcs.slice(0, 25)) {
+          try { scan(await (await fetch(u)).text()); } catch {}
+        }
+        const sample = await (await fetch("/quick-order/search-sizes-inventories?colorVariantCode=5293_Red")).text();
+        const colors = await (await fetch("/quick-order/search-colors?styleNumber=K540")).text();
+        return { srcs: srcs.slice(0, 25), endpoints: Array.from(hits), ctx, sizesSample: sample.slice(0, 2500), colorsSample: colors.slice(0, 800) };
+      });
+    }
     out.url = page.url();
     out.title = await page.title();
     out.page = await page.evaluate(() => {
