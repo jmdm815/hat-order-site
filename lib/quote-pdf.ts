@@ -52,6 +52,15 @@ const COMPANY_NAME = "JM Digital Media LLC";
 const COMPANY_ADDRESS = "815 2nd St Rosenberg, TX 77471-2505";
 export const CHECK_PAYABLE_TO = "JM Digital Media LLC";
 export const CHECK_MAIL_TO = "815 2nd St, Rosenberg, TX 77471-2505";
+// Zelle — payments go to this email. ZELLE_PAY_URL is the same link Zelle's
+// own QR codes use (enroll.zellepay.com/qr-codes?data=<base64 JSON>): a bank
+// app scanning it opens a payment to this recipient; tapped on a computer
+// it opens Zelle's page showing who to pay.
+export const ZELLE_EMAIL = "inbox@buyjmmedia.com";
+export const ZELLE_NAME = "JM Digital Media LLC";
+export const ZELLE_PAY_URL = `https://enroll.zellepay.com/qr-codes?data=${Buffer.from(
+  JSON.stringify({ name: ZELLE_NAME, token: ZELLE_EMAIL, action: "payment" })
+).toString("base64")}`;
 const COMPANY_EMAIL = "purchasing@buyjmmedia.com";
 const COMPANY_PHONE = "(281) 344-1772";
 const COMPANY_WEBSITE = "www.buyjmmedia.com";
@@ -348,6 +357,16 @@ export async function renderQuotePdf(
         return null;
       })
     : null;
+  const zelleQrPng =
+    mode === "invoice" && invoiceMeta?.invoiceStatus !== "paid"
+      ? await QRCode.toBuffer(ZELLE_PAY_URL, {
+          type: "png",
+          margin: 1,
+          width: 220,
+          errorCorrectionLevel: "L",
+          color: { dark: "#4b1a9e", light: "#ffffff" },
+        }).catch(() => null)
+      : null;
 
   const logoBuffer = await loadLogoBuffer();
 
@@ -1013,6 +1032,33 @@ export async function renderQuotePdf(
       // Pay-by-check instructions on any invoice that still has a balance.
       if (invoiceMeta?.invoiceStatus !== "paid") {
         doc.moveDown(0.4);
+
+        // Zelle: tiny clickable QR + the email, side by side.
+        const zelleY = doc.y;
+        const zq = 52;
+        const textX = zelleQrPng ? left + zq + 10 : left;
+        const textW = pageWidth - (textX - left);
+        if (zelleQrPng) {
+          doc.image(zelleQrPng, left, zelleY, { width: zq, height: zq });
+          doc.link(left, zelleY, zq, zq, ZELLE_PAY_URL);
+        }
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(9)
+          .fillColor(NAVY)
+          .text("PAY WITH ZELLE", textX, zelleY + 2, { width: textW });
+        doc
+          .font("Helvetica")
+          .fontSize(9)
+          .fillColor(NAVY)
+          .text(
+            `Send to ${ZELLE_EMAIL} (${ZELLE_NAME}) from your bank's app, or scan the code. ` +
+              `Put ${invoiceMeta?.invoiceNumber ? `invoice ${invoiceMeta.invoiceNumber}` : "the invoice number"} in the memo.`,
+            textX,
+            doc.y + 1,
+            { width: textW }
+          );
+        doc.y = (zelleQrPng ? Math.max(doc.y, zelleY + zq) : doc.y) + 8;
         const checkY = doc.y;
         doc
           .font("Helvetica-Bold")

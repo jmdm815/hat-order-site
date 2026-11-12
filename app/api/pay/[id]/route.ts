@@ -4,7 +4,7 @@ import { getSquareClient, getSquareLocationId, isSquareConfigured } from "@/lib/
 import { sendInvoicePaymentNotification, sendInvoiceReceiptEmail } from "@/lib/email";
 import { loadLineMockups } from "@/lib/mockup-links";
 import { unconfirmedSanmarCosts, unconfirmedCostMessage } from "@/lib/price-check";
-import { renderQuotePdf, CHECK_PAYABLE_TO, CHECK_MAIL_TO } from "@/lib/quote-pdf";
+import { renderQuotePdf, CHECK_PAYABLE_TO, CHECK_MAIL_TO, ZELLE_EMAIL, ZELLE_PAY_URL } from "@/lib/quote-pdf";
 
 // Loose email format check — good enough to catch obvious typos before
 // bothering Resend with it; not trying to be a full RFC 5322 validator.
@@ -61,6 +61,8 @@ type CustomerInvoiceSummary = {
   // Pay-by-check instructions shown under the card form.
   checkPayableTo: string;
   checkMailTo: string;
+  zelleEmail: string;
+  zellePayUrl: string;
   grandTotal: number;
   amountPaid: number;
   balance: number;
@@ -155,6 +157,8 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
       : {}),
     checkPayableTo: CHECK_PAYABLE_TO,
     checkMailTo: CHECK_MAIL_TO,
+    zelleEmail: ZELLE_EMAIL,
+    zellePayUrl: ZELLE_PAY_URL,
     grandTotal,
     amountPaid,
     balance,
