@@ -51,7 +51,11 @@ export async function GET(
     : record.quoteNumber
       ? `Quote ${record.quoteNumber}`
       : "your order";
-  const methodLabel = payment.method === "square_card" ? "Card" : TENDER_LABEL[payment.tender ?? "other"];
+  const methodLabel =
+    payment.method === "square_card"
+      ? "Card"
+      : TENDER_LABEL[payment.tender ?? "other"] +
+        (payment.tender === "check" && payment.checkNumber ? ` #${payment.checkNumber}` : "");
 
   try {
     const pdfBuffer = await renderPaymentReceiptPdf({

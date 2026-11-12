@@ -4,7 +4,7 @@ import { getSquareClient, getSquareLocationId, isSquareConfigured } from "@/lib/
 import { sendInvoicePaymentNotification, sendInvoiceReceiptEmail } from "@/lib/email";
 import { loadLineMockups } from "@/lib/mockup-links";
 import { unconfirmedSanmarCosts, unconfirmedCostMessage } from "@/lib/price-check";
-import { renderQuotePdf } from "@/lib/quote-pdf";
+import { renderQuotePdf, CHECK_PAYABLE_TO, CHECK_MAIL_TO } from "@/lib/quote-pdf";
 
 // Loose email format check — good enough to catch obvious typos before
 // bothering Resend with it; not trying to be a full RFC 5322 validator.
@@ -55,6 +55,12 @@ type CustomerInvoiceSummary = {
   }>;
   setupCharges: Array<{ id: string; label: string; price: number }>;
   miscFees: Array<{ label: string; amount: number; quantity: number; lineTotal: number }>;
+  // Military discount — see lib/quote.ts's QuoteInput.militaryDiscount.
+  discountAmount?: number;
+  discountPercent?: number;
+  // Pay-by-check instructions shown under the card form.
+  checkPayableTo: string;
+  checkMailTo: string;
   grandTotal: number;
   amountPaid: number;
   balance: number;
@@ -144,6 +150,11 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
     })),
     setupCharges: record.computed.setupCharges,
     miscFees: record.computed.miscFees,
+    ...((record.computed.discountAmount ?? 0) > 0
+      ? { discountAmount: record.computed.discountAmount, discountPercent: record.computed.militaryDiscountPercent }
+      : {}),
+    checkPayableTo: CHECK_PAYABLE_TO,
+    checkMailTo: CHECK_MAIL_TO,
     grandTotal,
     amountPaid,
     balance,
@@ -153,7 +164,7 @@ function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
     payments: (record.payments ?? []).map((p) => ({
       id: p.id,
       amount: p.amount,
-      methodLabel: p.method === "square_card" ? "Card" : TENDER_LABEL[p.tender ?? "other"],
+      methodLabel: (p.method === "square_card" ? "Card" : TENDER_LABEL[p.tender ?? "other"] + (p.tender === "check" && p.checkNumber ? ` #${p.checkNumber}` : "")),
       createdAt: p.createdAt,
       note: p.note,
     })),

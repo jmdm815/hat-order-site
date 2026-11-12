@@ -50,6 +50,8 @@ const BAR_BG = "#eeece5";
 // ---------------------------------------------------------------------------
 const COMPANY_NAME = "JM Digital Media LLC";
 const COMPANY_ADDRESS = "815 2nd St Rosenberg, TX 77471-2505";
+export const CHECK_PAYABLE_TO = "JM Digital Media LLC";
+export const CHECK_MAIL_TO = "815 2nd St, Rosenberg, TX 77471-2505";
 const COMPANY_EMAIL = "purchasing@buyjmmedia.com";
 const COMPANY_PHONE = "(281) 344-1772";
 const COMPANY_WEBSITE = "www.buyjmmedia.com";
@@ -938,6 +940,12 @@ export async function renderQuotePdf(
         label: `Subtotal (${totalItemCount} item${totalItemCount === 1 ? "" : "s"})`,
         value: money(quote.subtotalBeforeTax),
       });
+      if (quote.discountAmount > 0) {
+        totalsRows.push({
+          label: `Military discount (${quote.militaryDiscountPercent ?? 10}%)`,
+          value: `-${money(quote.discountAmount)}`,
+        });
+      }
       if (quote.taxAmount > 0) {
         totalsRows.push({ label: `Tax (${quote.taxRatePercent}%)`, value: money(quote.taxAmount) });
       }
@@ -1001,6 +1009,29 @@ export async function renderQuotePdf(
           align: "right",
         });
       doc.moveDown(0.4);
+
+      // Pay-by-check instructions on any invoice that still has a balance.
+      if (invoiceMeta?.invoiceStatus !== "paid") {
+        doc.moveDown(0.4);
+        const checkY = doc.y;
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(9)
+          .fillColor(NAVY)
+          .text("PAY BY CHECK", left, checkY, { width: pageWidth });
+        doc
+          .font("Helvetica")
+          .fontSize(9)
+          .fillColor(NAVY)
+          .text(
+            `Make checks payable to ${CHECK_PAYABLE_TO}. Mail or drop off at ${COMPANY_ADDRESS}. ` +
+              `Please write ${invoiceMeta?.invoiceNumber ? `invoice ${invoiceMeta.invoiceNumber}` : "the invoice number"} on the memo line.`,
+            left,
+            doc.y + 1,
+            { width: pageWidth }
+          );
+        doc.moveDown(0.4);
+      }
     }
 
     // --- Notes + footer -------------------------------------------------

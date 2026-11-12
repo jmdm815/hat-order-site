@@ -53,6 +53,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
   const [amount, setAmount] = useState(balance > 0 ? balance.toFixed(2) : "0.00");
   const [tender, setTender] = useState<InvoicePaymentEntry["tender"]>("cash");
   const [note, setNote] = useState("");
+  const [checkNumber, setCheckNumber] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,12 +74,18 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
       const res = await fetch(`/api/admin/quotes/${record.id}/record-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: payAmount, tender, note: note.trim() || undefined }),
+        body: JSON.stringify({
+          amount: payAmount,
+          tender,
+          checkNumber: tender === "check" ? checkNumber.trim() || undefined : undefined,
+          note: note.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to record payment");
       onUpdated(data.record);
       setNote("");
+      setCheckNumber("");
       const newBalance = Math.max(0, Math.round((grandTotal - (data.record.amountPaid ?? 0)) * 100) / 100);
       setAmount(newBalance > 0 ? newBalance.toFixed(2) : "0.00");
     } catch (e) {
@@ -189,6 +196,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                   <span className="truncate">
                     {new Date(p.createdAt).toLocaleDateString()} —{" "}
                     {p.method === "square_card" ? "Card" : TENDER_LABEL[p.tender ?? "other"]}
+                    {p.tender === "check" && p.checkNumber ? ` #${p.checkNumber}` : ""}
                     {p.note ? ` (${p.note})` : ""}
                   </span>
                   <span className="flex items-center gap-2 shrink-0">
@@ -299,6 +307,21 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                 </select>
               </div>
             </div>
+            {tender === "check" && (
+              <div className="mt-2">
+                <label className="block text-xs text-admin-ink/80 mb-1" htmlFor="payment-check-number">
+                  Check #
+                </label>
+                <input
+                  id="payment-check-number"
+                  value={checkNumber}
+                  onChange={(e) => setCheckNumber(e.target.value)}
+                  inputMode="numeric"
+                  placeholder="e.g. 1042"
+                  className="w-full bg-admin-card border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                />
+              </div>
+            )}
             <div className="mt-2">
               <label className="block text-xs text-admin-ink/80 mb-1" htmlFor="payment-note">
                 Note (optional)
