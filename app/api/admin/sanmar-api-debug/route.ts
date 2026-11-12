@@ -35,13 +35,13 @@ function envelope(svc: string, p: URLSearchParams) {
       return {
         url: `${BASE}/promostandards/OrderStatusServiceBinding`,
         action: "getOrderStatusDetails",
-        body: `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/OrderStatusService/1.0.0/" xmlns:shar="http://www.promostandards.org/WSDL/OrderStatusService/1.0.0/SharedObjects/"><soapenv:Header/><soapenv:Body><ns:GetOrderStatusDetailsRequest><shar:wsVersion>1.0.0</shar:wsVersion><shar:id>${id}</shar:id><shar:password>${pw}</shar:password><shar:queryType>3</shar:queryType><shar:statusTimeStamp>${since}</shar:statusTimeStamp></ns:GetOrderStatusDetailsRequest></soapenv:Body></soapenv:Envelope>`,
+        body: `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/OrderStatusService/1.0.0/" xmlns:shar="http://www.promostandards.org/WSDL/OrderStatusService/1.0.0/SharedObjects/"><soapenv:Header/><soapenv:Body><ns:GetOrderStatusDetailsRequest><ns:wsVersion>1.0.0</ns:wsVersion><ns:id>${id}</ns:id><ns:password>${pw}</ns:password><ns:queryType>3</ns:queryType><ns:statusTimeStamp>${since}</ns:statusTimeStamp></ns:GetOrderStatusDetailsRequest></soapenv:Body></soapenv:Envelope>`,
       };
     case "shipment":
       return {
         url: `${BASE}/promostandards/OrderShipmentNotificationServiceBinding`,
         action: "getOrderShipmentNotification",
-        body: `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/OrderShipmentNotificationService/1.0.0/" xmlns:shar="http://www.promostandards.org/WSDL/OrderShipmentNotificationService/1.0.0/SharedObjects/"><soapenv:Header/><soapenv:Body><ns:GetOrderShipmentNotificationRequest><shar:wsVersion>1.0.0</shar:wsVersion><shar:id>${id}</shar:id><shar:password>${pw}</shar:password><shar:queryType>3</shar:queryType><shar:shipmentDateTimeStamp>${since}</shar:shipmentDateTimeStamp></ns:GetOrderShipmentNotificationRequest></soapenv:Body></soapenv:Envelope>`,
+        body: `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/OrderShipmentNotificationService/1.0.0/" xmlns:shar="http://www.promostandards.org/WSDL/OrderShipmentNotificationService/1.0.0/SharedObjects/"><soapenv:Header/><soapenv:Body><ns:GetOrderShipmentNotificationRequest><shar:wsVersion>1.0.0</shar:wsVersion><shar:id>${id}</shar:id><shar:password>${pw}</shar:password><ns:queryType>3</ns:queryType><ns:shipmentDateTimeStamp>${since}</ns:shipmentDateTimeStamp></ns:GetOrderShipmentNotificationRequest></soapenv:Body></soapenv:Envelope>`,
       };
   }
   return null;
