@@ -33,6 +33,8 @@ type InvoiceSummary = {
   discountPercent?: number;
   checkPayableTo?: string;
   checkMailTo?: string;
+  zelleEmail?: string;
+  zellePayUrl?: string;
   grandTotal: number;
   amountPaid: number;
   balance: number;
@@ -380,8 +382,22 @@ export default function InvoicePayClient({ id }: { id: string }) {
 
       {!paidInFull && invoice.checkPayableTo && (
         <div className="mt-4 bg-black border border-white/10 rounded-2xl p-4 text-sm">
-          <p className="font-medium text-white">Prefer to pay by check?</p>
-          <p className="mt-1 text-white/70">
+          <p className="font-medium text-white">Other ways to pay</p>
+          {invoice.zelleEmail && (
+            <p className="mt-2 text-white/70">
+              <span className="text-white font-medium">Zelle:</span> send to{" "}
+              {invoice.zellePayUrl ? (
+                <a href={invoice.zellePayUrl} target="_blank" rel="noopener noreferrer" className="text-white underline">
+                  {invoice.zelleEmail}
+                </a>
+              ) : (
+                <span className="text-white">{invoice.zelleEmail}</span>
+              )}{" "}
+              from your bank&apos;s app. Put {invoice.invoiceNumber ? `invoice ${invoice.invoiceNumber}` : "your order number"} in the memo.
+            </p>
+          )}
+          <p className="mt-2 text-white/70">
+            <span className="text-white font-medium">Check:</span>{" "}
             Make checks payable to <span className="text-white">{invoice.checkPayableTo}</span>
             {invoice.checkMailTo ? (
               <>
