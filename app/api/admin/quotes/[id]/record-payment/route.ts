@@ -32,6 +32,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ? (body.tender as InvoicePaymentEntry["tender"])
     : undefined;
   const note = typeof body?.note === "string" && body.note.trim() ? body.note.trim() : undefined;
+  const checkNumber =
+    tender === "check" && typeof body?.checkNumber === "string" && body.checkNumber.trim()
+      ? body.checkNumber.trim().slice(0, 40)
+      : undefined;
 
   const grandTotal = record.computed.grandTotal;
   const alreadyPaid = record.amountPaid ?? 0;
@@ -47,6 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     amount,
     method: "manual",
     tender,
+    checkNumber,
     note,
   });
   if (!updated) {

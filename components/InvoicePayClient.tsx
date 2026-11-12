@@ -29,6 +29,10 @@ type InvoiceSummary = {
   }>;
   setupCharges: Array<{ id: string; label: string; price: number }>;
   miscFees: Array<{ label: string; amount: number; quantity: number; lineTotal: number }>;
+  discountAmount?: number;
+  discountPercent?: number;
+  checkPayableTo?: string;
+  checkMailTo?: string;
   grandTotal: number;
   amountPaid: number;
   balance: number;
@@ -344,6 +348,12 @@ export default function InvoicePayClient({ id }: { id: string }) {
         </div>
 
         <div className="bg-white/5 px-4 py-3 space-y-1.5 text-sm">
+          {(invoice.discountAmount ?? 0) > 0 && (
+            <div className="flex justify-between">
+              <span className="text-white/70">Military discount ({invoice.discountPercent ?? 10}%)</span>
+              <span className="text-white font-medium">-{money(invoice.discountAmount ?? 0)}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-white/70">Total</span>
             <span className="text-white font-medium">{money(invoice.grandTotal)}</span>
@@ -367,6 +377,21 @@ export default function InvoicePayClient({ id }: { id: string }) {
           </div>
         </div>
       </div>
+
+      {!paidInFull && invoice.checkPayableTo && (
+        <div className="mt-4 bg-black border border-white/10 rounded-2xl p-4 text-sm">
+          <p className="font-medium text-white">Prefer to pay by check?</p>
+          <p className="mt-1 text-white/70">
+            Make checks payable to <span className="text-white">{invoice.checkPayableTo}</span>
+            {invoice.checkMailTo ? (
+              <>
+                {" "}and mail or drop off at <span className="text-white">{invoice.checkMailTo}</span>
+              </>
+            ) : null}
+            . Please write {invoice.invoiceNumber ? `invoice ${invoice.invoiceNumber}` : "your order number"} on the memo line.
+          </p>
+        </div>
+      )}
 
       {successMessage && (
         <p className="mt-4 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">

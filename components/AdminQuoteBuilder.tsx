@@ -3,7 +3,7 @@
 import { itemPhotoUrl } from "@/lib/item-photo";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ComputedQuote, QuoteLineInput, QuoteSizeInput } from "@/lib/quote";
+import { ComputedQuote, QuoteLineInput, QuoteSizeInput, MILITARY_DISCOUNT_PERCENT } from "@/lib/quote";
 import type { JobFolderMockup, QuoteRecord } from "@/lib/quotes-store";
 import {
   DecorationOption,
@@ -634,6 +634,9 @@ export default function AdminQuoteBuilder({
     () => initialRecord?.input.taxRatePercent ?? 0
   );
   const [taxRates, setTaxRates] = useState<TaxRateOption[]>([]);
+  const [militaryDiscount, setMilitaryDiscount] = useState<boolean>(
+    () => initialRecord?.input.militaryDiscount ?? false
+  );
   const [taxDropdownOpen, setTaxDropdownOpen] = useState(false);
   const taxDropdownRef = useRef<HTMLDivElement | null>(null);
   const [customTaxMode, setCustomTaxMode] = useState(false);
@@ -1958,6 +1961,7 @@ export default function AdminQuoteBuilder({
       notes: notes || undefined,
       depositPercent: depositPercent < 100 ? depositPercent : undefined,
       taxRatePercent: taxRatePercent > 0 ? taxRatePercent : undefined,
+      militaryDiscount: militaryDiscount || undefined,
       lines: lines.map((l) => ({
         // Stable id (job-folder mock-ups link to it); new lines use their key.
         lineId: l.lineId || l.key,
@@ -2023,7 +2027,7 @@ export default function AdminQuoteBuilder({
     }, 400);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, selectedSetupChargeIds, miscFees, taxRatePercent]);
+  }, [lines, selectedSetupChargeIds, miscFees, taxRatePercent, militaryDiscount]);
 
   // Autosave on a saved record: previously, adding/removing a garment,
   // setup charge, or other charge only updated this component's in-memory
@@ -2070,7 +2074,7 @@ export default function AdminQuoteBuilder({
     }, 800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, selectedSetupChargeIds, miscFees]);
+  }, [lines, selectedSetupChargeIds, miscFees, militaryDiscount]);
   // Fires exactly once, on the component's real unmount (empty dep array —
   // a dependency-change cleanup is a different function instance each time,
   // this one never changes). If an autosave was debounced and still
@@ -3017,6 +3021,15 @@ export default function AdminQuoteBuilder({
             </label>
           )}
         </div>
+
+        <label className="mt-3 flex items-center gap-2 text-sm text-admin-ink">
+          <input
+            type="checkbox"
+            checked={militaryDiscount}
+            onChange={(e) => setMilitaryDiscount(e.target.checked)}
+          />
+          Military discount ({MILITARY_DISCOUNT_PERCENT}% off, before tax)
+        </label>
       </section>
       )}
 
@@ -4719,6 +4732,12 @@ export default function AdminQuoteBuilder({
               <div>
                 Subtotal: <span className="font-medium">${quote.subtotalBeforeTax.toFixed(2)}</span>
               </div>
+              {(quote.discountAmount ?? 0) > 0 && (
+                <div>
+                  Military discount ({quote.militaryDiscountPercent ?? MILITARY_DISCOUNT_PERCENT}%):{" "}
+                  <span className="font-medium">-${quote.discountAmount.toFixed(2)}</span>
+                </div>
+              )}
               {quote.taxRatePercent > 0 && (
                 <div>
                   Tax ({quote.taxRatePercent}% on ${quote.taxableSubtotal.toFixed(2)} taxable):{" "}
@@ -4761,6 +4780,12 @@ export default function AdminQuoteBuilder({
             Subtotal{" "}
             <span className="text-admin-ink font-medium">${(quote?.subtotalBeforeTax ?? 0).toFixed(2)}</span>
           </span>
+          {(quote?.discountAmount ?? 0) > 0 && (
+            <span className="text-admin-ink/80">
+              Military discount{" "}
+              <span className="text-admin-ink font-medium">-${(quote?.discountAmount ?? 0).toFixed(2)}</span>
+            </span>
+          )}
           <span className="text-admin-ink/80">
             Tax{quote && quote.taxRatePercent > 0 ? ` (${quote.taxRatePercent}%)` : ""}{" "}
             <span className="text-admin-ink font-medium">${(quote?.taxAmount ?? 0).toFixed(2)}</span>

@@ -246,6 +246,8 @@ export type InvoicePaymentEntry = {
   // etc.) — unset/irrelevant for method: "square_card" since that's always a
   // card charge. Shown in the admin payment-history list.
   tender?: "cash" | "check" | "other";
+  // Check number, for tender: "check" payments.
+  checkNumber?: string;
   createdAt: string;
   note?: string;
 };
@@ -955,6 +957,7 @@ export async function recordInvoicePayment(
     method: InvoicePaymentEntry["method"];
     squarePaymentId?: string;
     tender?: InvoicePaymentEntry["tender"];
+    checkNumber?: string;
     note?: string;
   }
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
@@ -975,6 +978,7 @@ export async function recordInvoicePayment(
     method: payment.method,
     squarePaymentId: payment.squarePaymentId,
     tender: payment.tender,
+    ...(payment.tender === "check" && payment.checkNumber ? { checkNumber: payment.checkNumber } : {}),
     createdAt: now,
     note: payment.note,
   };

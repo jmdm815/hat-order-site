@@ -184,7 +184,13 @@ export type QuoteInput = {
   // `taxable` flag for what counts toward the taxable subtotal. Undefined or
   // 0 means no tax.
   taxRatePercent?: number;
+  // Military discount — a flat MILITARY_DISCOUNT_PERCENT off the whole
+  // order, taken before tax (it lowers the taxable amount too). Shown as its
+  // own line on the PDF and in the builder totals.
+  militaryDiscount?: boolean;
 };
+
+export const MILITARY_DISCOUNT_PERCENT = 10;
 
 export type QuoteSizeResult = {
   size: string;
@@ -292,10 +298,15 @@ export type ComputedQuote = {
   // amount due before tax. "Grand total" used to mean this; now that meaning
   // has moved to subtotalBeforeTax and grandTotal includes taxAmount.
   subtotalBeforeTax: number;
+  // Military discount (see QuoteInput.militaryDiscount) — set only when on.
+  // subtotalBeforeTax stays the undiscounted item total; the discount comes
+  // off before tax.
+  militaryDiscountPercent?: number;
+  discountAmount: number; // 0 when no discount
   taxRatePercent: number; // see QuoteInput.taxRatePercent; 0 when untaxed
-  taxableSubtotal: number; // portion of subtotalBeforeTax from taxable: true items only
+  taxableSubtotal: number; // taxable items, after the discount
   taxAmount: number; // money(taxableSubtotal * taxRatePercent / 100)
-  grandTotal: number; // subtotalBeforeTax + taxAmount
+  grandTotal: number; // subtotalBeforeTax - discountAmount + taxAmount
   depositPercent?: number; // see QuoteInput.depositPercent
 };
 
@@ -328,6 +339,7 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
       return false;
     }
   }
+  if (b.militaryDiscount !== undefined && typeof b.militaryDiscount !== "boolean") return false;
   if (b.taxRatePercent !== undefined) {
     if (typeof b.taxRatePercent !== "number" || b.taxRatePercent < 0 || b.taxRatePercent > 100) {
       return false;
@@ -684,9 +696,11 @@ export function computeQuote(
   );
   const taxableSetupFees = setupCharges.reduce((sum, c) => sum + (c.taxable ? c.price : 0), 0);
   const taxableMiscFees = miscFees.reduce((sum, f) => sum + (f.taxable ? f.lineTotal : 0), 0);
-  const taxableSubtotal = money(taxableLinesTotal + taxableSetupFees + taxableMiscFees);
+  const discountFactor = input.militaryDiscount ? MILITARY_DISCOUNT_PERCENT / 100 : 0;
+  const discountAmount = money(subtotalBeforeTax * discountFactor);
+  const taxableSubtotal = money((taxableLinesTotal + taxableSetupFees + taxableMiscFees) * (1 - discountFactor));
   const taxAmount = money(taxableSubtotal * (taxRatePercent / 100));
-  const grandTotal = money(subtotalBeforeTax + taxAmount);
+  const grandTotal = money(subtotalBeforeTax - discountAmount + taxAmount);
 
   return {
     customerName: input.customerName,
@@ -708,6 +722,8 @@ export function computeQuote(
     totalMiscFees,
     totalGarmentAndDecoration,
     subtotalBeforeTax,
+    ...(input.militaryDiscount ? { militaryDiscountPercent: MILITARY_DISCOUNT_PERCENT } : {}),
+    discountAmount,
     taxRatePercent,
     taxableSubtotal,
     taxAmount,
