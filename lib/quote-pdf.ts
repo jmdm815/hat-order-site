@@ -57,10 +57,10 @@ export const CHECK_MAIL_TO = "815 2nd St, Rosenberg, TX 77471-2505";
 // app scanning it opens a payment to this recipient; tapped on a computer
 // it opens Zelle's page showing who to pay.
 export const ZELLE_EMAIL = "inbox@buyjmmedia.com";
-export const ZELLE_NAME = "JM Digital Media LLC";
-export const ZELLE_PAY_URL = `https://enroll.zellepay.com/qr-codes?data=${Buffer.from(
-  JSON.stringify({ name: ZELLE_NAME, token: ZELLE_EMAIL, action: "payment" })
-).toString("base64")}`;
+export const ZELLE_NAME = "JM DIGITAL MEDIA LLC";
+// Exact link from JM Media's own Zelle QR code (decoded from the bank app).
+export const ZELLE_PAY_URL =
+  "https://enroll.zellepay.com/qr-codes?data=ewogICJuYW1lIiA6ICJKTSBESUdJVEFMIE1FRElBIExMQyIsCiAgImFjdGlvbiIgOiAicGF5bWVudCIsCiAgInRva2VuIiA6ICJpbmJveEBidXlqbW1lZGlhLmNvbSIKfQ==";
 const COMPANY_EMAIL = "purchasing@buyjmmedia.com";
 const COMPANY_PHONE = "(281) 344-1772";
 const COMPANY_WEBSITE = "www.buyjmmedia.com";
@@ -362,9 +362,9 @@ export async function renderQuotePdf(
       ? await QRCode.toBuffer(ZELLE_PAY_URL, {
           type: "png",
           margin: 1,
-          width: 220,
+          scale: 8, // whole pixels per module keeps it crisp when scaled down
           errorCorrectionLevel: "L",
-          color: { dark: "#4b1a9e", light: "#ffffff" },
+          color: { dark: "#2b0f66", light: "#ffffff" },
         }).catch(() => null)
       : null;
 
@@ -1035,7 +1035,7 @@ export async function renderQuotePdf(
 
         // Zelle: tiny clickable QR + the email, side by side.
         const zelleY = doc.y;
-        const zq = 52;
+        const zq = 64;
         const textX = zelleQrPng ? left + zq + 10 : left;
         const textW = pageWidth - (textX - left);
         if (zelleQrPng) {
