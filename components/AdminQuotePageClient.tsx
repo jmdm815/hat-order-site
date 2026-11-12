@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AdminQuoteBuilder, { PendingLine } from "@/components/AdminQuoteBuilder";
+import AdminInvoicePaymentModal from "@/components/AdminInvoicePaymentModal";
 import { QuoteRecord } from "@/lib/quotes-store";
 
 // sessionStorage key the Quick Quote tab writes to right before navigating
@@ -46,6 +47,7 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Pr
   const [record, setRecord] = useState<QuoteRecord | null>(null);
   const [loading, setLoading] = useState(Boolean(quoteId));
   const [notFound, setNotFound] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [seed] = useState<StoredSeed | null>(() => (quoteId ? null : readAndClearSeed()));
 
   useEffect(() => {
@@ -103,7 +105,26 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Pr
         </div>
       </header>
       <main className="flex-1 max-w-5xl mx-auto px-4 py-6 sm:py-10 w-full">
-        <h1 className="text-2xl font-bold text-admin-ink mb-6">{title}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <h1 className="text-2xl font-bold text-admin-ink">{title}</h1>
+          {record && (
+            <button
+              onClick={() => setPaymentOpen(true)}
+              title="Record a payment taken outside this site (ShopVox, cash, check, Zelle…) or see payment history"
+              className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border ${
+                (record.amountPaid ?? 0) >= record.computed.grandTotal - 0.005 && (record.amountPaid ?? 0) > 0
+                  ? "border-green-600/40 text-green-500"
+                  : "border-admin-accent text-admin-accent hover:bg-admin-accent/10"
+              }`}
+            >
+              {(record.amountPaid ?? 0) >= record.computed.grandTotal - 0.005 && (record.amountPaid ?? 0) > 0
+                ? `Paid $${(record.amountPaid ?? 0).toFixed(2)}`
+                : (record.amountPaid ?? 0) > 0
+                  ? `Payments ($${(record.amountPaid ?? 0).toFixed(2)} paid)`
+                  : "Record payment"}
+            </button>
+          )}
+        </div>
 
         {loading && <p className="text-admin-ink/72 text-sm">Loading…</p>}
 
@@ -136,6 +157,13 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Pr
           />
         )}
       </main>
+      {paymentOpen && record && (
+        <AdminInvoicePaymentModal
+          record={record}
+          onClose={() => setPaymentOpen(false)}
+          onUpdated={(updated) => setRecord(updated)}
+        />
+      )}
     </>
   );
 }
