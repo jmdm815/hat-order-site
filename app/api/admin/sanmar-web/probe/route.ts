@@ -55,6 +55,46 @@ export async function GET(req: NextRequest) {
         if (val) await page.select("#style-color-0", val);
         await new Promise((r) => setTimeout(r, 2500));
       }
+      // Size inputs and their labels in this row.
+      out.sizeInputs = await page.evaluate(() => {
+        const row = document.querySelector("#product-row-0");
+        if (!row) return null;
+        return Array.from(row.querySelectorAll<HTMLInputElement>("input[type=text]"))
+          .filter((i) => i.id !== "style-number-0")
+          .map((i) => {
+            const cell = i.closest("div");
+            return { label: (cell?.textContent || "").trim().slice(0, 30), parentHtml: (cell?.parentElement?.outerHTML || "").replace(/\s+/g, " ").slice(0, 300) };
+          });
+      });
+      // ?capture=1 — type 1 in the first size box, click Add, and BLOCK the request (nothing is added).
+      if (req.nextUrl.searchParams.get("capture") === "1") {
+        const captured: Record<string, unknown>[] = [];
+        await page.setRequestInterception(true);
+        page.on("request", (r) => {
+          const u = r.url();
+          if (r.method() !== "GET" && u.includes("www.sanmar.com") && !u.includes("nr-data")) {
+            captured.push({ method: r.method(), url: u, headers: Object.fromEntries(Object.entries(r.headers()).filter(([k]) => !/cookie/i.test(k))), body: (r.postData() || "").slice(0, 2000) });
+            r.abort().catch(() => {});
+          } else r.continue().catch(() => {});
+        });
+        const firstSize = await page.$("#product-row-0 input[type=text]:not(#style-number-0)");
+        if (firstSize) {
+          await firstSize.click();
+          await page.keyboard.type("1");
+          await page.keyboard.press("Tab");
+        }
+        await new Promise((r) => setTimeout(r, 800));
+        const buttons = await page.$$("button");
+        for (const b of buttons) {
+          const t = await b.evaluate((e) => (e.textContent || "").trim());
+          if (t === "Add To Shopping Box" && (await b.isVisible())) {
+            await b.click();
+            break;
+          }
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+        out.captured = captured;
+      }
       out.rowAfter = await page.evaluate(() => {
         const sel = document.querySelector("#style-color-0");
         let row: HTMLElement | null = sel as HTMLElement | null;
