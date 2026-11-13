@@ -15,6 +15,11 @@ export default async function AdminPage() {
           </span>
           <div className="shrink-0 flex items-center gap-4">
             {authed && (
+              <Link href="/admin/social" className="text-sm text-admin-ink/80 hover:text-admin-ink hover:underline">
+                Social Studio
+              </Link>
+            )}
+            {authed && (
               <Link href="/admin/sanmar-order" className="text-sm text-admin-ink/80 hover:text-admin-ink hover:underline">
                 SanMar Order
               </Link>
