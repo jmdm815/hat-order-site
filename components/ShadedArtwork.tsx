@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { shadeArtwork } from "@/lib/fabric-shade";
+import { cleanArtworkUrl, shadeArtwork } from "@/lib/fabric-shade";
 
 // Customer designers: an artwork image that picks up the garment's folds and
 // texture (lib/fabric-shade.ts). Shows the plain artwork instantly, then swaps
@@ -28,6 +28,18 @@ export default function ShadedArtwork({
 }) {
   const [shaded, setShaded] = useState<{ key: string; url: string } | null>(null);
   const lastUrl = useRef<string | null>(null);
+  // Same artwork with a plain background cut away (preview only).
+  const [clean, setClean] = useState<{ src: string; url: string } | null>(null);
+  useEffect(() => {
+    if (!artSrc) return;
+    let cancelled = false;
+    cleanArtworkUrl(artSrc).then((url) => {
+      if (!cancelled) setClean({ src: artSrc, url });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [artSrc]);
   const key = `${artSrc}|${garmentSrc}|${box.x.toFixed(2)}|${box.y.toFixed(2)}|${box.width.toFixed(2)}|${box.height.toFixed(2)}`;
 
   useEffect(() => {
@@ -57,7 +69,8 @@ export default function ShadedArtwork({
     if (lastUrl.current) URL.revokeObjectURL(lastUrl.current);
   }, []);
 
-  const src = shaded && shaded.key === key ? shaded.url : artSrc;
+  const plain = clean && clean.src === artSrc ? clean.url : artSrc;
+  const src = shaded && shaded.key === key ? shaded.url : plain;
   if (!src) return null;
   return (
     // eslint-disable-next-line @next/next/no-img-element

@@ -41,10 +41,26 @@ function garmentPixels(src: string): Promise<Pixels | null> {
   return p;
 }
 
+// Customers often upload a logo on a white box (JPG). For the on-garment
+// preview only, a plain solid background is cut away (lib/bg-remove.ts — the
+// artwork itself isn't changed); the uploaded file is kept as-is for the order.
+const cleanCache = new Map<string, Promise<string>>();
+export function cleanArtworkUrl(src: string): Promise<string> {
+  let p = cleanCache.get(src);
+  if (!p) {
+    p = import("./bg-remove-browser")
+      .then(({ cutoutImageInBrowser }) => cutoutImageInBrowser(src))
+      .then((r) => (r.status === "removed" && r.url ? r.url : src))
+      .catch(() => src);
+    cleanCache.set(src, p);
+  }
+  return p;
+}
+
 export function artworkImage(src: string) {
   let p = artCache.get(src);
   if (!p) {
-    p = loadImg(src);
+    p = cleanArtworkUrl(src).then(loadImg);
     artCache.set(src, p);
   }
   return p;

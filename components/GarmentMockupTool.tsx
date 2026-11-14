@@ -25,6 +25,7 @@ import {
   type Rect,
 } from "@/lib/garment-mockup";
 import GoogleDriveButton from "@/components/GoogleDriveButton";
+import { cutoutImageInBrowser } from "@/lib/bg-remove-browser";
 
 // ---------------------------------------------------------------------------
 // Garment Mockup Tool (admin): blank photo + logo + placement → proof PNG.
@@ -106,6 +107,78 @@ export default function GarmentMockupTool() {
     height: number;
     taggedDpi: number | null;
   } | null>(null);
+
+  // Background removal: the file as picked, and what was done to it.
+  const [logoOriginal, setLogoOriginal] = useState<{ url: string; name: string } | null>(null);
+  const [bg, setBg] = useState<{
+    state: "exact" | "ai" | "not-uniform" | "none";
+    holes: boolean;
+    note?: string;
+  } | null>(null);
+  const [bgBusy, setBgBusy] = useState<"exact" | "ai" | null>(null);
+
+  // Picking a logo: a plain solid background (white JPG etc.) is removed
+  // automatically with the exact cutout; Undo restores the original.
+  async function chooseLogo(f: { url: string; name: string } | null) {
+    setLogoOriginal(f);
+    setBg(null);
+    if (!f) return pickLogo(null);
+    await pickLogo(f);
+    setBgBusy("exact");
+    try {
+      const r = await cutoutImageInBrowser(f.url);
+      if (r.status === "removed" && r.url) {
+        setBg({ state: "exact", holes: false });
+        await pickLogo({ url: r.url, name: f.name.replace(/\.[^.]+$/, "") + "-transparent.png" });
+      } else if (r.status === "not-uniform") {
+        setBg({ state: "not-uniform", holes: false });
+      }
+    } finally {
+      setBgBusy(null);
+    }
+  }
+
+  async function exactCutoutWith(holes: boolean) {
+    if (!logoOriginal) return;
+    setBgBusy("exact");
+    try {
+      const r = await cutoutImageInBrowser(logoOriginal.url, { holes });
+      if (r.status === "removed" && r.url) {
+        setBg({ state: "exact", holes });
+        await pickLogo({ url: r.url, name: logoOriginal.name.replace(/\.[^.]+$/, "") + "-transparent.png" });
+      }
+    } finally {
+      setBgBusy(null);
+    }
+  }
+
+  async function aiCutout() {
+    if (!logoOriginal) return;
+    setBgBusy("ai");
+    try {
+      const blob = await fetch(logoOriginal.url).then((r) => r.blob());
+      const form = new FormData();
+      form.append("file", blob, logoOriginal.name || "logo.png");
+      form.append("mode", "ai");
+      const res = await fetch("/api/admin/mockup/remove-bg", { method: "POST", body: form });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setBg((b) => ({ state: b?.state ?? "none", holes: false, note: j.error ?? "AI cleanup failed." }));
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      setBg({ state: "ai", holes: false });
+      await pickLogo({ url, name: logoOriginal.name.replace(/\.[^.]+$/, "") + "-ai-transparent.png" });
+    } finally {
+      setBgBusy(null);
+    }
+  }
+
+  async function undoCutout() {
+    if (!logoOriginal) return;
+    setBg({ state: "none", holes: false });
+    await pickLogo(logoOriginal);
+  }
 
   async function pickLogo(f: { url: string; name: string } | null) {
     setLogo(f);
@@ -721,7 +794,17 @@ export default function GarmentMockupTool() {
         <section className={card}>
           <h3 className={stepTitle}>2 · Logo</h3>
           <div className="mt-3 text-sm">
-            <FilePick label="Logo (transparent PNG works best)" file={logo} accept="image/*" onPick={pickLogo} preview />
+            <FilePick label="Logo (any PNG/JPG — a plain background is removed for you)" file={logo} accept="image/*" onPick={chooseLogo} preview />
+            {logoOriginal && (
+              <BackgroundControls
+                bg={bg}
+                busy={bgBusy}
+                onHoles={(h) => exactCutoutWith(h)}
+                onAi={aiCutout}
+                onUndo={undoCutout}
+                onExact={() => exactCutoutWith(false)}
+              />
+            )}
             {logoInfo && logoInfo.url === logo?.url && (
               <LogoResolution
                 info={logoInfo}
@@ -1037,6 +1120,65 @@ function LogoResolution({
           This is a small file. It may look pixelated on anything larger than a left chest.
         </p>
       )}
+    </div>
+  );
+}
+
+function BackgroundControls({
+  bg,
+  busy,
+  onHoles,
+  onAi,
+  onUndo,
+  onExact,
+}: {
+  bg: { state: "exact" | "ai" | "not-uniform" | "none"; holes: boolean; note?: string } | null;
+  busy: "exact" | "ai" | null;
+  onHoles: (holes: boolean) => void;
+  onAi: () => void;
+  onUndo: () => void;
+  onExact: () => void;
+}) {
+  const btn = "rounded-lg border border-admin-ink/25 bg-white px-2.5 py-1 text-xs font-semibold hover:bg-admin-ink/5 disabled:opacity-50";
+  return (
+    <div className="mt-3 rounded-xl border border-admin-ink/15 bg-admin-bg p-3 text-xs">
+      <p className="font-semibold text-admin-ink">
+        {busy === "ai"
+          ? "AI is removing the background… (20–60 seconds)"
+          : busy === "exact"
+            ? "Checking the background…"
+            : bg?.state === "exact"
+              ? "✓ Background removed (exact cutout — artwork untouched)"
+              : bg?.state === "ai"
+                ? "✓ Background removed with AI cleanup — check the details against the original"
+                : bg?.state === "not-uniform"
+                  ? "This background isn't one solid color, so the exact cutout can't remove it."
+                  : "Background: using the logo as uploaded"}
+      </p>
+      {bg?.note && <p className="mt-1 text-red-700">{bg.note}</p>}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {bg?.state === "exact" && (
+          <label className="flex items-center gap-1.5">
+            <input type="checkbox" checked={bg.holes} disabled={Boolean(busy)} onChange={(e) => onHoles(e.target.checked)} />
+            Also clear enclosed areas (inside letters)
+          </label>
+        )}
+        {(bg?.state === "none" || !bg) && (
+          <button type="button" className={btn} disabled={Boolean(busy)} onClick={onExact}>
+            Remove background
+          </button>
+        )}
+        {bg?.state !== "ai" && (
+          <button type="button" className={btn} disabled={Boolean(busy)} onClick={onAi}>
+            {bg?.state === "exact" ? "Use AI cleanup instead" : "Try AI cleanup"}
+          </button>
+        )}
+        {(bg?.state === "exact" || bg?.state === "ai") && (
+          <button type="button" className={btn} disabled={Boolean(busy)} onClick={onUndo}>
+            Undo — use original
+          </button>
+        )}
+      </div>
     </div>
   );
 }
