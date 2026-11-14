@@ -5,6 +5,7 @@ import { QuoteRecord, InvoicePaymentStatus, DELETED_RETENTION_DAYS } from "@/lib
 import AdminInvoicePaymentModal from "./AdminInvoicePaymentModal";
 import AdminSendDocumentModal from "./AdminSendDocumentModal";
 import AdminJobFolderModal from "./AdminJobFolderModal";
+import { CustomerNameLink, DocNumberButton } from "./AdminRowLinks";
 
 type View = "quotes" | "invoices" | "deleted";
 
@@ -103,6 +104,19 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken, view]);
+
+  // Which customer page each record belongs to (for the clickable name).
+  const [owners, setOwners] = useState<Record<string, { id: string; name: string }>>({});
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin/customers/owners")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => alive && d?.owners && setOwners(d.owners))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [refreshToken]);
 
   // Closes the "⋯" actions menu (and its nested "Create a copy" picker) on
   // any click outside it — the menu itself and its toggle button call
@@ -325,14 +339,18 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                       i % 2 === 1 ? "bg-admin-ink/[0.025]" : ""
                     } ${view !== "deleted" ? "cursor-pointer hover:bg-admin-ink/[0.07]" : ""}`}
                   >
-                    <td className="px-3 py-2 align-top whitespace-nowrap">
-                      <span className="font-medium text-admin-ink/90">
-                        {r.status === "invoice" ? r.invoiceNumber : r.quoteNumber ?? "—"}
-                      </span>
+                    <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                      {view !== "deleted" ? (
+                        <DocNumberButton id={r.id} number={(r.status === "invoice" ? r.invoiceNumber : r.quoteNumber) ?? "Open"} />
+                      ) : (
+                        <span className="font-medium text-admin-ink/90">
+                          {r.status === "invoice" ? r.invoiceNumber : r.quoteNumber ?? "—"}
+                        </span>
+                      )}
                     </td>
-                    <td className="px-3 py-2 align-top min-w-0">
-                      <div className="truncate font-medium text-admin-ink">{customer}</div>
-                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                    <td className="px-3 py-2.5 align-top min-w-0">
+                      <CustomerNameLink name={customer} customerId={view !== "deleted" ? owners[r.id]?.id : undefined} />
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1 ml-[42px] empty:hidden">
                         {view !== "deleted" && r.status === "quote" && r.linkedInvoiceId && (
                           <button
                             onClick={(e) => {
