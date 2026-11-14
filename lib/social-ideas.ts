@@ -52,6 +52,27 @@ const CONTENT_TYPES = [
   "Contract decorating for other shops",
 ];
 
+// The model paraphrases content-type names ("Tips & education", "BTS"),
+// so match on keywords instead of exact text.
+const TYPE_KEYWORDS: [string, RegExp][] = [
+  ["Tips (choosing garments, logo placement, embroidery vs print)", /\btip|educat|how to|guide|vs\b|versus|compar|choose|carousel|faq/i],
+  ["Behind the scenes / process", /behind|process|bts|making|production|machine|step/i],
+  ["Before & after (blank vs decorated)", /before|after|blank|transform/i],
+  ["Team in branded gear", /team|crew|staff|employee|uniform/i],
+  ["Industry spotlight (why this industry needs branded apparel)", /industry|spotlight|sector/i],
+  ["Seasonal promo / offer", /season|holiday|promo|offer|deal|gift|plan ahead|deadline/i],
+  ["Contract decorating for other shops", /contract|wholesale|other shops|resell/i],
+  ["Finished order showcase", /showcase|finished|order|delivered|project/i],
+];
+function matchContentType(given: string, context: string): string {
+  if (CONTENT_TYPES.includes(given)) return given;
+  for (const text of [given, context]) {
+    const hit = TYPE_KEYWORDS.find(([, re]) => re.test(text));
+    if (hit) return hit[0];
+  }
+  return CONTENT_TYPES[0];
+}
+
 async function research(today: string): Promise<{ text: string; sources: { title: string; url: string }[] } | null> {
   try {
     const res = await fetch(`${API}/responses`, {
@@ -90,6 +111,7 @@ export async function generateIdeas(recent: string[], count = 6): Promise<IdeaBa
   const found = await research(today);
   const system = `You plan social media posts for JM Digital Media (Rosenberg, TX — Fort Bend County / Houston). B2B custom apparel decoration: embroidery, screen printing, DTF, laser engraving; customers are businesses (construction, auto, restaurants, gyms, dealerships, schools, county/city offices, corporate teams) plus contract work for other shops. 12 piece minimum, 7 business day turnaround.
 Return ONLY JSON: {"trends":"2-4 sentence summary of what's trending and why it matters","ideas":[{"title":"short catchy idea name","angle":"1-2 sentences: what the post shows/says","why":"the trend, date or reason it's timely right now","contentType":"one of: ${CONTENT_TYPES.join(" | ")}","industry":"target industry or empty","garment":"garment/item or empty","decoration":"Embroidery | Screen printing | DTF transfers | Laser engraving | Patches | empty","hook":"theme/trend phrase, short","details":"specific notes for the caption writer and image (scene, offer, call to action)"}]}
+- "contentType" must be copied EXACTLY from the list above, and use at least 4 different content types across the ideas.
 - Exactly ${count} ideas, each clearly different (mix content types, industries, decorations and platforms' strengths).
 - Ground ideas in the research when given; never invent statistics, client names or events.
 - Make them practical for a small shop to post this week.${
@@ -137,7 +159,7 @@ Return ONLY JSON: {"trends":"2-4 sentence summary of what's trending and why it 
       title: s(i.title, 120),
       angle: s(i.angle, 500),
       why: s(i.why, 400),
-      contentType: CONTENT_TYPES.includes(s(i.contentType)) ? s(i.contentType) : CONTENT_TYPES[0],
+      contentType: matchContentType(s(i.contentType), `${s(i.title)} ${s(i.angle)}`),
       industry: s(i.industry, 80) || undefined,
       garment: s(i.garment, 120) || undefined,
       decoration: s(i.decoration, 60) || undefined,
