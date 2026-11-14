@@ -39,17 +39,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === "merge") {
-    const targetId = String(body.targetId ?? "");
-    const sourceIds: string[] = Array.isArray(body.sourceIds) ? body.sourceIds.map(String).filter((id: string) => id !== targetId) : [];
-    const all = await getCustomers();
-    const target = all.find((c) => c.id === targetId);
-    const sources = sourceIds.map((id) => all.find((c) => c.id === id)).filter((c): c is Customer => Boolean(c));
-    if (!target || !sources.length) return NextResponse.json({ error: "Target or sources not found" }, { status: 404 });
+    // One merge ({targetId, sourceIds}) or several ({merges: [...]}) — all
+    // applied in a single save so nothing can be undone by a stale read.
+    const merges: { targetId: string; sourceIds: string[] }[] = (
+      Array.isArray(body.merges) ? body.merges : [{ targetId: body.targetId, sourceIds: body.sourceIds }]
+    ).map((m: { targetId?: unknown; sourceIds?: unknown }) => ({
+      targetId: String(m.targetId ?? ""),
+      sourceIds: (Array.isArray(m.sourceIds) ? m.sourceIds : []).map(String).filter((id: string) => id !== String(m.targetId)),
+    }));
     const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
     // A source with no person's name whose name is just the company again
     // ("HOLY ROSARY CATHOLIC SCHOOL" into "Holy Rosary"): name the contact
     // from the email instead ("cvega@…" -> "Cvega").
-    const personName = (c: Customer) => {
+    const personName = (c: Customer, target: Customer) => {
       if (c.contactName) return c.contactName;
       const sameCompany = n(c.name).includes(n(target.name)) || n(target.name).includes(n(c.name));
       if (sameCompany && c.email) {
@@ -62,42 +64,51 @@ export async function POST(req: NextRequest) {
       }
       return c.name;
     };
-    const asContacts = (c: Customer): CustomerContact[] => [
-      {
-        id: uuid(),
-        name: personName(c),
-        email: c.email,
-        phone: c.phone,
-        notes: c.notes,
-      },
-      ...(c.contacts ?? []),
-    ];
-    const existingEmails = new Set(
-      [target.email, ...(target.contacts ?? []).map((x) => x.email)].filter(Boolean).map((e) => e!.toLowerCase())
-    );
-    const added = sources
-      .flatMap(asContacts)
-      .filter((ct) => !(ct.email && existingEmails.has(ct.email.toLowerCase())) && !(ct.name === (target.contactName || target.name)));
-    const preview = { target: target.name, addContacts: added.map((a) => `${a.name}${a.email ? ` <${a.email}>` : ""}`), remove: sources.map((s) => s.name) };
-    if (!body.apply) return NextResponse.json({ preview });
-    const { persisted } = await replaceCustomers((cs) =>
-      cs
-        .filter((c) => !sourceIds.includes(c.id))
+    const plan = (all: Customer[]) =>
+      merges.map(({ targetId, sourceIds }) => {
+        const target = all.find((c) => c.id === targetId);
+        const sources = sourceIds.map((id) => all.find((c) => c.id === id)).filter((c): c is Customer => Boolean(c));
+        if (!target) return { targetId, sourceIds, target: undefined, added: [] as CustomerContact[], sources };
+        const existingEmails = new Set(
+          [target.email, ...(target.contacts ?? []).map((x) => x.email)].filter(Boolean).map((e) => e!.toLowerCase())
+        );
+        const added = sources
+          .flatMap((c): CustomerContact[] => [
+            { id: uuid(), name: personName(c, target), email: c.email, phone: c.phone, notes: c.notes },
+            ...(c.contacts ?? []),
+          ])
+          .filter((ct) => !(ct.email && existingEmails.has(ct.email.toLowerCase())) && ct.name !== (target.contactName || target.name));
+        return { targetId, sourceIds, target, added, sources };
+      });
+    const describe = (p: ReturnType<typeof plan>) =>
+      p.map((m) => ({
+        target: m.target?.name ?? `missing ${m.targetId}`,
+        addContacts: m.added.map((a) => `${a.name}${a.email ? ` <${a.email}>` : ""}`),
+        remove: m.sources.map((x) => x.name),
+      }));
+    if (!body.apply) return NextResponse.json({ preview: describe(plan(await getCustomers())) });
+    let applied: ReturnType<typeof plan> = [];
+    const { persisted } = await replaceCustomers((cs) => {
+      applied = plan(cs).filter((m) => m.target && m.sources.length);
+      const remove = new Set(applied.flatMap((m) => m.sources.map((x) => x.id)));
+      const addTo = new Map(applied.map((m) => [m.targetId, m.added]));
+      return cs
+        .filter((c) => !remove.has(c.id))
         .map((c) =>
-          c.id === targetId
-            ? { ...c, contacts: [...(c.contacts ?? []), ...added], updatedAt: new Date().toISOString() }
-            : c
-        )
-    );
-    // Quotes explicitly linked to a removed source now point at the target.
+          addTo.has(c.id) ? { ...c, contacts: [...(c.contacts ?? []), ...addTo.get(c.id)!], updatedAt: new Date().toISOString() } : c
+        );
+    });
+    // Quotes explicitly linked to a removed source now point at its target.
+    const moveTo = new Map(applied.flatMap((m) => m.sources.map((x) => [x.id, m.targetId] as const)));
     let relinked = 0;
     for (const r of await getQuotes()) {
-      if (r.input.customerId && sourceIds.includes(r.input.customerId)) {
-        await setQuoteCustomerId(r.id, targetId);
+      const to = r.input.customerId && moveTo.get(r.input.customerId);
+      if (to) {
+        await setQuoteCustomerId(r.id, to);
         relinked++;
       }
     }
-    return NextResponse.json({ ...preview, relinked, persisted });
+    return NextResponse.json({ merged: describe(applied), relinked, persisted });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
