@@ -5,8 +5,8 @@
      <body> — it sets the same colors directly via bg-navy/text-white
      Tailwind classes, which is what actually renders; these vars exist so
      anything referencing bg-background/text-foreground stays consistent). */
-  --background: #1c2338;
-  --foreground: #ffffff;
+  --background: #f3f5f9;
+  --foreground: #172038;
 }
 
 @theme inline {

@@ -30,14 +30,14 @@ export default function CartPage() {
     <>
       <StepHeader />
       <main className="flex-1 max-w-4xl mx-auto px-4 py-10 w-full">
-        <h1 className="text-2xl font-bold text-white">Review your order</h1>
+        <h1 className="text-2xl font-bold text-admin-ink">Review your order</h1>
 
         {cart.length === 0 ? (
-          <div className="mt-10 text-center border border-dashed border-white/20 rounded-2xl py-16">
-            <p className="text-white/60">Your cart is empty.</p>
+          <div className="mt-10 text-center border border-dashed border-admin-ink/20 rounded-2xl py-16">
+            <p className="text-admin-ink/60">Your cart is empty.</p>
             <Link
               href="/catalog"
-              className="mt-4 inline-block px-6 py-2.5 rounded-2xl bg-navy text-white font-medium"
+              className="mt-4 inline-block px-6 py-2.5 rounded-2xl bg-admin-bg text-admin-ink font-medium"
             >
               Browse the catalog
             </Link>
@@ -51,13 +51,13 @@ export default function CartPage() {
 
                 if (isShirtLine) {
                   return (
-                    <div key={line.id} className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-4">
+                    <div key={line.id} className="border border-admin-ink/10 shadow-lg shadow-slate-900/10 rounded-2xl bg-admin-card p-4">
                       <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                         <div className="flex-1">
-                          <div className="font-semibold text-white">
+                          <div className="font-semibold text-admin-ink">
                             {product?.productName ?? line.styleNumber} — {line.colorName}
                           </div>
-                          <div className="text-sm text-white/60 mt-0.5">
+                          <div className="text-sm text-admin-ink/60 mt-0.5">
                             {line.printLocations!.length} print{" "}
                             {line.printLocations!.length === 1 ? "location" : "locations"}:{" "}
                             {line.printLocations!
@@ -77,19 +77,19 @@ export default function CartPage() {
                             {(line.sizes ?? []).map((s) => (
                               <span
                                 key={s.size}
-                                className="text-xs px-2 py-0.5 rounded bg-white/5 text-white/70"
+                                className="text-xs px-2 py-0.5 rounded bg-admin-ink/5 text-admin-ink/70"
                               >
                                 {s.size}-{s.quantity}
                               </span>
                             ))}
                           </div>
                           {line.notes && (
-                            <p className="mt-2 text-xs text-white/50 italic">&ldquo;{line.notes}&rdquo;</p>
+                            <p className="mt-2 text-xs text-admin-ink/50 italic">&ldquo;{line.notes}&rdquo;</p>
                           )}
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="font-semibold text-white">{formatUSD(line.lineTotal)}</div>
-                          <div className="text-xs text-white/40 mt-0.5">{line.quantity} items</div>
+                          <div className="font-semibold text-admin-ink">{formatUSD(line.lineTotal)}</div>
+                          <div className="text-xs text-admin-ink/40 mt-0.5">{line.quantity} items</div>
                           <button
                             onClick={() => removeCartLine(line.id)}
                             className="mt-1 text-xs text-red hover:underline"
@@ -108,14 +108,14 @@ export default function CartPage() {
                 return (
                   <div
                     key={line.id}
-                    className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-4 flex flex-col sm:flex-row sm:items-center gap-4"
+                    className="border border-admin-ink/10 shadow-lg shadow-slate-900/10 rounded-2xl bg-admin-card p-4 flex flex-col sm:flex-row sm:items-center gap-4"
                   >
                     <div className="flex-1">
-                      <div className="font-semibold text-white">
+                      <div className="font-semibold text-admin-ink">
                         {product?.productName ?? line.styleNumber} — {line.colorName}
                         {line.size ? ` — ${line.size}` : ""}
                       </div>
-                      <div className="text-sm text-white/60 mt-0.5">
+                      <div className="text-sm text-admin-ink/60 mt-0.5">
                         {decoration?.shortLabel} · {line.decoration?.placement}
                         {line.decoration?.artworkFileName
                           ? ` · ${line.decoration.artworkFileName}`
@@ -128,7 +128,7 @@ export default function CartPage() {
                         </p>
                       )}
                       <div className="mt-2 flex items-center gap-2">
-                        <label className="text-sm text-white/60">Qty</label>
+                        <label className="text-sm text-admin-ink/60">Qty</label>
                         <input
                           type="number"
                           min={1}
@@ -139,12 +139,12 @@ export default function CartPage() {
                               Math.max(1, Number(e.target.value) || 1)
                             )
                           }
-                          className="w-20 border border-white/20 rounded-2xl px-2 py-1 text-sm"
+                          className="w-20 border border-admin-ink/20 rounded-2xl px-2 py-1 text-sm"
                         />
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold text-white">
+                      <div className="font-semibold text-admin-ink">
                         {formatUSD(line.lineTotal)}
                       </div>
                       <button
@@ -161,32 +161,32 @@ export default function CartPage() {
 
             <Link
               href="/catalog"
-              className="mt-4 inline-block text-sm font-medium text-white/80 hover:underline"
+              className="mt-4 inline-block text-sm font-medium text-admin-ink/80 hover:underline"
             >
               + Add another item
             </Link>
 
-            <div className="mt-8 rounded-2xl bg-white/5 overflow-hidden border border-white/10 shadow-lg shadow-black/30">
-              <div className="bg-navy text-white px-5 py-2.5 text-sm font-semibold">
+            <div className="mt-8 rounded-2xl bg-admin-ink/5 overflow-hidden border border-admin-ink/10 shadow-lg shadow-slate-900/10">
+              <div className="bg-admin-bg text-admin-ink px-5 py-2.5 text-sm font-semibold">
                 Order Summary
               </div>
               <div className="p-5">
-                <div className="flex justify-between text-sm text-white/80">
+                <div className="flex justify-between text-sm text-admin-ink/80">
                   <span>{totalUnits} items — subtotal</span>
                   <span>{formatUSD(cartSubtotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-white/80 mt-1">
+                <div className="flex justify-between text-sm text-admin-ink/80 mt-1">
                   <span>Setup fees</span>
                   <span>{formatUSD(cartSetupFees)}</span>
                 </div>
-                <div className="flex justify-between font-bold text-xl text-red mt-3 pt-3 border-t border-white/10">
+                <div className="flex justify-between font-bold text-xl text-red mt-3 pt-3 border-t border-admin-ink/10">
                   <span>Order total</span>
                   <span>{formatUSD(cartTotal)}</span>
                 </div>
 
                 <button
                   onClick={() => router.push("/checkout")}
-                  className="mt-5 w-full py-3 rounded-2xl bg-red text-navy font-heading font-semibold hover:bg-red-dark transition"
+                  className="mt-5 w-full py-3 rounded-2xl bg-admin-accent text-admin-accent-ink font-heading font-semibold hover:bg-admin-accent-dim transition"
                 >
                   Continue to Checkout →
                 </button>

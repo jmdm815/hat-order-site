@@ -61,10 +61,10 @@ export default function CatalogPage() {
     <>
       <StepHeader />
       <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full min-h-[70vh]">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white font-heading uppercase tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-admin-ink font-heading uppercase tracking-tight">
           Choose your gear
         </h1>
-        <p className="mt-1.5 text-white/60 text-sm">
+        <p className="mt-1.5 text-admin-ink/60 text-sm">
           Preset blanks pulled from our wholesale catalog (SanMar). Pick a style, then
           customize it on the next step.
         </p>
@@ -79,8 +79,8 @@ export default function CatalogPage() {
               }}
               className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
                 productType === t
-                  ? "bg-red text-navy border-red shadow-sm shadow-red/30"
-                  : "border-white/20 text-white/70 hover:bg-white/5 hover:border-white/35"
+                  ? "bg-admin-accent text-admin-accent-ink border-red shadow-sm shadow-red/30"
+                  : "border-admin-ink/20 text-admin-ink/70 hover:bg-admin-ink/5 hover:border-admin-ink/35"
               }`}
             >
               {tabLabel(t)}
@@ -95,8 +95,8 @@ export default function CatalogPage() {
               onClick={() => setCategory(c)}
               className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
                 category === c
-                  ? "bg-white text-navy border-white font-semibold"
-                  : "border-white/15 text-white/60 hover:bg-white/5 hover:border-white/30"
+                  ? "bg-admin-accent text-admin-accent-ink border-admin-ink font-semibold"
+                  : "border-admin-ink/15 text-admin-ink/60 hover:bg-admin-ink/5 hover:border-admin-ink/30"
               }`}
             >
               {c}
@@ -105,10 +105,10 @@ export default function CatalogPage() {
         </div>
 
         {loading ? (
-          <p className="mt-10 text-white/40 text-sm">Loading catalog…</p>
+          <p className="mt-10 text-admin-ink/40 text-sm">Loading catalog…</p>
         ) : filtered.length === 0 ? (
-          <div className="mt-10 text-center py-14 px-6 rounded-2xl border border-white/10 bg-black/40">
-            <p className="text-white/60 text-sm">
+          <div className="mt-10 text-center py-14 px-6 rounded-2xl border border-admin-ink/10 bg-admin-card">
+            <p className="text-admin-ink/60 text-sm">
               No styles in this category yet — try another tab above.
             </p>
           </div>
@@ -118,9 +118,9 @@ export default function CatalogPage() {
               <Link
                 key={product.styleNumber}
                 href={`/customize?style=${product.styleNumber}&type=${product.productType}`}
-                className="group border-2 border-white/10 rounded-2xl bg-black overflow-hidden shadow-sm shadow-black/40 hover:border-red hover:shadow-lg hover:shadow-black/50 hover:-translate-y-0.5 transition"
+                className="group border-2 border-admin-ink/10 rounded-2xl bg-admin-card overflow-hidden shadow-sm shadow-slate-900/10 hover:border-red hover:shadow-lg hover:shadow-slate-900/10 hover:-translate-y-0.5 transition"
               >
-                <div className="relative w-full aspect-square bg-white/5 p-6">
+                <div className="relative w-full aspect-square bg-admin-ink/5 p-6">
                   <Image
                     src={
                       product.heroImageIsOverride
@@ -135,17 +135,17 @@ export default function CatalogPage() {
                   />
                 </div>
                 <div className="p-4">
-                  <div className="text-xs uppercase tracking-wide text-white/40">
+                  <div className="text-xs uppercase tracking-wide text-admin-ink/40">
                     {product.brandName} · {product.styleNumber}
                   </div>
-                  <div className="font-semibold text-white mt-0.5">
+                  <div className="font-semibold text-admin-ink mt-0.5">
                     {product.productName}
                   </div>
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="text-sm text-white/60">
+                    <span className="text-sm text-admin-ink/60">
                       {product.colors.length} colors
                     </span>
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-admin-ink">
                       {formatUSD(product.basePrice)}
                     </span>
                   </div>

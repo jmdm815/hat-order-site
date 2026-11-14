@@ -273,7 +273,7 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
 
   if (!SQUARE_CONFIGURED) {
     return (
-      <p className="text-sm text-white/70 bg-white/5 border border-white/10 shadow-lg shadow-black/30 rounded-xl px-4 py-3">
+      <p className="text-sm text-admin-ink/70 bg-admin-ink/5 border border-admin-ink/10 shadow-lg shadow-slate-900/10 rounded-xl px-4 py-3">
         Online payment isn&apos;t available right now — please contact us to arrange payment.
       </p>
     );
@@ -324,9 +324,9 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
           />
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <div className="h-px flex-1 bg-white/10" />
-          <span className="text-xs text-white/50">Or pay with card</span>
-          <div className="h-px flex-1 bg-white/10" />
+          <div className="h-px flex-1 bg-admin-ink/10" />
+          <span className="text-xs text-admin-ink/50">Or pay with card</span>
+          <div className="h-px flex-1 bg-admin-ink/10" />
         </div>
       </div>
       <div ref={containerRef} className="min-h-[56px]" />
@@ -334,7 +334,7 @@ export default function InvoicePayForm({ amount, disabled, onPay }: Props) {
       <button
         onClick={handleCardSubmit}
         disabled={!ready || !canPay}
-        className="mt-4 w-full py-3 rounded-xl bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:opacity-40"
+        className="mt-4 w-full py-3 rounded-xl bg-admin-accent text-admin-accent-ink font-heading font-semibold hover:bg-admin-accent-dim transition disabled:opacity-40"
       >
         {submitting ? "Processing…" : `Pay $${amount.toFixed(2)}`}
       </button>

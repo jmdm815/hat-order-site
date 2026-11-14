@@ -51,14 +51,14 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
   const logoUrl = logoUrlProp ?? fetchedLogoUrl;
 
   return (
-    <header className="bg-navy sticky top-0 z-10 shadow-md shadow-black/20 border-b border-white/5 pt-safe">
+    <header className="bg-admin-bg sticky top-0 z-10 shadow-md shadow-slate-900/10 border-b border-admin-ink/5 pt-safe">
       <div className="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo can be an
               admin-uploaded Vercel Blob URL (see AdminLogoManager.tsx), so next/image's
               remotePatterns allowlist doesn't apply; this is a small fixed-size icon. */}
           <img src={logoUrl} alt="JM Digital Media" width={42} height={42} className="rounded-2xl w-[42px] h-[42px] object-contain transition group-hover:scale-105" />
-          <span className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-tan uppercase">
+          <span className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-amber-800 uppercase">
             Custom Tees and Hats
           </span>
         </Link>
@@ -73,19 +73,19 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
                 <span
                   className={`flex items-center gap-1.5 ${
                     i === current
-                      ? "font-semibold text-white"
+                      ? "font-semibold text-admin-ink"
                       : i < current
-                      ? "text-white/70"
-                      : "text-white/40"
+                      ? "text-admin-ink/70"
+                      : "text-admin-ink/40"
                   }`}
                 >
                   <span
                     className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold ${
                       i === current
-                        ? "bg-red text-navy"
+                        ? "bg-admin-accent text-admin-accent-ink"
                         : i < current
-                        ? "bg-black text-white"
-                        : "bg-gray/20 text-white/60"
+                        ? "bg-admin-card text-admin-ink"
+                        : "bg-gray/20 text-admin-ink/60"
                     }`}
                   >
                     {i + 1}
@@ -94,7 +94,7 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
                 </span>
                 {i < STEPS.length - 1 && (
                   <span
-                    className={`w-5 h-px ${i < current ? "bg-red/50" : "bg-white/20"}`}
+                    className={`w-5 h-px ${i < current ? "bg-red/50" : "bg-admin-ink/20"}`}
                   />
                 )}
               </li>
