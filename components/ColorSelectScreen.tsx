@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { swatchStyle } from "@/lib/swatch";
 import { useRouter } from "next/navigation";
 import { Product, ProductColor } from "@/lib/types";
 
@@ -10,20 +11,6 @@ import { Product, ProductColor } from "@/lib/types";
 // designer on whatever color happens to be first. They can still change it
 // again once inside the designer via its own color panel; this screen is
 // just about starting from an intentional choice rather than a default.
-function swatchBackground(hexes: string[]): CSSProperties {
-  if (hexes.length <= 1) {
-    return { backgroundColor: hexes[0] ?? "#9a9a9a" };
-  }
-  if (hexes.length === 2) {
-    return { backgroundImage: `linear-gradient(135deg, ${hexes[0]} 50%, ${hexes[1]} 50%)` };
-  }
-  const step = 360 / hexes.length;
-  const stops = hexes
-    .map((hex, i) => `${hex} ${i * step}deg ${(i + 1) * step}deg`)
-    .join(", ");
-  return { backgroundImage: `conic-gradient(${stops})` };
-}
-
 export default function ColorSelectScreen({
   product,
   colorName,
@@ -92,7 +79,7 @@ export default function ColorSelectScreen({
               >
                 <span
                   className="w-7 h-7 rounded-full border border-black/10 shrink-0"
-                  style={swatchBackground(c.colorHexes)}
+                  style={swatchStyle(c)}
                 />
                 <span className="text-sm text-admin-ink truncate">{c.colorName}</span>
               </button>

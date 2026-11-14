@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { swatchStyle } from "@/lib/swatch";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { v4 as uuid } from "uuid";
 import {
@@ -27,16 +28,6 @@ type LocationOption = { decoration: DecorationWithZones; zone: PlacementZone; ke
 // step, so it's computed into a real PrintLocation only when adding to cart.
 type EditingLocation = Omit<PrintLocation, "unitPrice" | "setupFee">;
 type Step = "design" | "quantity" | "review";
-
-function swatchBackground(hexes: string[]): CSSProperties {
-  if (hexes.length <= 1) return { backgroundColor: hexes[0] ?? "#9a9a9a" };
-  if (hexes.length === 2) {
-    return { backgroundImage: `linear-gradient(135deg, ${hexes[0]} 50%, ${hexes[1]} 50%)` };
-  }
-  const step = 360 / hexes.length;
-  const stops = hexes.map((hex, i) => `${hex} ${i * step}deg ${(i + 1) * step}deg`).join(", ");
-  return { backgroundImage: `conic-gradient(${stops})` };
-}
 
 // Fit a new layer within the zone's bounds (like object-contain) rather
 // than always filling the zone's full width — an upload/text box taller
@@ -642,7 +633,7 @@ export default function ShirtCustomizeForm({
                               ? "border-admin-ink ring-2 ring-red ring-offset-2 ring-offset-black"
                               : "border-black/10 hover:scale-110"
                           }`}
-                          style={swatchBackground(c.colorHexes)}
+                          style={swatchStyle(c)}
                         />
                         <span className="pointer-events-none absolute left-1/2 -top-8 -translate-x-1/2 whitespace-nowrap rounded bg-admin-bg px-2 py-1 text-xs text-admin-ink opacity-0 shadow transition group-hover:opacity-100 z-20">
                           {c.colorName}

@@ -254,6 +254,7 @@ function toProductStyle(style: SanmarStyle, productType: ProductType): Product {
       return {
         colorName: c.name.trim(),
         colorHexes: colorNameToHexes(c.name),
+        colorHexApprox: true,
         imageUrl: front,
         imageFallbackUrl: isApparel ? modelUrl : undefined,
         backImageUrl: isApparel ? toBackImageUrl(front) : undefined,

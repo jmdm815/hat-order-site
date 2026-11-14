@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { swatchStyle } from "@/lib/swatch";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArtworkPlacement, DecorationOption, DecorationType, PlacementZone, Product } from "@/lib/types";
@@ -45,22 +46,6 @@ function fitZoneBox(zone: PlacementZone, aspect: number): Box {
 // segment per color instead of a single solid dot, so the swatch actually
 // resembles the garment. Two tones split diagonally (how SanMar shows them);
 // three or more split into equal pie wedges.
-function swatchBackground(hexes: string[]): CSSProperties {
-  if (hexes.length <= 1) {
-    return { backgroundColor: hexes[0] ?? "#9a9a9a" };
-  }
-  if (hexes.length === 2) {
-    return {
-      backgroundImage: `linear-gradient(135deg, ${hexes[0]} 50%, ${hexes[1]} 50%)`,
-    };
-  }
-  const step = 360 / hexes.length;
-  const stops = hexes
-    .map((hex, i) => `${hex} ${i * step}deg ${(i + 1) * step}deg`)
-    .join(", ");
-  return { backgroundImage: `conic-gradient(${stops})` };
-}
-
 export default function CustomizeForm() {
   const router = useRouter();
   const pathname = usePathname();
@@ -429,7 +414,7 @@ export default function CustomizeForm() {
                       ? "border-admin-ink ring-2 ring-red ring-offset-2 ring-offset-black"
                       : "border-black/10 hover:scale-110"
                   }`}
-                  style={swatchBackground(c.colorHexes)}
+                  style={swatchStyle(c)}
                 />
                 <span className="pointer-events-none absolute left-1/2 -top-8 -translate-x-1/2 whitespace-nowrap rounded bg-admin-bg px-2 py-1 text-xs text-admin-ink opacity-0 shadow transition group-hover:opacity-100 z-20">
                   {c.colorName}
