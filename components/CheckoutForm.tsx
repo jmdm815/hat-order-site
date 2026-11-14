@@ -86,7 +86,7 @@ export default function CheckoutForm() {
 
   if (cart.length === 0) {
     return (
-      <p className="mt-10 text-white/60">
+      <p className="mt-10 text-admin-ink/60">
         Your cart is empty — head back to the catalog to add a hat first.
       </p>
     );
@@ -96,8 +96,8 @@ export default function CheckoutForm() {
     <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8">
       <div className="space-y-8">
         {/* Customer info */}
-        <section className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-5">
-          <h2 className="font-semibold text-white">Contact & shipping</h2>
+        <section className="border border-admin-ink/10 shadow-lg shadow-slate-900/10 rounded-2xl bg-admin-card p-5">
+          <h2 className="font-semibold text-admin-ink">Contact & shipping</h2>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Full name" value={form.name} onChange={(v) => updateField("name", v)} />
             <Field label="Email" value={form.email} onChange={(v) => updateField("email", v)} type="email" />
@@ -124,8 +124,8 @@ export default function CheckoutForm() {
         </section>
 
         {/* Payment method */}
-        <section className="border border-white/10 shadow-lg shadow-black/30 rounded-2xl bg-black p-5">
-          <h2 className="font-semibold text-white">Payment method</h2>
+        <section className="border border-admin-ink/10 shadow-lg shadow-slate-900/10 rounded-2xl bg-admin-card p-5">
+          <h2 className="font-semibold text-admin-ink">Payment method</h2>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {PAYMENT_METHODS.map((m) => (
               <button
@@ -133,12 +133,12 @@ export default function CheckoutForm() {
                 onClick={() => setMethod(m.id)}
                 className={`text-left p-3 rounded-2xl border transition ${
                   method === m.id
-                    ? "border-white ring-1 ring-white"
-                    : "border-white/10 hover:border-white/40"
+                    ? "border-admin-ink ring-1 ring-admin-ink"
+                    : "border-admin-ink/10 hover:border-admin-ink/40"
                 }`}
               >
-                <div className="font-medium text-sm text-white">{m.label}</div>
-                <div className="text-xs text-white/60 mt-0.5">{m.blurb}</div>
+                <div className="font-medium text-sm text-admin-ink">{m.label}</div>
+                <div className="text-xs text-admin-ink/60 mt-0.5">{m.blurb}</div>
               </button>
             ))}
           </div>
@@ -147,7 +147,7 @@ export default function CheckoutForm() {
             <button
               disabled={!infoComplete}
               onClick={() => setInfoConfirmed(true)}
-              className="mt-5 w-full py-3 rounded-2xl bg-navy text-white font-heading font-semibold hover:bg-navy/90 transition disabled:bg-navy/20 disabled:cursor-not-allowed"
+              className="mt-5 w-full py-3 rounded-2xl bg-admin-bg text-admin-ink font-heading font-semibold hover:bg-admin-bg/90 transition disabled:bg-admin-ink/20 disabled:cursor-not-allowed"
             >
               Continue to Payment →
             </button>
@@ -171,7 +171,7 @@ export default function CheckoutForm() {
               )}
               {(method === "klarna" || method === "affirm") && (
                 <div>
-                  <div className="text-xs font-medium text-white bg-tan/30 border border-tan rounded-2xl px-3 py-2">
+                  <div className="text-xs font-medium text-admin-ink bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2">
                     {method === "klarna" ? "Klarna" : "Affirm"} isn&apos;t wired to live credentials
                     in this prototype — clicking below simulates their hosted-checkout redirect and
                     approval so you can see the full flow. Real financing requires a{" "}
@@ -180,7 +180,7 @@ export default function CheckoutForm() {
                   <button
                     onClick={() => submitOrder()}
                     disabled={submitting}
-                    className="mt-4 w-full py-3 rounded-2xl bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
+                    className="mt-4 w-full py-3 rounded-2xl bg-admin-accent text-admin-accent-ink font-heading font-semibold hover:bg-admin-accent-dim transition disabled:bg-admin-ink/20"
                   >
                     {submitting
                       ? "Processing…"
@@ -190,7 +190,7 @@ export default function CheckoutForm() {
               )}
               {method === "zelle" && (
                 <div>
-                  <div className="text-xs font-medium text-white bg-white/5 border border-white/20 rounded-2xl px-3 py-2">
+                  <div className="text-xs font-medium text-admin-ink bg-admin-ink/5 border border-admin-ink/20 rounded-2xl px-3 py-2">
                     Zelle can&apos;t be charged automatically from any website — it&apos;s
                     bank-to-bank only. Placing this order reserves it; you&apos;ll get Zelle
                     payment instructions on the confirmation page and we confirm manually once
@@ -199,7 +199,7 @@ export default function CheckoutForm() {
                   <button
                     onClick={() => submitOrder()}
                     disabled={submitting}
-                    className="mt-4 w-full py-3 rounded-2xl bg-red text-navy font-heading font-semibold hover:bg-red-dark transition disabled:bg-navy/20"
+                    className="mt-4 w-full py-3 rounded-2xl bg-admin-accent text-admin-accent-ink font-heading font-semibold hover:bg-admin-accent-dim transition disabled:bg-admin-ink/20"
                   >
                     {submitting ? "Placing order…" : "Place Order — Pay via Zelle"}
                   </button>
@@ -212,10 +212,10 @@ export default function CheckoutForm() {
       </div>
 
       {/* Order summary */}
-      <aside className="rounded-2xl bg-white/5 overflow-hidden border border-white/10 shadow-lg shadow-black/30 h-fit lg:sticky lg:top-24">
-        <div className="bg-navy text-white px-5 py-2.5 text-sm font-semibold">Order summary</div>
+      <aside className="rounded-2xl bg-admin-ink/5 overflow-hidden border border-admin-ink/10 shadow-lg shadow-slate-900/10 h-fit lg:sticky lg:top-24">
+        <div className="bg-admin-bg text-admin-ink px-5 py-2.5 text-sm font-semibold">Order summary</div>
         <div className="p-5">
-          <div className="space-y-2 text-sm text-white/80">
+          <div className="space-y-2 text-sm text-admin-ink/80">
             {cart.map((l) => (
               <div key={l.id} className="flex justify-between">
                 <span>
@@ -226,7 +226,7 @@ export default function CheckoutForm() {
               </div>
             ))}
           </div>
-          <div className="flex justify-between font-semibold text-lg text-white mt-3 pt-3 border-t border-white/10">
+          <div className="flex justify-between font-semibold text-lg text-admin-ink mt-3 pt-3 border-t border-admin-ink/10">
             <span>Total</span>
             <span>{formatUSD(cartTotal)}</span>
           </div>
@@ -251,12 +251,12 @@ function Field({
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="text-xs text-white/60">{label}</span>
+      <span className="text-xs text-admin-ink/60">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full bg-black border border-white/30 rounded-2xl px-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+        className="mt-1 w-full bg-admin-card border border-admin-ink/30 rounded-2xl px-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
       />
     </label>
   );

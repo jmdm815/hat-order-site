@@ -13,8 +13,8 @@ import { productPreviewImageUrl } from "@/lib/product-image";
 export default function CuratedProductCard({ product }: { product: CuratedProduct }) {
   const query = `?style=${encodeURIComponent(product.styleNumber)}&type=${product.productType}`;
   return (
-    <div className="group border-2 border-white/10 rounded-2xl bg-black overflow-hidden shadow-sm shadow-black/40 hover:border-red hover:shadow-lg hover:shadow-black/50 hover:-translate-y-0.5 transition flex flex-col">
-      <div className="relative w-full aspect-square bg-white/5 p-6">
+    <div className="group border-2 border-admin-ink/10 rounded-2xl bg-admin-card overflow-hidden shadow-sm shadow-slate-900/10 hover:border-red hover:shadow-lg hover:shadow-slate-900/10 hover:-translate-y-0.5 transition flex flex-col">
+      <div className="relative w-full aspect-square bg-admin-ink/5 p-6">
         <Image
           src={
             product.heroImageIsOverride
@@ -29,18 +29,18 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
         />
       </div>
       <div className="p-4 flex-1 flex flex-col">
-        <div className="text-xs uppercase tracking-wide text-white/40">
+        <div className="text-xs uppercase tracking-wide text-admin-ink/40">
           {product.brandName} · {product.styleNumber}
         </div>
-        <div className="font-semibold text-white mt-0.5 leading-tight">{product.productName}</div>
-        <div className="mt-2 text-sm text-white/60">
-          Starting at <span className="font-semibold text-white">{formatUSD(product.basePrice)}</span>
+        <div className="font-semibold text-admin-ink mt-0.5 leading-tight">{product.productName}</div>
+        <div className="mt-2 text-sm text-admin-ink/60">
+          Starting at <span className="font-semibold text-admin-ink">{formatUSD(product.basePrice)}</span>
         </div>
         <div className="mt-3 flex gap-2 flex-wrap">
           {product.designEnabled && (
             <Link
               href={`/customize${query}`}
-              className="flex-1 text-center px-3 py-2 rounded-2xl bg-red text-navy text-sm font-semibold hover:bg-navy hover:text-white transition"
+              className="flex-1 text-center px-3 py-2 rounded-2xl bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-accent-dim transition"
             >
               Design Now
             </Link>
@@ -50,8 +50,8 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
               href={`/quote${query}`}
               className={`flex-1 text-center px-3 py-2 rounded-2xl text-sm font-semibold border transition ${
                 product.designEnabled
-                  ? "border-white/20 text-white hover:bg-white/5"
-                  : "bg-navy text-white hover:bg-navy/90"
+                  ? "border-admin-ink/20 text-admin-ink hover:bg-admin-ink/5"
+                  : "bg-admin-bg text-admin-ink hover:bg-admin-bg/90"
               }`}
             >
               Get Quote

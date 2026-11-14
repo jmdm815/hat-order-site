@@ -196,14 +196,14 @@ export default function InvoicePayClient({ id }: { id: string }) {
   }
 
   if (loading) {
-    return <p className="text-white/40 text-sm">Loading…</p>;
+    return <p className="text-admin-ink/40 text-sm">Loading…</p>;
   }
 
   if (pending) {
     return (
-      <div className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-6">
-        <h1 className="text-xl font-bold text-white">Almost ready</h1>
-        <p className="mt-2 text-sm text-white/60">
+      <div className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-slate-900/10 rounded-2xl p-6">
+        <h1 className="text-xl font-bold text-admin-ink">Almost ready</h1>
+        <p className="mt-2 text-sm text-admin-ink/60">
           This quote is still being finalized. Please check back shortly, or contact us if you have questions.
         </p>
       </div>
@@ -212,9 +212,9 @@ export default function InvoicePayClient({ id }: { id: string }) {
 
   if (notFound || !invoice) {
     return (
-      <div className="bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-6">
-        <h1 className="text-xl font-bold text-white">Not found</h1>
-        <p className="mt-2 text-sm text-white/60">
+      <div className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-slate-900/10 rounded-2xl p-6">
+        <h1 className="text-xl font-bold text-admin-ink">Not found</h1>
+        <p className="mt-2 text-sm text-admin-ink/60">
           This payment link doesn&apos;t match an open quote or invoice. If you think this is a mistake,
           please contact us.
         </p>
@@ -256,7 +256,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
 
   return (
     <div>
-      <p className="text-xs font-medium text-white/50 uppercase tracking-wide">
+      <p className="text-xs font-medium text-admin-ink/50 uppercase tracking-wide">
         {invoice.invoiceNumber
           ? `Invoice ${invoice.invoiceNumber}`
           : invoice.quoteNumber
@@ -271,109 +271,109 @@ export default function InvoicePayClient({ id }: { id: string }) {
             banner. Only invoices carry invoiceStatus; a plain quote shows
             nothing here. Never reads "overdue," even past the due date. */}
         {invoice.status === "invoice" && invoice.invoiceStatus && (
-          <span className="text-white/30"> · {STATUS_LABEL[invoice.invoiceStatus] ?? invoice.invoiceStatus}</span>
+          <span className="text-admin-ink/30"> · {STATUS_LABEL[invoice.invoiceStatus] ?? invoice.invoiceStatus}</span>
         )}
       </p>
-      <h1 className="text-2xl font-bold text-white mt-1">
+      <h1 className="text-2xl font-bold text-admin-ink mt-1">
         {invoice.customerCompany || invoice.customerName || "Your invoice"}
       </h1>
       {invoice.customerCompany && invoice.customerName && (
-        <p className="text-sm text-white/60">{invoice.customerName}</p>
+        <p className="text-sm text-admin-ink/60">{invoice.customerName}</p>
       )}
 
       {/* "Dates" card — invoice date always shown; due date only once the
           admin has set one (invoice-only, see InvoiceSummary.dueDate). */}
-      <div className="mt-6 bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl p-4">
-        <p className="text-xs font-medium text-white/50 uppercase tracking-wide mb-3">Dates</p>
+      <div className="mt-6 bg-admin-card border border-admin-ink/10 shadow-lg shadow-slate-900/10 rounded-2xl p-4">
+        <p className="text-xs font-medium text-admin-ink/50 uppercase tracking-wide mb-3">Dates</p>
         <div className="relative space-y-4">
           {invoice.dueDate && (
-            <span className="absolute left-[3px] top-2 bottom-2 w-px bg-white/15" aria-hidden="true" />
+            <span className="absolute left-[3px] top-2 bottom-2 w-px bg-admin-ink/15" aria-hidden="true" />
           )}
           <div className="relative flex items-start gap-3">
-            <span className="relative z-10 mt-1 h-[7px] w-[7px] rounded-full bg-white/40 shrink-0" />
+            <span className="relative z-10 mt-1 h-[7px] w-[7px] rounded-full bg-admin-ink/40 shrink-0" />
             <div>
-              <p className="text-xs text-white/50">{invoice.status === "invoice" ? "Invoice Date" : "Quote Date"}</p>
-              <p className="text-sm text-white font-medium">{formatDate(invoice.quoteDate)}</p>
+              <p className="text-xs text-admin-ink/50">{invoice.status === "invoice" ? "Invoice Date" : "Quote Date"}</p>
+              <p className="text-sm text-admin-ink font-medium">{formatDate(invoice.quoteDate)}</p>
             </div>
           </div>
           {invoice.dueDate && (
             <div className="relative flex items-start gap-3">
-              <span className="relative z-10 mt-1 h-[7px] w-[7px] rounded-full bg-white/40 shrink-0" />
+              <span className="relative z-10 mt-1 h-[7px] w-[7px] rounded-full bg-admin-ink/40 shrink-0" />
               <div>
-                <p className="text-xs text-white/50">Due Date</p>
-                <p className="text-sm text-white font-medium">{formatDate(invoice.dueDate)}</p>
+                <p className="text-xs text-admin-ink/50">Due Date</p>
+                <p className="text-sm text-admin-ink font-medium">{formatDate(invoice.dueDate)}</p>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="mt-6 bg-black border border-white/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden">
-        <div className="divide-y divide-white/5">
+      <div className="mt-6 bg-admin-card border border-admin-ink/10 shadow-lg shadow-slate-900/10 rounded-2xl overflow-hidden">
+        <div className="divide-y divide-admin-ink/5">
           {invoice.lines.map((line, i) => (
             <div key={i} className="px-4 py-3 flex items-start justify-between gap-4 text-sm">
               <div>
-                <p className="font-medium text-white">
+                <p className="font-medium text-admin-ink">
                   {line.quantity} × {line.description}
                   {line.colorName ? ` — ${line.colorName}` : ""}
                 </p>
                 {line.details?.map((d, j) => (
-                  <p key={j} className="text-white/80 text-xs mt-0.5">
+                  <p key={j} className="text-admin-ink/80 text-xs mt-0.5">
                     {d}
                   </p>
                 ))}
                 {line.decorationLabel && (
-                  <p className="text-white/50 text-xs mt-0.5">
+                  <p className="text-admin-ink/50 text-xs mt-0.5">
                     {line.decorationLabel}
                     {line.priceColumnLabel ? ` (${line.priceColumnLabel})` : ""}
                   </p>
                 )}
               </div>
-              <p className="text-white font-medium shrink-0">{money(line.subtotal)}</p>
+              <p className="text-admin-ink font-medium shrink-0">{money(line.subtotal)}</p>
             </div>
           ))}
           {invoice.setupCharges.map((charge) => (
             <div key={charge.id} className="px-4 py-3 flex items-center justify-between gap-4 text-sm">
-              <p className="text-white">{charge.label}</p>
-              <p className="text-white font-medium shrink-0">{money(charge.price)}</p>
+              <p className="text-admin-ink">{charge.label}</p>
+              <p className="text-admin-ink font-medium shrink-0">{money(charge.price)}</p>
             </div>
           ))}
           {invoice.miscFees.map((fee, i) => (
             <div key={i} className="px-4 py-3 flex items-center justify-between gap-4 text-sm">
-              <p className="text-white">
+              <p className="text-admin-ink">
                 {fee.label}
                 {fee.quantity > 1 ? ` × ${fee.quantity}` : ""}
               </p>
-              <p className="text-white font-medium shrink-0">{money(fee.lineTotal)}</p>
+              <p className="text-admin-ink font-medium shrink-0">{money(fee.lineTotal)}</p>
             </div>
           ))}
         </div>
 
-        <div className="bg-white/5 px-4 py-3 space-y-1.5 text-sm">
+        <div className="bg-admin-ink/5 px-4 py-3 space-y-1.5 text-sm">
           {(invoice.discountAmount ?? 0) > 0 && (
             <div className="flex justify-between">
-              <span className="text-white/70">Military discount ({invoice.discountPercent ?? 10}%)</span>
-              <span className="text-white font-medium">-{money(invoice.discountAmount ?? 0)}</span>
+              <span className="text-admin-ink/70">Military discount ({invoice.discountPercent ?? 10}%)</span>
+              <span className="text-admin-ink font-medium">-{money(invoice.discountAmount ?? 0)}</span>
             </div>
           )}
           <div className="flex justify-between">
-            <span className="text-white/70">Total</span>
-            <span className="text-white font-medium">{money(invoice.grandTotal)}</span>
+            <span className="text-admin-ink/70">Total</span>
+            <span className="text-admin-ink font-medium">{money(invoice.grandTotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-white/70">{depositRow.label}</span>
-            <span className={`font-medium ${depositRow.met ? "text-green-400" : "text-white"}`}>{depositRow.value}</span>
+            <span className="text-admin-ink/70">{depositRow.label}</span>
+            <span className={`font-medium ${depositRow.met ? "text-green-700" : "text-admin-ink"}`}>{depositRow.value}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-white/70">Paid</span>
-            <span className="text-white font-medium">{money(invoice.amountPaid)}</span>
+            <span className="text-admin-ink/70">Paid</span>
+            <span className="text-admin-ink font-medium">{money(invoice.amountPaid)}</span>
           </div>
-          <div className="flex justify-between pt-1.5 border-t border-white/10">
-            <span className="font-semibold text-white">Balance</span>
+          <div className="flex justify-between pt-1.5 border-t border-admin-ink/10">
+            <span className="font-semibold text-admin-ink">Balance</span>
             {/* Neutral either way — no red for an unpaid/partial balance.
                 The status word itself (Unpaid / Partially paid) lives in the
                 quiet tag up top, not here. */}
-            <span className={`font-bold ${paidInFull ? "text-green-400" : "text-white"}`}>
+            <span className={`font-bold ${paidInFull ? "text-green-700" : "text-admin-ink"}`}>
               {money(invoice.balance)}
             </span>
           </div>
@@ -381,27 +381,27 @@ export default function InvoicePayClient({ id }: { id: string }) {
       </div>
 
       {!paidInFull && invoice.checkPayableTo && (
-        <div className="mt-4 bg-black border border-white/10 rounded-2xl p-4 text-sm">
-          <p className="font-medium text-white">Other ways to pay</p>
+        <div className="mt-4 bg-admin-card border border-admin-ink/10 rounded-2xl p-4 text-sm">
+          <p className="font-medium text-admin-ink">Other ways to pay</p>
           {invoice.zelleEmail && (
-            <p className="mt-2 text-white/70">
-              <span className="text-white font-medium">Zelle:</span> send to{" "}
+            <p className="mt-2 text-admin-ink/70">
+              <span className="text-admin-ink font-medium">Zelle:</span> send to{" "}
               {invoice.zellePayUrl ? (
-                <a href={invoice.zellePayUrl} target="_blank" rel="noopener noreferrer" className="text-white underline">
+                <a href={invoice.zellePayUrl} target="_blank" rel="noopener noreferrer" className="text-admin-ink underline">
                   {invoice.zelleEmail}
                 </a>
               ) : (
-                <span className="text-white">{invoice.zelleEmail}</span>
+                <span className="text-admin-ink">{invoice.zelleEmail}</span>
               )}{" "}
               from your bank&apos;s app. Put {invoice.invoiceNumber ? `invoice ${invoice.invoiceNumber}` : "your order number"} in the memo.
             </p>
           )}
-          <p className="mt-2 text-white/70">
-            <span className="text-white font-medium">Check:</span>{" "}
-            Make checks payable to <span className="text-white">{invoice.checkPayableTo}</span>
+          <p className="mt-2 text-admin-ink/70">
+            <span className="text-admin-ink font-medium">Check:</span>{" "}
+            Make checks payable to <span className="text-admin-ink">{invoice.checkPayableTo}</span>
             {invoice.checkMailTo ? (
               <>
-                {" "}and mail or drop off at <span className="text-white">{invoice.checkMailTo}</span>
+                {" "}and mail or drop off at <span className="text-admin-ink">{invoice.checkMailTo}</span>
               </>
             ) : null}
             . Please write {invoice.invoiceNumber ? `invoice ${invoice.invoiceNumber}` : "your order number"} on the memo line.
@@ -416,17 +416,17 @@ export default function InvoicePayClient({ id }: { id: string }) {
       )}
 
       {invoice.payments.length > 0 && (
-        <div className="mt-4 bg-black border border-white/10 rounded-2xl p-4">
-          <p className="text-sm font-medium text-white">Payment history</p>
-          <p className="mt-1 text-xs text-white/40">
+        <div className="mt-4 bg-admin-card border border-admin-ink/10 rounded-2xl p-4">
+          <p className="text-sm font-medium text-admin-ink">Payment history</p>
+          <p className="mt-1 text-xs text-admin-ink/40">
             Each payment below is its own transaction — get a receipt for just that one.
           </p>
           <div className="mt-3 space-y-2">
             {invoice.payments.map((p) => (
-              <div key={p.id} className="flex items-center justify-between gap-3 bg-white/5 rounded-xl px-3 py-2">
+              <div key={p.id} className="flex items-center justify-between gap-3 bg-admin-ink/5 rounded-xl px-3 py-2">
                 <div className="min-w-0">
-                  <p className="text-sm text-white font-medium">{money(p.amount)}</p>
-                  <p className="text-xs text-white/50 truncate">
+                  <p className="text-sm text-admin-ink font-medium">{money(p.amount)}</p>
+                  <p className="text-xs text-admin-ink/50 truncate">
                     {new Date(p.createdAt).toLocaleDateString()} · {p.methodLabel}
                     {p.note ? ` · ${p.note}` : ""}
                   </p>
@@ -435,7 +435,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
                   type="button"
                   onClick={() => downloadPaymentReceipt(p.id)}
                   disabled={paymentReceiptLoadingId === p.id}
-                  className="shrink-0 text-xs px-3 py-1.5 rounded-xl border border-white/20 text-white hover:bg-white/5 disabled:opacity-40"
+                  className="shrink-0 text-xs px-3 py-1.5 rounded-xl border border-admin-ink/20 text-admin-ink hover:bg-admin-ink/5 disabled:opacity-40"
                 >
                   {paymentReceiptLoadingId === p.id ? "Loading…" : "Receipt"}
                 </button>
@@ -448,11 +448,11 @@ export default function InvoicePayClient({ id }: { id: string }) {
 
       {!paidInFull && (
         <div className="mt-6">
-          <label className="block text-sm font-medium text-white mb-1" htmlFor="pay-amount">
+          <label className="block text-sm font-medium text-admin-ink mb-1" htmlFor="pay-amount">
             Amount to pay
           </label>
           {invoice.depositPercent && invoice.depositPercent < 100 && depositRemaining > 0 ? (
-            <p className="text-xs text-white/60 mb-2">
+            <p className="text-xs text-admin-ink/60 mb-2">
               {invoice.amountPaid > 0
                 ? `Remaining deposit due now: ${money(depositRemaining)}.`
                 : `${invoice.depositPercent}% deposit due now: ${money(depositRemaining)}.`}{" "}
@@ -461,19 +461,19 @@ export default function InvoicePayClient({ id }: { id: string }) {
           ) : null}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-admin-ink/50">$</span>
               <input
                 id="pay-amount"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
                 inputMode="decimal"
-                className="w-full bg-black border border-white/20 rounded-xl pl-7 pr-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
+                className="w-full bg-admin-card border border-admin-ink/20 rounded-xl pl-7 pr-3 py-2 text-sm outline-none focus:border-red focus:ring-2 focus:ring-red/20"
               />
             </div>
             <button
               type="button"
               onClick={() => setAmountInput(invoice.balance.toFixed(2))}
-              className="text-xs px-3 py-2 rounded-xl border border-white/20 text-white/70 hover:bg-white/5 shrink-0"
+              className="text-xs px-3 py-2 rounded-xl border border-admin-ink/20 text-admin-ink/70 hover:bg-admin-ink/5 shrink-0"
             >
               Pay full balance ({money(invoice.balance)})
             </button>
