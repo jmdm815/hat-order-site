@@ -487,6 +487,9 @@ type Props = {
   // see AdminQuotesTab's "+ New invoice" button and
   // app/admin/quotes/new/page.tsx's ?kind=invoice.
   createAs?: "quote" | "invoice";
+  // Pre-pick this saved customer on a brand-new quote (from the customer
+  // page's "+ New quote" / "+ New invoice" buttons).
+  initialCustomerId?: string;
 };
 
 function linesFromRecord(record: QuoteRecord): PendingLine[] {
@@ -521,6 +524,7 @@ export default function AdminQuoteBuilder({
   initialSetupChargeIds,
   onCreateQuote,
   createAs = "quote",
+  initialCustomerId,
 }: Props) {
   const router = useRouter();
   const [decorations, setDecorations] = useState<DecorationOption[]>([]);
@@ -581,6 +585,7 @@ export default function AdminQuoteBuilder({
     () => initialRecord?.input.customerCompany ?? ""
   );
   const [customerEmail, setCustomerEmail] = useState(() => initialRecord?.input.customerEmail ?? "");
+  const [customerId, setCustomerId] = useState(() => initialRecord?.input.customerId ?? "");
   const [quoteDate, setQuoteDate] = useState(() => initialRecord?.input.quoteDate ?? todayIso());
   // Optional due date for quotes and invoices (see lib/quote.ts's
   // QuoteInput.dueDate). No default: with none set, nothing shows, rather
@@ -842,7 +847,14 @@ export default function AdminQuoteBuilder({
       .catch(() => setTaxRates([]));
     fetch("/api/admin/customers")
       .then((r) => r.json())
-      .then((d: { customers: Customer[] }) => setCustomers(d.customers ?? []))
+      .then((d: { customers: Customer[] }) => {
+        const list = d.customers ?? [];
+        setCustomers(list);
+        if (!initialRecord && initialCustomerId) {
+          const c = list.find((x) => x.id === initialCustomerId);
+          if (c) selectCustomer(c);
+        }
+      })
       .catch(() => setCustomers([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -859,6 +871,7 @@ export default function AdminQuoteBuilder({
           .slice(0, 8);
 
   function selectCustomer(c: Customer) {
+    setCustomerId(c.id);
     setCustomerName(c.name);
     setCustomerCompany(c.company ?? "");
     setCustomerEmail(c.email ?? "");
@@ -869,6 +882,7 @@ export default function AdminQuoteBuilder({
 
   function startNewQuote() {
     setActiveRecord(null);
+    setCustomerId("");
     setCustomerName("");
     setCustomerCompany("");
     setCustomerEmail("");
@@ -1950,6 +1964,7 @@ export default function AdminQuoteBuilder({
 
   function buildQuoteInput() {
     return {
+      customerId: customerId || undefined,
       customerName: customerName || undefined,
       customerCompany: customerCompany || undefined,
       customerEmail: customerEmail || undefined,

@@ -133,6 +133,11 @@ export type QuoteLineInput = {
 };
 
 export type QuoteInput = {
+  // Saved customer (lib/customers-store.ts) this quote/invoice belongs to —
+  // set when a customer is picked in the Quote Builder or linked from the
+  // customer page. Older records without it are matched by email/name
+  // (lib/customer-match.ts).
+  customerId?: string;
   customerName?: string;
   customerCompany?: string;
   customerEmail?: string;

@@ -9,11 +9,13 @@ import AdminQuotePageClient from "@/components/AdminQuotePageClient";
 export default async function NewQuotePage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string }>;
+  searchParams: Promise<{ kind?: string; customerId?: string }>;
 }) {
   if (!(await isAdminAuthed())) {
     redirect("/admin");
   }
-  const { kind } = await searchParams;
-  return <AdminQuotePageClient createAs={kind === "invoice" ? "invoice" : "quote"} />;
+  const { kind, customerId } = await searchParams;
+  return (
+    <AdminQuotePageClient createAs={kind === "invoice" ? "invoice" : "quote"} initialCustomerId={customerId} />
+  );
 }
