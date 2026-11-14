@@ -35,6 +35,29 @@ async function fetchBlob(url: string) {
   });
 }
 
+// Images are found by listing their files (never rewritten, so no cache lag)
+// rather than from the post JSON. File name: {postId}-{imageId}.jpg.
+async function imagesByPost(): Promise<Map<string, SocialImage[]>> {
+  const out = new Map<string, SocialImage[]>();
+  if (!isPersistent()) {
+    for (const p of memory.values()) out.set(p.id, p.images);
+    return out;
+  }
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix: IMG_PREFIX, cursor, limit: 1000 });
+    for (const b of page.blobs) {
+      const m = b.pathname.slice(IMG_PREFIX.length).match(/^(.+)-([^-]+)\.jpg$/);
+      if (!m) continue;
+      const img: SocialImage = { id: m[2], createdAt: new Date(b.uploadedAt).toISOString(), path: b.pathname, size: "" };
+      out.set(m[1], [...(out.get(m[1]) ?? []), img]);
+    }
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  for (const list of out.values()) list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return out;
+}
+
 export async function getSocialPosts(limit = 200): Promise<SocialPost[]> {
   let items: SocialPost[];
   if (!isPersistent()) items = [...memory.values()];
@@ -59,7 +82,11 @@ export async function getSocialPosts(limit = 200): Promise<SocialPost[]> {
       )
     ).filter((p): p is SocialPost => !!p);
   }
-  return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
+  const imgs = await imagesByPost();
+  return items
+    .map((p) => ({ ...p, images: imgs.get(p.id) ?? p.images ?? [] }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, limit);
 }
 
 export async function getSocialPost(id: string): Promise<SocialPost | null> {
@@ -68,7 +95,18 @@ export async function getSocialPost(id: string): Promise<SocialPost | null> {
   const b = blobs.find((x) => x.pathname === pathFor(id));
   if (!b) return null;
   const r = await fetchBlob(b.url);
-  return r.ok ? ((await r.json()) as SocialPost) : null;
+  if (!r.ok) return null;
+  const post = (await r.json()) as SocialPost;
+  const { blobs: imgBlobs } = await list({ prefix: `${IMG_PREFIX}${id}-`, limit: 1000 });
+  const images = imgBlobs
+    .map((x): SocialImage => ({
+      id: x.pathname.slice(`${IMG_PREFIX}${id}-`.length).replace(/\.jpg$/, ""),
+      createdAt: new Date(x.uploadedAt).toISOString(),
+      path: x.pathname,
+      size: "",
+    }))
+    .sort((a, c) => a.createdAt.localeCompare(c.createdAt));
+  return { ...post, images: images.length ? images : post.images ?? [] };
 }
 
 async function write(p: SocialPost) {
@@ -102,8 +140,11 @@ export async function addSocialImage(postId: string, jpegBase64: string, size: s
   img.path = `${IMG_PREFIX}${postId}-${img.id}.jpg`;
   const buf = Buffer.from(jpegBase64, "base64");
   if (isPersistent()) {
+    // Only the image file is written; getSocialPost(s) find it by listing.
     await put(img.path, buf, { access: "private", addRandomSuffix: false, allowOverwrite: true, contentType: "image/jpeg" });
-  } else memoryImages.set(img.path, buf);
+    return { post: { ...p, images: [...p.images, img] }, image: img };
+  }
+  memoryImages.set(img.path, buf);
   const next = { ...p, images: [...p.images, img], updatedAt: img.createdAt };
   await write(next);
   return { post: next, image: img };
