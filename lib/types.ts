@@ -39,6 +39,9 @@ export type ProductColor = {
   // "Aruba Blue/ Birch" -> ["#2a5ca8", "#c9bfa8"]), so the UI swatch can be
   // split to match multi-tone garments instead of showing one solid color.
   colorHexes: string[];
+  // True when colorHexes is only guessed from the color name (SanMar's feed
+  // has no swatch color); the UI then samples the real photo instead.
+  colorHexApprox?: boolean;
   imageUrl: string; // front — flat/no-model photo for shirts, plain photo for hats
   // Original on-model URL to retry against if the derived flat/back photo
   // 404s or resolves to SanMar's placeholder (shirts only). See lib/sanmar.ts.
