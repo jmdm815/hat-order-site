@@ -344,7 +344,7 @@ export default function AdminItemConfigEditor({
           })}
         </div>
 
-        <div className="mt-4 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+        <div className="mt-4 border border-admin-ink/10 shadow-sm rounded-2xl p-4">
           <h3 className="font-medium text-admin-ink">Homepage catalog</h3>
           <p className="text-xs text-admin-ink/80 mt-0.5">
             Choose which category sections show this item on the homepage, and which action
@@ -401,7 +401,7 @@ export default function AdminItemConfigEditor({
           </div>
         </div>
 
-        <div className="mt-4 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+        <div className="mt-4 border border-admin-ink/10 shadow-sm rounded-2xl p-4">
           <h3 className="font-medium text-admin-ink">Design canvas photo</h3>
           <p className="text-xs text-admin-ink/80 mt-0.5">
             Defaults to SanMar&apos;s photo, or an illustrated shirt if SanMar has
@@ -435,7 +435,7 @@ export default function AdminItemConfigEditor({
                 const source = photoSource[v];
                 return (
                   <div key={v}>
-                    <div className="relative w-full aspect-square bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl overflow-hidden">
+                    <div className="relative w-full aspect-square bg-admin-card border border-admin-ink/10 shadow-sm rounded-xl overflow-hidden">
                       <GarmentPreview
                         url={currentUrl}
                         view={v}
@@ -508,7 +508,7 @@ export default function AdminItemConfigEditor({
             const info = getDecoration(allDecorations ?? [], type);
             const isExpanded = expandedType === type;
             return (
-              <div key={type} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden">
+              <div key={type} className="border border-admin-ink/10 shadow-sm rounded-2xl overflow-hidden">
                 <div className="flex items-center gap-3 p-3 bg-admin-ink/[0.02]">
                   <input
                     type="checkbox"
@@ -551,7 +551,7 @@ export default function AdminItemConfigEditor({
                     <div className="grid grid-cols-1 sm:grid-cols-[1fr_260px] gap-4">
                       <div
                         ref={imageRef}
-                        className="relative w-full aspect-square bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl overflow-hidden"
+                        className="relative w-full aspect-square bg-admin-card border border-admin-ink/10 shadow-sm rounded-xl overflow-hidden"
                       >
                         <GarmentPreview
                           url={view === "back" ? zoneCanvasBack ?? zoneCanvasFront : zoneCanvasFront}

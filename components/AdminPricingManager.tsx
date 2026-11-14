@@ -87,7 +87,7 @@ export default function AdminPricingManager() {
         ).map((row) => (
           <label
             key={row.key}
-            className="flex items-center justify-between gap-4 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card p-4"
+            className="flex items-center justify-between gap-4 border border-admin-ink/10 shadow-sm rounded-2xl bg-admin-card p-4"
           >
             <span>
               <span className="font-medium text-admin-ink">{row.label}</span>

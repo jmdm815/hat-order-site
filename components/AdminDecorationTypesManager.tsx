@@ -382,7 +382,7 @@ export default function AdminDecorationTypesManager() {
         </div>
 
         {draft.quoteRequired ? (
-          <p className="mt-3 text-xs text-admin-ink/72 bg-admin-ink/[0.03] border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl px-3 py-2">
+          <p className="mt-3 text-xs text-admin-ink/72 bg-admin-ink/[0.03] border border-admin-ink/10 shadow-sm rounded-xl px-3 py-2">
             Setup fee and pricing tiers are hidden while &quot;Requires a custom quote&quot;
             is on — turn it off to price this decoration automatically again.
           </p>
@@ -525,7 +525,7 @@ export default function AdminDecorationTypesManager() {
           const draft = drafts[d.id] ?? toDraft(d);
           const isOpen = openId === d.id;
           return (
-            <div key={d.id} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card overflow-hidden">
+            <div key={d.id} className="border border-admin-ink/10 shadow-sm rounded-2xl bg-admin-card overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <div className="flex-1">
                   <div className="font-semibold text-admin-ink">{d.shortLabel}</div>

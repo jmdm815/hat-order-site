@@ -181,7 +181,7 @@ export default function AdminJobsTab() {
                     return (
                       <div
                         key={job.id}
-                        className="bg-admin-card border border-admin-ink/10 rounded-2xl p-3 shadow-lg shadow-black/30"
+                        className="bg-admin-card border border-admin-ink/10 rounded-2xl p-3 shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">

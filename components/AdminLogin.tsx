@@ -34,7 +34,7 @@ export default function AdminLogin() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-sm border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card p-6"
+      className="max-w-sm border border-admin-ink/10 shadow-sm rounded-2xl bg-admin-card p-6"
     >
       <label className="block">
         <span className="text-sm font-medium text-admin-ink">Admin password</span>

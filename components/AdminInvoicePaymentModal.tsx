@@ -208,7 +208,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                       href={`/api/pay/${record.id}/payments/${p.id}/receipt-pdf`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline"
+                      className="text-blue-700 hover:underline"
                     >
                       Receipt
                     </a>
@@ -318,7 +318,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
             <span className="text-xs text-admin-ink/88 truncate flex-1">{payPageUrl}</span>
             <button
               onClick={handleCopyLink}
-              className="shrink-0 text-xs text-blue-400 hover:underline"
+              className="shrink-0 text-xs text-blue-700 hover:underline"
             >
               Copy
             </button>

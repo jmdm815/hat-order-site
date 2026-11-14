@@ -584,7 +584,7 @@ export default function GarmentMockupTool() {
               )}
               {searching && <p className="text-admin-ink/70">Searching the full catalog…</p>}
               {searchErrors.map((e) => (
-                <p key={e} className="text-amber-200 text-xs">
+                <p key={e} className="text-amber-800 text-xs">
                   {e}
                 </p>
               ))}
@@ -634,7 +634,7 @@ export default function GarmentMockupTool() {
                 </div>
               )}
               {productLoading && <p className="text-admin-ink/70">Loading colors…</p>}
-              {productError && <p className="text-red-300">{productError}</p>}
+              {productError && <p className="text-red-700">{productError}</p>}
               {product && !productLoading && (
                 <div className="rounded-xl border border-admin-ink/20 p-3">
                   <div className="flex items-start gap-3">
@@ -774,7 +774,7 @@ export default function GarmentMockupTool() {
             </button>
           </div>
           {isCombo && source === "upload" && !uploadBack && (
-            <p className="mt-2 text-xs text-amber-200">Front + Back needs a back photo. Add one in step 1.</p>
+            <p className="mt-2 text-xs text-amber-800">Front + Back needs a back photo. Add one in step 1.</p>
           )}
           <button type="button" disabled={!canGenerate || generating} onClick={generate} className={`${btnPrimary} mt-4 w-full`}>
             {generating ? "Generating…" : "Generate mockup"}
@@ -784,7 +784,7 @@ export default function GarmentMockupTool() {
               Add a blank, a logo and choose a placement to generate.
             </p>
           )}
-          {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
+          {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
         </section>
       </div>
 
@@ -813,7 +813,7 @@ export default function GarmentMockupTool() {
                 ))}
               </div>
             )}
-            {note && <p className="mt-2 text-xs text-amber-200">{note}</p>}
+            {note && <p className="mt-2 text-xs text-amber-800">{note}</p>}
             <div className="mt-3 rounded-xl bg-white p-2">
               <canvas
                 ref={canvasRef}
@@ -907,7 +907,7 @@ export default function GarmentMockupTool() {
                     Reset to {activePreset?.label}
                   </button>
                 </div>
-                {error && <p className="text-sm text-red-300">{error}</p>}
+                {error && <p className="text-sm text-red-700">{error}</p>}
                 <div>
                   <p className="mb-1.5 text-xs text-admin-ink/70">Or download one view:</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -1009,11 +1009,11 @@ function LogoResolution({
   const verdict = placed ? assessResolution(info.width, placed.inches) : null;
   const tone =
     verdict?.level === "low"
-      ? "border-red-300/60 bg-red-500/15 text-red-100"
+      ? "border-red-300/60 bg-red-500/15 text-red-800"
       : verdict?.level === "fair"
-        ? "border-amber-300/60 bg-amber-500/15 text-amber-100"
+        ? "border-amber-300/60 bg-amber-500/15 text-amber-900"
         : verdict
-          ? "border-emerald-300/60 bg-emerald-500/15 text-emerald-100"
+          ? "border-emerald-300/60 bg-emerald-500/15 text-emerald-800"
           : "border-admin-ink/20 text-admin-ink/80";
   return (
     <div className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-relaxed ${tone}`}>
@@ -1033,7 +1033,7 @@ function LogoResolution({
         </p>
       )}
       {!verdict && info.width < 600 && (
-        <p className="mt-1 font-semibold text-amber-100">
+        <p className="mt-1 font-semibold text-amber-900">
           This is a small file. It may look pixelated on anything larger than a left chest.
         </p>
       )}

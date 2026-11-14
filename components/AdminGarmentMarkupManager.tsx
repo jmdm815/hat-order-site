@@ -104,7 +104,7 @@ export default function AdminGarmentMarkupManager() {
       </p>
 
       <div className="mt-5 overflow-x-auto">
-        <table className="min-w-full border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl overflow-hidden text-sm">
+        <table className="min-w-full border border-admin-ink/10 shadow-sm rounded-2xl overflow-hidden text-sm">
           <thead>
             <tr className="bg-admin-ink/[0.03] text-left text-admin-ink/88">
               <th className="px-4 py-2.5 font-medium">From</th>

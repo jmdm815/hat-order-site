@@ -321,7 +321,7 @@ export default function AdminSanmarOrder() {
                   {order.status === "in-shopping-box" ? "Back to draft" : "Mark added to box"}
                 </button>
                 <button
-                  className={`${btn} border border-red-300 text-red-300`}
+                  className={`${btn} border border-red-300 text-red-700`}
                   disabled={busy}
                   onClick={() => confirm("Clear the whole order list?") && post({ action: "clear" })}
                 >
@@ -404,15 +404,15 @@ export default function AdminSanmarOrder() {
                                 {l === "loading" ? (
                                   "…"
                                 ) : l === "error" ? (
-                                  <span className="text-red-300">couldn&apos;t check</span>
+                                  <span className="text-red-700">couldn&apos;t check</span>
                                 ) : !s ? (
-                                  <span className="text-red-300">size not found</span>
+                                  <span className="text-red-700">size not found</span>
                                 ) : short ? (
-                                  <span className="text-amber-300">
+                                  <span className="text-amber-700">
                                     Dallas {s.dallas} — {alt ? `${alt.name} has ${alt.qty}` : `only ${s.total} total`}
                                   </span>
                                 ) : (
-                                  <span className="text-green-300">Dallas {s.dallas}</span>
+                                  <span className="text-green-700">Dallas {s.dallas}</span>
                                 )}
                               </td>
                             </tr>
@@ -430,7 +430,7 @@ export default function AdminSanmarOrder() {
               </span>
               <span>
                 <span className="text-admin-ink/70">Est. cost:</span> <b>{money(totals.cost)}</b>
-                {totals.unpriced > 0 && <span className="text-amber-300"> (+{totals.unpriced} unpriced)</span>}
+                {totals.unpriced > 0 && <span className="text-amber-700"> (+{totals.unpriced} unpriced)</span>}
               </span>
             </div>
           </div>
@@ -475,7 +475,7 @@ export default function AdminSanmarOrder() {
                         {q.sanmarPieces} pcs · {q.styles} · {q.status} · {shortDate(q.createdAt)}
                       </div>
                     </div>
-                    {added && <span className="text-xs text-green-300">on list</span>}
+                    {added && <span className="text-xs text-green-700">on list</span>}
                   </li>
                 );
               })}
@@ -529,7 +529,7 @@ export default function AdminSanmarOrder() {
             </select>
             {search.color && (
               <>
-                {!search.priced && <p className="text-xs text-amber-300">Live price unavailable right now — stock only.</p>}
+                {!search.priced && <p className="text-xs text-amber-700">Live price unavailable right now — stock only.</p>}
                 <div className="overflow-x-auto">
                   <table className="text-sm">
                     <thead className="text-xs text-admin-ink/60">
@@ -575,7 +575,7 @@ export default function AdminSanmarOrder() {
       <section className={card}>
         <h2 className="font-heading font-semibold uppercase tracking-wide mb-2">Recent SanMar orders</h2>
         {historyError ? (
-          <p className="text-sm text-red-300">{historyError}</p>
+          <p className="text-sm text-red-700">{historyError}</p>
         ) : !history ? (
           <p className="text-sm text-admin-ink/70">Checking SanMar…</p>
         ) : history.length === 0 ? (
@@ -597,7 +597,7 @@ export default function AdminSanmarOrder() {
                     )}
                   </div>
                   {t === "loading" && <p className="text-xs text-admin-ink/60 mt-1">Loading…</p>}
-                  {t === "error" && <p className="text-xs text-red-300 mt-1">Couldn&apos;t get tracking.</p>}
+                  {t === "error" && <p className="text-xs text-red-700 mt-1">Couldn&apos;t get tracking.</p>}
                   {Array.isArray(t) &&
                     (t.length === 0 ? (
                       <p className="text-xs text-admin-ink/60 mt-1">No shipments yet.</p>

@@ -29,7 +29,7 @@ export default function AdminQuotesTab({ kind }: Props) {
   const [showDeleted, setShowDeleted] = useState(false);
 
   return (
-    <section className="bg-admin-ink/[0.02] border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+    <section className="bg-admin-ink/[0.02] border border-admin-ink/10 shadow-sm rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <h3 className="text-sm font-semibold text-admin-ink">
           {showDeleted ? "Recently deleted" : kind === "invoice" ? "Invoices" : "Quotes"}
