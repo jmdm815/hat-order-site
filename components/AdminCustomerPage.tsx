@@ -284,8 +284,8 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
       {tab === "transactions" && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <input className={`${input} max-w-xs`} placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
-            <select className={`${input} w-auto`} value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
+            <input className={`${input} sm:max-w-xs flex-1 sm:flex-none`} placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <select className="border border-admin-ink/20 rounded-lg px-3 py-2 bg-transparent text-admin-ink text-sm" value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
               <option value="all">All</option>
               <option value="quote">Quotes</option>
               <option value="invoice">Invoices</option>
