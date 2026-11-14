@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { generatePostCopy, openaiConfigured, Platform, SocialError } from "@/lib/social-openai";
+import { createSocialPost, getSocialPosts, recentDigest } from "@/lib/social-archive-store";
 
 export const maxDuration = 60;
 
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
   const contentType = str(body.contentType, 120);
   if (!contentType) return NextResponse.json({ error: "Pick a content type." }, { status: 400 });
   try {
-    const result = await generatePostCopy({
+    const request = {
       platforms,
       contentType,
       industry: str(body.industry, 120),
@@ -32,8 +33,12 @@ export async function POST(req: NextRequest) {
       details: str(body.details, 1500),
       hook: str(body.hook, 200),
       hasPhoto: Boolean(body.hasPhoto),
-    });
-    return NextResponse.json(result);
+    };
+    // Feed the most recent archived posts to the writer so it doesn't repeat itself.
+    const recent = recentDigest(await getSocialPosts(20).catch(() => []));
+    const result = await generatePostCopy(request, recent);
+    const post = await createSocialPost(request, result);
+    return NextResponse.json({ ...result, postId: post.id });
   } catch (err) {
     const status = err instanceof SocialError ? err.status : 500;
     return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong" }, { status });

@@ -71,7 +71,7 @@ const PLATFORM_RULES: Record<Platform, string> = {
   linkedin: "LinkedIn: professional, speaks to office managers/HR/owners ordering company apparel; 3–5 sentences, 0–3 hashtags.",
 };
 
-export async function generatePostCopy(req: CopyRequest): Promise<CopyResult> {
+export async function generatePostCopy(req: CopyRequest, recent: string[] = []): Promise<CopyResult> {
   const platforms = req.platforms.length ? req.platforms : (["instagram"] as Platform[]);
   const system = `You write social media posts for a print shop. Business:\n${BRAND}\n\nReturn ONLY JSON:
 {"posts":[{"platform":"instagram|facebook|tiktok|linkedin","caption":"...","hashtags":["#..."]}],
@@ -82,7 +82,11 @@ export async function generatePostCopy(req: CopyRequest): Promise<CopyResult> {
   folded stacks, teams wearing branded gear at work), natural light, clean minimal composition. No real brand logos
   or trademarks; use a simple generic placeholder emblem on the garment. ${req.hasPhoto ? "A real photo of the work is supplied as the base image: the prompt must describe how to stage/enhance THAT photo (background, lighting, setting) while keeping the garment and its decoration exactly as they are." : ""}
 - shotIdea: one sentence telling the owner how to shoot this himself with a phone instead.
-- overlayText: optional 2–6 word headline for the graphic, or "" if none fits.`;
+- overlayText: optional 2–6 word headline for the graphic, or "" if none fits.${
+    recent.length
+      ? `\n\nRECENT POSTS (newest first). Make this one clearly different: do NOT reuse their opening lines, hooks, sentence patterns, calls to action, image concepts/settings/compositions or hashtag sets. Vary the angle (benefit, story, tip, question, behind-the-scenes, local pride, seasonal), the opening word, and the scene in the image.\n${recent.map((r) => `- ${r}`).join("\n")}`
+      : ""
+  }`;
   const user = [
     `Content type: ${req.contentType}`,
     req.industry && `Target industry: ${req.industry}`,

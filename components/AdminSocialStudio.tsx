@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AdminSocialArchive from "@/components/AdminSocialArchive";
+import type { SocialPost } from "@/lib/social-archive-store";
 
 // Social Studio: pick what the post is about -> OpenAI writes the captions,
 // hashtags and an image prompt -> generate the image (from scratch, or by
@@ -100,7 +102,10 @@ export default function AdminSocialStudio() {
   const [size, setSize] = useState("1024x1024");
   const [quality, setQuality] = useState("medium");
   const [usePhoto, setUsePhoto] = useState(true);
+  // Current image: a data: URL (just made) or the archive URL (reopened post).
   const [image, setImage] = useState<string | null>(null);
+  const [postId, setPostId] = useState<string | null>(null);
+  const [archiveKey, setArchiveKey] = useState(0);
   const [imageName, setImageName] = useState("jm-social.jpg");
   const [imageBusy, setImageBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +137,9 @@ export default function AdminSocialStudio() {
       setCopy(j);
       setPrompt(j.imagePrompt || "");
       setOverlay(j.overlayText || "");
+      setPostId(j.postId ?? null);
+      setImage(null);
+      setArchiveKey((n) => n + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -152,16 +160,36 @@ export default function AdminSocialStudio() {
       form.append("size", size);
       form.append("quality", quality);
       if (photo && usePhoto) form.append("photo", await shrinkPhoto(photo), "photo.jpg");
+      if (postId) form.append("postId", postId);
       const res = await fetch("/api/admin/social/image", { method: "POST", body: form });
       const j = await res.json().catch(() => ({ error: `Image request failed (${res.status})` }));
       if (!res.ok) throw new Error(j.error || "Couldn't make the image");
-      setImage(j.image);
+      setImage(`data:image/jpeg;base64,${j.image}`);
       setImageName(`jm-social-${Date.now()}.jpg`);
+      setArchiveKey((n) => n + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setImageBusy(false);
     }
+  }
+
+  // Reopen an archived post in the editor (captions, prompt, latest image, settings).
+  function openPost(p: SocialPost) {
+    setPlatforms(p.request.platforms.length ? p.request.platforms : ["instagram"]);
+    setContentType(p.request.contentType);
+    setIndustry(p.request.industry ?? "");
+    setGarment(p.request.garment ?? "");
+    setDecoration(p.request.decoration ?? "");
+    setHook(p.request.hook ?? "");
+    setDetails(p.request.details ?? "");
+    setCopy(p.result);
+    setPrompt(p.result.imagePrompt);
+    setOverlay(p.result.overlayText ?? "");
+    setPostId(p.id);
+    const latest = p.images[p.images.length - 1];
+    setImage(latest ? `/api/admin/social/posts/${p.id}/image?img=${latest.id}` : null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const toggle = (p: Platform) => setPlatforms((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]));
@@ -359,9 +387,9 @@ export default function AdminSocialStudio() {
           {image && (
             <div className="mt-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`data:image/jpeg;base64,${image}`} alt="Generated post image" className="w-full max-w-lg rounded-xl" />
+              <img src={image} alt="Generated post image" className="w-full max-w-lg rounded-xl" />
               <a
-                href={`data:image/jpeg;base64,${image}`}
+                href={image}
                 download={imageName}
                 className="inline-block mt-2 text-sm underline text-admin-ink/80"
               >
@@ -375,6 +403,7 @@ export default function AdminSocialStudio() {
           )}
         </section>
       )}
+      <AdminSocialArchive refreshKey={archiveKey} onOpen={openPost} />
     </div>
   );
 }
