@@ -95,6 +95,12 @@ export type NodeRenderOptions = {
   onModel?: boolean; // photo shows a person: estimate the shirt band
 };
 
+const ON_MODEL: Partial<Record<string, { centerX: number; centerY: number; maxWidth: number; maxHeight: number }>> = {
+  "left-chest": { centerX: 0.7, centerY: 0.43, maxWidth: 0.14, maxHeight: 0.1 },
+  "full-front": { centerX: 0.5, centerY: 0.5, maxWidth: 0.42, maxHeight: 0.3 },
+  back: { centerX: 0.5, centerY: 0.45, maxWidth: 0.44, maxHeight: 0.34 },
+};
+
 const MIN_EXPORT_LONG_SIDE = 3000;
 const MAX_EXPORT_SCALE = 4;
 
@@ -108,7 +114,12 @@ export async function renderMockupNode(
   const { rect: detected, W: bw, H: bh } = await detectGarmentBoundsNode(garmentBuf);
   const garment = opts.onModel ? onModelGarmentBounds(detected) : detected;
   const logo = trimRgba(await toRgba(logoBuf));
-  const layout = layoutForPreset(preset, garment, logo.w, logo.h, opts.sizePct ?? 100);
+  // On-model photos: place relative to the whole person (calibrated on
+  // SanMar's front-facing model shots) instead of the flat-lay fractions.
+  const om = opts.onModel ? ON_MODEL[preset.id] : undefined;
+  const layout = om
+    ? layoutForPreset({ ...preset, ...om }, detected, logo.w, logo.h, opts.sizePct ?? 100)
+    : layoutForPreset(preset, garment, logo.w, logo.h, opts.sizePct ?? 100);
 
   const k = Math.min(MAX_EXPORT_SCALE, Math.max(1, MIN_EXPORT_LONG_SIDE / Math.max(bw, bh)));
   const W = Math.round(bw * k), H = Math.round(bh * k);
@@ -187,7 +198,9 @@ export async function renderMockupNode(
     .removeAlpha()
     .png({ compressionLevel: 8 })
     .toBuffer();
-  const printWidthIn = (layout.width / (garment.width * preset.maxWidth)) * preset.nominalWidthIn;
+  const printWidthIn = om
+    ? (layout.width / (detected.width * om.maxWidth)) * preset.nominalWidthIn
+    : (layout.width / (garment.width * preset.maxWidth)) * preset.nominalWidthIn;
   return { png, layout, printWidthIn, logoPx: { w: logo.w, h: logo.h } };
 }
 
