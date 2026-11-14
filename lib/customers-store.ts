@@ -76,6 +76,7 @@ async function setCustomers(customers: Customer[]): Promise<{ persisted: boolean
 
 export type CustomerInput = {
   name: string;
+  contactName?: string;
   company?: string;
   email?: string;
   phone?: string;
@@ -91,6 +92,7 @@ export async function createCustomer(
   const customer: Customer = {
     id: uuid(),
     name: input.name,
+    contactName: input.contactName || undefined,
     company: input.company || undefined,
     email: input.email || undefined,
     phone: input.phone || undefined,
@@ -113,6 +115,7 @@ export async function updateCustomer(
   const updated: Customer = {
     ...existing,
     name: input.name,
+    contactName: input.contactName || undefined,
     company: input.company || undefined,
     email: input.email || undefined,
     phone: input.phone || undefined,
@@ -140,6 +143,18 @@ export async function setCustomerContacts(
   };
   const { persisted } = await setCustomers(all.map((c) => (c.id === id ? updated : c)));
   return { customer: updated, persisted };
+}
+
+// Bulk-replace customers in ONE write (cleanup/merge tools) — avoids the
+// lost-update risk of many separate PUTs.
+export async function replaceCustomers(
+  update: (all: Customer[]) => Customer[]
+): Promise<{ customers: Customer[]; persisted: boolean }> {
+  if (isPersistent()) memory = null; // re-read the blob so we start from the latest saved list
+  const all = await getCustomers();
+  const next = update(all);
+  const { persisted } = await setCustomers(next);
+  return { customers: next, persisted };
 }
 
 export type CustomerImportResult = {
@@ -176,6 +191,7 @@ export async function importCustomers(inputs: CustomerInput[]): Promise<Customer
         ...existing,
         name: input.name,
         company: input.company || existing.company,
+        contactName: input.contactName || existing.contactName,
         phone: input.phone || existing.phone,
         notes: input.notes || existing.notes,
         defaultDepositPercent: input.defaultDepositPercent || existing.defaultDepositPercent,
@@ -186,6 +202,7 @@ export async function importCustomers(inputs: CustomerInput[]): Promise<Customer
       const customer: Customer = {
         id: uuid(),
         name: input.name,
+        contactName: input.contactName || undefined,
         company: input.company || undefined,
         email: input.email || undefined,
         phone: input.phone || undefined,

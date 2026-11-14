@@ -101,7 +101,10 @@ function ContactsCard({ customer, onSaved }: { customer: Customer; onSaved: () =
   }
 
   const rows: { contact: CustomerContact; primary: boolean }[] = [
-    { contact: { id: "primary", name: customer.name, email: customer.email, phone: customer.phone }, primary: true },
+    {
+      contact: { id: "primary", name: customer.contactName || customer.name, email: customer.email, phone: customer.phone },
+      primary: true,
+    },
     ...contacts.map((c) => ({ contact: c, primary: false })),
   ];
 
@@ -222,7 +225,7 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "quote" | "invoice" | "open">("all");
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "", company: "", email: "", phone: "", notes: "" });
+  const [form, setForm] = useState({ name: "", contactName: "", email: "", phone: "", notes: "" });
   const [saving, setSaving] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkSearch, setLinkSearch] = useState("");
@@ -276,7 +279,13 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
   function startEdit() {
     if (!data) return;
     const c = data.customer;
-    setForm({ name: c.name, company: c.company ?? "", email: c.email ?? "", phone: c.phone ?? "", notes: c.notes ?? "" });
+    setForm({
+      name: c.contactName ? c.name : c.company ?? c.name,
+      contactName: c.contactName ?? (c.company ? c.name : ""),
+      email: c.email ?? "",
+      phone: c.phone ?? "",
+      notes: c.notes ?? "",
+    });
     setEditing(true);
   }
 
@@ -330,7 +339,7 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-[28px] font-bold leading-tight">{c.name}</h1>
-          {c.company && <p className="text-admin-ink/70">{c.company}</p>}
+          {(c.contactName || c.company) && <p className="text-admin-ink/70">{c.contactName ? `Contact: ${c.contactName}` : c.company}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
@@ -355,9 +364,16 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
 
       {editing ? (
         <div className="border border-admin-ink/15 rounded-2xl p-4 bg-admin-card grid sm:grid-cols-2 gap-3">
-          {(["name", "company", "email", "phone"] as const).map((k) => (
+          {(
+            [
+              ["name", "Customer / company name"],
+              ["contactName", "Primary contact"],
+              ["email", "Email"],
+              ["phone", "Phone"],
+            ] as const
+          ).map(([k, l]) => (
             <label key={k} className="text-xs uppercase tracking-wide text-admin-ink/70">
-              {k}
+              {l}
               <input className={`${input} mt-1`} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
             </label>
           ))}
@@ -405,7 +421,7 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
                 <span className="ml-2 text-xs font-normal text-admin-ink/60">+{c.contacts!.length} more below</span>
               )}
             </h2>
-            <p className="text-sm">{c.name}</p>
+            <p className="text-sm">{c.contactName || c.name}</p>
             {c.email && (
               <a href={`mailto:${c.email}`} className="text-sm underline text-admin-ink/80 break-all">
                 {c.email}

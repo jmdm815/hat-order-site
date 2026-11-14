@@ -15,7 +15,7 @@ type ImportResult = {
   persisted: boolean;
 };
 
-const EMPTY_FORM = { name: "", company: "", email: "", phone: "", notes: "", defaultDepositPercent: "" };
+const EMPTY_FORM = { name: "", contactName: "", email: "", phone: "", notes: "", defaultDepositPercent: "" };
 
 const IMPORT_TEMPLATE_CSV =
   "Name,Company,Email,Phone,Notes\nJane Smith,Smith Construction,jane@smithconstruction.com,555-123-4567,Prefers embroidered logos\n";
@@ -72,7 +72,7 @@ export default function AdminCustomersManager() {
     const q = search.trim().toLowerCase();
     if (!q) return customers;
     return customers.filter((c) =>
-      [c.name, c.company, c.email, c.phone, ...(c.contacts ?? []).flatMap((ct) => [ct.name, ct.email, ct.phone])].some(
+      [c.name, c.contactName, c.company, c.email, c.phone, ...(c.contacts ?? []).flatMap((ct) => [ct.name, ct.email, ct.phone])].some(
         (f) => f?.toLowerCase().includes(q)
       )
     );
@@ -130,8 +130,8 @@ export default function AdminCustomersManager() {
   function startEdit(c: Customer) {
     setEditingId(c.id);
     setForm({
-      name: c.name,
-      company: c.company ?? "",
+      name: c.contactName ? c.name : c.company ?? c.name,
+      contactName: c.contactName ?? (c.company ? c.name : ""),
       email: c.email ?? "",
       phone: c.phone ?? "",
       notes: c.notes ?? "",
@@ -419,21 +419,22 @@ export default function AdminCustomersManager() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="text-xs text-admin-ink/80">
-              Name *
+              Customer / company name *
               <input
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
-                placeholder="Jane Smith"
+                placeholder="Legacy Ford (or the person's name for an individual)"
                 autoFocus
               />
             </label>
             <label className="text-xs text-admin-ink/80">
-              Company (optional)
+              Primary contact (optional)
               <input
-                value={form.company}
-                onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+                value={form.contactName}
+                onChange={(e) => setForm((f) => ({ ...f, contactName: e.target.value }))}
                 className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+                placeholder="Jane Smith"
               />
             </label>
             <label className="text-xs text-admin-ink/80">
@@ -529,7 +530,9 @@ export default function AdminCustomersManager() {
                         {c.name}
                       </a>
                     )}
-                    {c.company && <span className="text-admin-ink/62 font-normal"> · {c.company}</span>}
+                    {(c.contactName || c.company) && (
+                      <span className="text-admin-ink/62 font-normal"> · {c.contactName || c.company}</span>
+                    )}
                   </div>
                   <div className="text-xs text-admin-ink/80 mt-0.5">
                     {[c.email, c.phone].filter(Boolean).join(" · ") || (
