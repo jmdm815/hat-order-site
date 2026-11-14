@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "image/png",
         "Cache-Control": "no-store",
         "X-Cutout-Method": r.method,
-        ...(r.note ? { "X-Cutout-Note": r.note } : {}),
+        ...(r.note ? { "X-Cutout-Note": encodeURIComponent(r.note) } : {}),
       },
     });
   } catch (err) {
