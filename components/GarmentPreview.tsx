@@ -17,13 +17,18 @@ export type GarmentPhotoSource = "override" | "photo" | "illustration";
 // retrying the on-model photo.
 export default function GarmentPreview({
   url,
+  altUrl,
   view,
   colorHexes,
   className,
   isOverride,
   onSourceResolved,
+  onDisplayedSrc,
 }: {
   url?: string;
+  // A second real flat photo to try (e.g. S&S Activewear's photo of the same
+  // style/color, see lib/designer-photos.ts) before the illustration.
+  altUrl?: string;
   view: "front" | "back";
   colorHexes?: string[];
   className?: string;
@@ -36,37 +41,47 @@ export default function GarmentPreview({
   isOverride?: boolean;
   // Reports which of the three sources actually ended up on screen — the
   // admin-uploaded photo, a real SanMar photo, or the illustrated fallback.
-  // The admin editor uses this to show a plain-language caption ("Showing:
-  // real SanMar photo" / "SanMar has no photo — showing the illustration"),
-  // since a customer/admin can't otherwise tell those apart just by looking.
   onSourceResolved?: (source: GarmentPhotoSource) => void;
+  // The exact image URL on screen (null while showing the illustration) —
+  // the designer shades artwork against it (lib/fabric-shade.ts).
+  onDisplayedSrc?: (src: string | null) => void;
 }) {
-  // Reset the broken flag when switching to a different photo (new color or
-  // view) so it gets a fresh chance rather than staying stuck on silhouette.
-  // Adjusting state during render (rather than in a useEffect) per React's
-  // recommended pattern for resetting state when a prop changes.
-  const [state, setState] = useState<{ url?: string; broken: boolean }>({ url, broken: false });
-  if (state.url !== url) {
-    setState({ url, broken: false });
-  }
-  const broken = state.broken;
-  const showingPhoto = Boolean(url) && !broken;
+  // stage 0 = primary photo, 1 = alternate photo, 2 = illustration. Reset
+  // when the photo changes (new color or view) — adjusting state during
+  // render per React's recommended pattern for resetting on a prop change.
+  const sources = [url, altUrl];
+  const sig = `${url}|${altUrl}`;
+  const [state, setState] = useState<{ sig: string; stage: number }>({ sig, stage: 0 });
+  if (state.sig !== sig) setState({ sig, stage: 0 });
+  let stage = state.sig === sig ? state.stage : 0;
+  while (stage < 2 && !sources[stage]) stage++;
+
+  const src =
+    stage === 0
+      ? isOverride
+        ? (url as string)
+        : `${productImageUrl(url as string)}&strict=1`
+      : stage === 1
+        ? `${productImageUrl(altUrl as string)}&strict=1`
+        : null;
 
   useEffect(() => {
-    onSourceResolved?.(!showingPhoto ? "illustration" : isOverride ? "override" : "photo");
+    onSourceResolved?.(src === null ? "illustration" : stage === 0 && isOverride ? "override" : "photo");
+    onDisplayedSrc?.(src);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showingPhoto, isOverride]);
+  }, [src, isOverride]);
 
-  if (!showingPhoto) {
+  if (src === null) {
     return <ShirtSilhouette view={view} colorHexes={colorHexes} className={className} />;
   }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={isOverride ? url : `${productImageUrl(url as string)}&strict=1`}
+      key={src}
+      src={src}
       alt=""
-      onError={() => setState({ url, broken: true })}
+      onError={() => setState({ sig, stage: stage + 1 })}
       className={className}
       draggable={false}
     />
