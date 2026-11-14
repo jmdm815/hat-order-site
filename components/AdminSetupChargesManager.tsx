@@ -136,7 +136,7 @@ export default function AdminSetupChargesManager() {
           const draft = drafts[c.id] ?? { label: c.label, price: c.price };
           const isOpen = openId === c.id;
           return (
-            <div key={c.id} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card overflow-hidden">
+            <div key={c.id} className="border border-admin-ink/10 shadow-sm rounded-2xl bg-admin-card overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <div className="flex-1">
                   <div className="font-semibold text-admin-ink">{c.label}</div>

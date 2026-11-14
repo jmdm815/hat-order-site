@@ -76,12 +76,14 @@
          a genuinely dark navy on purpose, independent of admin-bg, so
          button labels keep full contrast even though admin-bg itself is
          now much lighter than before. */
-  --color-admin-bg: #3b4a73;
-  --color-admin-card: #2c3759;
-  --color-admin-ink: #ffffff;
-  --color-admin-accent: #ffffff;
-  --color-admin-accent-ink: #1b2340;
-  --color-admin-accent-dim: #cfd3dc;
+  /* Light, high-contrast admin theme (Nov 2026 redesign): soft gray canvas,
+     white cards, dark navy text, navy primary buttons with white labels. */
+  --color-admin-bg: #f3f5f9;
+  --color-admin-card: #ffffff;
+  --color-admin-ink: #172038;
+  --color-admin-accent: #1f2f5c;
+  --color-admin-accent-ink: #ffffff;
+  --color-admin-accent-dim: #2d4180;
 }
 
 /* iOS Safari bumps the page's own font size up when it thinks the user

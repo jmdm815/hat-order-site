@@ -2274,7 +2274,7 @@ export default function AdminQuoteBuilder({
     <>
     <div className="space-y-8">
       {activeRecord && (
-        <div className="bg-admin-ink/5 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl px-4 py-2.5 text-sm space-y-2.5">
+        <div className="bg-admin-ink/5 border border-admin-ink/10 shadow-sm rounded-2xl px-4 py-2.5 text-sm space-y-2.5">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="text-admin-ink/88">
             Editing{" "}
@@ -2515,7 +2515,7 @@ export default function AdminQuoteBuilder({
       {/* Customer / quote header — skipped entirely in "quick" mode (Quick
           Quote tab): no customer to look up, no payment terms to set. */}
       {mode === "full" && (
-      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+      <section className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-admin-ink mb-3">{isInvoice ? "Invoice details" : "Quote details"}</h3>
 
         {customers.length > 0 && (
@@ -3091,7 +3091,7 @@ export default function AdminQuoteBuilder({
             "Setup charges" / "Garments" cards sitting around with nothing
             in them), matching the reference quoting tool's single central
             Items list. */}
-        <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+        <section className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4">
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <h3 className="text-sm font-semibold text-admin-ink">
               Items ({lines.length + selectedSetupChargeIds.length + miscFees.length})
@@ -3820,7 +3820,7 @@ export default function AdminQuoteBuilder({
           "Setup charge" is the open "+ Add item" panel — the charges
           already picked live in the unified Items list above, not here. */}
       {addItemMode === "setup" && (
-      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+      <section className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4">
         <div className="flex items-start justify-between gap-3 mb-1">
           <h3 className="text-sm font-semibold text-admin-ink">Add a setup charge</h3>
           <button
@@ -4020,7 +4020,7 @@ export default function AdminQuoteBuilder({
               return (
                 <span
                   key={id}
-                  className="flex items-center gap-1.5 text-xs bg-admin-ink/5 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-full pl-3 pr-1.5 py-1 text-admin-ink/94"
+                  className="flex items-center gap-1.5 text-xs bg-admin-ink/5 border border-admin-ink/10 shadow-sm rounded-full pl-3 pr-1.5 py-1 text-admin-ink/94"
                 >
                   {c.label} <span className="text-admin-ink/62">({formatUSD(c.price)})</span>
                   <button
@@ -4047,7 +4047,7 @@ export default function AdminQuoteBuilder({
           "+ Add item" panel — fees already added live in the unified Items
           list above, not here. */}
       {mode === "full" && addItemMode === "misc" && (
-      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+      <section className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4">
         <div className="flex items-start justify-between gap-3 mb-1">
           <h3 className="text-sm font-semibold text-admin-ink">Add another charge</h3>
           <button
@@ -4133,7 +4133,7 @@ export default function AdminQuoteBuilder({
           auto-closing) since a real order is usually several
           styles/colors added back-to-back under the same decoration. */}
       {addItemMode === "garment" && (
-      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+      <section className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
           <h3 className="text-sm font-semibold text-admin-ink">Add a garment</h3>
           <button
@@ -4711,7 +4711,7 @@ export default function AdminQuoteBuilder({
           reference quoting tool puts one totals box under the item list
           instead of a second separate "Preview" section. */}
       {quote && (
-        <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+        <section className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4">
           <h3 className="text-sm font-semibold text-admin-ink mb-3">Totals</h3>
           {quote.setupCharges.length > 0 && (
             <div className="border-t border-admin-ink/10 pt-3 mb-3">
@@ -4790,7 +4790,7 @@ export default function AdminQuoteBuilder({
           effect above (see generateQuote's useEffect) keeps it live as
           items are added, edited, or removed. */}
       {(mode === "quick" || activeRecord) && (
-        <div className="sticky bottom-0 left-0 right-0 -mx-4 sm:mx-0 bg-admin-card/95 backdrop-blur border-t border-admin-ink/10 shadow-lg shadow-black/50 px-4 py-3 flex flex-wrap items-center justify-end gap-4 text-sm text-admin-ink z-30">
+        <div className="sticky bottom-0 left-0 right-0 -mx-4 sm:mx-0 bg-admin-card/95 backdrop-blur border-t border-admin-ink/10 shadow-sm px-4 py-3 flex flex-wrap items-center justify-end gap-4 text-sm text-admin-ink z-30">
           <span className="text-admin-ink/80">
             Subtotal{" "}
             <span className="text-admin-ink font-medium">${(quote?.subtotalBeforeTax ?? 0).toFixed(2)}</span>
@@ -4818,7 +4818,7 @@ export default function AdminQuoteBuilder({
           activeRecord — see its condition above), so it keeps its own
           simple Preview/Create quote row. */}
       {mode === "quick" && (
-      <section className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4">
+      <section className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4">
         <div className="flex flex-wrap gap-2">
           <button
             onClick={generateQuote}

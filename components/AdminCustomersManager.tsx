@@ -301,7 +301,7 @@ export default function AdminCustomersManager() {
       </div>
 
       {selectMode && customers.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-3 bg-admin-ink/5 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl px-3 py-2 max-w-2xl">
+        <div className="mt-3 flex flex-wrap items-center gap-3 bg-admin-ink/5 border border-admin-ink/10 shadow-sm rounded-2xl px-3 py-2 max-w-2xl">
           <label className="flex items-center gap-2 text-sm text-admin-ink/88 cursor-pointer">
             <input
               type="checkbox"
@@ -329,7 +329,7 @@ export default function AdminCustomersManager() {
       )}
 
       {showImport && (
-        <section className="mt-4 bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4 max-w-2xl">
+        <section className="mt-4 bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4 max-w-2xl">
           <h3 className="text-sm font-semibold text-admin-ink mb-1">Import customers</h3>
           <p className="text-xs text-admin-ink/72">
             Upload a CSV or Excel (.xls/.xlsx) file with a header row. A <span className="font-medium">Name</span>{" "}
@@ -411,7 +411,7 @@ export default function AdminCustomersManager() {
       )}
 
       {showForm && (
-        <section className="mt-4 bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4 max-w-2xl">
+        <section className="mt-4 bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4 max-w-2xl">
           <h3 className="text-sm font-semibold text-admin-ink mb-3">
             {editingId ? "Edit customer" : "Add a customer"}
           </h3>
@@ -499,7 +499,7 @@ export default function AdminCustomersManager() {
       ) : filtered.length === 0 ? (
         <p className="mt-4 text-sm text-admin-ink/72">No customers match &quot;{search}&quot;.</p>
       ) : (
-        <div className="mt-4 divide-y divide-admin-ink/10 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl max-w-2xl overflow-hidden">
+        <div className="mt-4 divide-y divide-admin-ink/10 border border-admin-ink/10 shadow-sm rounded-2xl max-w-2xl overflow-hidden">
           {filtered.map((c) => (
             <div
               key={c.id}

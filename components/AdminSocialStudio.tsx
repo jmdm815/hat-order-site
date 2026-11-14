@@ -170,7 +170,7 @@ export default function AdminSocialStudio() {
     <div className="space-y-5 text-admin-ink">
       {configured === false && (
         <div className="rounded-xl border border-amber-400/50 bg-amber-400/10 p-4 text-sm">
-          <p className="font-semibold text-amber-300">One setup step left: add your OpenAI key</p>
+          <p className="font-semibold text-amber-700">One setup step left: add your OpenAI key</p>
           <p className="mt-1 text-admin-ink/80">
             In Vercel, open the <b>hat-order-site</b> project → Settings → Environment Variables, add{" "}
             <code>OPENAI_API_KEY</code> with a key from platform.openai.com/api-keys, then redeploy.
@@ -277,7 +277,7 @@ export default function AdminSocialStudio() {
         </button>
       </section>
 
-      {error && <p className="text-sm text-red-300">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
 
       {copy && (
         <section className={card}>

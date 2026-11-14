@@ -451,7 +451,7 @@ function MaterialsPanel({
           const draft = drafts[m.id] ?? { ...m };
           const isOpen = openId === m.id;
           return (
-            <div key={m.id} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card overflow-hidden">
+            <div key={m.id} className="border border-admin-ink/10 shadow-sm rounded-2xl bg-admin-card overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <ColorSwatch hex={m.surfaceColorHex} />
                 <div className="flex-1">
@@ -710,7 +710,7 @@ function ShapesPanel({
           const draft = drafts[s.id] ?? { ...s };
           const isOpen = openId === s.id;
           return (
-            <div key={s.id} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card overflow-hidden">
+            <div key={s.id} className="border border-admin-ink/10 shadow-sm rounded-2xl bg-admin-card overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <ShapeThumbnail geometry={s.geometry} cornerRadiusPct={s.cornerRadiusPct} />
                 <div className="flex-1">
@@ -991,7 +991,7 @@ function SizesPanel({
           const draft = drafts[s.id] ?? { ...s };
           const isOpen = openId === s.id;
           return (
-            <div key={s.id} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl bg-admin-card overflow-hidden">
+            <div key={s.id} className="border border-admin-ink/10 shadow-sm rounded-2xl bg-admin-card overflow-hidden">
               <div className="flex items-center gap-3 p-4">
                 <div className="flex-1">
                   <div className="font-semibold text-admin-ink">{s.name}</div>

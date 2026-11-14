@@ -46,12 +46,12 @@ const input = "w-full border border-admin-ink/20 rounded-lg px-3 py-2 bg-transpa
 function StatusPill({ t }: { t: RecordSummary }) {
   const cls =
     t.status === "Paid"
-      ? "bg-green-500/15 text-green-400"
+      ? "bg-green-500/15 text-green-700"
       : t.status === "Open" || t.status === "Partially paid"
-        ? "bg-amber-400/15 text-amber-300"
+        ? "bg-amber-400/15 text-amber-700"
         : t.status.startsWith("Converted")
           ? "bg-admin-ink/10 text-admin-ink/60"
-          : "bg-sky-400/15 text-sky-300";
+          : "bg-sky-400/15 text-sky-700";
   return <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{t.status}</span>;
 }
 
@@ -158,15 +158,18 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
     }
   }
 
-  if (error && !data) return <p className="text-red-300">{error}</p>;
+  if (error && !data) return <p className="text-red-700">{error}</p>;
   if (!data) return <p className="text-admin-ink/70">Loading…</p>;
   const c = data.customer;
 
   return (
     <div className="text-admin-ink space-y-6">
+      <a href="/admin?tab=customers" className="inline-block text-sm text-admin-ink/60 hover:text-admin-ink">
+        ← All customers
+      </a>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{c.name}</h1>
+          <h1 className="text-2xl sm:text-[28px] font-bold leading-tight">{c.name}</h1>
           {c.company && <p className="text-admin-ink/70">{c.company}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -188,7 +191,7 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-300">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
 
       {editing ? (
         <div className="border border-admin-ink/15 rounded-2xl p-4 bg-admin-card grid sm:grid-cols-2 gap-3">
@@ -225,7 +228,7 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
           <div>
             <h2 className="font-semibold mb-2">Overview</h2>
             <p className="text-xs text-admin-ink/60">Balance</p>
-            <p className={`text-2xl font-bold ${data.stats.balance > 0 ? "text-amber-300" : "text-green-400"}`}>
+            <p className={`text-2xl font-bold ${data.stats.balance > 0 ? "text-amber-700" : "text-green-700"}`}>
               {money(data.stats.balance)}
             </p>
             <p className="text-xs text-admin-ink/60 mt-2">
@@ -357,7 +360,7 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
                       <td className="px-3 py-2 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold mr-2 ${
-                            t.kind === "invoice" ? "bg-green-500/20 text-green-300" : "bg-violet-400/20 text-violet-300"
+                            t.kind === "invoice" ? "bg-green-500/20 text-green-700" : "bg-violet-400/20 text-violet-700"
                           }`}
                         >
                           {t.kind === "invoice" ? "IN" : "QT"}

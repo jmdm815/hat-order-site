@@ -417,7 +417,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                       {menuOpen && (
                         <div
                           onClick={(e) => e.stopPropagation()}
-                          className="absolute right-3 top-full mt-1 z-20 w-56 rounded-xl border border-admin-ink/15 bg-admin-card shadow-2xl shadow-black/50 py-1 text-left"
+                          className="absolute right-3 top-full mt-1 z-20 w-56 rounded-xl border border-admin-ink/15 bg-admin-card shadow-sm py-1 text-left"
                         >
                           {view === "deleted" ? (
                             <>
@@ -437,7 +437,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                                   handlePermanentDelete(r.id);
                                 }}
                                 disabled={isBusy}
-                                className="w-full text-left text-xs px-3 py-1.5 text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+                                className="w-full text-left text-xs px-3 py-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-40"
                               >
                                 Delete permanently
                               </button>
@@ -492,7 +492,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                                   setJobFolderModalRecord(r);
                                 }}
                                 title="Attach a garment mock-up and print-file locations, then download a 2-page job folder PDF"
-                                className="w-full text-left text-xs px-3 py-1.5 text-blue-400 hover:bg-admin-ink/10"
+                                className="w-full text-left text-xs px-3 py-1.5 text-blue-700 hover:bg-admin-ink/10"
                               >
                                 Job Folder
                               </button>
@@ -557,7 +557,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                                     }}
                                     title="Set a deposit amount for the pay page link, or record a deposit taken another way (cash, check), before converting this to an invoice"
                                     className={`w-full text-left text-xs px-3 py-1.5 hover:bg-admin-ink/10 font-medium ${
-                                      (r.amountPaid ?? 0) > 0 ? "text-green-400" : "text-blue-400"
+                                      (r.amountPaid ?? 0) > 0 ? "text-green-700" : "text-blue-700"
                                     }`}
                                   >
                                     {paidInFull
@@ -647,7 +647,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                                 }}
                                 disabled={isBusy}
                                 title="Create a production job per line item, assigned to each item's decoration type"
-                                className="w-full text-left text-xs px-3 py-1.5 text-blue-400 hover:bg-admin-ink/10 disabled:opacity-40"
+                                className="w-full text-left text-xs px-3 py-1.5 text-blue-700 hover:bg-admin-ink/10 disabled:opacity-40"
                               >
                                 {isBusy ? "…" : "Send to Jobs"}
                               </button>
@@ -657,7 +657,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                                   handleDelete(r.id);
                                 }}
                                 disabled={isBusy}
-                                className="w-full text-left text-xs px-3 py-1.5 text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+                                className="w-full text-left text-xs px-3 py-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-40"
                               >
                                 Delete
                               </button>

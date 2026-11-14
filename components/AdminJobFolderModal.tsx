@@ -694,7 +694,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide">Press settings</p>
             {!managingPresets && (
-              <button type="button" onClick={openPresetManager} className="text-xs text-blue-400 hover:underline">
+              <button type="button" onClick={openPresetManager} className="text-xs text-blue-700 hover:underline">
                 Manage presets
               </button>
             )}
@@ -793,7 +793,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={addPress} className="mt-2 text-xs text-blue-400 hover:underline">
+              <button type="button" onClick={addPress} className="mt-2 text-xs text-blue-700 hover:underline">
                 {pressList.length ? "+ Add another press setting (e.g. for polyester)" : "+ Add press setting"}
               </button>
             </>
@@ -843,7 +843,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
               <button
                 type="button"
                 onClick={() => setPresetDraft((d) => [...d, { id: uuid(), name: "", heat: "", time: "" }])}
-                className="text-xs text-blue-400 hover:underline"
+                className="text-xs text-blue-700 hover:underline"
               >
                 + Add preset
               </button>
@@ -1020,7 +1020,7 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
           <button
             type="button"
             onClick={addRow}
-            className="mt-2 text-xs text-blue-400 hover:underline"
+            className="mt-2 text-xs text-blue-700 hover:underline"
           >
             + Add print file
           </button>
@@ -1076,9 +1076,9 @@ export default function AdminJobFolderModal({ record, onClose, onUpdated }: Prop
             </button>
           </div>
           {rowsDirty && !savingRows && (
-            <p className="mt-1.5 text-xs text-amber-300">You have unsaved changes.</p>
+            <p className="mt-1.5 text-xs text-amber-700">You have unsaved changes.</p>
           )}
-          {rowsError && <p className="mt-1.5 text-xs text-red-300 font-medium">{rowsError}</p>}
+          {rowsError && <p className="mt-1.5 text-xs text-red-700 font-medium">{rowsError}</p>}
         </div>
       </div>
     </div>

@@ -80,7 +80,7 @@ export default function AdminLogoManager() {
   if (loading) return <p className="text-admin-ink/62 text-sm">Loading…</p>;
 
   return (
-    <div className="bg-admin-card border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-4 max-w-xl">
+    <div className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4 max-w-xl">
       <h3 className="text-sm font-semibold text-admin-ink">Site logo</h3>
       <p className="mt-1 text-xs text-admin-ink/72">
         Shown on the homepage hero and the order-flow header. The built-in default is a tiny
@@ -97,7 +97,7 @@ export default function AdminLogoManager() {
       )}
 
       <div className="mt-4 flex items-center gap-4">
-        <div className="w-20 h-20 rounded-xl border border-admin-ink/10 shadow-lg shadow-black/30 bg-gray/30 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="w-20 h-20 rounded-xl border border-admin-ink/10 shadow-sm bg-gray/30 flex items-center justify-center overflow-hidden shrink-0">
           {logoUrl && (
             // Admin preview of an arbitrary uploaded-image URL; next/image
             // would need the Blob host registered in next.config, and this

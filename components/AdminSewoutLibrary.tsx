@@ -233,8 +233,8 @@ export default function AdminSewoutLibrary() {
         </button>
       </div>
       {listening && <p className="mt-2 text-xs text-admin-ink/70">Listening… say a customer or logo name.</p>}
-      {voiceError && <p className="mt-2 text-xs text-amber-300">{voiceError}</p>}
-      {loadError && <p className="mt-3 text-sm text-red-300">{loadError}</p>}
+      {voiceError && <p className="mt-2 text-xs text-amber-700">{voiceError}</p>}
+      {loadError && <p className="mt-3 text-sm text-red-700">{loadError}</p>}
 
       {/* Results */}
       {sewouts && results.length === 0 && (
@@ -261,7 +261,7 @@ export default function AdminSewoutLibrary() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={s.coverUrl || s.photoUrls[0]} alt={`${s.customerName} sew-out`} className="w-full h-full object-cover" loading="lazy" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">No photo</div>
+                <div className="w-full h-full flex items-center justify-center text-xs text-slate-600">No photo</div>
               )}
             </div>
             <div className="p-2.5">
@@ -395,7 +395,7 @@ function SewoutDetail({
               <img src={photo} alt={`${record.customerName} sew-out`} className="w-full max-h-[60vh] object-contain" />
             </a>
           ) : (
-            <div className="h-48 flex items-center justify-center text-sm text-slate-400">No photo yet</div>
+            <div className="h-48 flex items-center justify-center text-sm text-slate-600">No photo yet</div>
           )}
         </div>
         <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
@@ -481,7 +481,7 @@ function SewoutDetail({
         </dl>
 
         <div className="mt-5 flex gap-2 justify-between">
-          <button onClick={onDelete} className="text-sm text-red-300 hover:underline">Delete</button>
+          <button onClick={onDelete} className="text-sm text-red-700 hover:underline">Delete</button>
           <button onClick={onEdit} className="px-4 py-2 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold text-sm">
             Edit details
           </button>
@@ -693,7 +693,7 @@ function SewoutForm({
           <label className={label} htmlFor="sw-notes">Notes</label>
           <textarea id="sw-notes" rows={3} className={input} value={draft.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Needle order, backing, hoop size…" />
         </div>
-        {error && <p className="text-sm text-red-300">{error}</p>}
+        {error && <p className="text-sm text-red-700">{error}</p>}
       </div>
       <div className="sticky bottom-0 bg-admin-bg/95 backdrop-blur px-4 py-3 border-t border-admin-ink/15 flex justify-end gap-2">
         <button onClick={onCancel} className="px-4 py-2 rounded-xl border border-admin-ink/25 text-sm">Cancel</button>

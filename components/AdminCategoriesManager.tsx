@@ -124,7 +124,7 @@ export default function AdminCategoriesManager() {
           (&quot;Configure decorations&quot; on any item).
         </p>
       ) : (
-        <div className="mt-6 divide-y divide-admin-ink/10 border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl max-w-md overflow-hidden">
+        <div className="mt-6 divide-y divide-admin-ink/10 border border-admin-ink/10 shadow-sm rounded-2xl max-w-md overflow-hidden">
           {categories.map((c, i) => (
             <div key={c.id} className="flex items-center gap-2 p-3 bg-admin-card">
               <div className="flex flex-col gap-0.5">

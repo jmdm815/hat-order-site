@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import AdminShell from "@/components/AdminShell";
 import AdminQuoteBuilder, { PendingLine } from "@/components/AdminQuoteBuilder";
 import AdminInvoicePaymentModal from "@/components/AdminInvoicePaymentModal";
 import { QuoteRecord } from "@/lib/quotes-store";
@@ -100,29 +101,16 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote", init
 
   return (
     <>
-      <header className="border-b-2 border-admin-ink bg-admin-card sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <span className="font-heading font-semibold text-sm sm:text-lg tracking-wide text-admin-ink uppercase truncate">
-            JM Digital Media · Admin
-          </span>
-          <Link
-            href={
-              (record ? record.status === "invoice" : createAs === "invoice")
-                ? "/admin?tab=invoices"
-                : "/admin?tab=quotes"
-            }
-            className="shrink-0 text-sm text-admin-ink/80 hover:text-admin-ink hover:underline"
-          >
-            {(record ? record.status === "invoice" : createAs === "invoice")
-              ? "← Back to invoices"
-              : "← Back to quotes"}
-          </Link>
-        </div>
-      </header>
-      <main className="flex-1 max-w-5xl mx-auto px-4 py-6 sm:py-10 w-full">
+      <AdminShell active={(record ? record.status === "invoice" : createAs === "invoice") ? "invoices" : "quotes"}>
+        <Link
+          href={(record ? record.status === "invoice" : createAs === "invoice") ? "/admin?tab=invoices" : "/admin?tab=quotes"}
+          className="inline-block mb-3 text-sm text-admin-ink/60 hover:text-admin-ink"
+        >
+          {(record ? record.status === "invoice" : createAs === "invoice") ? "← All invoices" : "← All quotes"}
+        </Link>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-admin-ink">{title}</h1>
+            <h1 className="text-2xl sm:text-[28px] font-bold text-admin-ink leading-tight">{title}</h1>
             {owner && (
               <Link href={`/admin/customers/${owner.id}`} className="text-sm text-admin-ink/70 underline hover:text-admin-ink">
                 {owner.name} · customer page →
@@ -135,7 +123,7 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote", init
               title="Record a payment taken outside this site (ShopVox, cash, check, Zelle…) or see payment history"
               className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border ${
                 (record.amountPaid ?? 0) >= record.computed.grandTotal - 0.005 && (record.amountPaid ?? 0) > 0
-                  ? "border-green-600/40 text-green-500"
+                  ? "border-green-600/40 text-green-700"
                   : "border-admin-accent text-admin-accent hover:bg-admin-accent/10"
               }`}
             >
@@ -179,7 +167,7 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote", init
             }}
           />
         )}
-      </main>
+      </AdminShell>
       {paymentOpen && record && (
         <AdminInvoicePaymentModal
           record={record}

@@ -1,27 +1,16 @@
-import Link from "next/link";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import AdminLogin from "@/components/AdminLogin";
+import AdminLoginScreen from "@/components/AdminLoginScreen";
+import AdminShell, { AdminPageHeader } from "@/components/AdminShell";
 import AdminSocialStudio from "@/components/AdminSocialStudio";
 
 export const metadata = { title: "Social Studio · JM Digital Media" };
 
-export default async function SocialStudioPage() {
-  const authed = await isAdminAuthed();
+export default async function Page() {
+  if (!(await isAdminAuthed())) return <AdminLoginScreen />;
   return (
-    <>
-      <header className="border-b-2 border-admin-ink bg-admin-card sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <span className="font-heading font-semibold text-sm sm:text-lg tracking-wide text-admin-ink uppercase truncate">
-            Social Studio
-          </span>
-          <Link href="/admin" className="shrink-0 text-sm text-admin-ink/80 hover:text-admin-ink hover:underline">
-            ← Admin
-          </Link>
-        </div>
-      </header>
-      <main className="flex-1 max-w-3xl mx-auto px-4 py-5 sm:py-8 w-full">
-        {authed ? <AdminSocialStudio /> : <AdminLogin />}
-      </main>
-    </>
+    <AdminShell active="social">
+      <AdminPageHeader title="Social Studio" description="Write captions and make images for your social media posts." />
+      <AdminSocialStudio />
+    </AdminShell>
   );
 }

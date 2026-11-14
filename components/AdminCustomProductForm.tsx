@@ -376,7 +376,7 @@ export default function AdminCustomProductForm({
           <div className="text-sm font-medium text-admin-ink">Colors</div>
           <div className="mt-2 space-y-4">
             {draft.colors.map((c, i) => (
-              <div key={i} className="border border-admin-ink/10 shadow-lg shadow-black/30 rounded-2xl p-3">
+              <div key={i} className="border border-admin-ink/10 shadow-sm rounded-2xl p-3">
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -404,7 +404,7 @@ export default function AdminCustomProductForm({
                     <label className="text-xs text-admin-ink/80 block mb-1">Front photo</label>
                     {c.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.imageUrl} alt="" className="w-16 h-16 object-contain border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl bg-admin-card" />
+                      <img src={c.imageUrl} alt="" className="w-16 h-16 object-contain border border-admin-ink/10 shadow-sm rounded-xl bg-admin-card" />
                     ) : (
                       <input
                         type="file"
@@ -439,7 +439,7 @@ export default function AdminCustomProductForm({
                     <label className="text-xs text-admin-ink/80 block mb-1">Back photo (optional)</label>
                     {c.backImageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.backImageUrl} alt="" className="w-16 h-16 object-contain border border-admin-ink/10 shadow-lg shadow-black/30 rounded-xl bg-admin-card" />
+                      <img src={c.backImageUrl} alt="" className="w-16 h-16 object-contain border border-admin-ink/10 shadow-sm rounded-xl bg-admin-card" />
                     ) : (
                       <input
                         type="file"
