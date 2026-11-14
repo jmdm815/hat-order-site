@@ -45,10 +45,27 @@ export async function POST(req: NextRequest) {
     const target = all.find((c) => c.id === targetId);
     const sources = sourceIds.map((id) => all.find((c) => c.id === id)).filter((c): c is Customer => Boolean(c));
     if (!target || !sources.length) return NextResponse.json({ error: "Target or sources not found" }, { status: 404 });
+    const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    // A source with no person's name whose name is just the company again
+    // ("HOLY ROSARY CATHOLIC SCHOOL" into "Holy Rosary"): name the contact
+    // from the email instead ("cvega@…" -> "Cvega").
+    const personName = (c: Customer) => {
+      if (c.contactName) return c.contactName;
+      const sameCompany = n(c.name).includes(n(target.name)) || n(target.name).includes(n(c.name));
+      if (sameCompany && c.email) {
+        return c.email
+          .split("@")[0]
+          .split(/[._-]+/)
+          .filter(Boolean)
+          .map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase())
+          .join(" ");
+      }
+      return c.name;
+    };
     const asContacts = (c: Customer): CustomerContact[] => [
       {
         id: uuid(),
-        name: c.contactName || c.name,
+        name: personName(c),
         email: c.email,
         phone: c.phone,
         notes: c.notes,
