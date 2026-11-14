@@ -11,6 +11,8 @@ import { productImageUrl, productPreviewImageUrl } from "@/lib/product-image";
 import ShirtCustomizeForm from "./ShirtCustomizeForm";
 import ColorSelectScreen from "./ColorSelectScreen";
 import DragResizeBox, { type Box } from "./DragResizeBox";
+import ShadedArtwork from "./ShadedArtwork";
+import { artworkImage, assessArtworkResolution, isRasterArtwork } from "@/lib/fabric-shade";
 
 type DecorationWithZones = DecorationOption & { zones: PlacementZone[] };
 type ProductApiResponse = {
@@ -84,6 +86,19 @@ export default function CustomizeForm() {
   const [artworkLayer, setArtworkLayer] = useState<(Box & { rotation: number }) | null>(null);
   const [artworkAspect, setArtworkAspect] = useState<number | null>(null);
   const [layerPreviewUrl, setLayerPreviewUrl] = useState<string | undefined>();
+  // Pixel width of the uploaded artwork, for the low-resolution warning.
+  const [artPx, setArtPx] = useState<{ url: string; width: number } | null>(null);
+  useEffect(() => {
+    if (!layerPreviewUrl) return;
+    let alive = true;
+    artworkImage(layerPreviewUrl).then((img) => {
+      if (alive && img?.naturalWidth) setArtPx({ url: layerPreviewUrl, width: img.naturalWidth });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [layerPreviewUrl]);
+  const artPxWidth = artPx && artPx.url === layerPreviewUrl ? artPx.width : null;
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -231,6 +246,10 @@ export default function CustomizeForm() {
   const lineTotal = quantity * unitTotal + setupFee;
   const selectedColor =
     product.colors.find((c) => c.colorName === colorName) ?? product.colors[0];
+  // Same URL the canvas shows — artwork is shaded against it (lib/fabric-shade.ts).
+  const garmentSrc = selectedColor.imageIsOverride
+    ? selectedColor.imageUrl
+    : productImageUrl(selectedColor.imageUrl, selectedColor.imageFallbackUrl);
   // Hats default off (see lib/pricing-store.ts's DEFAULT_DESIGNER_SETTINGS)
   // unless the site-wide Settings tab or a per-item override turns it on.
   const liveDesignerEnabled = data?.liveDesignerEnabled ?? false;
@@ -346,12 +365,15 @@ export default function CustomizeForm() {
               minSize={3}
               className="border border-red/60"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={layerPreviewUrl}
+              <ShadedArtwork
+                artSrc={layerPreviewUrl}
+                garmentSrc={garmentSrc}
+                box={artworkLayer}
+                containerRef={canvasRef}
+                insetPx={0}
+                raised={/patch|embroid/i.test(`${decorationId} ${decoration?.label ?? ""}`)}
                 alt="Your artwork"
                 className="w-full h-full object-contain pointer-events-none"
-                draggable={false}
               />
             </DragResizeBox>
           )}
@@ -361,6 +383,23 @@ export default function CustomizeForm() {
             Drag to move, corner handle to resize, top-right dot to rotate.
           </p>
         )}
+        {liveDesignerEnabled && artworkLayer && artPxWidth && isRasterArtwork(artworkFileName) && (() => {
+          const r = assessArtworkResolution(artPxWidth, artworkLayer.width, "hat");
+          if (r.level === "good") return null;
+          const low = r.level === "low";
+          return (
+            <div
+              className={`mt-2 rounded-xl border px-3 py-2 text-sm ${
+                low ? "border-red/40 bg-red/5 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"
+              }`}
+            >
+              <b>{low ? "This logo may look blurry at this size." : "This logo is a little low-resolution for this size."}</b>{" "}
+              About {r.dpi} DPI at roughly {r.inches.toFixed(1)}&quot; wide (300 DPI recommended). Upload a larger file or a
+              vector file (PDF, AI, SVG) for the sharpest result.
+            </div>
+          );
+        })()}
+
         <div className="mt-3">
           <div className="text-xs uppercase tracking-wide text-admin-ink/40">
             {product.brandName} · {product.styleNumber}

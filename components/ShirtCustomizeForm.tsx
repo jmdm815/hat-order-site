@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { v4 as uuid } from "uuid";
 import {
@@ -16,6 +16,8 @@ import { formatUSD } from "@/lib/pricing";
 import { useOrder } from "@/lib/order-context";
 import DragResizeBox, { type Box } from "./DragResizeBox";
 import GarmentPreview from "./GarmentPreview";
+import ShadedArtwork from "./ShadedArtwork";
+import { artworkImage, assessArtworkResolution, isRasterArtwork } from "@/lib/fabric-shade";
 import ColorSelectScreen from "./ColorSelectScreen";
 
 type DecorationWithZones = DecorationOption & { zones: PlacementZone[] };
@@ -201,10 +203,50 @@ export default function ShirtCustomizeForm({
   const imageRef = useRef<HTMLDivElement>(null);
 
   const selectedColor = product.colors.find((c) => c.colorName === colorName) ?? product.colors[0];
+
+  // Extra real flat photos (S&S) for colors SanMar has no flat photo of —
+  // tried before the illustrated fallback. See lib/designer-photos.ts.
+  const [altPhotos, setAltPhotos] = useState<Record<string, { front?: string; back?: string }>>({});
+  useEffect(() => {
+    let alive = true;
+    const q = new URLSearchParams({ style: product.styleNumber, brand: product.brandName ?? "" });
+    fetch(`/api/designer-photos?${q}`)
+      .then((r) => r.json())
+      .then((j) => alive && j.photos && setAltPhotos(j.photos))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [product.styleNumber, product.brandName]);
+  const altFor = (name: string | undefined, side: "front" | "back") =>
+    name ? altPhotos[name.toLowerCase().replace(/[^a-z0-9]/g, "")]?.[side] : undefined;
+  // The garment photo actually on the design canvas (null = illustration),
+  // used to shade artwork so it looks printed on (lib/fabric-shade.ts).
+  const [garmentSrc, setGarmentSrc] = useState<string | null>(null);
   const decorationById = useMemo(
     () => new Map(decorations.map((d) => [d.id, d] as const)),
     [decorations]
   );
+  // Patches and embroidery sit on top of the fabric — give them a soft shadow.
+  const isRaisedDecoration = (id: string) => {
+    const d = decorationById.get(id);
+    return /patch|embroid/i.test(`${id} ${d?.label ?? ""}`);
+  };
+
+  // Pixel width of each uploaded artwork, for the low-resolution warning.
+  const [artPx, setArtPx] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let alive = true;
+    for (const [id, url] of Object.entries(layerPreviewUrls)) {
+      if (!url) continue;
+      artworkImage(url).then((img) => {
+        if (alive && img?.naturalWidth) setArtPx((m) => (m[id] === img.naturalWidth ? m : { ...m, [id]: img.naturalWidth }));
+      });
+    }
+    return () => {
+      alive = false;
+    };
+  }, [layerPreviewUrls]);
 
   function zoneById(id: string): PlacementZone | undefined {
     for (const d of decorations) {
@@ -495,6 +537,7 @@ export default function ShirtCustomizeForm({
         renderPreview={(color) => (
           <GarmentPreview
             url={color.imageUrl}
+            altUrl={altFor(color.colorName, "front")}
             view="front"
             colorHexes={color.colorHexes}
             isOverride={color.imageIsOverride}
@@ -697,6 +740,8 @@ export default function ShirtCustomizeForm({
                 >
                   <GarmentPreview
                     url={view === "back" ? selectedColor?.backImageUrl : selectedColor?.imageUrl}
+                    altUrl={altFor(selectedColor?.colorName, view === "back" ? "back" : "front")}
+                    onDisplayedSrc={setGarmentSrc}
                     view={view}
                     colorHexes={selectedColor?.colorHexes}
                     isOverride={
@@ -704,7 +749,7 @@ export default function ShirtCustomizeForm({
                         ? selectedColor?.backImageIsOverride
                         : selectedColor?.imageIsOverride
                     }
-                    className="absolute inset-0 w-full h-full object-contain p-6 pointer-events-none"
+                    className="absolute inset-0 w-full h-full object-contain p-6 pointer-events-none mix-blend-multiply"
                   />
 
                   {locations
@@ -731,7 +776,7 @@ export default function ShirtCustomizeForm({
                               height: `${zone.height}%`,
                             }}
                           >
-                            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-[#15803d] bg-admin-ink/90 whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none">
+                            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-[#15803d] bg-white/90 whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none">
                               {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel}
                             </span>
                             {isActive && (
@@ -766,12 +811,15 @@ export default function ShirtCustomizeForm({
                                 snapTarget={{ x: zone.x + zone.width / 2, y: zone.y + zone.height / 2 }}
                               >
                                 {layer.kind === "image" ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={layerPreviewUrls[layer.id]}
+                                  <ShadedArtwork
+                                    artSrc={layerPreviewUrls[layer.id]}
+                                    garmentSrc={garmentSrc}
+                                    box={layer}
+                                    containerRef={imageRef}
+                                    insetPx={24}
+                                    raised={isRaisedDecoration(loc.decorationId)}
                                     alt="Your artwork"
                                     className="w-full h-full object-contain pointer-events-none"
-                                    draggable={false}
                                   />
                                 ) : (
                                   <div
@@ -806,12 +854,14 @@ export default function ShirtCustomizeForm({
                                 }}
                               >
                                 {layer.kind === "image" ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={layerPreviewUrls[layer.id]}
-                                    alt=""
+                                  <ShadedArtwork
+                                    artSrc={layerPreviewUrls[layer.id]}
+                                    garmentSrc={garmentSrc}
+                                    box={layer}
+                                    containerRef={imageRef}
+                                    insetPx={24}
+                                    raised={isRaisedDecoration(loc.decorationId)}
                                     className="w-full h-full object-contain"
-                                    draggable={false}
                                   />
                                 ) : (
                                   <div
@@ -828,6 +878,27 @@ export default function ShirtCustomizeForm({
                       );
                     })}
                 </div>
+                {(() => {
+                  // Low-resolution warning for the active location's uploaded images.
+                  const warn = (activeLocation?.layers ?? [])
+                    .filter((l) => l.kind === "image" && isRasterArtwork(l.fileName) && artPx[l.id])
+                    .map((l) => ({ l, r: assessArtworkResolution(artPx[l.id], l.width, product.productType) }))
+                    .filter((x) => x.r.level !== "good")
+                    .sort((a, b) => a.r.dpi - b.r.dpi)[0];
+                  if (!warn) return null;
+                  const low = warn.r.level === "low";
+                  return (
+                    <div
+                      className={`mt-3 rounded-xl border px-3 py-2 text-sm ${
+                        low ? "border-red/40 bg-red/5 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"
+                      }`}
+                    >
+                      <b>{low ? "This logo may print blurry at this size." : "This logo is a little low-resolution for this size."}</b>{" "}
+                      About {warn.r.dpi} DPI at roughly {warn.r.inches.toFixed(1)}&quot; wide (300 DPI recommended). For a sharp
+                      print, upload a larger file or a vector file (PDF, AI, SVG) — or make the artwork smaller.
+                    </div>
+                  );
+                })()}
 
                 {activeLocation && liveDesignerEnabled && (
                   <div className="mt-2 flex flex-col items-center gap-1.5">
@@ -937,6 +1008,7 @@ export default function ShirtCustomizeForm({
                 <div className="relative w-full aspect-square rounded overflow-hidden bg-admin-card">
                   <GarmentPreview
                     url={selectedColor?.imageUrl}
+                    altUrl={altFor(selectedColor?.colorName, "front")}
                     view="front"
                     colorHexes={selectedColor?.colorHexes}
                     isOverride={selectedColor?.imageIsOverride}
@@ -956,6 +1028,7 @@ export default function ShirtCustomizeForm({
                   <div className="relative w-full aspect-square rounded overflow-hidden bg-admin-card">
                     <GarmentPreview
                       url={selectedColor?.backImageUrl}
+                      altUrl={altFor(selectedColor?.colorName, "back")}
                       view="back"
                       colorHexes={selectedColor?.colorHexes}
                       isOverride={selectedColor?.backImageIsOverride}
@@ -1155,6 +1228,7 @@ export default function ShirtCustomizeForm({
               <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-admin-ink/5 shrink-0">
                 <GarmentPreview
                   url={selectedColor?.imageUrl}
+                  altUrl={altFor(selectedColor?.colorName, "front")}
                   view="front"
                   colorHexes={selectedColor?.colorHexes}
                   isOverride={selectedColor?.imageIsOverride}
