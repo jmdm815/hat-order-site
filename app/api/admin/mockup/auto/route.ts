@@ -24,6 +24,8 @@ export const maxDuration = 240;
 //   removeBackground  auto | exact | ai | none (default auto)
 //   holes       true = also clear enclosed background areas (inside letters)
 //   sizePct     default 100;  fabricBlend 0-100, default 55
+//   offsetX/Y   nudge in % of the garment (e.g. offsetX=-12 moves left);
+//               angled hat photos usually need offsetX about -12
 //   format      png (default) | json (base64 + details)
 // ---------------------------------------------------------------------------
 
@@ -150,6 +152,8 @@ export async function POST(req: NextRequest) {
       fabricBlend: input.fabricBlend != null && input.fabricBlend !== "" ? Math.max(0, Math.min(100, Number(input.fabricBlend))) : 55,
       raised,
       onModel: photo.onModel,
+      offsetX: Number(input.offsetX) || 0,
+      offsetY: Number(input.offsetY) || 0,
     });
     const dpi = Math.round(r.logoPx.w / Math.max(0.1, r.printWidthIn));
     const details = {

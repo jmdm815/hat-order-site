@@ -93,6 +93,8 @@ export type NodeRenderOptions = {
   fabricBlend?: number; // 0-100, default 55
   raised?: boolean; // drop shadow (embroidery / patch)
   onModel?: boolean; // photo shows a person: estimate the shirt band
+  offsetX?: number; // nudge, % of the garment width (+ = right)
+  offsetY?: number; // nudge, % of the garment height (+ = down)
 };
 
 const ON_MODEL: Partial<Record<string, { centerX: number; centerY: number; maxWidth: number; maxHeight: number }>> = {
@@ -117,9 +119,12 @@ export async function renderMockupNode(
   // On-model photos: place relative to the whole person (calibrated on
   // SanMar's front-facing model shots) instead of the flat-lay fractions.
   const om = opts.onModel ? ON_MODEL[preset.id] : undefined;
-  const layout = om
+  const layout: Rect = om
     ? layoutForPreset({ ...preset, ...om }, detected, logo.w, logo.h, opts.sizePct ?? 100)
     : layoutForPreset(preset, garment, logo.w, logo.h, opts.sizePct ?? 100);
+
+  layout.x += ((opts.offsetX ?? 0) / 100) * (om ? detected : garment).width;
+  layout.y += ((opts.offsetY ?? 0) / 100) * (om ? detected : garment).height;
 
   const k = Math.min(MAX_EXPORT_SCALE, Math.max(1, MIN_EXPORT_LONG_SIDE / Math.max(bw, bh)));
   const W = Math.round(bw * k), H = Math.round(bh * k);
