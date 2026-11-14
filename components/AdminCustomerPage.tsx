@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Customer } from "@/lib/types";
 import type { RecordSummary } from "@/lib/customer-match";
+import { DocNumberButton } from "./AdminRowLinks";
 
 // Customer page (like ShopVox's): contact card + balance overview, then
 // Transactions (every quote and invoice) and Payments tabs. Data comes from
@@ -365,9 +366,7 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
                         >
                           {t.kind === "invoice" ? "IN" : "QT"}
                         </span>
-                        <Link href={`/admin/quotes/${t.id}`} className="font-semibold underline">
-                          {t.number}
-                        </Link>
+                        <DocNumberButton id={t.id} number={t.number} />
                       </td>
                       <td className="px-3 py-2 max-w-xs truncate text-admin-ink/80" title={t.itemsSummary}>
                         {t.itemsSummary || "—"}
