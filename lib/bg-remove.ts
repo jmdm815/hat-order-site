@@ -63,31 +63,46 @@ export function removeUniformBackground(
   // Flood fill from every matching border pixel.
   const removed = new Uint8Array(n); // 1 = background
   const queue = new Int32Array(n);
-  let qh = 0, qt = 0;
-  for (const p of border) {
-    if (!removed[p] && dist(data, p * 4, bg) <= tol) {
-      removed[p] = 1;
-      queue[qt++] = p;
-    }
-  }
-  while (qh < qt) {
-    const p = queue[qh++];
-    const x = p % w, y = (p - x) / w;
-    const nb = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1];
-    for (const q of nb) {
-      if (q < 0 || removed[q]) continue;
-      if (dist(data, q * 4, bg) <= tol) {
-        removed[q] = 1;
-        queue[qt++] = q;
+  const flood = (seeds: Iterable<number>) => {
+    let qh = 0, qt = 0;
+    for (const p of seeds) {
+      if (!removed[p] && dist(data, p * 4, bg) <= tol) {
+        removed[p] = 1;
+        queue[qt++] = p;
       }
     }
+    while (qh < qt) {
+      const p = queue[qh++];
+      const x = p % w, y = (p - x) / w;
+      const nb = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1];
+      for (const q of nb) {
+        if (q < 0 || removed[q]) continue;
+        if (dist(data, q * 4, bg) <= tol) {
+          removed[q] = 1;
+          queue[qt++] = q;
+        }
+      }
+    }
+  };
+  flood(border);
+
+  // Optional: enclosed areas of the background color, e.g. the inside of an
+  // "O". Seeded only from pixels that match almost exactly (so light artwork
+  // isn't eaten), then grown with the normal tolerance to catch JPEG noise.
+  if (opts.holes) {
+    const tight = Math.min(tol, 14);
+    const seeds: number[] = [];
+    for (let p = 0; p < n; p++) if (!removed[p] && dist(data, p * 4, bg) <= tight) seeds.push(p);
+    flood(seeds);
   }
 
-  // Optional: enclosed areas of (almost exactly) the background color, e.g.
-  // the inside of an "O". Tighter tolerance so light artwork isn't eaten.
-  if (opts.holes) {
-    const tight = Math.min(tol, 18);
-    for (let p = 0; p < n; p++) if (!removed[p] && dist(data, p * 4, bg) <= tight) removed[p] = 1;
+  // Despeckle: lone kept pixels mostly surrounded by background (JPEG noise).
+  for (let p = 0; p < n; p++) {
+    if (removed[p]) continue;
+    const x = p % w, y = (p - x) / w;
+    if (x === 0 || y === 0 || x === w - 1 || y === h - 1) continue;
+    const around = removed[p - 1] + removed[p + 1] + removed[p - w] + removed[p + w];
+    if (around >= 3 && dist(data, p * 4, bg) <= tol * 3) removed[p] = 1;
   }
 
   let count = 0;
