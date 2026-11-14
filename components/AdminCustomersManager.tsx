@@ -72,7 +72,9 @@ export default function AdminCustomersManager() {
     const q = search.trim().toLowerCase();
     if (!q) return customers;
     return customers.filter((c) =>
-      [c.name, c.company, c.email, c.phone].some((f) => f?.toLowerCase().includes(q))
+      [c.name, c.company, c.email, c.phone, ...(c.contacts ?? []).flatMap((ct) => [ct.name, ct.email, ct.phone])].some(
+        (f) => f?.toLowerCase().includes(q)
+      )
     );
   }, [customers, search]);
 
@@ -537,6 +539,11 @@ export default function AdminCustomersManager() {
                       <span className="text-admin-ink/62"> · {c.defaultDepositPercent}% deposit</span>
                     )}
                   </div>
+                  {(c.contacts?.length ?? 0) > 0 && (
+                    <div className="text-xs text-admin-ink/62 mt-0.5">
+                      Also: {c.contacts!.map((ct) => ct.name).join(", ")}
+                    </div>
+                  )}
                   {c.notes && <div className="text-xs text-admin-ink/62 mt-1 whitespace-pre-wrap">{c.notes}</div>}
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import { put, list } from "@vercel/blob";
 import { v4 as uuid } from "uuid";
-import { Customer } from "./types";
+import { Customer, CustomerContact } from "./types";
 import { isPersistent } from "./pricing-store";
 
 // ---------------------------------------------------------------------------
@@ -118,6 +118,24 @@ export async function updateCustomer(
     phone: input.phone || undefined,
     notes: input.notes || undefined,
     defaultDepositPercent: input.defaultDepositPercent || undefined,
+    updatedAt: new Date().toISOString(),
+  };
+  const { persisted } = await setCustomers(all.map((c) => (c.id === id ? updated : c)));
+  return { customer: updated, persisted };
+}
+
+// Replace a customer's extra contacts (customer page → Contacts). Kept
+// separate from updateCustomer so the plain edit form can't wipe them.
+export async function setCustomerContacts(
+  id: string,
+  contacts: CustomerContact[]
+): Promise<{ customer: Customer | null; persisted: boolean }> {
+  const all = await getCustomers();
+  const existing = all.find((c) => c.id === id);
+  if (!existing) return { customer: null, persisted: true };
+  const updated: Customer = {
+    ...existing,
+    contacts: contacts.length ? contacts : undefined,
     updatedAt: new Date().toISOString(),
   };
   const { persisted } = await setCustomers(all.map((c) => (c.id === id ? updated : c)));
