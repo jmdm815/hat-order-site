@@ -16,7 +16,16 @@ const norm = (s?: string) => (s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 function nameKeys(c: Customer): string[] {
   const keys = [norm(c.name)];
   if (c.company) keys.push(norm(`${c.name}${c.company}`), norm(`${c.name}(${c.company})`));
+  for (const ct of c.contacts ?? []) {
+    keys.push(norm(ct.name), norm(`${ct.name}${c.company ?? c.name}`), norm(`${ct.name}(${c.company ?? c.name})`));
+  }
   return keys.filter(Boolean);
+}
+
+function emails(c: Customer): string[] {
+  return [c.email, ...(c.contacts ?? []).map((ct) => ct.email)]
+    .map((e) => (e ?? "").trim().toLowerCase())
+    .filter(Boolean);
 }
 
 export function ownerOf(record: QuoteRecord, customers: Customer[]): Customer | undefined {
@@ -29,7 +38,7 @@ export function ownerOf(record: QuoteRecord, customers: Customer[]): Customer | 
   const name = norm(i.customerName);
   const nameWithCompany = norm(`${i.customerName ?? ""}${i.customerCompany ?? ""}`);
   if (email) {
-    const byEmail = customers.filter((c) => (c.email ?? "").trim().toLowerCase() === email);
+    const byEmail = customers.filter((c) => emails(c).includes(email));
     if (byEmail.length) return byEmail.find((c) => nameKeys(c).includes(name)) ?? byEmail[0];
   }
   if (name) {

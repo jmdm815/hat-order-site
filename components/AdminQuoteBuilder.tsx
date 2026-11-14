@@ -21,7 +21,7 @@ import {
   ManualQuoteColor,
 } from "@/app/api/admin/quote/manual-product/route";
 import { ManualQuoteSearchResult } from "@/app/api/admin/quote/search-products/route";
-import { Customer } from "@/lib/types";
+import { Customer, CustomerContact } from "@/lib/types";
 import { productPreviewImageUrl } from "@/lib/product-image";
 import AdminSendDocumentModal from "./AdminSendDocumentModal";
 
@@ -490,6 +490,8 @@ type Props = {
   // Pre-pick this saved customer on a brand-new quote (from the customer
   // page's "+ New quote" / "+ New invoice" buttons).
   initialCustomerId?: string;
+  // …and fill in this one of the customer's extra contacts instead of the primary.
+  initialContactId?: string;
 };
 
 function linesFromRecord(record: QuoteRecord): PendingLine[] {
@@ -525,6 +527,7 @@ export default function AdminQuoteBuilder({
   onCreateQuote,
   createAs = "quote",
   initialCustomerId,
+  initialContactId,
 }: Props) {
   const router = useRouter();
   const [decorations, setDecorations] = useState<DecorationOption[]>([]);
@@ -852,29 +855,34 @@ export default function AdminQuoteBuilder({
         setCustomers(list);
         if (!initialRecord && initialCustomerId) {
           const c = list.find((x) => x.id === initialCustomerId);
-          if (c) selectCustomer(c);
+          if (c) selectCustomer(c, c.contacts?.find((ct) => ct.id === initialContactId));
         }
       })
       .catch(() => setCustomers([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const customerSuggestions =
+  // Each saved customer and each of their extra contacts is its own pick.
+  const customerSuggestions: { c: Customer; ct?: CustomerContact; key: string }[] =
     customerQuery.trim().length < 1
       ? []
       : customers
-          .filter((c) =>
-            [c.name, c.company, c.email].some((f) =>
+          .flatMap((c) => [
+            { c, ct: undefined as CustomerContact | undefined, key: c.id },
+            ...(c.contacts ?? []).map((ct) => ({ c, ct, key: `${c.id}:${ct.id}` })),
+          ])
+          .filter(({ c, ct }) =>
+            (ct ? [ct.name, ct.email, ct.role, c.name, c.company] : [c.name, c.company, c.email]).some((f) =>
               f?.toLowerCase().includes(customerQuery.trim().toLowerCase())
             )
           )
-          .slice(0, 8);
+          .slice(0, 10);
 
-  function selectCustomer(c: Customer) {
+  function selectCustomer(c: Customer, contact?: CustomerContact) {
     setCustomerId(c.id);
-    setCustomerName(c.name);
-    setCustomerCompany(c.company ?? "");
-    setCustomerEmail(c.email ?? "");
+    setCustomerName(contact ? contact.name : c.name);
+    setCustomerCompany(contact ? c.company ?? c.name : c.company ?? "");
+    setCustomerEmail(contact ? contact.email ?? "" : c.email ?? "");
     setDepositPercent(c.defaultDepositPercent ?? 100);
     setCustomerQuery("");
     setCustomerSuggestionsOpen(false);
@@ -2536,16 +2544,16 @@ export default function AdminQuoteBuilder({
             </label>
             {customerSuggestionsOpen && customerSuggestions.length > 0 && (
               <ul className="absolute z-40 mt-1 w-full max-h-56 overflow-y-auto bg-admin-card border border-admin-ink/20 rounded-xl shadow-lg text-sm">
-                {customerSuggestions.map((c) => (
-                  <li key={c.id}>
+                {customerSuggestions.map(({ c, ct, key }) => (
+                  <li key={key}>
                     <button
                       type="button"
-                      onMouseDown={() => selectCustomer(c)}
+                      onMouseDown={() => selectCustomer(c, ct)}
                       className="block w-full text-left px-3 py-2 hover:bg-admin-ink/5"
                     >
-                      <span className="font-medium text-admin-ink">{c.name}</span>{" "}
+                      <span className="font-medium text-admin-ink">{ct ? ct.name : c.name}</span>{" "}
                       <span className="text-admin-ink/62">
-                        {[c.company, c.email].filter(Boolean).join(" · ")}
+                        {(ct ? [c.company ?? c.name, ct.role, ct.email] : [c.company, c.email]).filter(Boolean).join(" · ")}
                       </span>
                     </button>
                   </li>

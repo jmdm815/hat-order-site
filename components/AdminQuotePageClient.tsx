@@ -37,6 +37,7 @@ type Props = {
   // from ?kind=invoice by the "+ New invoice" button on the Invoices tab.
   createAs?: "quote" | "invoice";
   initialCustomerId?: string;
+  initialContactId?: string;
 };
 
 // Full-page quote builder — the quote builder used to live inside a popup
@@ -44,7 +45,7 @@ type Props = {
 // own page per quote/invoice, like most editors in this admin, so creating
 // or editing a quote gets a real URL, full-height layout, and no shared
 // scroll position with the saved-quotes list.
-export default function AdminQuotePageClient({ quoteId, createAs = "quote", initialCustomerId }: Props) {
+export default function AdminQuotePageClient({ quoteId, createAs = "quote", initialCustomerId, initialContactId }: Props) {
   const router = useRouter();
   const [record, setRecord] = useState<QuoteRecord | null>(null);
   const [owner, setOwner] = useState<{ id: string; name: string } | null>(null);
@@ -154,6 +155,7 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote", init
             initialRecord={record}
             createAs={createAs}
             initialCustomerId={initialCustomerId}
+            initialContactId={initialContactId}
             initialLines={!record ? seed?.lines : undefined}
             initialSetupChargeIds={!record ? seed?.setupChargeIds : undefined}
             onSaved={(saved) => {

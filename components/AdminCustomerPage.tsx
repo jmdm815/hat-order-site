@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Customer } from "@/lib/types";
+import type { Customer, CustomerContact } from "@/lib/types";
 import type { RecordSummary } from "@/lib/customer-match";
 import { DocNumberButton } from "./AdminRowLinks";
 
@@ -54,6 +54,165 @@ function StatusPill({ t }: { t: RecordSummary }) {
           ? "bg-admin-ink/10 text-admin-ink/60"
           : "bg-sky-400/15 text-sky-700";
   return <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{t.status}</span>;
+}
+
+type ContactDraft = { id?: string; name: string; role: string; email: string; phone: string; notes: string };
+const emptyDraft: ContactDraft = { name: "", role: "", email: "", phone: "", notes: "" };
+
+function ContactsCard({ customer, onSaved }: { customer: Customer; onSaved: () => Promise<void> }) {
+  const contacts = customer.contacts ?? [];
+  const [draft, setDraft] = useState<ContactDraft | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save(next: CustomerContact[]) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/admin/customers/${customer.id}/contacts`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contacts: next }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Couldn't save contacts");
+      setDraft(null);
+      await onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function submitDraft() {
+    if (!draft || !draft.name.trim()) return;
+    const clean = {
+      name: draft.name.trim(),
+      role: draft.role.trim() || undefined,
+      email: draft.email.trim() || undefined,
+      phone: draft.phone.trim() || undefined,
+      notes: draft.notes.trim() || undefined,
+    };
+    const next = draft.id
+      ? contacts.map((c) => (c.id === draft.id ? { ...c, ...clean } : c))
+      : [...contacts, { id: "", ...clean } as CustomerContact];
+    save(next);
+  }
+
+  const rows: { contact: CustomerContact; primary: boolean }[] = [
+    { contact: { id: "primary", name: customer.name, email: customer.email, phone: customer.phone }, primary: true },
+    ...contacts.map((c) => ({ contact: c, primary: false })),
+  ];
+
+  return (
+    <div className="border border-admin-ink/15 rounded-2xl bg-admin-card">
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-admin-ink/10">
+        <h2 className="font-semibold">Contacts ({rows.length})</h2>
+        {!draft && (
+          <button onClick={() => setDraft({ ...emptyDraft })} className="text-sm px-3 py-1.5 rounded-lg border border-admin-ink/20 hover:bg-admin-ink/[0.04]">
+            + Add contact
+          </button>
+        )}
+      </div>
+      <ul className="divide-y divide-admin-ink/10">
+        {rows.map(({ contact: ct, primary }) => (
+          <li key={ct.id} className="px-5 py-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">
+                {ct.name}
+                {primary && <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 rounded px-1.5 py-0.5">Primary</span>}
+                {ct.role && <span className="ml-2 text-sm text-admin-ink/60 font-normal">{ct.role}</span>}
+              </p>
+              <p className="text-sm text-admin-ink/75 flex flex-wrap gap-x-3">
+                {ct.email && (
+                  <a href={`mailto:${ct.email}`} className="underline break-all">
+                    {ct.email}
+                  </a>
+                )}
+                {ct.phone && (
+                  <a href={`tel:${ct.phone}`} className="underline">
+                    {ct.phone}
+                  </a>
+                )}
+                {!ct.email && !ct.phone && <span className="text-admin-ink/45">No email or phone</span>}
+              </p>
+              {ct.notes && <p className="text-xs text-admin-ink/60 mt-0.5">{ct.notes}</p>}
+            </div>
+            <div className="flex gap-2 text-sm">
+              <Link
+                href={`/admin/quotes/new?customerId=${customer.id}${primary ? "" : `&contactId=${ct.id}`}`}
+                className="px-2.5 py-1 rounded-lg border border-admin-ink/20 hover:bg-admin-ink/[0.04]"
+                title={`Start a quote for ${ct.name}`}
+              >
+                New quote
+              </Link>
+              {!primary && (
+                <>
+                  <button
+                    onClick={() =>
+                      setDraft({ id: ct.id, name: ct.name, role: ct.role ?? "", email: ct.email ?? "", phone: ct.phone ?? "", notes: ct.notes ?? "" })
+                    }
+                    className="px-2.5 py-1 rounded-lg border border-admin-ink/20 hover:bg-admin-ink/[0.04]"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => save(contacts.filter((c) => c.id !== ct.id))}
+                    disabled={busy}
+                    className="px-2.5 py-1 rounded-lg text-red-600 hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                </>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {draft && (
+        <div className="px-5 py-4 border-t border-admin-ink/10 grid sm:grid-cols-2 gap-3">
+          {(
+            [
+              ["name", "Name"],
+              ["role", "Role / title (optional)"],
+              ["email", "Email"],
+              ["phone", "Phone"],
+            ] as const
+          ).map(([k, l]) => (
+            <label key={k} className="text-xs uppercase tracking-wide text-admin-ink/70">
+              {l}
+              <input
+                className={`${input} mt-1`}
+                value={draft[k]}
+                onChange={(e) => setDraft({ ...draft, [k]: e.target.value })}
+                autoFocus={k === "name"}
+              />
+            </label>
+          ))}
+          <label className="sm:col-span-2 text-xs uppercase tracking-wide text-admin-ink/70">
+            Notes (optional)
+            <input className={`${input} mt-1`} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
+          </label>
+          {err && <p className="sm:col-span-2 text-sm text-red-600">{err}</p>}
+          <div className="sm:col-span-2 flex gap-2">
+            <button
+              onClick={submitDraft}
+              disabled={busy || !draft.name.trim()}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-admin-accent text-admin-accent-ink disabled:opacity-50"
+            >
+              {busy ? "Saving…" : draft.id ? "Save contact" : "Add contact"}
+            </button>
+            <button onClick={() => setDraft(null)} className="px-4 py-2 rounded-xl text-sm border border-admin-ink/20">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {!draft && err && <p className="px-5 pb-3 text-sm text-red-600">{err}</p>}
+      <p className="px-5 pb-4 pt-1 text-xs text-admin-ink/55">To change the primary contact, use Edit at the top of the page.</p>
+    </div>
+  );
 }
 
 export default function AdminCustomerPage({ customerId }: { customerId: string }) {
@@ -240,7 +399,12 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
             </p>
           </div>
           <div>
-            <h2 className="font-semibold mb-2">Contact</h2>
+            <h2 className="font-semibold mb-2">
+              Primary contact
+              {(c.contacts?.length ?? 0) > 0 && (
+                <span className="ml-2 text-xs font-normal text-admin-ink/60">+{c.contacts!.length} more below</span>
+              )}
+            </h2>
             <p className="text-sm">{c.name}</p>
             {c.email && (
               <a href={`mailto:${c.email}`} className="text-sm underline text-admin-ink/80 break-all">
@@ -265,6 +429,8 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
           </div>
         </div>
       )}
+
+      <ContactsCard customer={c} onSaved={load} />
 
       <div className="border-b border-admin-ink/15 flex gap-6">
         {(

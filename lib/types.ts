@@ -160,8 +160,20 @@ export type Category = {
 // an admin can look up and pick from when starting a quote in the Quote
 // Builder (components/AdminQuoteBuilder.tsx), instead of retyping the same
 // customer's info every time they come back for another order.
+// Extra people at a customer (e.g. several buyers at Amazon IAH3). The
+// customer's own name/email/phone stay the primary contact.
+export type CustomerContact = {
+  id: string;
+  name: string;
+  role?: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+};
+
 export type Customer = {
   id: string;
+  contacts?: CustomerContact[];
   name: string;
   company?: string;
   email?: string;
