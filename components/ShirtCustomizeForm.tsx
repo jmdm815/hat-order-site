@@ -693,7 +693,7 @@ export default function ShirtCustomizeForm({
               <div className="w-full">
                 <div
                   ref={imageRef}
-                  className="relative w-full aspect-square rounded-2xl overflow-hidden bg-admin-card border border-admin-ink/10 shadow-lg shadow-slate-900/10"
+                  className="relative w-full aspect-square rounded-2xl overflow-hidden bg-[#e6e9ef] border border-admin-ink/10 shadow-lg shadow-slate-900/10"
                 >
                   <GarmentPreview
                     url={view === "back" ? selectedColor?.backImageUrl : selectedColor?.imageUrl}

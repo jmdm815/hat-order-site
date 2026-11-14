@@ -43,6 +43,19 @@ export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<string>("All");
+  // Tabs the shop has turned on (Admin → Catalog → Catalog tabs).
+  const [visibleTypes, setVisibleTypes] = useState<ProductType[] | null>(null);
+
+  useEffect(() => {
+    fetch("/api/catalog-tabs")
+      .then((r) => r.json())
+      .then((j: { visible?: ProductType[] }) => {
+        const v = j.visible?.length ? j.visible : (["hat", "shirt", "polo", "tumbler"] as ProductType[]);
+        setVisibleTypes(v);
+        setProductType((cur) => (v.includes(cur) ? cur : v[0]));
+      })
+      .catch(() => setVisibleTypes(["hat", "shirt", "polo", "tumbler"]));
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -70,7 +83,7 @@ export default function CatalogPage() {
         </p>
 
         <div className="mt-6 flex gap-2 flex-wrap">
-          {(["hat", "shirt", "polo", "tumbler"] as const).map((t) => (
+          {(visibleTypes ?? []).map((t) => (
             <button
               key={t}
               onClick={() => {

@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import AdminCatalogManager from "@/components/AdminCatalogManager";
+import AdminCatalogTabs from "@/components/AdminCatalogTabs";
 import AdminCategoriesManager from "@/components/AdminCategoriesManager";
 import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
@@ -65,6 +66,7 @@ export default function AdminDashboard() {
         )}
         {tab === "catalog" && (
           <>
+            <AdminCatalogTabs />
             <AdminCatalogManager />
           </>
         )}
