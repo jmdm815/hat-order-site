@@ -16,6 +16,7 @@ const norm = (s?: string) => (s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 function nameKeys(c: Customer): string[] {
   const keys = [norm(c.name)];
   if (c.company) keys.push(norm(`${c.name}${c.company}`), norm(`${c.name}(${c.company})`));
+  if (c.contactName) keys.push(norm(c.contactName), norm(`${c.contactName}${c.name}`));
   for (const ct of c.contacts ?? []) {
     keys.push(norm(ct.name), norm(`${ct.name}${c.company ?? c.name}`), norm(`${ct.name}(${c.company ?? c.name})`));
   }

@@ -174,7 +174,12 @@ export type CustomerContact = {
 export type Customer = {
   id: string;
   contacts?: CustomerContact[];
+  // The customer's name — the company/organization when it's a business
+  // ("Legacy Ford"), or the person when it's an individual.
   name: string;
+  // Primary contact person at that company ("Alicia Rodriguez"). Empty for
+  // individuals. Extra people go in `contacts`.
+  contactName?: string;
   company?: string;
   email?: string;
   phone?: string;

@@ -25,6 +25,7 @@ const MAX_ROWS = 5000;
 const HEADER_ALIASES: Record<keyof CustomerInput, string[]> = {
   name: ["name", "customername", "fullname", "contactname", "customer"],
   company: ["company", "companyname", "business", "businessname", "organization", "org"],
+  contactName: ["contact", "primarycontact", "contactperson"],
   email: ["email", "emailaddress", "e-mail", "emailaddr", "primarycontactemail", "primaryemail", "contactemail"],
   phone: [
     "phone",
@@ -121,6 +122,7 @@ function rowsToParsedImport(rows: string[][]): ParsedImport {
       input: {
         name,
         company: values.company || undefined,
+        contactName: values.contactName || undefined,
         email: values.email || undefined,
         phone: values.phone || undefined,
         notes: values.notes || undefined,

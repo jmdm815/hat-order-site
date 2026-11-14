@@ -9,6 +9,7 @@ function parseInput(body: unknown): CustomerInput | null {
   const depositPercent = typeof b?.defaultDepositPercent === "number" ? b.defaultDepositPercent : undefined;
   return {
     name,
+    contactName: typeof b?.contactName === "string" ? b.contactName.trim() : undefined,
     company: typeof b?.company === "string" ? b.company.trim() : undefined,
     email: typeof b?.email === "string" ? b.email.trim() : undefined,
     phone: typeof b?.phone === "string" ? b.phone.trim() : undefined,

@@ -872,7 +872,7 @@ export default function AdminQuoteBuilder({
             ...(c.contacts ?? []).map((ct) => ({ c, ct, key: `${c.id}:${ct.id}` })),
           ])
           .filter(({ c, ct }) =>
-            (ct ? [ct.name, ct.email, ct.role, c.name, c.company] : [c.name, c.company, c.email]).some((f) =>
+            (ct ? [ct.name, ct.email, ct.role, c.name, c.company] : [c.name, c.contactName, c.company, c.email]).some((f) =>
               f?.toLowerCase().includes(customerQuery.trim().toLowerCase())
             )
           )
@@ -880,8 +880,10 @@ export default function AdminQuoteBuilder({
 
   function selectCustomer(c: Customer, contact?: CustomerContact) {
     setCustomerId(c.id);
-    setCustomerName(contact ? contact.name : c.name);
-    setCustomerCompany(contact ? c.company ?? c.name : c.company ?? "");
+    // c.name is the company (or the person, for individuals); c.contactName
+    // is the primary person at that company.
+    setCustomerName(contact ? contact.name : c.contactName || c.name);
+    setCustomerCompany(contact || c.contactName ? c.name : c.company ?? "");
     setCustomerEmail(contact ? contact.email ?? "" : c.email ?? "");
     setDepositPercent(c.defaultDepositPercent ?? 100);
     setCustomerQuery("");
@@ -2551,9 +2553,9 @@ export default function AdminQuoteBuilder({
                       onMouseDown={() => selectCustomer(c, ct)}
                       className="block w-full text-left px-3 py-2 hover:bg-admin-ink/5"
                     >
-                      <span className="font-medium text-admin-ink">{ct ? ct.name : c.name}</span>{" "}
+                      <span className="font-medium text-admin-ink">{ct ? ct.name : c.contactName || c.name}</span>{" "}
                       <span className="text-admin-ink/62">
-                        {(ct ? [c.company ?? c.name, ct.role, ct.email] : [c.company, c.email]).filter(Boolean).join(" · ")}
+                        {(ct ? [c.name, ct.role, ct.email] : [c.contactName ? c.name : c.company, c.email]).filter(Boolean).join(" · ")}
                       </span>
                     </button>
                   </li>
