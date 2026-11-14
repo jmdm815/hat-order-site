@@ -7,6 +7,7 @@ import { cutoutLogo, renderMockupNode, type CutoutMode } from "@/lib/mockup-node
 import { fetchAndProcess, parseAllowedUrl } from "@/lib/product-photo";
 import { SocialError } from "@/lib/social-openai";
 import type { Product, ProductColor } from "@/lib/types";
+import { saveMockup } from "@/lib/mockup-files";
 
 export const runtime = "nodejs";
 export const maxDuration = 240;
@@ -27,6 +28,8 @@ export const maxDuration = 240;
 //   offsetX/Y   nudge in % of the garment (e.g. offsetX=-12 moves left);
 //               angled hat photos usually need offsetX about -12
 //   format      png (default) | json (base64 + details)
+//   save        true = also store it; json/headers return mockupUrl
+//               (/api/admin/mockup/file/<id>, opens when logged in)
 // ---------------------------------------------------------------------------
 
 type Input = Record<string, string | undefined>;
@@ -173,12 +176,18 @@ export async function POST(req: NextRequest) {
       lowResolution: dpi < 150,
       background: cut.method,
       notes: [photo.note, cut.note].filter(Boolean),
-    };
+    } as Record<string, unknown>;
+
+    const name = [product?.styleNumber, color?.colorName, preset.id].filter(Boolean).join("-").replace(/[^A-Za-z0-9-]+/g, "_");
+    let mockupUrl: string | undefined;
+    if (input.save === "true" || input.save === "1") {
+      mockupUrl = `/api/admin/mockup/file/${await saveMockup(r.png, name || "mockup")}`;
+    }
+    Object.assign(details, { mockupUrl });
 
     if (input.format === "json") {
       return NextResponse.json({ ...details, image: r.png.toString("base64"), cutout: cut.png.toString("base64") });
     }
-    const name = [product?.styleNumber, color?.colorName, preset.id].filter(Boolean).join("-").replace(/[^A-Za-z0-9-]+/g, "_");
     return new NextResponse(new Uint8Array(r.png), {
       headers: {
         "Content-Type": "image/png",
