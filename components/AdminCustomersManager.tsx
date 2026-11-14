@@ -520,7 +520,13 @@ export default function AdminCustomersManager() {
                 )}
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-admin-ink">
-                    {c.name}
+                    {selectMode ? (
+                      c.name
+                    ) : (
+                      <a href={`/admin/customers/${c.id}`} className="underline decoration-admin-ink/30 hover:decoration-admin-ink">
+                        {c.name}
+                      </a>
+                    )}
                     {c.company && <span className="text-admin-ink/62 font-normal"> · {c.company}</span>}
                   </div>
                   <div className="text-xs text-admin-ink/80 mt-0.5">

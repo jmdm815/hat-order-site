@@ -617,6 +617,23 @@ export async function updateQuoteContent(
   return { record: updated, persisted };
 }
 
+// Link (or unlink, with null) a quote/invoice to a saved customer — the
+// customer page's "Link a quote or invoice". Only touches input.customerId,
+// so it doesn't count as a content edit.
+export async function setQuoteCustomerId(
+  id: string,
+  customerId: string | null
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { record: null, persisted: true };
+  const input = { ...existing.input };
+  if (customerId) input.customerId = customerId;
+  else delete input.customerId;
+  const updated: QuoteRecord = { ...existing, input, updatedAt: new Date().toISOString() };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
 // Soft delete — "Move to Recently deleted" in the admin UI. The record
 // still exists (readRecord/getQuote can still find it) but drops out of
 // getQuotes(), so it's gone from the normal Quotes/Invoices tabs. See

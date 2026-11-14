@@ -35,6 +35,7 @@ type Props = {
   // save creates a plain quote (the default) or an invoice directly — set
   // from ?kind=invoice by the "+ New invoice" button on the Invoices tab.
   createAs?: "quote" | "invoice";
+  initialCustomerId?: string;
 };
 
 // Full-page quote builder — the quote builder used to live inside a popup
@@ -42,9 +43,23 @@ type Props = {
 // own page per quote/invoice, like most editors in this admin, so creating
 // or editing a quote gets a real URL, full-height layout, and no shared
 // scroll position with the saved-quotes list.
-export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Props) {
+export default function AdminQuotePageClient({ quoteId, createAs = "quote", initialCustomerId }: Props) {
   const router = useRouter();
   const [record, setRecord] = useState<QuoteRecord | null>(null);
+  const [owner, setOwner] = useState<{ id: string; name: string } | null>(null);
+  const recordIdForOwner = record?.id;
+  const recordCustomerKey = record ? `${record.input.customerId ?? ""}|${record.input.customerEmail ?? ""}|${record.input.customerName ?? ""}` : "";
+  useEffect(() => {
+    if (!recordIdForOwner) return;
+    let alive = true;
+    fetch(`/api/admin/customers/owner?recordId=${recordIdForOwner}`)
+      .then((r) => r.json())
+      .then((j) => alive && setOwner(j.customer ?? null))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [recordIdForOwner, recordCustomerKey]);
   const [loading, setLoading] = useState(Boolean(quoteId));
   const [notFound, setNotFound] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -106,7 +121,14 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Pr
       </header>
       <main className="flex-1 max-w-5xl mx-auto px-4 py-6 sm:py-10 w-full">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-admin-ink">{title}</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-admin-ink">{title}</h1>
+            {owner && (
+              <Link href={`/admin/customers/${owner.id}`} className="text-sm text-admin-ink/70 underline hover:text-admin-ink">
+                {owner.name} · customer page →
+              </Link>
+            )}
+          </div>
           {record && (
             <button
               onClick={() => setPaymentOpen(true)}
@@ -143,6 +165,7 @@ export default function AdminQuotePageClient({ quoteId, createAs = "quote" }: Pr
             key={record?.id ?? "new"}
             initialRecord={record}
             createAs={createAs}
+            initialCustomerId={initialCustomerId}
             initialLines={!record ? seed?.lines : undefined}
             initialSetupChargeIds={!record ? seed?.setupChargeIds : undefined}
             onSaved={(saved) => {
