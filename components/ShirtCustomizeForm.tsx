@@ -749,7 +749,7 @@ export default function ShirtCustomizeForm({
                         ? selectedColor?.backImageIsOverride
                         : selectedColor?.imageIsOverride
                     }
-                    className="absolute inset-0 w-full h-full object-contain p-6 pointer-events-none"
+                    className="absolute inset-0 w-full h-full object-contain p-6 pointer-events-none mix-blend-multiply"
                   />
 
                   {locations
@@ -776,7 +776,7 @@ export default function ShirtCustomizeForm({
                               height: `${zone.height}%`,
                             }}
                           >
-                            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-[#15803d] bg-admin-ink/90 whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none">
+                            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-[#15803d] bg-white/90 whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none">
                               {loc.zoneLabel} · {decorationById.get(loc.decorationId)?.shortLabel}
                             </span>
                             {isActive && (
