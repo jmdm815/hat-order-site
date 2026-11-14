@@ -339,7 +339,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                       i % 2 === 1 ? "bg-admin-ink/[0.025]" : ""
                     } ${view !== "deleted" ? "cursor-pointer hover:bg-admin-ink/[0.07]" : ""}`}
                   >
-                    <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                    <td className="px-3 py-2.5 align-middle whitespace-nowrap">
                       {view !== "deleted" ? (
                         <DocNumberButton id={r.id} number={(r.status === "invoice" ? r.invoiceNumber : r.quoteNumber) ?? "Open"} />
                       ) : (
@@ -348,7 +348,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 align-top min-w-0">
+                    <td className="px-3 py-2.5 align-middle min-w-0">
                       <CustomerNameLink name={customer} customerId={view !== "deleted" ? owners[r.id]?.id : undefined} />
                       <div className="flex items-center gap-1.5 flex-wrap mt-1 ml-[42px] empty:hidden">
                         {view !== "deleted" && r.status === "quote" && r.linkedInvoiceId && (
@@ -377,10 +377,10 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2 align-top text-right text-admin-ink/72 whitespace-nowrap">
+                    <td className="px-3 py-2.5 align-middle text-right text-admin-ink/72 whitespace-nowrap">
                       {r.computed.totalQuantity}
                     </td>
-                    <td className="px-3 py-2 align-top text-right font-medium text-admin-ink whitespace-nowrap">
+                    <td className="px-3 py-2.5 align-middle text-right font-medium text-admin-ink whitespace-nowrap">
                       ${r.computed.grandTotal.toFixed(2)}
                       {partiallyPaid && (
                         <div className="text-[11px] font-normal text-admin-ink/55">
@@ -388,7 +388,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2 align-top whitespace-nowrap">
+                    <td className="px-3 py-2.5 align-middle whitespace-nowrap">
                       {view === "deleted" && r.deletedAt ? (
                         <>
                           <div className="text-admin-ink/72">{new Date(r.deletedAt).toLocaleDateString()}</div>
@@ -415,11 +415,11 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                       )}
                     </td>
                     {view !== "deleted" && (
-                      <td className="px-3 py-2 align-top text-admin-ink/72 whitespace-nowrap">
+                      <td className="px-3 py-2.5 align-middle text-admin-ink/72 whitespace-nowrap">
                         {new Date(r.updatedAt).toLocaleDateString()}
                       </td>
                     )}
-                    <td className="px-3 py-2 align-top text-right relative">
+                    <td className="px-3 py-2.5 align-middle text-right relative">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
