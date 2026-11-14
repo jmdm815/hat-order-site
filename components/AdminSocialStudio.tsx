@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import AdminSocialArchive from "@/components/AdminSocialArchive";
+import AdminSocialIdeas from "@/components/AdminSocialIdeas";
+import type { PostIdea } from "@/lib/social-ideas";
 import type { SocialPost } from "@/lib/social-archive-store";
 
 // Social Studio: pick what the post is about -> OpenAI writes the captions,
@@ -123,14 +125,22 @@ export default function AdminSocialStudio() {
     setPhotoUrl(file ? URL.createObjectURL(file) : null);
   }
 
-  async function writePost() {
+  async function writePost(override?: {
+    contentType: string;
+    industry: string;
+    garment: string;
+    decoration: string;
+    hook: string;
+    details: string;
+  }) {
     setError(null);
     setCopyBusy(true);
     try {
+      const fields = override ?? { contentType, industry, garment, decoration, hook, details };
       const res = await fetch("/api/admin/social/copy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platforms, contentType, industry, garment, decoration, hook, details, hasPhoto: Boolean(photo) }),
+        body: JSON.stringify({ platforms, ...fields, hasPhoto: Boolean(photo) }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Couldn't write the post");
@@ -174,6 +184,29 @@ export default function AdminSocialStudio() {
     }
   }
 
+  // "Generate post from idea": fill the form from the idea and write it.
+  const [ideaBusy, setIdeaBusy] = useState<string | null>(null);
+  async function generateFromIdea(idea: PostIdea) {
+    const fields = {
+      contentType: idea.contentType,
+      industry: idea.industry ?? "",
+      garment: idea.garment ?? "",
+      decoration: idea.decoration ?? "",
+      hook: idea.hook ?? idea.title,
+      details: [idea.angle, idea.details, `Why now: ${idea.why}`].filter(Boolean).join("\n"),
+    };
+    setContentType(fields.contentType);
+    setIndustry(fields.industry);
+    setGarment(fields.garment);
+    setDecoration(fields.decoration);
+    setHook(fields.hook);
+    setDetails(fields.details);
+    setIdeaBusy(idea.title);
+    await writePost(fields);
+    setIdeaBusy(null);
+    document.getElementById("social-captions")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   // Reopen an archived post in the editor (captions, prompt, latest image, settings).
   function openPost(p: SocialPost) {
     setPlatforms(p.request.platforms.length ? p.request.platforms : ["instagram"]);
@@ -206,6 +239,8 @@ export default function AdminSocialStudio() {
         </div>
       )}
 
+      <AdminSocialIdeas onGenerate={generateFromIdea} busyTitle={ideaBusy} />
+
       <section className={card}>
         <h2 className="font-heading font-semibold uppercase tracking-wide mb-3">1 · What&apos;s the post about?</h2>
         <div className="grid sm:grid-cols-2 gap-3">
@@ -231,7 +266,7 @@ export default function AdminSocialStudio() {
           <label className="sm:col-span-2">
             <span className={label}>Content type</span>
             <select className={input} value={contentType} onChange={(e) => setContentType(e.target.value)}>
-              {CONTENT_TYPES.map((c) => (
+              {(CONTENT_TYPES.includes(contentType) ? CONTENT_TYPES : [...CONTENT_TYPES, contentType]).map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
@@ -239,7 +274,7 @@ export default function AdminSocialStudio() {
           <label>
             <span className={label}>Industry</span>
             <select className={input} value={industry} onChange={(e) => setIndustry(e.target.value)}>
-              {INDUSTRIES.map((c) => (
+              {(INDUSTRIES.includes(industry) ? INDUSTRIES : [...INDUSTRIES, industry]).map((c) => (
                 <option key={c} value={c}>
                   {c || "Any / general"}
                 </option>
@@ -249,7 +284,7 @@ export default function AdminSocialStudio() {
           <label>
             <span className={label}>Decoration</span>
             <select className={input} value={decoration} onChange={(e) => setDecoration(e.target.value)}>
-              {DECORATIONS.map((c) => (
+              {(DECORATIONS.includes(decoration) ? DECORATIONS : [...DECORATIONS, decoration]).map((c) => (
                 <option key={c} value={c}>
                   {c || "Any"}
                 </option>
@@ -298,7 +333,7 @@ export default function AdminSocialStudio() {
         <button
           type="button"
           disabled={copyBusy || !platforms.length}
-          onClick={writePost}
+          onClick={() => writePost()}
           className="mt-4 px-5 py-2.5 rounded-xl bg-admin-accent text-admin-accent-ink font-semibold disabled:opacity-50"
         >
           {copyBusy ? "Writing…" : copy ? "Write it again" : "Write the post"}
@@ -309,7 +344,7 @@ export default function AdminSocialStudio() {
 
       {copy && (
         <section className={card}>
-          <h2 className="font-heading font-semibold uppercase tracking-wide mb-3">2 · Captions</h2>
+          <h2 id="social-captions" className="font-heading font-semibold uppercase tracking-wide mb-3 scroll-mt-20">2 · Captions</h2>
           <div className="space-y-4">
             {copy.posts.map((p) => {
               const full = `${p.caption}${p.hashtags.length ? `\n\n${p.hashtags.join(" ")}` : ""}`;
