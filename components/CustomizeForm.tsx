@@ -414,7 +414,7 @@ export default function CustomizeForm() {
                     : "border-admin-ink/15 bg-admin-card hover:border-admin-ink/30 hover:bg-admin-ink/5"
                 }`}
               >
-                <span className="absolute inset-x-0 top-0 h-1 bg-amber-400" aria-hidden="true" />
+                <span className="absolute inset-x-0 top-0 h-1 bg-red" aria-hidden="true" />
                 <div className="flex items-center gap-2">
                   <div className="font-heading font-semibold text-admin-ink">{d.shortLabel}</div>
                   {d.quoteRequired && (
