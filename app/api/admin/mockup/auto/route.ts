@@ -152,7 +152,14 @@ export async function POST(req: NextRequest) {
       fabricBlend: input.fabricBlend != null && input.fabricBlend !== "" ? Math.max(0, Math.min(100, Number(input.fabricBlend))) : 55,
       raised,
       onModel: photo.onModel,
-      offsetX: Number(input.offsetX) || 0,
+      // Supplier hat photos are shot at a 3/4 angle (front panel left of
+      // center), so catalog hat fronts shift left unless told otherwise.
+      offsetX:
+        input.offsetX != null && input.offsetX !== ""
+          ? Number(input.offsetX) || 0
+          : hat && !garmentBuf && preset.id === "hat-front"
+            ? -12
+            : 0,
       offsetY: Number(input.offsetY) || 0,
     });
     const dpi = Math.round(r.logoPx.w / Math.max(0.1, r.printWidthIn));
