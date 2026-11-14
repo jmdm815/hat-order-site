@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
 import { generateSocialImage, ImageSize, SocialError } from "@/lib/social-openai";
+import { addSocialImage } from "@/lib/social-archive-store";
 
 // Image generation can take a while, especially at high quality.
 export const maxDuration = 180;
@@ -28,7 +29,11 @@ export async function POST(req: NextRequest) {
       quality,
       photo: file ? { data: file, name: file.name || "photo.jpg" } : undefined,
     });
-    return NextResponse.json({ image });
+    // Save it to the post's archive entry (if this image belongs to one).
+    const postId = String(form.get("postId") ?? "");
+    let saved: { id: string } | undefined;
+    if (postId) saved = (await addSocialImage(postId, image, size, Boolean(file)).catch(() => null))?.image;
+    return NextResponse.json({ image, imageId: saved?.id });
   } catch (err) {
     const status = err instanceof SocialError ? err.status : 500;
     return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong" }, { status });
