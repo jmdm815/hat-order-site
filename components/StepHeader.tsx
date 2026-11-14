@@ -58,7 +58,7 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
               admin-uploaded Vercel Blob URL (see AdminLogoManager.tsx), so next/image's
               remotePatterns allowlist doesn't apply; this is a small fixed-size icon. */}
           <img src={logoUrl} alt="JM Digital Media" width={42} height={42} className="rounded-2xl w-[42px] h-[42px] object-contain transition group-hover:scale-105" />
-          <span className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-amber-800 uppercase">
+          <span className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-admin-ink uppercase">
             Custom Tees and Hats
           </span>
         </Link>
