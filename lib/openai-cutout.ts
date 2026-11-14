@@ -8,7 +8,9 @@ import { SocialError } from "./social-openai";
 
 const KEEP =
   "Keep the logo/artwork itself EXACTLY as it is: same shapes, letters, spelling, colors, proportions and position. " +
-  "Do not redraw, restyle, add, sharpen or remove any part of the artwork. No shadow, no border.";
+  "Do not redraw, restyle, add, sharpen or remove any part of the artwork. White or light shapes INSIDE the artwork " +
+  "(text, boxes, highlights) are part of the logo and must stay solid and opaque; only the area outside the logo's " +
+  "outer edge is background. No shadow, no border.";
 
 async function edit(buf: Buffer, name: string, fields: Record<string, string>): Promise<Buffer> {
   const key = process.env.OPENAI_API_KEY;
