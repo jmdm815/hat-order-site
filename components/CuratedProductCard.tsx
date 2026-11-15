@@ -13,7 +13,7 @@ import { productPreviewImageUrl } from "@/lib/product-image";
 export default function CuratedProductCard({ product }: { product: CuratedProduct }) {
   const query = `?style=${encodeURIComponent(product.styleNumber)}&type=${product.productType}`;
   return (
-    <div className="group border-2 border-admin-ink/10 rounded-2xl bg-admin-card overflow-hidden shadow-sm shadow-slate-900/10 hover:border-red hover:shadow-lg hover:shadow-slate-900/10 hover:-translate-y-0.5 transition flex flex-col">
+    <div className="group border border-admin-ink/15 rounded-lg bg-admin-card overflow-hidden shadow-sm shadow-black/5 hover:border-[#111214] hover:shadow-lg hover:shadow-black/10 hover:-translate-y-0.5 transition flex flex-col">
       <div className="relative w-full aspect-square bg-admin-ink/5 p-6">
         <Image
           src={
@@ -32,7 +32,7 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
         <div className="text-xs uppercase tracking-wide text-admin-ink/40">
           {product.brandName} · {product.styleNumber}
         </div>
-        <div className="font-semibold text-admin-ink mt-0.5 leading-tight">{product.productName}</div>
+        <div className="font-heading text-lg font-semibold uppercase tracking-wide text-admin-ink mt-0.5 leading-tight">{product.productName}</div>
         <div className="mt-2 text-sm text-admin-ink/60">
           Starting at <span className="font-semibold text-admin-ink">{formatUSD(product.basePrice)}</span>
         </div>
@@ -40,7 +40,7 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
           {product.designEnabled && (
             <Link
               href={`/customize${query}`}
-              className="flex-1 text-center px-3 py-2 rounded-2xl bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-accent-dim transition"
+              className="flex-1 text-center px-3 py-2 rounded-md bg-admin-accent text-admin-accent-ink text-sm font-bold uppercase tracking-wide hover:bg-admin-accent-dim transition"
             >
               Design Now
             </Link>
@@ -48,7 +48,7 @@ export default function CuratedProductCard({ product }: { product: CuratedProduc
           {product.quoteEnabled && (
             <Link
               href={`/quote${query}`}
-              className={`flex-1 text-center px-3 py-2 rounded-2xl text-sm font-semibold border transition ${
+              className={`flex-1 text-center px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wide border transition ${
                 product.designEnabled
                   ? "border-admin-ink/20 text-admin-ink hover:bg-admin-ink/5"
                   : "bg-admin-bg text-admin-ink hover:bg-admin-bg/90"

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Assistant, Geist_Mono } from "next/font/google";
+import { Assistant, Geist_Mono, Oswald } from "next/font/google";
 import "./globals.css";
 import { OrderProvider } from "@/lib/order-context";
 
@@ -20,6 +20,15 @@ import { OrderProvider } from "@/lib/order-context";
 // since the variable font covers the full weight range.
 const assistant = Assistant({
   variable: "--font-assistant",
+  subsets: ["latin"],
+  weight: "variable",
+});
+
+// Condensed industrial display font for storefront headings (see the
+// body:has(.jm-store) block in globals.css). Variable font — one request,
+// same reason as Assistant above.
+const oswald = Oswald({
+  variable: "--font-oswald",
   subsets: ["latin"],
   weight: "variable",
 });
@@ -60,7 +69,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${assistant.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${assistant.variable} ${oswald.variable} ${geistMono.variable} h-full antialiased`}
     >
       {/* Light canvas (same palette as the admin, see app/globals.css admin-*
           tokens); cards sit on top in white so the two read as distinct layers

@@ -14,8 +14,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-assistant);
   --font-mono: var(--font-geist-mono);
-  /* buyjmmedia.com uses the same font (Assistant) for headings and body. */
-  --font-heading: var(--font-assistant);
 
   /* JM Digital Media brand palette — black / navy / white, with a real red
      accent restored (2026-11, professional design pass).
@@ -76,6 +74,12 @@
          a genuinely dark navy on purpose, independent of admin-bg, so
          button labels keep full contrast even though admin-bg itself is
          now much lighter than before. */
+}
+
+/* Not inlined, so the storefront can re-skin these per page (see the
+   body:has(.jm-store) block below) while the admin keeps its own values. */
+@theme {
+  --font-heading: var(--font-assistant);
   /* Light, high-contrast admin theme (Nov 2026 redesign): soft gray canvas,
      white cards, dark navy text, navy primary buttons with white labels. */
   --color-admin-bg: #f3f5f9;
@@ -84,6 +88,27 @@
   --color-admin-accent: #1f2f5c;
   --color-admin-accent-ink: #ffffff;
   --color-admin-accent-dim: #2d4180;
+}
+
+/* Customer-facing storefront (every page with StepHeader, which carries the
+   .jm-store marker): a jobsite / trades look to match buyjmmedia.com —
+   concrete-gray canvas, near-black ink, safety-yellow primary actions and a
+   condensed industrial display font for headings. The admin is unaffected. */
+body:has(.jm-store) {
+  --background: #efeee9;
+  --foreground: #17191c;
+  --font-heading: var(--font-oswald), var(--font-assistant), Arial, sans-serif;
+  --color-admin-bg: #efeee9;
+  --color-admin-card: #ffffff;
+  --color-admin-ink: #17191c;
+  --color-admin-accent: #ffc61a;
+  --color-admin-accent-ink: #111214;
+  --color-admin-accent-dim: #f2b300;
+}
+
+/* Diagonal hazard stripes (yellow/black), used as thin accent bands. */
+.hazard-stripes {
+  background-image: repeating-linear-gradient(-45deg, #ffc61a 0 14px, #111214 14px 28px);
 }
 
 /* iOS Safari bumps the page's own font size up when it thinks the user
