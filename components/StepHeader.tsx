@@ -51,18 +51,16 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
   const logoUrl = logoUrlProp ?? fetchedLogoUrl;
 
   return (
-    // .jm-store switches the whole page to the storefront (trades) theme —
-    // see app/globals.css.
-    <header className="jm-store bg-[#141619] text-white sticky top-0 z-10 shadow-lg shadow-black/20 pt-safe">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+    <header className="bg-admin-card/95 backdrop-blur sticky top-0 z-10 border-b border-admin-ink/10 pt-safe">
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-3 shrink-0 group">
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo can be an
               admin-uploaded Vercel Blob URL (see AdminLogoManager.tsx), so next/image's
               remotePatterns allowlist doesn't apply; this is a small fixed-size icon. */}
-          <img src={logoUrl} alt="JM Digital Media" width={44} height={44} className="w-[44px] h-[44px] object-contain transition group-hover:scale-105" />
-          <span className="hidden sm:flex flex-col leading-none">
-            <span className="font-heading font-semibold text-lg tracking-wider uppercase">JM Digital Media</span>
-            <span className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#ffc61a]">Crew gear · Workwear · Hats</span>
+          <img src={logoUrl} alt="JM Digital Media" width={40} height={40} className="w-10 h-10 object-contain transition group-hover:scale-105" />
+          <span className="hidden sm:flex flex-col leading-tight">
+            <span className="font-semibold text-[15px] text-admin-ink">JM Digital Media</span>
+            <span className="text-xs text-admin-ink/55">Custom tees &amp; hats</span>
           </span>
         </Link>
         {/* Only show the step-by-step progress bar while actually going
@@ -70,49 +68,46 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
             — not on the homepage or the standalone quote tools, where it
             doesn't correspond to anything the visitor is mid-way through. */}
         {current !== -1 ? (
-          <ol className="hidden md:flex items-center gap-2 text-sm">
+          <ol className="hidden md:flex items-center gap-1 rounded-xl bg-admin-bg p-1 text-sm">
             {STEPS.map((step, i) => (
-              <li key={step.href} className="flex items-center gap-2">
+              <li
+                key={step.href}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 ${
+                  i === current ? "bg-admin-card shadow-sm font-semibold text-admin-ink" : i < current ? "text-admin-ink/70" : "text-admin-ink/45"
+                }`}
+              >
                 <span
-                  className={`flex items-center gap-1.5 uppercase tracking-wide text-xs ${
-                    i === current ? "font-bold text-white" : i < current ? "text-white/75" : "text-white/40"
+                  className={`flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-semibold ${
+                    i === current
+                      ? "bg-admin-accent text-admin-accent-ink"
+                      : i < current
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-admin-ink/10 text-admin-ink/60"
                   }`}
                 >
-                  <span
-                    className={`flex items-center justify-center w-5 h-5 rounded-sm text-[11px] font-bold ${
-                      i === current
-                        ? "bg-[#ffc61a] text-[#111214]"
-                        : i < current
-                          ? "bg-white/20 text-white"
-                          : "bg-white/10 text-white/60"
-                    }`}
-                  >
-                    {i + 1}
-                  </span>
-                  {step.label}
+                  {i < current ? "✓" : i + 1}
                 </span>
-                {i < STEPS.length - 1 && <span className={`w-5 h-px ${i < current ? "bg-[#ffc61a]/70" : "bg-white/20"}`} />}
+                {step.label}
               </li>
             ))}
           </ol>
         ) : (
-          <nav className="flex items-center gap-2 sm:gap-5 text-sm">
-            <Link href="/catalog" className="hidden sm:inline uppercase tracking-wide text-xs font-semibold text-white/80 hover:text-white">
+          <nav className="flex items-center gap-1 sm:gap-2 text-sm">
+            <Link href="/catalog" className="hidden sm:inline px-3 py-2 rounded-lg text-admin-ink/75 hover:bg-admin-ink/5 hover:text-admin-ink transition">
               Catalog
             </Link>
-            <Link href="/quote-builder" className="hidden sm:inline uppercase tracking-wide text-xs font-semibold text-white/80 hover:text-white">
-              Bulk quote
+            <Link href="/quote-builder" className="hidden sm:inline px-3 py-2 rounded-lg text-admin-ink/75 hover:bg-admin-ink/5 hover:text-admin-ink transition">
+              Get a quote
             </Link>
-            <a
-              href="tel:+12813441772"
-              className="px-3 py-2 rounded-md bg-[#ffc61a] text-[#111214] text-xs font-bold uppercase tracking-wide hover:bg-[#f2b300] transition"
+            <Link
+              href="/catalog"
+              className="px-4 py-2 rounded-lg bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent-dim transition"
             >
-              (281) 344-1772
-            </a>
+              Start an order
+            </Link>
           </nav>
         )}
       </div>
-      <div className="hazard-stripes h-1.5" aria-hidden />
     </header>
   );
 }
