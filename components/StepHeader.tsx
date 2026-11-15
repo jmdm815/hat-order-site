@@ -51,55 +51,61 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
   const logoUrl = logoUrlProp ?? fetchedLogoUrl;
 
   return (
-    <header className="bg-admin-bg sticky top-0 z-10 shadow-md shadow-slate-900/10 border-b border-admin-ink/5 pt-safe">
-      <div className="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
+    <header className="bg-admin-card/95 backdrop-blur sticky top-0 z-10 border-b border-admin-ink/10 pt-safe">
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-3 shrink-0 group">
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo can be an
               admin-uploaded Vercel Blob URL (see AdminLogoManager.tsx), so next/image's
               remotePatterns allowlist doesn't apply; this is a small fixed-size icon. */}
-          <img src={logoUrl} alt="JM Digital Media" width={42} height={42} className="rounded-2xl w-[42px] h-[42px] object-contain transition group-hover:scale-105" />
-          <span className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-admin-ink uppercase">
-            Custom Tees and Hats
+          <img src={logoUrl} alt="JM Digital Media" width={40} height={40} className="w-10 h-10 object-contain transition group-hover:scale-105" />
+          <span className="hidden sm:flex flex-col leading-tight">
+            <span className="font-semibold text-[15px] text-admin-ink">JM Digital Media</span>
+            <span className="text-xs text-admin-ink/55">Custom tees &amp; hats</span>
           </span>
         </Link>
         {/* Only show the step-by-step progress bar while actually going
             through the order flow (catalog -> customize -> cart -> checkout)
             — not on the homepage or the standalone quote tools, where it
             doesn't correspond to anything the visitor is mid-way through. */}
-        {current !== -1 && (
-          <ol className="hidden sm:flex items-center gap-2 text-sm">
+        {current !== -1 ? (
+          <ol className="hidden md:flex items-center gap-1 rounded-xl bg-admin-bg p-1 text-sm">
             {STEPS.map((step, i) => (
-              <li key={step.href} className="flex items-center gap-2">
+              <li
+                key={step.href}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 ${
+                  i === current ? "bg-admin-card shadow-sm font-semibold text-admin-ink" : i < current ? "text-admin-ink/70" : "text-admin-ink/45"
+                }`}
+              >
                 <span
-                  className={`flex items-center gap-1.5 ${
+                  className={`flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-semibold ${
                     i === current
-                      ? "font-semibold text-admin-ink"
+                      ? "bg-admin-accent text-admin-accent-ink"
                       : i < current
-                      ? "text-admin-ink/70"
-                      : "text-admin-ink/40"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-admin-ink/10 text-admin-ink/60"
                   }`}
                 >
-                  <span
-                    className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold ${
-                      i === current
-                        ? "bg-admin-accent text-admin-accent-ink"
-                        : i < current
-                        ? "bg-admin-card text-admin-ink"
-                        : "bg-gray/20 text-admin-ink/60"
-                    }`}
-                  >
-                    {i + 1}
-                  </span>
-                  {step.label}
+                  {i < current ? "✓" : i + 1}
                 </span>
-                {i < STEPS.length - 1 && (
-                  <span
-                    className={`w-5 h-px ${i < current ? "bg-red/50" : "bg-admin-ink/20"}`}
-                  />
-                )}
+                {step.label}
               </li>
             ))}
           </ol>
+        ) : (
+          <nav className="flex items-center gap-1 sm:gap-2 text-sm">
+            <Link href="/catalog" className="hidden sm:inline px-3 py-2 rounded-lg text-admin-ink/75 hover:bg-admin-ink/5 hover:text-admin-ink transition">
+              Catalog
+            </Link>
+            <Link href="/quote-builder" className="hidden sm:inline px-3 py-2 rounded-lg text-admin-ink/75 hover:bg-admin-ink/5 hover:text-admin-ink transition">
+              Get a quote
+            </Link>
+            <Link
+              href="/catalog"
+              className="px-4 py-2 rounded-lg bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent-dim transition"
+            >
+              Start an order
+            </Link>
+          </nav>
         )}
       </div>
     </header>

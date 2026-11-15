@@ -12,64 +12,66 @@ export default async function HomePage() {
     <>
       <StepHeader logoUrl={logoUrl} />
 
-      {/* Short hero */}
-      <section className="relative overflow-hidden bg-admin-bg text-admin-ink">
-        {/* Subtle radial glow behind the logo instead of a flat navy field —
-            gives the hero some depth without introducing a new color. */}
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-admin-ink/10 bg-admin-card">
         <div
-          className="pointer-events-none absolute inset-0 opacity-70"
+          className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(60% 55% at 50% 0%, rgba(215,38,61,0.16) 0%, rgba(215,38,61,0) 70%)",
+              "radial-gradient(55% 70% at 85% 0%, rgba(31,47,92,0.10) 0%, rgba(31,47,92,0) 70%), radial-gradient(40% 60% at 0% 100%, rgba(215,38,61,0.07) 0%, rgba(215,38,61,0) 70%)",
           }}
           aria-hidden
         />
-        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 text-center">
+        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16 grid md:grid-cols-[1fr_auto] gap-10 items-center">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-admin-ink/10 bg-admin-bg px-3 py-1 text-xs font-semibold text-admin-ink/70">
+              <span className="w-1.5 h-1.5 rounded-full bg-red" /> Embroidery · Screen print · DTF · Patches
+            </span>
+            <h1 className="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-admin-ink leading-[1.05]">
+              Look the part. <span className="text-red">Mean business.</span>
+            </h1>
+            <p className="mt-4 text-admin-ink/65 text-base sm:text-lg max-w-xl">
+              Custom hats and apparel for your business. Pick a product, then <strong className="text-admin-ink">Design Now</strong> to
+              build it yourself or <strong className="text-admin-ink">Get Quote</strong> to see pricing instantly.
+            </p>
+            <div className="mt-7 flex flex-col sm:flex-row gap-3">
+              <Link
+                href="/catalog"
+                className="text-center px-6 py-3 rounded-xl bg-admin-accent text-admin-accent-ink text-sm font-semibold shadow-sm hover:bg-admin-accent-dim transition"
+              >
+                Browse the catalog
+              </Link>
+              <Link
+                href="/quote-builder"
+                className="text-center px-6 py-3 rounded-xl border border-admin-ink/15 bg-admin-card text-admin-ink text-sm font-semibold hover:bg-admin-ink/5 transition"
+              >
+                Build a quote by decoration type →
+              </Link>
+            </div>
+          </div>
           {/* eslint-disable-next-line @next/next/no-img-element -- can be an
               admin-uploaded Vercel Blob URL; see StepHeader.tsx for why plain
               img is used instead of next/image here. */}
           <img
             src={logoUrl}
             alt="JM Digital Media"
-            width={84}
-            height={84}
-            className="mx-auto mb-5 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+            width={190}
+            height={190}
+            className="hidden md:block w-[190px] h-[190px] object-contain drop-shadow-[0_18px_40px_rgba(23,32,56,0.25)]"
           />
-          <h1 className="font-heading text-3xl sm:text-5xl font-extrabold uppercase tracking-tight">
-            Look the Part. <span className="text-red">Mean Business.</span>
-          </h1>
-          <p className="mt-4 text-admin-ink/70 text-base sm:text-lg max-w-xl mx-auto">
-            Browse our curated gear below. Pick a product, then Design Now to
-            build it yourself or Get Quote to see pricing instantly.
-          </p>
-          <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/catalog"
-              className="w-full sm:w-auto px-7 py-3 rounded-2xl bg-admin-accent text-admin-accent-ink text-sm font-bold uppercase tracking-wide shadow-lg shadow-red/20 hover:bg-admin-accent-dim transition"
-            >
-              Browse the Catalog
-            </Link>
-            <Link
-              href="/quote-builder"
-              className="w-full sm:w-auto px-7 py-3 rounded-2xl border border-admin-ink/30 text-admin-ink text-sm font-semibold hover:bg-admin-ink/10 hover:border-admin-ink/50 transition"
-            >
-              Or build a quote by decoration type →
-            </Link>
-          </div>
         </div>
       </section>
 
-      <main className="flex-1 bg-admin-ink/5 w-full">
+      <main className="flex-1 w-full">
         <div className="max-w-6xl mx-auto px-4 py-10">
           {categories.length === 0 ? (
-            <div className="text-center py-16 px-6 rounded-2xl border border-admin-ink/10 bg-admin-card">
+            <div className="text-center py-16 px-6 rounded-xl border border-admin-ink/10 bg-admin-card shadow-sm">
               <p className="text-admin-ink/70">
-                The catalog is being set up — check back soon, or browse
-                everything we carry now.
+                The catalog is being set up — check back soon, or browse everything we carry now.
               </p>
               <Link
                 href="/catalog"
-                className="mt-5 inline-block px-6 py-2.5 rounded-2xl bg-admin-accent text-admin-accent-ink text-sm font-bold hover:bg-admin-accent-dim transition"
+                className="mt-5 inline-block px-5 py-2.5 rounded-lg bg-admin-accent text-admin-accent-ink text-sm font-semibold hover:bg-admin-accent-dim transition"
               >
                 Browse the full catalog →
               </Link>
@@ -78,15 +80,13 @@ export default async function HomePage() {
             <div className="space-y-12">
               {categories.map((cat) => (
                 <section key={cat.id}>
-                  <div className="flex items-baseline justify-between">
-                    <h2 className="font-heading text-2xl font-semibold uppercase text-admin-ink tracking-wide">
-                      {cat.name}
-                    </h2>
+                  <div className="flex items-end justify-between gap-4">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-admin-ink">{cat.name}</h2>
                     <span className="text-sm text-admin-ink/50">
                       {cat.products.length} item{cat.products.length === 1 ? "" : "s"}
                     </span>
                   </div>
-                  <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                     {cat.products.map((p) => (
                       <CuratedProductCard key={p.styleNumber} product={p} />
                     ))}
@@ -96,19 +96,18 @@ export default async function HomePage() {
             </div>
           )}
 
-          <div className="mt-14 text-center text-sm text-admin-ink/50">
+          <div className="mt-14 text-center text-sm text-admin-ink/55">
             Looking for something specific?{" "}
-            <Link href="/catalog" className="text-red font-semibold hover:underline">
+            <Link href="/catalog" className="text-admin-accent font-semibold hover:underline">
               Browse the full catalog
             </Link>
           </div>
         </div>
       </main>
 
-      <footer className="bg-admin-bg text-admin-ink/60 text-xs">
-        <div className="max-w-6xl mx-auto px-4 pt-6 pb-5">
-          <div className="h-px bg-amber-50" />
-          <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="bg-admin-card border-t border-admin-ink/10 text-admin-ink/60 text-xs">
+        <div className="max-w-6xl mx-auto px-4 py-5">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-center sm:text-left">
               JM Digital Media · Rosenberg, TX ·{" "}
               <a href="https://www.buyjmmedia.com" className="hover:text-admin-ink transition">
