@@ -95,6 +95,8 @@
    concrete-gray canvas, near-black ink, safety-yellow primary actions and a
    condensed industrial display font for headings. The admin is unaffected. */
 body:has(.jm-store) {
+  --background: #efeee9;
+  --foreground: #17191c;
   --font-heading: var(--font-oswald), var(--font-assistant), Arial, sans-serif;
   --color-admin-bg: #efeee9;
   --color-admin-card: #ffffff;
@@ -102,7 +104,6 @@ body:has(.jm-store) {
   --color-admin-accent: #ffc61a;
   --color-admin-accent-ink: #111214;
   --color-admin-accent-dim: #f2b300;
-  background: #efeee9;
 }
 
 /* Diagonal hazard stripes (yellow/black), used as thin accent bands. */
