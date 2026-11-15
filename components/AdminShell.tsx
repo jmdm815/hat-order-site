@@ -18,6 +18,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { id: "quotes", label: "Quotes", href: "/admin?tab=quotes", icon: "file" },
       { id: "invoices", label: "Invoices", href: "/admin?tab=invoices", icon: "receipt" },
       { id: "customers", label: "Customers", href: "/admin?tab=customers", icon: "users" },
+      { id: "reports", label: "Reports", href: "/admin/reports", icon: "chart" },
       { id: "quick-quote", label: "Quick Quote", href: "/admin?tab=quick-quote", icon: "bolt" },
     ],
   },
@@ -70,6 +71,7 @@ const ICONS = {
   trend: "M3 17l6-6 4 4 8-8M15 7h6v6",
   gear: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z",
   external: "M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5",
+  chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   menu: "M4 6h16M4 12h16M4 18h16",
   close: "M6 6l12 12M18 6 6 18",
 } as const;
