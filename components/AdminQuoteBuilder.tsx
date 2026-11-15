@@ -512,6 +512,8 @@ function linesFromRecord(record: QuoteRecord): PendingLine[] {
       brandNameInput: l.brandNameInput,
       taxable: l.taxable ?? true,
       optional: l.optional,
+      decorationUnitPriceOverride: l.decorationUnitPriceOverride,
+      personalization: l.personalization,
       brandName: computedLine?.brandName ?? "",
       productName: computedLine?.productName ?? "",
     };
@@ -1757,6 +1759,10 @@ export default function AdminQuoteBuilder({
   // price override — see QuoteLineInput.decorationUnitPriceOverride.
   // Applies to every size row in the line uniformly, same as the computed
   // decoration price it replaces.
+  function updatePersonalization(lineKey: string, value: string) {
+    setLines((prev) => prev.map((l) => (l.key === lineKey ? { ...l, personalization: value || undefined } : l)));
+  }
+
   function updateDecorationOverride(lineKey: string, value: number | undefined) {
     setLines((prev) =>
       prev.map((l) => (l.key === lineKey ? { ...l, decorationUnitPriceOverride: value } : l))
@@ -2003,6 +2009,7 @@ export default function AdminQuoteBuilder({
         brandNameInput: l.brandNameInput,
         taxable: l.taxable,
         decorationUnitPriceOverride: l.decorationUnitPriceOverride,
+        personalization: l.personalization?.trim() || undefined,
         ...(l.optional ? { optional: true } : {}),
       })),
       setupChargeIds: selectedSetupChargeIds,
@@ -3292,6 +3299,16 @@ export default function AdminQuoteBuilder({
                                   )}
                                 </span>
                               </div>
+                            )}
+                            {line.decorationId && (
+                              <input
+                                type="text"
+                                value={line.personalization ?? ""}
+                                onChange={(e) => updatePersonalization(line.key, e.target.value)}
+                                placeholder="Personalization (optional) — e.g. names on side"
+                                title="Printed under this item on the quote. Put any extra charge in Deco/unit — it isn't shown separately."
+                                className="mt-1 w-full max-w-md border border-admin-ink/15 rounded px-2 py-1 text-xs bg-transparent text-admin-ink placeholder:text-admin-ink/40"
+                              />
                             )}
                           </div>
                           <div className="flex items-center gap-3 shrink-0">

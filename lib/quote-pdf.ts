@@ -668,6 +668,13 @@ export async function renderQuotePdf(
             .text(line.colorName, left, doc.y, { width: CARD_TEXT_WIDTH });
         }
       }
+      // Personalization (names etc.) under the item — its cost is already in
+      // the item price, so no amount is shown.
+      if (line.personalization) {
+        doc.moveDown(0.15);
+        doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7.5).text("PERSONALIZATION", left, doc.y, { width: CARD_TEXT_WIDTH });
+        doc.fillColor(NAVY).font("Helvetica").fontSize(8.5).text(line.personalization, left, doc.y, { width: CARD_TEXT_WIDTH });
+      }
       const textBottom = doc.y;
 
       function gridRow(
