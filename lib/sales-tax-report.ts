@@ -1,7 +1,10 @@
 import type { QuoteRecord } from "./quotes-store";
 import { SHOP_TIME_ZONE } from "./quote";
 
-// Sales tax report (Admin → Reports): invoices dated in a range, split into
+// Sales tax report (Admin → Reports). Basis "paid" (cash): payments received
+// in the range, each counted for its share of the invoice (a half payment
+// counts half the sales and half the tax). Basis "invoice" (accrual):
+// invoices dated in the range, in full. Either way, split into
 // taxable and non-taxable sales, like ShopVox's Sales Tax report. An invoice
 // with tax turned on (taxRatePercent > 0) counts its taxable lines as
 // taxable sales; everything else — tax turned off, or lines marked
@@ -19,11 +22,15 @@ export type SalesTaxRow = {
   taxCollected: number;
   invoiceTotal: number;
   paymentStatus: string;
+  amountPaidInRange?: number; // paid basis: payments received in the range
 };
+
+export type SalesTaxBasis = "paid" | "invoice";
 
 export type SalesTaxReport = {
   from: string;
   to: string;
+  basis: SalesTaxBasis;
   totals: { totalSales: number; taxableSales: number; nonTaxableSales: number; taxCollected: number; invoices: number };
   byRate: { ratePercent: number; taxableSales: number; taxCollected: number; invoices: number }[];
   rows: SalesTaxRow[];
@@ -39,22 +46,49 @@ export function invoiceDate(r: QuoteRecord): string {
   return r.input.quoteDate || (r.convertedAt ? shopDate(r.convertedAt) : shopDate(r.createdAt));
 }
 
-export function buildSalesTaxReport(records: QuoteRecord[], from: string, to: string): SalesTaxReport {
+export function buildSalesTaxReport(
+  records: QuoteRecord[],
+  from: string,
+  to: string,
+  basis: SalesTaxBasis = "invoice"
+): SalesTaxReport {
   const rows: SalesTaxRow[] = [];
   const skipped: SalesTaxReport["skipped"] = [];
   for (const r of records) {
     if (r.status !== "invoice" || r.deletedAt) continue;
-    const date = invoiceDate(r);
-    if (date < from || date > to) continue;
-    const c = r.computed;
     const number = r.invoiceNumber ?? r.quoteNumber ?? r.id.slice(0, 8);
+
+    // Which part of this invoice falls in the range: all of it (invoice
+    // date in range), or — paid basis — the share covered by payments
+    // received in the range.
+    let share = 1;
+    let date = invoiceDate(r);
+    let paidInRange: number | undefined;
+    if (basis === "paid") {
+      const pays = (r.payments ?? []).filter((p) => {
+        const d = shopDate(p.createdAt);
+        return d >= from && d <= to;
+      });
+      if (!pays.length) continue;
+      paidInRange = money(pays.reduce((sum, p) => sum + p.amount, 0));
+      date = shopDate(pays[pays.length - 1].createdAt);
+    } else if (date < from || date > to) {
+      continue;
+    }
+
+    const c = r.computed;
     if (!c || typeof c.subtotalBeforeTax !== "number") {
       skipped.push({ invoiceNumber: number, reason: "No pricing saved on this invoice" });
       continue;
     }
     const rate = r.input.taxRatePercent ?? c.taxRatePercent ?? 0;
-    const totalSales = money(c.subtotalBeforeTax - (c.discountAmount ?? 0));
-    const taxableSales = rate > 0 ? money(Math.min(c.taxableSubtotal ?? 0, totalSales)) : 0;
+    const fullSales = money(c.subtotalBeforeTax - (c.discountAmount ?? 0));
+    const fullTaxable = rate > 0 ? money(Math.min(c.taxableSubtotal ?? 0, fullSales)) : 0;
+    const fullTax = rate > 0 ? money(c.taxAmount ?? 0) : 0;
+    const grand = money(c.grandTotal ?? fullSales + fullTax);
+    if (paidInRange !== undefined) share = grand > 0 ? Math.min(1, paidInRange / grand) : 1;
+    const totalSales = money(fullSales * share);
+    const taxableSales = money(fullTaxable * share);
     rows.push({
       id: r.id,
       invoiceNumber: number,
@@ -64,9 +98,10 @@ export function buildSalesTaxReport(records: QuoteRecord[], from: string, to: st
       totalSales,
       taxableSales,
       nonTaxableSales: money(totalSales - taxableSales),
-      taxCollected: rate > 0 ? money(c.taxAmount ?? 0) : 0,
-      invoiceTotal: money(c.grandTotal ?? totalSales),
+      taxCollected: money(fullTax * share),
+      invoiceTotal: grand,
       paymentStatus: r.invoiceStatus ?? "unpaid",
+      amountPaidInRange: paidInRange,
     });
   }
   rows.sort((a, b) => a.date.localeCompare(b.date) || a.invoiceNumber.localeCompare(b.invoiceNumber));
@@ -83,6 +118,7 @@ export function buildSalesTaxReport(records: QuoteRecord[], from: string, to: st
   return {
     from,
     to,
+    basis,
     totals: {
       totalSales: sum("totalSales"),
       taxableSales: sum("taxableSales"),

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { SalesTaxReport } from "@/lib/sales-tax-report";
+import type { SalesTaxBasis, SalesTaxReport } from "@/lib/sales-tax-report";
 
 // Admin → Reports. Sales Tax: invoices dated in a range, split taxable /
 // non-taxable, with tax collected — the numbers for the monthly Texas
@@ -70,6 +70,7 @@ function SalesTaxReportView() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showRows, setShowRows] = useState(true);
+  const [basis, setBasis] = useState<SalesTaxBasis>("paid");
 
   const valid = Boolean(range.from && range.to && range.from <= range.to);
 
@@ -79,7 +80,7 @@ function SalesTaxReportView() {
     const t = setTimeout(() => {
       setLoading(true);
       setError(null);
-      fetch(`/api/admin/reports/sales-tax?from=${range.from}&to=${range.to}`)
+      fetch(`/api/admin/reports/sales-tax?from=${range.from}&to=${range.to}&basis=${basis}`)
         .then(async (r) => {
           const j = await r.json();
           if (!r.ok) throw new Error(j.error || "Couldn't run the report.");
@@ -93,7 +94,7 @@ function SalesTaxReportView() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [range.from, range.to, valid]);
+  }, [range.from, range.to, valid, basis]);
 
   function pick(p: Preset) {
     setPreset(p);
@@ -103,7 +104,7 @@ function SalesTaxReportView() {
   const csv = useMemo(() => {
     if (!report) return "";
     const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-    const head = ["Date", "Invoice", "Customer", "Tax rate %", "Total sales", "Taxable sales", "Non-taxable sales", "Tax collected", "Invoice total", "Payment status"];
+    const head = [report.basis === "paid" ? "Paid date" : "Invoice date", "Invoice", "Customer", "Tax rate %", "Total sales", "Taxable sales", "Non-taxable sales", "Tax collected", "Invoice total", "Payment status"];
     const lines = report.rows.map((r) =>
       [r.date, r.invoiceNumber, r.customer, r.taxRatePercent, r.totalSales, r.taxableSales, r.nonTaxableSales, r.taxCollected, r.invoiceTotal, r.paymentStatus].map(esc).join(",")
     );
@@ -129,6 +130,33 @@ function SalesTaxReportView() {
     <div className="space-y-4">
       {/* Range */}
       <div className={`${card} p-4 sm:p-5`}>
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <span className="text-xs font-semibold text-admin-ink/60">Count by</span>
+          <div className="inline-flex rounded-lg bg-admin-bg p-1">
+            {(
+              [
+                ["paid", "Payments received"],
+                ["invoice", "Invoice date"],
+              ] as [SalesTaxBasis, string][]
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setBasis(id)}
+                className={`px-3 py-1.5 rounded-md text-sm transition ${
+                  basis === id ? "bg-admin-card shadow-sm font-semibold text-admin-ink" : "text-admin-ink/60 hover:text-admin-ink"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-admin-ink/50">
+            {basis === "paid"
+              ? "Money collected in this range (partial payments count their share)."
+              : "Invoices dated in this range, paid or not."}
+          </span>
+        </div>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
             <button
@@ -262,7 +290,7 @@ function SalesTaxReportView() {
                 <table className="w-full text-sm min-w-[720px]">
                   <thead className="bg-admin-bg/60">
                     <tr className="text-left text-xs text-admin-ink/55">
-                      <th className="px-4 py-2 font-semibold">Date</th>
+                      <th className="px-4 py-2 font-semibold">{report.basis === "paid" ? "Paid" : "Date"}</th>
                       <th className="px-2 py-2 font-semibold">Invoice</th>
                       <th className="px-2 py-2 font-semibold">Customer</th>
                       <th className="px-2 py-2 font-semibold text-right">Tax</th>
@@ -300,8 +328,8 @@ function SalesTaxReportView() {
       )}
 
       <p className="text-xs text-admin-ink/50">
-        Counts invoices on this site by invoice date. Taxable = invoices with tax turned on (lines marked non-taxable excluded);
-        everything else is non-taxable. Amounts are after discounts and before tax. Invoices still in ShopVox aren&apos;t included.
+        Taxable = invoices with tax turned on (lines marked non-taxable excluded); everything else is non-taxable. Amounts are
+        after discounts and before tax. Payments use the date they were recorded on this site. Invoices still in ShopVox aren&apos;t included.
       </p>
     </div>
   );
