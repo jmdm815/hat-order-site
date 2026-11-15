@@ -127,6 +127,11 @@ export type QuoteLineInput = {
   // "use the computed decoration price" exactly as before this field
   // existed.
   decorationUnitPriceOverride?: number;
+  // Free text printed under this item on the quote/invoice, e.g.
+  // "Names on side: Tex-Mex Jefe, Blew, Aidan". Any extra charge for it is
+  // folded into the decoration price (decorationUnitPriceOverride), not
+  // shown separately.
+  personalization?: string;
   // An alternate shown for comparison ("Option") — priced and printed like
   // any other line, but left out of the quantity, subtotal, tax and total.
   optional?: boolean;
@@ -242,6 +247,7 @@ export type QuoteLineResult = {
   decorationLabel?: string;
   priceColumnId?: string;
   priceColumnLabel?: string;
+  personalization?: string; // see QuoteLineInput.personalization
   sizes: QuoteSizeResult[];
   quantity: number; // sum of this line's size quantities
   subtotal: number; // sum of sizes[].lineTotal
@@ -387,6 +393,9 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
       l.decorationUnitPriceOverride !== undefined &&
       (typeof l.decorationUnitPriceOverride !== "number" || l.decorationUnitPriceOverride < 0)
     ) {
+      return false;
+    }
+    if (l.personalization !== undefined && (typeof l.personalization !== "string" || l.personalization.length > 500)) {
       return false;
     }
     if (!Array.isArray(l.sizes)) return false;
@@ -580,6 +589,7 @@ export function computeQuote(
         decorationLabel: decoration?.label,
         priceColumnId: line.priceColumnId,
         priceColumnLabel,
+        personalization: line.personalization?.trim() || undefined,
         sizes,
         quantity,
         subtotal,
@@ -650,6 +660,7 @@ export function computeQuote(
       decorationLabel: decoration?.label,
       priceColumnId: line.priceColumnId,
       priceColumnLabel,
+      personalization: line.personalization?.trim() || undefined,
       sizes,
       quantity,
       subtotal,
