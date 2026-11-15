@@ -567,9 +567,18 @@ export async function renderQuotePdf(
     const GRID_LABEL_WIDTH = 58;
     const GRID_ROW_H = 15;
 
-    function estimateCardHeight(): number {
+    function estimateCardHeight(line?: (typeof quote.lines)[number]): number {
       const rows = 2 + (showCostColumns ? 3 : 0) + 1; // size + qty [+ cost + markup + decoration] + price/pulled
-      return Math.max(rows * GRID_ROW_H, 40) + 14;
+      let textH = 40;
+      if (line) {
+        // Left text block: title (up to 2 lines), style + color, personalization.
+        textH = 50;
+        if (line.personalization) {
+          doc.font("Helvetica").fontSize(8.5);
+          textH += 14 + doc.heightOfString(line.personalization, { width: CARD_TEXT_WIDTH });
+        }
+      }
+      return Math.max(rows * GRID_ROW_H, textH) + 14;
     }
 
     // Every line item on the document (garment cards, setup charges, misc
@@ -883,7 +892,7 @@ export async function renderQuotePdf(
       doc.moveDown(0.4);
 
       for (const line of group.lines) {
-        if (doc.y > doc.page.height - doc.page.margins.bottom - estimateCardHeight()) {
+        if (doc.y > doc.page.height - doc.page.margins.bottom - estimateCardHeight(line)) {
           doc.addPage();
         }
         drawGarmentCard(line, sameStyle);
