@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useOrder } from "@/lib/order-context";
 import type { ProductType } from "@/lib/types";
 
@@ -207,7 +208,9 @@ export function MobileMenu({ logoUrl }: { logoUrl: string }) {
         </svg>
       </button>
 
-      {menuOpen && (
+      {/* Portaled to <body>: the header's backdrop-blur would otherwise
+          trap this fixed overlay inside the 64px header. */}
+      {menuOpen && createPortal(
         <div className="lg:hidden fixed inset-0 z-50 bg-admin-card overflow-y-auto pt-safe pb-safe" role="dialog" aria-modal="true" aria-label="Menu">
           <div className="flex items-center justify-between px-6 h-20">
             <Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center gap-3">
@@ -264,7 +267,8 @@ export function MobileMenu({ logoUrl }: { logoUrl: string }) {
               </Link>
             </li>
           </ul>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
