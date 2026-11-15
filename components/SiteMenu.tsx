@@ -139,7 +139,7 @@ export function DesktopMenu() {
         <div key={s.label} className="relative" onMouseEnter={() => setOpen(s.label)} onMouseLeave={() => setOpen(null)}>
           <button
             type="button"
-            onClick={() => setOpen((o) => (o === s.label ? null : s.label))}
+            onClick={() => setOpen(s.label)}
             aria-expanded={open === s.label}
             className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold transition ${
               open === s.label ? "bg-admin-ink/5 text-admin-ink" : "text-admin-ink/80 hover:text-admin-ink"
