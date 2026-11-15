@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import StepHeader from "@/components/StepHeader";
@@ -39,10 +40,31 @@ function tabLabel(productType: ProductType): string {
 }
 
 export default function CatalogPage() {
-  const [productType, setProductType] = useState<ProductType>("hat");
+  return (
+    <Suspense fallback={null}>
+      <Catalog />
+    </Suspense>
+  );
+}
+
+const TYPES: ProductType[] = ["hat", "shirt", "polo", "tumbler"];
+
+function Catalog() {
+  // Menu links land here as /catalog?type=shirt&cat=Tank.
+  const params = useSearchParams();
+  const qType = params.get("type") as ProductType | null;
+  const qCat = params.get("cat");
+  const [productType, setProductType] = useState<ProductType>(qType && TYPES.includes(qType) ? qType : "hat");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState<string>("All");
+  const [category, setCategory] = useState<string>(qCat ?? "All");
+  // Follow menu clicks while already on this page.
+  const [lastQuery, setLastQuery] = useState(`${qType}|${qCat}`);
+  if (`${qType}|${qCat}` !== lastQuery) {
+    setLastQuery(`${qType}|${qCat}`);
+    if (qType && TYPES.includes(qType)) setProductType(qType);
+    setCategory(qCat ?? "All");
+  }
   // Tabs the shop has turned on (Admin → Catalog → Catalog tabs).
   const [visibleTypes, setVisibleTypes] = useState<ProductType[] | null>(null);
 

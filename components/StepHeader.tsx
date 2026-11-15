@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CartLink, DesktopMenu, MobileMenu } from "@/components/SiteMenu";
 
 const DEFAULT_LOGO_URL = "/brand/jm-logo.png";
 
@@ -51,8 +52,9 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
   const logoUrl = logoUrlProp ?? fetchedLogoUrl;
 
   return (
-    <header className="bg-admin-card/95 backdrop-blur sticky top-0 z-10 border-b border-admin-ink/10 pt-safe">
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+    <header className="bg-admin-card/95 backdrop-blur sticky top-0 z-20 border-b border-admin-ink/10 pt-safe">
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
+        <MobileMenu logoUrl={logoUrl} />
         <Link href="/" className="flex items-center gap-3 shrink-0 group">
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo can be an
               admin-uploaded Vercel Blob URL (see AdminLogoManager.tsx), so next/image's
@@ -63,51 +65,50 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
             <span className="text-xs text-admin-ink/55">Custom tees &amp; hats</span>
           </span>
         </Link>
-        {/* Only show the step-by-step progress bar while actually going
-            through the order flow (catalog -> customize -> cart -> checkout)
-            — not on the homepage or the standalone quote tools, where it
-            doesn't correspond to anything the visitor is mid-way through. */}
-        {current !== -1 ? (
-          <ol className="hidden md:flex items-center gap-1 rounded-xl bg-admin-bg p-1 text-sm">
+        <div className="flex-1 flex justify-center">
+          <DesktopMenu />
+        </div>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Link
+            href="/quote-builder"
+            className="hidden sm:inline px-3 py-2 rounded-lg text-sm font-semibold text-admin-ink/80 hover:bg-admin-ink/5 hover:text-admin-ink transition"
+          >
+            Get a Quote
+          </Link>
+          <CartLink className="px-2.5 py-2 rounded-lg text-sm font-semibold text-admin-ink/80 hover:bg-admin-ink/5 hover:text-admin-ink transition" />
+        </div>
+      </div>
+      {/* Order progress, only while going through the order flow
+          (catalog -> customize -> cart -> checkout). */}
+      {current !== -1 && (
+        <div className="hidden md:block border-t border-admin-ink/5 bg-admin-bg/60">
+          <ol className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-1 text-[13px]">
             {STEPS.map((step, i) => (
-              <li
-                key={step.href}
-                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 ${
-                  i === current ? "bg-admin-card shadow-sm font-semibold text-admin-ink" : i < current ? "text-admin-ink/70" : "text-admin-ink/45"
-                }`}
-              >
+              <li key={step.href} className="flex items-center gap-1">
                 <span
-                  className={`flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-semibold ${
-                    i === current
-                      ? "bg-admin-accent text-admin-accent-ink"
-                      : i < current
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-admin-ink/10 text-admin-ink/60"
+                  className={`flex items-center gap-2 rounded-lg px-2.5 py-1 ${
+                    i === current ? "bg-admin-card shadow-sm font-semibold text-admin-ink" : i < current ? "text-admin-ink/70" : "text-admin-ink/45"
                   }`}
                 >
-                  {i < current ? "✓" : i + 1}
+                  <span
+                    className={`flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-semibold ${
+                      i === current
+                        ? "bg-admin-accent text-admin-accent-ink"
+                        : i < current
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-admin-ink/10 text-admin-ink/60"
+                    }`}
+                  >
+                    {i < current ? "✓" : i + 1}
+                  </span>
+                  {step.label}
                 </span>
-                {step.label}
+                {i < STEPS.length - 1 && <span className="w-4 h-px bg-admin-ink/15" />}
               </li>
             ))}
           </ol>
-        ) : (
-          <nav className="flex items-center gap-1 sm:gap-2 text-sm">
-            <Link href="/catalog" className="hidden sm:inline px-3 py-2 rounded-lg text-admin-ink/75 hover:bg-admin-ink/5 hover:text-admin-ink transition">
-              Catalog
-            </Link>
-            <Link href="/quote-builder" className="hidden sm:inline px-3 py-2 rounded-lg text-admin-ink/75 hover:bg-admin-ink/5 hover:text-admin-ink transition">
-              Get a quote
-            </Link>
-            <Link
-              href="/catalog"
-              className="px-4 py-2 rounded-lg bg-admin-accent text-admin-accent-ink font-semibold hover:bg-admin-accent-dim transition"
-            >
-              Start an order
-            </Link>
-          </nav>
-        )}
-      </div>
+        </div>
+      )}
     </header>
   );
 }
