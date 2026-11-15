@@ -15,14 +15,33 @@ import {
 // and the customer-facing /api/products/[styleNumber] route (which needs a
 // config to build the placement chips from). Kept out of
 // lib/item-config-store.ts, which stays a dumb persistence layer.
-const DEFAULT_ZONE_BY_PRODUCT: Record<ProductType, Omit<PlacementZone, "id">> = {
-  hat: { label: "Front Center", view: "front", x: 30, y: 25, width: 40, height: 30 },
-  shirt: { label: "Front Center", view: "front", x: 25, y: 20, width: 50, height: 45 },
+type ZoneSpec = Omit<PlacementZone, "id">;
+
+// Standard starting set of print locations per product type. Every item gets
+// these until the admin configures it (Catalog → Configure decorations); the
+// admin then curates the list per item. Exported so the admin editor seeds
+// new configs with the same set.
+// Note: on a front photo the wearer's LEFT side is on the viewer's RIGHT.
+export const DEFAULT_ZONES_BY_PRODUCT: Record<ProductType, ZoneSpec[]> = {
+  hat: [
+    { label: "Front Center", view: "front", x: 30, y: 25, width: 40, height: 30 },
+    { label: "Left Side", view: "front", x: 64, y: 38, width: 18, height: 18 },
+    { label: "Back", view: "back", x: 36, y: 38, width: 28, height: 16 },
+  ],
+  shirt: [
+    { label: "Front Center", view: "front", x: 25, y: 20, width: 50, height: 45 },
+    { label: "Left Chest", view: "front", x: 56, y: 22, width: 20, height: 14 },
+    { label: "Full Back", view: "back", x: 25, y: 18, width: 50, height: 50 },
+    { label: "Left Sleeve", view: "front", x: 76, y: 27, width: 12, height: 10 },
+  ],
   // Tumblers only get one photo/view (no back), so this is really "the
-  // decorable wrap area" rather than a literal front — kept on the "front"
-  // view since that's the only view a tumbler's single product photo has.
-  tumbler: { label: "Wrap", view: "front", x: 15, y: 20, width: 70, height: 60 },
-  polo: { label: "Left Chest", view: "front", x: 58, y: 22, width: 22, height: 18 },
+  // decorable wrap area" rather than a literal front.
+  tumbler: [{ label: "Wrap", view: "front", x: 15, y: 20, width: 70, height: 60 }],
+  polo: [
+    { label: "Left Chest", view: "front", x: 58, y: 22, width: 22, height: 18 },
+    { label: "Full Back", view: "back", x: 25, y: 18, width: 50, height: 50 },
+    { label: "Left Sleeve", view: "front", x: 76, y: 27, width: 12, height: 10 },
+  ],
 };
 
 // Deterministic ids for synthesized (unsaved) defaults — read-only, so no
@@ -37,17 +56,17 @@ export function synthesizeDefaultItemConfig(
   productType: ProductType,
   decorationTypes: string[]
 ): CatalogItemConfig {
-  const defaultZone = DEFAULT_ZONE_BY_PRODUCT[productType];
+  const zones = DEFAULT_ZONES_BY_PRODUCT[productType];
 
   const decorations: ItemDecorationSetting[] = decorationTypes.map((decorationType) => ({
     decorationType,
     enabled: true,
-    zones: [
-      {
-        id: defaultZoneId(styleNumber, decorationType),
-        ...defaultZone,
-      },
-    ],
+    // The first zone keeps the original id so carts saved before more
+    // default locations were added still resolve.
+    zones: zones.map((z, i) => ({
+      id: i === 0 ? defaultZoneId(styleNumber, decorationType) : `${defaultZoneId(styleNumber, decorationType)}-${i}`,
+      ...z,
+    })),
   }));
 
   return { styleNumber, decorations };
