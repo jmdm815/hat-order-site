@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { DEFAULT_ZONES_BY_PRODUCT } from "@/lib/default-item-config";
 import { v4 as uuid } from "uuid";
 import {
   CatalogItemConfig,
@@ -24,21 +25,14 @@ const PHOTO_SOURCE_LABEL: Record<GarmentPhotoSource, string> = {
   illustration: "SanMar has no photo — showing the illustration",
 };
 
-const DEFAULT_ZONE_BY_TYPE = {
-  hat: { label: "Front Center", view: "front" as const, x: 30, y: 25, width: 40, height: 30 },
-  shirt: { label: "Front Center", view: "front" as const, x: 25, y: 20, width: 50, height: 45 },
-  tumbler: { label: "Wrap", view: "front" as const, x: 15, y: 20, width: 70, height: 60 },
-  polo: { label: "Left Chest", view: "front" as const, x: 58, y: 22, width: 22, height: 18 },
-};
 
 function emptyConfigFor(product: Product, decorationTypeIds: string[]): CatalogItemConfig {
-  const defaultZone = DEFAULT_ZONE_BY_TYPE[product.productType];
   return {
     styleNumber: product.styleNumber,
     decorations: decorationTypeIds.map((decorationType) => ({
       decorationType,
       enabled: true,
-      zones: [{ id: uuid(), ...defaultZone }],
+      zones: DEFAULT_ZONES_BY_PRODUCT[product.productType].map((z) => ({ id: uuid(), ...z })),
     })),
   };
 }
