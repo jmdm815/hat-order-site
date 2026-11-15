@@ -51,68 +51,57 @@ export default function StepHeader({ logoUrl: logoUrlProp }: StepHeaderProps) {
   const logoUrl = logoUrlProp ?? fetchedLogoUrl;
 
   return (
-    // .jm-store switches the whole page to the storefront (trades) theme —
-    // see app/globals.css.
-    <header className="jm-store bg-[#141619] text-white sticky top-0 z-10 shadow-lg shadow-black/20 pt-safe">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-3 shrink-0 group">
+    <header className="bg-admin-bg sticky top-0 z-10 shadow-md shadow-slate-900/10 border-b border-admin-ink/5 pt-safe">
+      <div className="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           {/* eslint-disable-next-line @next/next/no-img-element -- the logo can be an
               admin-uploaded Vercel Blob URL (see AdminLogoManager.tsx), so next/image's
               remotePatterns allowlist doesn't apply; this is a small fixed-size icon. */}
-          <img src={logoUrl} alt="JM Digital Media" width={44} height={44} className="w-[44px] h-[44px] object-contain transition group-hover:scale-105" />
-          <span className="hidden sm:flex flex-col leading-none">
-            <span className="font-heading font-semibold text-lg tracking-wider uppercase">JM Digital Media</span>
-            <span className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#ffc61a]">Crew gear · Workwear · Hats</span>
+          <img src={logoUrl} alt="JM Digital Media" width={42} height={42} className="rounded-2xl w-[42px] h-[42px] object-contain transition group-hover:scale-105" />
+          <span className="hidden sm:block font-heading font-semibold text-lg tracking-wide text-admin-ink uppercase">
+            Custom Tees and Hats
           </span>
         </Link>
         {/* Only show the step-by-step progress bar while actually going
             through the order flow (catalog -> customize -> cart -> checkout)
             — not on the homepage or the standalone quote tools, where it
             doesn't correspond to anything the visitor is mid-way through. */}
-        {current !== -1 ? (
-          <ol className="hidden md:flex items-center gap-2 text-sm">
+        {current !== -1 && (
+          <ol className="hidden sm:flex items-center gap-2 text-sm">
             {STEPS.map((step, i) => (
               <li key={step.href} className="flex items-center gap-2">
                 <span
-                  className={`flex items-center gap-1.5 uppercase tracking-wide text-xs ${
-                    i === current ? "font-bold text-white" : i < current ? "text-white/75" : "text-white/40"
+                  className={`flex items-center gap-1.5 ${
+                    i === current
+                      ? "font-semibold text-admin-ink"
+                      : i < current
+                      ? "text-admin-ink/70"
+                      : "text-admin-ink/40"
                   }`}
                 >
                   <span
-                    className={`flex items-center justify-center w-5 h-5 rounded-sm text-[11px] font-bold ${
+                    className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold ${
                       i === current
-                        ? "bg-[#ffc61a] text-[#111214]"
+                        ? "bg-admin-accent text-admin-accent-ink"
                         : i < current
-                          ? "bg-white/20 text-white"
-                          : "bg-white/10 text-white/60"
+                        ? "bg-admin-card text-admin-ink"
+                        : "bg-gray/20 text-admin-ink/60"
                     }`}
                   >
                     {i + 1}
                   </span>
                   {step.label}
                 </span>
-                {i < STEPS.length - 1 && <span className={`w-5 h-px ${i < current ? "bg-[#ffc61a]/70" : "bg-white/20"}`} />}
+                {i < STEPS.length - 1 && (
+                  <span
+                    className={`w-5 h-px ${i < current ? "bg-red/50" : "bg-admin-ink/20"}`}
+                  />
+                )}
               </li>
             ))}
           </ol>
-        ) : (
-          <nav className="flex items-center gap-2 sm:gap-5 text-sm">
-            <Link href="/catalog" className="hidden sm:inline uppercase tracking-wide text-xs font-semibold text-white/80 hover:text-white">
-              Catalog
-            </Link>
-            <Link href="/quote-builder" className="hidden sm:inline uppercase tracking-wide text-xs font-semibold text-white/80 hover:text-white">
-              Bulk quote
-            </Link>
-            <a
-              href="tel:+12813441772"
-              className="px-3 py-2 rounded-md bg-[#ffc61a] text-[#111214] text-xs font-bold uppercase tracking-wide hover:bg-[#f2b300] transition"
-            >
-              (281) 344-1772
-            </a>
-          </nav>
         )}
       </div>
-      <div className="hazard-stripes h-1.5" aria-hidden />
     </header>
   );
 }
