@@ -1139,26 +1139,21 @@ export async function renderQuotePdf(
     // a quote with enough line items/fees to push doc.y down near the
     // bottom margin can land this text right on top of that stamp.
     // (Without notes, the closing note below handles its own fit.)
-    if (quote.notes) {
+    // Customer notes print everywhere; the internal notes field only on the
+    // internal copy and the work order (never customer quotes/invoices).
+    const noteBlocks: { title: string; text: string }[] = [];
+    if (quote.customerNotes) noteBlocks.push({ title: internal || workOrder ? "CUSTOMER NOTES" : "NOTES", text: quote.customerNotes });
+    if ((internal || workOrder) && quote.notes) noteBlocks.push({ title: "INTERNAL NOTES", text: quote.notes });
+    for (const nb of noteBlocks) {
       // Measure the actual notes (they can run several lines) so the whole
       // block lands on one page instead of being cut off at the margin.
       doc.font("Helvetica").fontSize(9.5);
-      const notesH = doc.heightOfString(quote.notes, { width: pageWidth }) + 40;
+      const notesH = doc.heightOfString(nb.text, { width: pageWidth }) + 40;
       if (doc.y + notesH > doc.page.height - doc.page.margins.bottom - 50) doc.addPage();
-    }
-
-    if (quote.notes) {
       doc.moveDown(1.5);
-      doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text("NOTES", left, doc.y, { width: pageWidth });
-      doc
-        .font("Helvetica")
-        .fontSize(9.5)
-        .fillColor(NAVY)
-        .text(quote.notes, left, doc.y, { width: pageWidth });
-
-      if (doc.y > doc.page.height - doc.page.margins.bottom - 50) {
-        doc.addPage();
-      }
+      doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(9).text(nb.title, left, doc.y, { width: pageWidth });
+      doc.font("Helvetica").fontSize(9.5).fillColor(NAVY).text(nb.text, left, doc.y, { width: pageWidth });
+      if (doc.y > doc.page.height - doc.page.margins.bottom - 50) doc.addPage();
     }
 
     const closingNote =

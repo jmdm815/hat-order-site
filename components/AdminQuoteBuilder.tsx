@@ -604,6 +604,7 @@ export default function AdminQuoteBuilder({
   );
   const [hidePaymentLink, setHidePaymentLink] = useState<boolean>(() => initialRecord?.input.hidePaymentLink ?? false);
   const [notes, setNotes] = useState(() => initialRecord?.input.notes ?? "");
+  const [customerNotes, setCustomerNotes] = useState(() => initialRecord?.input.customerNotes ?? "");
   // Payment terms — 100 means "pay in full" (the common case); anything
   // less is a deposit-now / balance-later split (most often 50-50). See
   // lib/quote.ts's QuoteInput.depositPercent and lib/types.ts's
@@ -2007,6 +2008,7 @@ export default function AdminQuoteBuilder({
       termsBlank: netTermsDays === -1 || undefined,
       hidePaymentLink: hidePaymentLink || undefined,
       notes: notes || undefined,
+      customerNotes: customerNotes || undefined,
       depositPercent: depositPercent < 100 ? depositPercent : undefined,
       taxRatePercent: taxRatePercent > 0 ? taxRatePercent : undefined,
       militaryDiscount: militaryDiscount || undefined,
@@ -2661,11 +2663,20 @@ export default function AdminQuoteBuilder({
           </label>
         </div>
         <label className="block text-xs text-admin-ink/80 mt-3">
-          Notes (optional, printed on the PDF)
+          Customer notes (optional, printed on the customer quote &amp; invoice)
+          <textarea
+            value={customerNotes}
+            onChange={(e) => setCustomerNotes(e.target.value)}
+            className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+            rows={2}
+          />
+        </label>
+        <label className="block text-xs text-admin-ink/80 mt-3">
+          Internal notes (internal PDF &amp; work order only, never shown to the customer)
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm bg-amber-50/60"
             rows={2}
           />
         </label>
