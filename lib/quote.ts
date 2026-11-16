@@ -495,14 +495,15 @@ export function computeQuote(
       throw new QuoteInputError(`Unknown decoration type "${line.decorationId}"`);
     }
 
-    // Each line's decoration quantity price-break tier is resolved purely
-    // from that line's OWN total quantity — two separately-added 24-unit
-    // lines sharing the same decoration + price column each price at their
-    // own 24-unit tier rather than being pooled into a combined 48-unit
-    // tier. (Previously this pooled quantity across every line sharing the
-    // same decorationId + priceColumnId; that pooling was removed per the
-    // admin's request so each added line always reflects its own quantity.)
-    const lineQty = line.sizes.reduce((sum, s) => sum + s.quantity, 0);
+    // The decoration price-break tier uses the COMBINED quantity of every
+    // line sharing this decorationId + priceColumnId — the same grouping
+    // the builder and PDF show as one numbered line item — so all garments
+    // in one group get the same decoration price (5 tees + 15 long sleeves
+    // price at the 20-piece tier).
+    const groupKey = (l: typeof line) => `${l.decorationId ?? ""}::${l.priceColumnId ?? ""}`;
+    const lineQty = cleanedLines
+      .filter((l) => groupKey(l) === groupKey(line))
+      .reduce((sum, l) => sum + l.sizes.reduce((s, z) => s + z.quantity, 0), 0);
     const computedDecorationUnitPrice = money(
       decoration
         ? decoration.quoteRequired
@@ -527,8 +528,8 @@ export function computeQuote(
     // size (QuoteSizeInput.garmentCost/garmentMarkupPercent — both default
     // to 0, reproducing the original "no garment charge, decoration only"
     // behavior for a plain "other" item with no price entered) plus the
-    // decoration's per-unit price (if any, priced off this line's own
-    // quantity — see decorationUnitPrice/lineQty above).
+    // decoration's per-unit price (if any, priced off the combined
+    // group quantity — see decorationUnitPrice/lineQty above).
     if (line.customerSupplied) {
       // "customer-supplied" (free) items never carry a garment charge — the
       // customer brought the item in, so no garmentCost/markup ever applies
