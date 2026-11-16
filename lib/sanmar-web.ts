@@ -114,9 +114,17 @@ function isAbbreviationOf(abbr: string, full: string): boolean {
 /** sanmar.com Quick Order uses short color names ("BrillBlue"); match the catalog name ("Brilliant Blue"). */
 export function matchColorVariant(variants: ColorVariant[], color: string): ColorVariant | undefined {
   const want = norm(color);
+  const parts = (s: string) => s.split(/[/|,]+/).filter((p) => p.trim()).length;
+  const swatch = (v: ColorVariant) => norm((v.colorSwatchUrl || "").split("/").pop()?.replace(/\.\w+$/, "") || "");
+  // Partial swatch matches: pick the closest (shortest) so "Black/White"
+  // doesn't land on a three-tone "Black/White/Heather Grey".
+  const partial = variants
+    .filter((v) => swatch(v).includes(want))
+    .sort((a, b) => swatch(a).length - swatch(b).length);
   return (
     variants.find((v) => norm(v.colorName) === want) ??
-    variants.find((v) => norm((v.colorSwatchUrl || "").split("/").pop() || "").includes(want)) ??
+    variants.find((v) => isAbbreviationOf(norm(v.colorName), want) && parts(v.colorName) === parts(color)) ??
+    partial[0] ??
     variants.find((v) => isAbbreviationOf(norm(v.colorName), want))
   );
 }
