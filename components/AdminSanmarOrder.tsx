@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import SanmarShoppingBox from "./SanmarShoppingBox";
 
 // ---------------------------------------------------------------------------
 // SanMar Order (/admin/sanmar-order): build the list of blanks to buy from
@@ -48,6 +49,7 @@ export default function AdminSanmarOrder() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
+  const [boxKey, setBoxKey] = useState(0);
   const [sendResult, setSendResult] = useState<{
     ok: boolean;
     detail?: string;
@@ -199,7 +201,10 @@ export default function AdminSanmarOrder() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setSendResult(data);
-      if (data.ok) await loadOrder();
+      if (data.ok) {
+        await loadOrder();
+        setBoxKey((k) => k + 1);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't reach SanMar");
     } finally {
@@ -436,6 +441,9 @@ export default function AdminSanmarOrder() {
           </div>
         )}
       </section>
+
+      {/* ---- What is actually in the sanmar.com box ---- */}
+      <SanmarShoppingBox refreshKey={boxKey} />
 
       {/* ---- From quotes ---- */}
       <section className={card}>
