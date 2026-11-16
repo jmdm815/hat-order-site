@@ -167,7 +167,11 @@ export type QuoteInput = {
   // corporate customer that pays by PO/check on net terms). The pay page
   // itself still exists; it just isn't advertised.
   hidePaymentLink?: boolean;
+  // Internal notes: internal PDF + work order only, never on customer
+  // quotes/invoices (email drafts put their review notes here).
   notes?: string;
+  // Printed on customer-facing quotes and invoices (also internal copies).
+  customerNotes?: string;
   lines: QuoteLineInput[];
   // Ids of named, flat setup/digitization charges (see
   // lib/setup-charges-store.ts) to attach to this quote as a whole. These
@@ -297,7 +301,8 @@ export type ComputedQuote = {
   netTermsDays?: number; // see QuoteInput.netTermsDays
   termsBlank?: boolean; // see QuoteInput.termsBlank
   hidePaymentLink?: boolean; // see QuoteInput.hidePaymentLink
-  notes?: string;
+  notes?: string; // internal only — see QuoteInput.notes
+  customerNotes?: string; // see QuoteInput.customerNotes
   lines: QuoteLineResult[];
   setupCharges: QuoteSetupCharge[]; // itemized, quote-wide (not tied to any decoration)
   miscFees: QuoteMiscFee[]; // itemized, ad-hoc, quote-wide — see QuoteInput.miscFees
@@ -731,6 +736,7 @@ export function computeQuote(
     ...(input.hidePaymentLink ? { hidePaymentLink: true } : {}),
     ...(input.termsBlank && !(input.netTermsDays && input.netTermsDays > 0) ? { termsBlank: true } : {}),
     notes: input.notes,
+    ...(input.customerNotes?.trim() ? { customerNotes: input.customerNotes.trim().slice(0, 4000) } : {}),
     lines,
     setupCharges,
     miscFees,
