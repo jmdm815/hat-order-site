@@ -618,71 +618,42 @@ export async function renderQuotePdf(
       doc.y = rowBottom + 8;
     }
 
-    function drawGarmentCard(line: (typeof quote.lines)[number], sameStyle: boolean) {
-      const cardTop = doc.y;
-      const num = `${++itemNo}. `;
-      const gridX = left + CARD_TEXT_WIDTH + CARD_GRID_GAP;
-      const gridWidth = pageWidth - CARD_TEXT_WIDTH - CARD_GRID_GAP;
+    // Garment cards sit inside their numbered line item (ShopVox style):
+    // indented, each in its own light box, no number of their own.
+    const CARD_INDENT = 14;
+    const CARD_PAD = 8;
+    function drawGarmentCard(line: (typeof quote.lines)[number]) {
+      const boxLeft = left + CARD_INDENT;
+      const boxTop = doc.y;
+      const cardTop = boxTop + CARD_PAD;
+      const tl = boxLeft + CARD_PAD; // text left
+      const innerW = pageWidth - CARD_INDENT - CARD_PAD * 2;
+      const gridX = tl + CARD_TEXT_WIDTH + CARD_GRID_GAP;
+      const gridWidth = innerW - CARD_TEXT_WIDTH - CARD_GRID_GAP;
       const n = line.sizes.length;
       const valuesWidth = gridWidth - GRID_LABEL_WIDTH;
       // Cap each size column's width so a line with only a size or two
       // doesn't stretch its cells across the full remaining page width.
       const colW = n > 0 ? Math.min(valuesWidth / n, 65) : valuesWidth;
 
-      // Left text block: just the color when the group heading above already
-      // named the product (same style throughout), otherwise the full
-      // brand/style/color so a mixed-style group stays unambiguous.
-      if (sameStyle) {
-        if (line.colorName) {
-          doc
-            .fillColor(NAVY)
-            .font("Helvetica-Bold")
-            .fontSize(9.5)
-            .text(num + line.colorName, left, cardTop, { width: CARD_TEXT_WIDTH });
-        } else {
-          // No color to show (e.g. a Custom non-hat item) — still show the
-          // line number so every item is numbered.
-          doc
-            .fillColor(NAVY)
-            .font("Helvetica-Bold")
-            .fontSize(9.5)
-            .text(num.trim(), left, cardTop, { width: CARD_TEXT_WIDTH });
-        }
-      } else {
-        doc
-          .fillColor(NAVY)
-          .font("Helvetica-Bold")
-          .fontSize(9.5)
-          .text(num + lineTitle(line), left, cardTop, { width: CARD_TEXT_WIDTH });
-        const cardDetails = descriptionDetails(line.productName);
-        if (cardDetails.length) {
-          doc
-            .fillColor(NAVY)
-            .font("Helvetica")
-            .fontSize(8)
-            .text(cardDetails.join("\n"), left, doc.y, { width: CARD_TEXT_WIDTH });
-        }
-        if (line.styleNumber) {
-          doc
-            .fillColor(GRAY)
-            .font("Helvetica")
-            .fontSize(8)
-            .text(`Style ${line.styleNumber}`, left, doc.y, { width: CARD_TEXT_WIDTH });
-        }
-        if (line.colorName) {
-          doc
-            .fillColor(GRAY)
-            .font("Helvetica")
-            .fontSize(8)
-            .text(line.colorName, left, doc.y, { width: CARD_TEXT_WIDTH });
-        }
+      // Left text block: full product name, style and color.
+      doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(9.5).text(lineTitle(line), tl, cardTop, { width: CARD_TEXT_WIDTH });
+      const cardDetails = descriptionDetails(line.productName);
+      if (cardDetails.length) {
+        doc.fillColor(NAVY).font("Helvetica").fontSize(8).text(cardDetails.join("\n"), tl, doc.y, { width: CARD_TEXT_WIDTH });
+      }
+      if (line.styleNumber) {
+        doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(`Style ${line.styleNumber}`, tl, doc.y, { width: CARD_TEXT_WIDTH });
+      }
+      if (line.colorName) {
+        doc.fillColor(GRAY).font("Helvetica").fontSize(8).text(`Color: ${line.colorName}`, tl, doc.y, { width: CARD_TEXT_WIDTH });
       }
       // Personalization (names etc.) under the item — its cost is already in
       // the item price, so no amount is shown.
       if (line.personalization) {
         doc.moveDown(0.15);
-        doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7.5).text("PERSONALIZATION", left, doc.y, { width: CARD_TEXT_WIDTH });
-        doc.fillColor(NAVY).font("Helvetica").fontSize(8.5).text(line.personalization, left, doc.y, { width: CARD_TEXT_WIDTH });
+        doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7.5).text("PERSONALIZATION", tl, doc.y, { width: CARD_TEXT_WIDTH });
+        doc.fillColor(NAVY).font("Helvetica").fontSize(8.5).text(line.personalization, tl, doc.y, { width: CARD_TEXT_WIDTH });
       }
       const textBottom = doc.y;
 
@@ -746,7 +717,7 @@ export async function renderQuotePdf(
       y += GRID_ROW_H;
 
       if (showCostColumns) {
-        gridRow(y, "Garment Cost", (i, cx, cy, w) => {
+        gridRow(y, "Cost", (i, cx, cy, w) => {
           // Backward-compatible fallback for saved quotes created before
           // raw cost and markup were stored separately.
           const cost = line.sizes[i].garmentCost ?? line.sizes[i].garmentUnitPrice;
@@ -796,24 +767,19 @@ export async function renderQuotePdf(
       y += GRID_ROW_H;
 
       let bottom = Math.max(y, textBottom);
-      if (showPricing) {
+      // Alternates priced for comparison keep their own note; regular
+      // garments roll up into the line item's total in the header.
+      if (showPricing && line.optional) {
         doc
-          .fillColor(GRAY)
           .font("Helvetica-Bold")
           .fontSize(8.5)
-          .fillColor(line.optional ? ACCENT_FOR_OPTION : GRAY)
-          .text(
-            line.optional
-              ? `OPTION (not included in total): ${money(line.subtotal)}`
-              : `Line total: ${money(line.subtotal)}`,
-            gridX,
-            bottom + 2,
-            { width: gridWidth, align: "right" }
-          );
+          .fillColor(ACCENT_FOR_OPTION)
+          .text(`OPTION (not included in total): ${money(line.subtotal)}`, gridX, bottom + 2, { width: gridWidth, align: "right" });
         bottom = doc.y;
       }
-
-      doc.y = bottom + 10;
+      bottom += CARD_PAD;
+      doc.strokeColor(BORDER).lineWidth(0.75).roundedRect(boxLeft, boxTop, pageWidth - CARD_INDENT, bottom - boxTop, 3).stroke();
+      doc.y = bottom + 6;
       drawLineMockups(line);
     }
 
@@ -839,9 +805,6 @@ export async function renderQuotePdf(
 
     for (const group of groups) {
       const first = group.lines[0];
-      const sameStyle = group.lines.every(
-        (l) => l.styleNumber === first.styleNumber && l.productName === first.productName
-      );
 
       // Keep the group heading + at least one card together.
       if (doc.y > doc.page.height - doc.page.margins.bottom - (60 + estimateCardHeight())) {
@@ -849,53 +812,44 @@ export async function renderQuotePdf(
       }
 
       // Non-garment items (signs, tumblers, etc. added as "other" custom or
-      // customer-supplied items) with no decoration shouldn't be described
-      // as garments.
+      // customer-supplied items) with no decoration.
       const nonGarmentGroup = group.lines.every(
         (l) => l.customerSupplied && (l.itemType ?? "other") === "other" && !l.decorationId
       );
 
-      // Group heading: product name (only when every line in the group is
-      // the same style/product) and the shared decoration.
+      // Line-item header (ShopVox style): number + decoration on the left,
+      // pieces and the combined line total on the right.
+      const counted = group.lines.filter((l) => !l.optional);
+      const pcs = counted.reduce((n, l) => n + l.quantity, 0);
+      const total = counted.reduce((n, l) => n + l.subtotal, 0);
+      const styles = new Set(group.lines.map((l) => `${l.styleNumber ?? l.productName ?? ""}|${l.colorName ?? ""}`)).size;
+      const headTop = doc.y;
+      const rightW = 170;
+      const title = first.decorationLabel
+        ? `${first.decorationLabel}${first.priceColumnLabel ? ` (${first.priceColumnLabel})` : ""}`
+        : nonGarmentGroup
+          ? "Items"
+          : "Garment only — no decoration";
+      doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(11).text(`${++itemNo}`, left, headTop, { width: 14 });
+      doc.text(title, left + CARD_INDENT, headTop, { width: pageWidth - CARD_INDENT - rightW - 10 });
+      const leftBottom = doc.y;
       doc
-        .fillColor(NAVY)
-        .font("Helvetica-Bold")
-        .fontSize(11)
-        .text(
-          sameStyle
-            ? lineTitle(first)
-            : nonGarmentGroup
-              ? "Items"
-              : "Multiple garments",
-          left,
-          doc.y
-        );
-      // Extra description lines (everything after the first line of an
-      // item's description), shown under the heading.
-      if (sameStyle) {
-        const details = descriptionDetails(first.productName);
-        if (details.length) {
-          doc.fillColor(NAVY).font("Helvetica").fontSize(9.5).text(details.join("\n"), left, doc.y, { width: pageWidth });
-        }
+        .fillColor(GRAY)
+        .font("Helvetica")
+        .fontSize(8.5)
+        .text(`${styles} item${styles === 1 ? "" : "s"} · ${pcs} pcs`, left + CARD_INDENT, leftBottom + 1);
+      const leftEnd = doc.y;
+      if (showPricing) {
+        doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7).text("LINE TOTAL", left + pageWidth - rightW, headTop, { width: rightW, align: "right" });
+        doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(11.5).text(money(total), left + pageWidth - rightW, doc.y + 1, { width: rightW, align: "right" });
       }
-      if (!nonGarmentGroup) {
-        doc
-          .fillColor(GRAY)
-          .font("Helvetica")
-          .fontSize(9)
-          .text(
-            first.decorationLabel
-              ? `${first.decorationLabel}${first.priceColumnLabel ? ` (${first.priceColumnLabel})` : ""}`
-              : "No decoration — garment only"
-          );
-      }
-      doc.moveDown(0.4);
+      doc.y = Math.max(leftEnd, doc.y) + 6;
 
       for (const line of group.lines) {
-        if (doc.y > doc.page.height - doc.page.margins.bottom - estimateCardHeight(line)) {
+        if (doc.y > doc.page.height - doc.page.margins.bottom - estimateCardHeight(line) - CARD_PAD * 2) {
           doc.addPage();
         }
-        drawGarmentCard(line, sameStyle);
+        drawGarmentCard(line);
       }
 
       doc.moveDown(0.5);
