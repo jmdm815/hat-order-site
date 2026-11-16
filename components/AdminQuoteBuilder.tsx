@@ -739,6 +739,23 @@ export default function AdminQuoteBuilder({
   const [lines, setLines] = useState<PendingLine[]>(() =>
     initialRecord ? linesFromRecord(initialRecord) : initialLines ?? []
   );
+  // Garment lines grouped into "line items" by decoration + price column
+  // (same grouping as the PDF), in order of first appearance.
+  const lineGroups = (() => {
+    const out: { key: string; decorationId?: string; priceColumnId?: string; idxs: number[] }[] = [];
+    const at = new Map<string, number>();
+    lines.forEach((l, i) => {
+      const key = `${l.decorationId ?? ""}::${l.priceColumnId ?? ""}`;
+      let g = at.get(key);
+      if (g === undefined) {
+        g = out.length;
+        at.set(key, g);
+        out.push({ key, decorationId: l.decorationId, priceColumnId: l.priceColumnId, idxs: [] });
+      }
+      out[g].idxs.push(i);
+    });
+    return out;
+  })();
 
   // Which "Add item" panel (if any) is currently open below the unified
   // Items list — Setup charges / Other charges / Garments stay the three
@@ -3111,7 +3128,7 @@ export default function AdminQuoteBuilder({
         <section className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4">
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <h3 className="text-sm font-semibold text-admin-ink">
-              Items ({lines.length + selectedSetupChargeIds.length + miscFees.length})
+              Items ({lineGroups.length + selectedSetupChargeIds.length + miscFees.length})
             </h3>
             <div className="flex items-center gap-2">
               <button
@@ -3166,7 +3183,47 @@ export default function AdminQuoteBuilder({
             </p>
           ) : (
             <div className="space-y-2">
-              {lines.map((line, idx) => {
+              {lineGroups.map((group, gi) => {
+                const groupDeco = decorations.find((d) => d.id === group.decorationId);
+                const groupCol = groupDeco?.priceColumns?.find((c) => c.id === group.priceColumnId);
+                const groupQty = group.idxs.reduce(
+                  (sum, i) => sum + (lines[i].optional ? 0 : lines[i].sizes.reduce((a, b) => a + b.quantity, 0)),
+                  0
+                );
+                const groupTotal = group.idxs.reduce(
+                  (sum, i) => sum + (lines[i].optional ? 0 : (quote?.lines[i]?.subtotal ?? 0)),
+                  0
+                );
+                return (
+                  // One box per decoration (like ShopVox line items), shaded
+                  // alternately so neighbouring line items read apart.
+                  <div
+                    key={group.key}
+                    className={`rounded-xl border border-admin-ink/12 p-3 ${gi % 2 ? "bg-[#e9edf4]" : "bg-[#f5f7fa]"}`}
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="shrink-0 w-7 h-7 rounded-full bg-admin-accent text-admin-accent-ink text-sm font-bold flex items-center justify-center">
+                          {gi + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-admin-ink truncate">
+                            {groupDeco ? groupDeco.label : "No decoration — garment only"}
+                            {groupCol ? ` (${groupCol.label})` : ""}
+                          </div>
+                          <div className="text-xs text-admin-ink/60">
+                            {group.idxs.length} style{group.idxs.length === 1 ? "" : "s"} · {groupQty} pc{groupQty === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-[11px] uppercase tracking-wide text-admin-ink/50">Line total</div>
+                        <div className="font-semibold text-admin-ink">{formatUSD(groupTotal)}</div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+              {group.idxs.map((idx) => {
+                const line = lines[idx];
                 const decoration = decorations.find((d) => d.id === line.decorationId);
                 const column = decoration?.priceColumns?.find((c) => c.id === line.priceColumnId);
                 const totalQty = line.sizes.reduce((sum, s) => sum + s.quantity, 0);
@@ -3177,7 +3234,6 @@ export default function AdminQuoteBuilder({
                 // charges — the same order Items (N)'s count above adds
                 // them up in). See the matching offsets on
                 // selectedSetupChargeIds/miscFees below.
-                const itemNumber = idx + 1;
                 const isEditing = editingLineKey === line.key;
                 // The priced version of this exact line, from the live
                 // (debounced) recompute below — same index as `lines` since
@@ -3192,12 +3248,9 @@ export default function AdminQuoteBuilder({
                 return (
                   <div
                     key={line.key}
-                    className="border border-admin-ink/15 rounded-xl px-3 py-3 bg-admin-ink/[0.015]"
+                    className="border border-admin-ink/12 rounded-lg px-3 py-3 bg-admin-card shadow-sm"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-admin-ink/10 text-admin-ink/80 text-xs font-semibold flex items-center justify-center">
-                        {itemNumber}
-                      </div>
                       {line.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -3769,13 +3822,17 @@ export default function AdminQuoteBuilder({
                   </div>
                 );
               })}
+                    </div>
+                  </div>
+                );
+              })}
 
               {selectedSetupChargeIds.map((id, idx) => {
                 const c = setupCharges.find((sc) => sc.id === id);
                 if (!c) return null;
                 // Continues the numbering from the garment lines above —
                 // see that map's itemNumber comment.
-                const itemNumber = lines.length + idx + 1;
+                const itemNumber = lineGroups.length + idx + 1;
                 return (
                   <div
                     key={id}
@@ -3803,7 +3860,7 @@ export default function AdminQuoteBuilder({
               {miscFees.map((f, idx) => {
                 // Continues the numbering from the lines + setup charges
                 // above — see the garment map's itemNumber comment.
-                const itemNumber = lines.length + selectedSetupChargeIds.length + idx + 1;
+                const itemNumber = lineGroups.length + selectedSetupChargeIds.length + idx + 1;
                 return (
                 <div
                   key={f.id}
