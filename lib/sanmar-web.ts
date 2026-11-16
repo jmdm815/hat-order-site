@@ -317,3 +317,140 @@ export async function addToShoppingBox(
     await browser.close().catch(() => {});
   }
 }
+
+// ---- Shopping box: read + remove -------------------------------------------
+
+export type ShoppingBoxLine = {
+  id: string; // SanMar's stable entry key (pk) — entry numbers shift after removals
+  entryNumber: number;
+  sku: string;
+  style: string;
+  color: string; // sanmar.com short name, e.g. "HtGy/White"
+  size: string;
+  qty: number;
+  unitPrice: number | null;
+  total: number | null;
+  warehouseCode: string;
+  warehouse: string;
+  backorder: boolean;
+};
+export type ShoppingBox = { lines: ShoppingBoxLine[]; count: number; subtotal: number | null; readAt: string };
+
+const WAREHOUSE_NAMES = Object.fromEntries(Object.entries(WAREHOUSE_CODES).map(([n, c]) => [c, n]));
+
+async function openBoxPage<T>(fn: (page: Page) => Promise<T>): Promise<T> {
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+    );
+    const login = await signIn(page);
+    if (!login.ok) throw new Error(`SanMar sign-in failed: ${login.detail}`);
+    // The cart page loads SanMar's own axios setup (CSRF headers) used below.
+    await page.goto(`${SANMAR_WEB}/cart`, { waitUntil: "networkidle2", timeout: 40000 });
+    return await fn(page);
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
+async function readBoxLines(page: Page): Promise<ShoppingBox> {
+  const raw = await page.evaluate(async () => {
+    const r = await fetch("/cart/getCartData.json", { credentials: "include", headers: { Accept: "application/json" } });
+    const d = await r.json();
+    type E = {
+      entryNumber: number; quantity: number; pk?: string; warehouseCode?: string;
+      basePrice?: { value?: number }; totalPrice?: { value?: number };
+      product?: { code?: string; name?: string };
+      backorderOrderEntryData?: { backorder?: boolean };
+    };
+    return {
+      subtotal: (d?.subTotal?.value as number | undefined) ?? null,
+      entries: ((d?.entries ?? []) as E[]).map((e) => ({
+        entryNumber: e.entryNumber,
+        qty: e.quantity,
+        pk: e.pk ?? "",
+        warehouseCode: e.warehouseCode ?? "",
+        unitPrice: e.basePrice?.value ?? null,
+        total: e.totalPrice?.value ?? null,
+        sku: e.product?.code ?? "",
+        name: e.product?.name ?? "",
+        backorder: !!e.backorderOrderEntryData?.backorder,
+      })),
+    };
+  });
+  const lines: ShoppingBoxLine[] = raw.entries
+    .filter((e) => e.qty > 0)
+    .map((e) => {
+      // product.name is "STYLE_Color_Size" (color may contain "/" but not "_").
+      const parts = e.name.split("_");
+      const style = parts[0] ?? "";
+      const size = parts.length > 2 ? parts[parts.length - 1] : "";
+      const color = parts.length > 2 ? parts.slice(1, -1).join("_") : parts[1] ?? "";
+      return {
+        id: e.pk || `${e.sku}|${e.warehouseCode}`,
+        entryNumber: e.entryNumber,
+        sku: e.sku,
+        style,
+        color,
+        size,
+        qty: e.qty,
+        unitPrice: e.unitPrice,
+        total: e.total,
+        warehouseCode: e.warehouseCode,
+        warehouse: WAREHOUSE_NAMES[e.warehouseCode] ?? (e.warehouseCode ? `#${e.warehouseCode}` : ""),
+        backorder: e.backorder,
+      };
+    });
+  return { lines, count: lines.reduce((n, l) => n + l.qty, 0), subtotal: raw.subtotal, readAt: new Date().toISOString() };
+}
+
+/** Reads every line in the sanmar.com shopping box. Changes nothing. */
+export async function readShoppingBox(): Promise<ShoppingBox> {
+  try {
+    return await openBoxPage(readBoxLines);
+  } catch (e) {
+    throw new Error(scrub((e as Error).message));
+  }
+}
+
+/**
+ * Removes specific lines (by id from readShoppingBox) the same way the
+ * sanmar.com remove button does: quantity 0 on that entry via /cart/update.
+ * Never calls /cart/remove (that empties the whole box). Re-reads the box
+ * first so shifted entry numbers can't hit the wrong line.
+ */
+export async function removeFromShoppingBox(
+  ids: string[]
+): Promise<{ removed: ShoppingBoxLine[]; notFound: string[]; failed: string[]; box: ShoppingBox }> {
+  try {
+    return await openBoxPage(async (page) => {
+      const before = await readBoxLines(page);
+      const targets = before.lines.filter((l) => ids.includes(l.id));
+      const notFound = ids.filter((id) => !targets.some((t) => t.id === id));
+      const failed: string[] = [];
+      for (const t of targets) {
+        const result = await page.evaluate(async (entryNumber) => {
+          const req = { entry: { entryNumber, quantity: 0, isParent: false } };
+          const ax = (window as unknown as { axios?: { post: (u: string, b: unknown) => Promise<{ data: { result?: string } }> } }).axios;
+          if (ax) return (await ax.post("/cart/update", req)).data?.result ?? "?";
+          return "no-axios";
+        }, t.entryNumber);
+        if (result !== "SUCCESS") failed.push(`${t.style} ${t.color} ${t.size}: ${result}`);
+        // Entry numbers can renumber after a removal — re-resolve the rest.
+        const now = await readBoxLines(page);
+        for (const rest of targets) {
+          const cur = now.lines.find((l) => l.id === rest.id);
+          if (cur) rest.entryNumber = cur.entryNumber;
+        }
+      }
+      const box = await readBoxLines(page);
+      const removed = targets.filter((t) => !box.lines.some((l) => l.id === t.id));
+      for (const t of targets) if (box.lines.some((l) => l.id === t.id) && !failed.some((f) => f.startsWith(`${t.style} ${t.color} ${t.size}`))) failed.push(`${t.style} ${t.color} ${t.size}: still in the box`);
+      return { removed, notFound, failed, box };
+    });
+  } catch (e) {
+    throw new Error(scrub((e as Error).message));
+  }
+}
