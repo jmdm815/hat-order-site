@@ -793,7 +793,7 @@ export async function renderQuotePdf(
     for (const line of quote.lines) {
       // Alternates priced for comparison don't belong on a production copy.
       if (line.optional && !showPricing) continue;
-      const key = `${line.decorationId ?? ""}::${line.priceColumnId ?? ""}`;
+      const key = `${line.decorationId ?? ""}::${line.priceColumnId ?? ""}::${line.lineItem ?? 0}`;
       let idx = groupIndexByKey.get(key);
       if (idx === undefined) {
         idx = groups.length;

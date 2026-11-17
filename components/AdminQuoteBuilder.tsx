@@ -516,6 +516,7 @@ function linesFromRecord(record: QuoteRecord): PendingLine[] {
       optional: l.optional,
       decorationUnitPriceOverride: l.decorationUnitPriceOverride,
       personalization: l.personalization,
+      lineItem: l.lineItem,
       brandName: computedLine?.brandName ?? "",
       productName: computedLine?.productName ?? "",
     };
@@ -748,7 +749,7 @@ export default function AdminQuoteBuilder({
     const out: { key: string; decorationId?: string; priceColumnId?: string; idxs: number[] }[] = [];
     const at = new Map<string, number>();
     lines.forEach((l, i) => {
-      const key = `${l.decorationId ?? ""}::${l.priceColumnId ?? ""}`;
+      const key = `${l.decorationId ?? ""}::${l.priceColumnId ?? ""}::${l.lineItem ?? 0}`;
       let g = at.get(key);
       if (g === undefined) {
         g = out.length;
@@ -2031,6 +2032,7 @@ export default function AdminQuoteBuilder({
         taxable: l.taxable,
         decorationUnitPriceOverride: l.decorationUnitPriceOverride,
         personalization: l.personalization?.trim() || undefined,
+        ...(l.lineItem ? { lineItem: l.lineItem } : {}),
         ...(l.optional ? { optional: true } : {}),
       })),
       setupChargeIds: selectedSetupChargeIds,
@@ -3416,6 +3418,28 @@ export default function AdminQuoteBuilder({
                                   }
                                 />
                                 Option only
+                              </label>
+                              <label
+                                className="flex items-center gap-1 text-xs text-admin-ink/88"
+                                title="Put this garment in its own numbered line item (own box and own quantity pricing), even if another line has the same decoration"
+                              >
+                                Line item
+                                <select
+                                  value={line.lineItem ?? 0}
+                                  onChange={(e) => {
+                                    const v = Number(e.target.value) || undefined;
+                                    setLines((prev) => prev.map((l) => (l.key === line.key ? { ...l, lineItem: v } : l)));
+                                    setQuote(null);
+                                  }}
+                                  className="border border-admin-ink/20 rounded-lg px-1 py-0.5 text-xs bg-admin-card"
+                                >
+                                  <option value={0}>With decoration</option>
+                                  {[1, 2, 3, 4].map((n) => (
+                                    <option key={n} value={n}>
+                                      Separate {String.fromCharCode(64 + n)}
+                                    </option>
+                                  ))}
+                                </select>
                               </label>
                               <button
                                 onClick={() => removeLine(line.key)}

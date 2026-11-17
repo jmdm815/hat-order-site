@@ -132,6 +132,11 @@ export type QuoteLineInput = {
   // folded into the decoration price (decorationUnitPriceOverride), not
   // shown separately.
   personalization?: string;
+  // Splits lines that share a decoration + price column into their own
+  // numbered line item (own box, own combined-quantity pricing tier) —
+  // e.g. customer jackets embroidered alongside a big hat order. 0/absent =
+  // the normal decoration grouping; 1, 2, ... = separate groups.
+  lineItem?: number;
   // An alternate shown for comparison ("Option") — priced and printed like
   // any other line, but left out of the quantity, subtotal, tax and total.
   optional?: boolean;
@@ -252,6 +257,7 @@ export type QuoteLineResult = {
   priceColumnId?: string;
   priceColumnLabel?: string;
   personalization?: string; // see QuoteLineInput.personalization
+  lineItem?: number; // see QuoteLineInput.lineItem
   sizes: QuoteSizeResult[];
   quantity: number; // sum of this line's size quantities
   subtotal: number; // sum of sizes[].lineTotal
@@ -403,6 +409,9 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
     if (l.personalization !== undefined && (typeof l.personalization !== "string" || l.personalization.length > 500)) {
       return false;
     }
+    if (l.lineItem !== undefined && (!Number.isInteger(l.lineItem) || (l.lineItem as number) < 0 || (l.lineItem as number) > 99)) {
+      return false;
+    }
     if (!Array.isArray(l.sizes)) return false;
     return l.sizes.every((s) => {
       if (typeof s !== "object" || s === null) return false;
@@ -505,7 +514,7 @@ export function computeQuote(
     // the builder and PDF show as one numbered line item — so all garments
     // in one group get the same decoration price (5 tees + 15 long sleeves
     // price at the 20-piece tier).
-    const groupKey = (l: typeof line) => `${l.decorationId ?? ""}::${l.priceColumnId ?? ""}`;
+    const groupKey = (l: typeof line) => `${l.decorationId ?? ""}::${l.priceColumnId ?? ""}::${l.lineItem ?? 0}`;
     const lineQty = cleanedLines
       .filter((l) => groupKey(l) === groupKey(line))
       .reduce((sum, l) => sum + l.sizes.reduce((s, z) => s + z.quantity, 0), 0);
@@ -596,6 +605,7 @@ export function computeQuote(
         priceColumnId: line.priceColumnId,
         priceColumnLabel,
         personalization: line.personalization?.trim() || undefined,
+        ...(line.lineItem ? { lineItem: line.lineItem } : {}),
         sizes,
         quantity,
         subtotal,
@@ -667,6 +677,7 @@ export function computeQuote(
       priceColumnId: line.priceColumnId,
       priceColumnLabel,
       personalization: line.personalization?.trim() || undefined,
+        ...(line.lineItem ? { lineItem: line.lineItem } : {}),
       sizes,
       quantity,
       subtotal,
