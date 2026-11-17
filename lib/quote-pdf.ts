@@ -918,7 +918,11 @@ export async function renderQuotePdf(
       for (const fee of quote.miscFees) {
         const n = ++itemNo;
         doc.font("Helvetica").fontSize(9.5);
-        const h = doc.heightOfString(fee.label, { width: itemW });
+        const labelH = doc.heightOfString(fee.label, { width: itemW });
+        doc.fontSize(8.5);
+        const descH = fee.description ? doc.heightOfString(fee.description, { width: itemW }) + 3 : 0;
+        doc.fontSize(9.5);
+        const h = labelH + descH;
         if (doc.y + h > doc.page.height - doc.page.margins.bottom - 20) doc.addPage();
         const rowY = doc.y;
         doc.fillColor(NAVY).font("Helvetica-Bold").text(String(n), colNum, rowY, { width: 18 });
@@ -927,6 +931,11 @@ export async function renderQuotePdf(
         doc.text(money(fee.amount), colPrice, rowY, { width: colPriceW, align: "right" });
         doc.text(money(fee.lineTotal), colTotal, rowY, { width: colTotalW, align: "right" });
         doc.text(fee.label, colItem, rowY, { width: itemW });
+        if (fee.description) {
+          // Breakdown under the item (ShopVox-style line description).
+          doc.fillColor(GRAY).font("Helvetica").fontSize(8.5).text(fee.description, colItem, rowY + labelH + 3, { width: itemW });
+          doc.fillColor(NAVY).fontSize(9.5);
+        }
         doc.y = rowY + h + 3;
         doc.strokeColor(BORDER).lineWidth(0.3).moveTo(left, doc.y).lineTo(left + pageWidth, doc.y).stroke();
         doc.y += 5;

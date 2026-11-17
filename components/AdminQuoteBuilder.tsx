@@ -68,6 +68,7 @@ type PendingMiscFee = {
   amount: number; // per-unit price
   quantity: number; // multiplies amount — e.g. a $0.35 polymailer x 50
   taxable: boolean;
+  description?: string; // optional breakdown printed under the label
 };
 
 type PdfMode = "customer" | "internal" | "work-order" | "invoice";
@@ -579,9 +580,12 @@ export default function AdminQuoteBuilder({
         amount: f.amount,
         quantity: f.quantity ?? 1,
         taxable: f.taxable ?? true,
+        description: f.description,
       })) ?? []
   );
   const [miscFeeLabel, setMiscFeeLabel] = useState("");
+  const [miscFeeDescription, setMiscFeeDescription] = useState("");
+  const [openFeeDescriptions, setOpenFeeDescriptions] = useState<Set<string>>(new Set());
   const [miscFeeAmount, setMiscFeeAmount] = useState("");
   const [miscFeeQuantity, setMiscFeeQuantity] = useState("1");
   const [miscFeeTaxable, setMiscFeeTaxable] = useState(true);
@@ -1408,7 +1412,7 @@ export default function AdminQuoteBuilder({
     const amount = Number(miscFeeAmount);
     const quantity = Number(miscFeeQuantity);
     if (!label) {
-      setMiscFeeError("Enter a description before adding.");
+      setMiscFeeError("Enter an item name before adding.");
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -1420,8 +1424,10 @@ export default function AdminQuoteBuilder({
       return;
     }
     const feeId = `misc-${Date.now()}`;
-    setMiscFees((prev) => [...prev, { id: feeId, label, amount, quantity, taxable: miscFeeTaxable }]);
+    const description = miscFeeDescription.trim() || undefined;
+    setMiscFees((prev) => [...prev, { id: feeId, label, amount, quantity, taxable: miscFeeTaxable, description }]);
     setMiscFeeLabel("");
+    setMiscFeeDescription("");
     setMiscFeeAmount("");
     setMiscFeeQuantity("1");
     setMiscFeeTaxable(true);
@@ -2038,7 +2044,13 @@ export default function AdminQuoteBuilder({
       setupChargeIds: selectedSetupChargeIds,
       miscFees:
         miscFees.length > 0
-          ? miscFees.map(({ label, amount, quantity, taxable }) => ({ label, amount, quantity, taxable }))
+          ? miscFees.map(({ label, amount, quantity, taxable, description }) => ({
+              label,
+              amount,
+              quantity,
+              taxable,
+              ...(description?.trim() ? { description: description.trim() } : {}),
+            }))
           : undefined,
     };
   }
@@ -3901,7 +3913,7 @@ export default function AdminQuoteBuilder({
                 return (
                 <div
                   key={f.id}
-                  className="flex items-center gap-3 border border-admin-ink/15 rounded-xl px-3 py-2.5 bg-admin-ink/[0.015]"
+                  className="flex flex-wrap items-center gap-x-3 border border-admin-ink/15 rounded-xl px-3 py-2.5 bg-admin-ink/[0.015]"
                 >
                   <div className="shrink-0 w-6 h-6 rounded-full bg-admin-ink/10 text-admin-ink/80 text-xs font-semibold flex items-center justify-center">
                     {itemNumber}
@@ -3917,13 +3929,43 @@ export default function AdminQuoteBuilder({
                         ) · Other charge
                       </span>
                     </div>
-                    <button
-                      onClick={() => removeMiscFee(f.id)}
-                      className="text-xs text-red-600 hover:underline shrink-0"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button
+                        onClick={() =>
+                          setOpenFeeDescriptions((p) => {
+                            const n = new Set(p);
+                            if (n.has(f.id)) n.delete(f.id);
+                            else n.add(f.id);
+                            return n;
+                          })
+                        }
+                        className="text-xs text-admin-ink/88 hover:underline"
+                      >
+                        {openFeeDescriptions.has(f.id) ? "Done" : f.description ? "Edit description" : "Add description"}
+                      </button>
+                      <button
+                        onClick={() => removeMiscFee(f.id)}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
+                  {openFeeDescriptions.has(f.id) ? (
+                    <textarea
+                      value={f.description ?? ""}
+                      onChange={(e) =>
+                        setMiscFees((prev) => prev.map((x) => (x.id === f.id ? { ...x, description: e.target.value } : x)))
+                      }
+                      rows={Math.min(14, Math.max(4, (f.description ?? "").split("\n").length + 1))}
+                      placeholder="Breakdown printed under this item on the quote/invoice"
+                      className="mt-2 basis-full w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm bg-admin-card"
+                    />
+                  ) : (
+                    f.description && (
+                      <p className="mt-1.5 basis-full pl-9 text-xs text-admin-ink/70 whitespace-pre-line">{f.description}</p>
+                    )
+                  )}
                 </div>
                 );
               })}
@@ -4186,11 +4228,11 @@ export default function AdminQuoteBuilder({
         </p>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs text-admin-ink/80">
-            Description
+            Item
             <input
               value={miscFeeLabel}
               onChange={(e) => setMiscFeeLabel(e.target.value)}
-              placeholder="e.g. Rush fee, Shipping"
+              placeholder="e.g. DTF Transfers, Rush fee"
               className="mt-1 w-48 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
             />
           </label>
@@ -4243,6 +4285,16 @@ export default function AdminQuoteBuilder({
             ) : null;
           })()}
         </div>
+        <label className="mt-3 block text-xs text-admin-ink/80 max-w-xl">
+          Description (optional, printed under the item — e.g. a breakdown by job and date)
+          <textarea
+            value={miscFeeDescription}
+            onChange={(e) => setMiscFeeDescription(e.target.value)}
+            rows={4}
+            placeholder={"Bears Academy - $10 - 9/14\nSILA Insurance - $42 - 9/14"}
+            className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+          />
+        </label>
         {miscFeeError && <p className="mt-2 text-xs text-red-600">{miscFeeError}</p>}
       </section>
       )}
