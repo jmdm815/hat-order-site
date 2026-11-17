@@ -84,7 +84,7 @@ export type QuoteLineInput = {
   // Activewear). Lets the server look the garment up in the right place —
   // see lib/quote-products.ts. Absent on older saved quotes, which fall back
   // to SanMar first, then S&S.
-  catalogSource?: "sanmar" | "ss" | "custom" | "customer-supplied";
+  catalogSource?: "sanmar" | "ss" | "custom" | "customer-supplied" | "pitbull";
   colorName?: string;
   sizes: QuoteSizeInput[]; // quantity 0 entries are dropped before computing
   decorationId?: string; // absent/"" = no decoration, garment only
