@@ -1,6 +1,7 @@
 "use client";
 
 import { itemPhotoUrl } from "@/lib/item-photo";
+import PitbullHatPicker from "./PitbullHatPicker";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ComputedQuote, QuoteLineInput, QuoteSizeInput, MILITARY_DISCOUNT_PERCENT } from "@/lib/quote";
@@ -25,10 +26,11 @@ import { Customer, CustomerContact } from "@/lib/types";
 import { productPreviewImageUrl } from "@/lib/product-image";
 import AdminSendDocumentModal from "./AdminSendDocumentModal";
 
-type CatalogSource = "sanmar" | "custom" | "ss" | "customer-supplied";
+type CatalogSource = "sanmar" | "custom" | "ss" | "customer-supplied" | "pitbull";
 const CATALOG_OPTIONS: { id: CatalogSource; label: string; disabled?: boolean }[] = [
   { id: "sanmar", label: "SanMar" },
   { id: "ss", label: "S&S Activewear" },
+  { id: "pitbull", label: "Pitbull Cap (hats)" },
   { id: "custom", label: "Custom" },
   { id: "customer-supplied", label: "Customer-Supplied Item" },
 ];
@@ -4426,7 +4428,37 @@ export default function AdminQuoteBuilder({
           </label>
         </div>
 
-        {catalogSource === "customer-supplied" || catalogSource === "custom" ? (
+        {catalogSource === "pitbull" ? (
+          <>
+            {selectedDecoration?.priceColumns && selectedDecoration.priceColumns.length > 0 && (
+              <label className="block text-xs text-admin-ink/80 mt-4 max-w-xs">
+                {columnLabel}
+                <select
+                  value={selectedColumnId}
+                  onChange={(e) => setSelectedColumnId(e.target.value)}
+                  className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+                >
+                  <option value="">Select…</option>
+                  {selectedDecoration.priceColumns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <PitbullHatPicker
+              markupBreakpoints={garmentMarkupBreakpoints}
+              decorationId={selectedDecorationId}
+              priceColumnId={selectedColumnId}
+              taxable={lineTaxable}
+              onAdd={(added) => {
+                setLines((prev) => [...prev, ...added]);
+                setQuote(null);
+              }}
+            />
+          </>
+        ) : catalogSource === "customer-supplied" || catalogSource === "custom" ? (
           <div className="mt-4 border-t border-admin-ink/10 pt-4 max-w-xl">
             {catalogSource === "customer-supplied" && (
               <>
