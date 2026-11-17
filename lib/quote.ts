@@ -190,7 +190,9 @@ export type QuoteInput = {
   // label and amount are whatever the admin typed for this quote only.
   // `amount` is the per-unit price; `quantity` (default 1) multiplies it —
   // e.g. a $0.35 polymailer x 50 units.
-  miscFees?: { label: string; amount: number; quantity?: number; taxable?: boolean }[];
+  // `description` = optional multi-line breakdown printed under the label
+  // (e.g. DTF Transfers itemized by job/date, like ShopVox line descriptions).
+  miscFees?: { label: string; amount: number; quantity?: number; taxable?: boolean; description?: string }[];
   // Percent (1-100) of the grand total due as a deposit when the order is
   // placed; the remainder is due later (e.g. at pickup). Undefined/100 means
   // "pay in full" — the common case — so this is optional and most quotes
@@ -296,6 +298,7 @@ export type QuoteMiscFee = {
   quantity: number;
   lineTotal: number;
   taxable: boolean;
+  description?: string;
 };
 
 export type ComputedQuote = {
@@ -375,6 +378,7 @@ export function isValidQuoteInput(body: unknown): body is QuoteInput {
         const m = f as Record<string, unknown>;
         if (m.taxable !== undefined && typeof m.taxable !== "boolean") return false;
         if (m.quantity !== undefined && (typeof m.quantity !== "number" || m.quantity <= 0)) return false;
+        if (m.description !== undefined && (typeof m.description !== "string" || m.description.length > 4000)) return false;
         return typeof m.label === "string" && m.label !== "" && typeof m.amount === "number" && m.amount > 0;
       })
     ) {
@@ -706,6 +710,7 @@ export function computeQuote(
       quantity,
       lineTotal: money(amount * quantity),
       taxable: f.taxable ?? true,
+      ...(f.description?.trim() ? { description: f.description.trim() } : {}),
     };
   });
 
