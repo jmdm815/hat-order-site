@@ -45,6 +45,7 @@ export default function PitbullHatPicker({
   const [filter, setFilter] = useState("");
   const [saving, setSaving] = useState(false);
   const deb = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSeq = useRef(0); // ignore search results that land after a pick
 
   const costNum = Number(cost);
   const costOk = cost !== "" && costNum > 0;
@@ -62,10 +63,12 @@ export default function PitbullHatPicker({
       setSugs([]);
       return;
     }
+    const seq = ++searchSeq.current;
     deb.current = setTimeout(async () => {
       try {
         const r = await fetch(`/api/admin/pitbull/search?q=${encodeURIComponent(v.trim())}`);
         const d = await r.json();
+        if (seq !== searchSeq.current) return;
         setSugs(d.results ?? []);
         setOpen(true);
       } catch {
@@ -75,6 +78,9 @@ export default function PitbullHatPicker({
   }
 
   async function load(style: string) {
+    if (deb.current) clearTimeout(deb.current);
+    searchSeq.current++;
+    setSugs([]);
     setOpen(false);
     setLoading(true);
     setError(null);
