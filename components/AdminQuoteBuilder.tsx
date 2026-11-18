@@ -1407,6 +1407,10 @@ export default function AdminQuoteBuilder({
     }
   }
 
+  function updateMiscFee(id: string, patch: Partial<PendingMiscFee>) {
+    setMiscFees((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }
+
   function addMiscFee() {
     const label = miscFeeLabel.trim();
     const amount = Number(miscFeeAmount);
@@ -2044,8 +2048,10 @@ export default function AdminQuoteBuilder({
       setupChargeIds: selectedSetupChargeIds,
       miscFees:
         miscFees.length > 0
-          ? miscFees.map(({ label, amount, quantity, taxable, description }) => ({
-              label,
+          ? miscFees
+              .filter((f) => f.label.trim() && f.amount > 0 && f.quantity > 0)
+              .map(({ label, amount, quantity, taxable, description }) => ({
+              label: label.trim(),
               amount,
               quantity,
               taxable,
@@ -3941,7 +3947,7 @@ export default function AdminQuoteBuilder({
                         }
                         className="text-xs text-admin-ink/88 hover:underline"
                       >
-                        {openFeeDescriptions.has(f.id) ? "Done" : f.description ? "Edit description" : "Add description"}
+                        {openFeeDescriptions.has(f.id) ? "Done" : "Edit"}
                       </button>
                       <button
                         onClick={() => removeMiscFee(f.id)}
@@ -3952,15 +3958,57 @@ export default function AdminQuoteBuilder({
                     </div>
                   </div>
                   {openFeeDescriptions.has(f.id) ? (
-                    <textarea
-                      value={f.description ?? ""}
-                      onChange={(e) =>
-                        setMiscFees((prev) => prev.map((x) => (x.id === f.id ? { ...x, description: e.target.value } : x)))
-                      }
-                      rows={Math.min(14, Math.max(4, (f.description ?? "").split("\n").length + 1))}
-                      placeholder="Breakdown printed under this item on the quote/invoice"
-                      className="mt-2 basis-full w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm bg-admin-card"
-                    />
+                    <div className="mt-2 basis-full pl-9 space-y-2">
+                      <div className="flex flex-wrap items-end gap-2">
+                        <label className="text-xs text-admin-ink/80">
+                          Item
+                          <input
+                            value={f.label}
+                            onChange={(e) => updateMiscFee(f.id, { label: e.target.value })}
+                            className="mt-1 block w-56 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm bg-admin-card"
+                          />
+                        </label>
+                        <label className="text-xs text-admin-ink/80">
+                          Amount
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={Number.isFinite(f.amount) && f.amount !== 0 ? f.amount : ""}
+                            onChange={(e) => updateMiscFee(f.id, { amount: Math.max(0, Number(e.target.value) || 0) })}
+                            className="mt-1 block w-28 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm bg-admin-card"
+                          />
+                        </label>
+                        <label className="text-xs text-admin-ink/80">
+                          Quantity
+                          <input
+                            type="number"
+                            min={1}
+                            step="1"
+                            value={f.quantity || ""}
+                            onChange={(e) => updateMiscFee(f.id, { quantity: Math.max(0, Math.floor(Number(e.target.value) || 0)) })}
+                            className="mt-1 block w-20 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm bg-admin-card"
+                          />
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs text-admin-ink/80 pb-2">
+                          <input type="checkbox" checked={f.taxable} onChange={(e) => updateMiscFee(f.id, { taxable: e.target.checked })} />
+                          Taxable
+                        </label>
+                      </div>
+                      {(!f.label.trim() || !(f.amount > 0) || !(f.quantity > 0)) && (
+                        <p className="text-xs text-red-600">Needs an item name, an amount above $0 and a quantity of 1 or more — it isn&apos;t saved until then.</p>
+                      )}
+                      <label className="block text-xs text-admin-ink/80">
+                        Description (optional, printed under the item)
+                        <textarea
+                          value={f.description ?? ""}
+                          onChange={(e) => updateMiscFee(f.id, { description: e.target.value })}
+                          rows={Math.min(14, Math.max(4, (f.description ?? "").split("\n").length + 1))}
+                          placeholder="Breakdown printed under this item on the quote/invoice"
+                          className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm bg-admin-card"
+                        />
+                      </label>
+                    </div>
                   ) : (
                     f.description && (
                       <p className="mt-1.5 basis-full pl-9 text-xs text-admin-ink/70 whitespace-pre-line">{f.description}</p>
