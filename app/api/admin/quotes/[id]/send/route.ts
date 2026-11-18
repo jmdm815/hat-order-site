@@ -79,7 +79,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       customerName: record.computed.customerName,
       customerCompany: record.computed.customerCompany,
       grandTotal: record.computed.grandTotal,
-      payPageUrl: `${req.nextUrl.origin}/pay/${record.id}`,
+      // Quotes only get the pay link when "Show payment link" is on;
+      // invoices get it while unpaid unless it's hidden.
+      payPageUrl:
+        record.status === "invoice"
+          ? record.invoiceStatus === "paid" || record.computed.hidePaymentLink
+            ? undefined
+            : `${req.nextUrl.origin}/pay/${record.id}`
+          : record.computed.showPaymentLink
+            ? `${req.nextUrl.origin}/pay/${record.id}`
+            : undefined,
       pdf: {
         filename: `${filePrefix}-${fileNameSafe}-${record.computed.quoteDate}.pdf`,
         content: pdfBuffer,
