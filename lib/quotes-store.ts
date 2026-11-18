@@ -114,6 +114,15 @@ export type QuoteRecord = {
   // and from the scheduled app/api/cron/purge-deleted-quotes route, so it
   // happens on a real cadence even if nobody opens that admin tab.
   deletedAt?: string;
+  // Optional reason the admin typed when deleting (shown in Recently deleted).
+  deleteReason?: string;
+  // Archived — hidden from the normal Quotes/Invoices list (which is the
+  // shop's to-do list) but kept forever and still counted everywhere else
+  // (reports, customer history, payments). A quote is archived
+  // automatically when it's converted to an invoice ("converted"), or by
+  // hand ("manual").
+  archivedAt?: string;
+  archiveReason?: "converted" | "manual";
   // Quote -> invoice linking. A quote and the invoice made from it are now
   // two separate records, each with its own full life in its own tab (see
   // AdminQuotesTab), rather than one record that flips its `status` field
@@ -644,10 +653,14 @@ export async function setQuoteCustomerId(
 // restoreQuote() to undo this and permanentlyDeleteQuote() to actually
 // remove it — purgeExpiredDeletedQuotes() calls the latter automatically
 // after DELETED_RETENTION_DAYS.
-export async function deleteQuote(id: string): Promise<{ deleted: boolean; persisted: boolean }> {
+export async function deleteQuote(id: string, reason?: string): Promise<{ deleted: boolean; persisted: boolean }> {
   const existing = await readRecord(id);
   if (!existing) return { deleted: false, persisted: true };
-  const updated: QuoteRecord = { ...existing, deletedAt: new Date().toISOString() };
+  const updated: QuoteRecord = {
+    ...existing,
+    deletedAt: new Date().toISOString(),
+    deleteReason: reason?.trim() ? reason.trim().slice(0, 500) : undefined,
+  };
   const { persisted } = await writeRecord(updated);
   return { deleted: true, persisted };
 }
@@ -657,7 +670,22 @@ export async function deleteQuote(id: string): Promise<{ deleted: boolean; persi
 export async function restoreQuote(id: string): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
   const existing = await readRecord(id);
   if (!existing) return { record: null, persisted: true };
-  const updated: QuoteRecord = { ...existing, deletedAt: undefined, updatedAt: new Date().toISOString() };
+  const updated: QuoteRecord = { ...existing, deletedAt: undefined, deleteReason: undefined, updatedAt: new Date().toISOString() };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
+// Archive / unarchive — see QuoteRecord.archivedAt.
+export async function setQuoteArchived(
+  id: string,
+  archived: boolean,
+  reason: "converted" | "manual" = "manual"
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { record: null, persisted: true };
+  const updated: QuoteRecord = archived
+    ? { ...existing, archivedAt: existing.archivedAt ?? new Date().toISOString(), archiveReason: existing.archiveReason ?? reason }
+    : { ...existing, archivedAt: undefined, archiveReason: undefined };
   const { persisted } = await writeRecord(updated);
   return { record: updated, persisted };
 }
@@ -706,6 +734,9 @@ export async function convertQuoteToInvoice(
   if (existing.linkedInvoiceId) {
     const linked = await readRecord(existing.linkedInvoiceId);
     if (linked && !linked.deletedAt) {
+      if (!existing.archivedAt) {
+        await writeRecord({ ...existing, archivedAt: new Date().toISOString(), archiveReason: "converted" });
+      }
       return { record: linked, persisted: true };
     }
   }
@@ -761,6 +792,9 @@ export async function convertQuoteToInvoice(
     squarePaymentId: undefined,
     paymentLinkAmount: undefined,
     paymentLinkKind: undefined,
+    // Converted quotes leave the Quotes to-do list automatically (kept, not deleted).
+    archivedAt: now,
+    archiveReason: "converted",
     updatedAt: now,
   };
 

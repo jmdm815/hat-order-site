@@ -77,6 +77,11 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
   // overflow menu) is open, if any. Only one at a time — opening a new one
   // implicitly closes the last, same as copyMenuId above.
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  // Quotes/Invoices: the to-do list (active) vs archived records.
+  const [archiveView, setArchiveView] = useState<"active" | "archived">("active");
+  // Delete dialog (optional reason).
+  const [deleteTarget, setDeleteTarget] = useState<QuoteRecord | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
   function load() {
     setLoading(true);
@@ -198,21 +203,45 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
   // Soft delete — moves the record into "Recently deleted" instead of
   // removing it outright. See handlePermanentDelete/handleRestore below for
   // the trash view's own actions.
-  async function handleDelete(id: string) {
-    if (!confirm(`Move this to Recently deleted? It'll be permanently deleted automatically after ${DELETED_RETENTION_DAYS} days, or you can delete it sooner from there.`)) return;
+  async function handleDelete(id: string, reason?: string) {
     setBusyId(id);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/quotes/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/quotes/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason?.trim() || undefined }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to delete");
-      load();
+      setRecords((prev) => prev.filter((r) => r.id !== id));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setBusyId(null);
     }
   }
+
+  async function handleArchive(id: string, archived: boolean) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}/archive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to update");
+      setRecords((prev) => prev.map((r) => (r.id === id ? data.record : r)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+
 
   // Creates an independent copy of this quote/invoice as a brand-new record
   // (lib/quotes-store.ts's duplicateQuote) — not a conversion, no link back
@@ -274,10 +303,17 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
     return <p className="text-admin-ink/62 text-sm">Loading…</p>;
   }
 
+  const archivedCount = view === "deleted" ? 0 : records.filter((r) => r.archivedAt).length;
+  const activeCount = view === "deleted" ? records.length : records.length - archivedCount;
+  const shown =
+    view === "deleted" ? records : records.filter((r) => (archiveView === "archived" ? !!r.archivedAt : !r.archivedAt));
+
   const emptyMessage =
     view === "deleted"
       ? "Nothing in Recently deleted."
-      : view === "invoices"
+      : archiveView === "archived"
+        ? "Nothing archived yet."
+        : view === "invoices"
         ? "No invoices yet — convert a quote, or create one directly above."
         : "No saved quotes yet — build one above and hit “Save quote.”";
 
@@ -294,7 +330,24 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
       {linkMessage && <p className="mb-3 text-sm text-green-700">{linkMessage}</p>}
       {jobsMessage && <p className="mb-3 text-sm text-green-700">{jobsMessage}</p>}
 
-      {records.length === 0 ? (
+      {view !== "deleted" && (
+        <div className="mb-3 inline-flex rounded-xl border border-admin-ink/15 bg-admin-card p-0.5 text-xs">
+          {(["active", "archived"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setArchiveView(v)}
+              className={`px-3 py-1 rounded-lg font-medium ${
+                archiveView === v ? "bg-admin-ink text-admin-card" : "text-admin-ink/70 hover:text-admin-ink"
+              }`}
+            >
+              {v === "active" ? `Active (${activeCount})` : `Archived (${archivedCount})`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {shown.length === 0 ? (
         <p className="text-sm text-admin-ink/62">{emptyMessage}</p>
       ) : (
         <div className="border border-admin-ink/10 rounded-2xl bg-admin-card overflow-visible">
@@ -325,7 +378,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
               </tr>
             </thead>
             <tbody>
-              {records.map((r, i) => {
+              {shown.map((r, i) => {
                 const customer = r.computed.customerName || r.computed.customerCompany || "(no customer name)";
                 const isBusy = busyId === r.id;
                 const menuOpen = openMenuId === r.id;
@@ -395,6 +448,11 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                           <div className="text-[11px] text-admin-ink/50">
                             auto-deletes in {daysLeft(r.deletedAt)} day{daysLeft(r.deletedAt) === 1 ? "" : "s"}
                           </div>
+                          {r.deleteReason && (
+                            <div className="text-[11px] text-admin-ink/70 whitespace-normal max-w-[14rem]" title={r.deleteReason}>
+                              Reason: {r.deleteReason}
+                            </div>
+                          )}
                         </>
                       ) : r.status === "invoice" && r.invoiceStatus ? (
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CLASS[r.invoiceStatus]}`}>
@@ -672,7 +730,18 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                               <button
                                 onClick={() => {
                                   setOpenMenuId(null);
-                                  handleDelete(r.id);
+                                  handleArchive(r.id, !r.archivedAt);
+                                }}
+                                disabled={isBusy}
+                                className="w-full text-left text-xs px-3 py-1.5 text-admin-ink/88 hover:bg-admin-ink/10 disabled:opacity-40"
+                              >
+                                {r.archivedAt ? "Unarchive" : "Archive"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  setDeleteReason("");
+                                  setDeleteTarget(r);
                                 }}
                                 disabled={isBusy}
                                 className="w-full text-left text-xs px-3 py-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-40"
@@ -689,6 +758,48 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
               })}
             </tbody>
           </table>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-admin-card p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-admin-ink">
+              Delete {deleteTarget.status === "invoice" ? deleteTarget.invoiceNumber : deleteTarget.quoteNumber}?
+            </h3>
+            <p className="mt-1 text-xs text-admin-ink/70">
+              {[deleteTarget.computed.customerName, deleteTarget.computed.customerCompany].filter(Boolean).join(" — ")} · $
+              {deleteTarget.computed.grandTotal.toFixed(2)}. It goes to Recently deleted and is removed for good after{" "}
+              {DELETED_RETENTION_DAYS} days.
+            </p>
+            <label className="mt-3 block text-xs text-admin-ink/80">
+              Reason (optional)
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                rows={3}
+                autoFocus
+                placeholder="e.g. duplicate, customer cancelled, made by mistake"
+                className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+              />
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setDeleteTarget(null)} className="px-3 py-1.5 rounded-xl text-sm border border-admin-ink/20">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const t = deleteTarget;
+                  setDeleteTarget(null);
+                  handleDelete(t.id, deleteReason);
+                }}
+                className="px-3 py-1.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

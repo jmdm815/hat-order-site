@@ -107,12 +107,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdminAuthed())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const { deleted, persisted } = await deleteQuote(id);
+  // Optional JSON body { reason } — shown in Recently deleted.
+  const body = await req.json().catch(() => null);
+  const reason = typeof body?.reason === "string" ? body.reason : undefined;
+  const { deleted, persisted } = await deleteQuote(id, reason);
   if (!deleted) {
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }
