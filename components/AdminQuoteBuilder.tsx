@@ -610,6 +610,8 @@ export default function AdminQuoteBuilder({
     initialRecord?.input.termsBlank ? -1 : (initialRecord?.input.netTermsDays ?? 0)
   );
   const [hidePaymentLink, setHidePaymentLink] = useState<boolean>(() => initialRecord?.input.hidePaymentLink ?? false);
+  // Quotes: pay link off unless this is ticked (QuoteInput.showPaymentLink).
+  const [showPaymentLink, setShowPaymentLink] = useState<boolean>(() => initialRecord?.input.showPaymentLink ?? false);
   const [notes, setNotes] = useState(() => initialRecord?.input.notes ?? "");
   const [customerNotes, setCustomerNotes] = useState(() => initialRecord?.input.customerNotes ?? "");
   // Payment terms — 100 means "pay in full" (the common case); anything
@@ -2020,6 +2022,7 @@ export default function AdminQuoteBuilder({
       netTermsDays: netTermsDays > 0 ? netTermsDays : undefined,
       termsBlank: netTermsDays === -1 || undefined,
       hidePaymentLink: hidePaymentLink || undefined,
+      showPaymentLink: showPaymentLink || undefined,
       notes: notes || undefined,
       customerNotes: customerNotes || undefined,
       depositPercent: depositPercent < 100 ? depositPercent : undefined,
@@ -2679,10 +2682,17 @@ export default function AdminQuoteBuilder({
               ))}
             </select>
           </label>
-          <label className="text-xs text-admin-ink/80 flex items-center gap-2 mt-5">
-            <input type="checkbox" checked={hidePaymentLink} onChange={(e) => setHidePaymentLink(e.target.checked)} />
-            Hide online payment link on PDF
-          </label>
+          {isInvoice ? (
+            <label className="text-xs text-admin-ink/80 flex items-center gap-2 mt-5">
+              <input type="checkbox" checked={hidePaymentLink} onChange={(e) => setHidePaymentLink(e.target.checked)} />
+              Hide online payment link on PDF
+            </label>
+          ) : (
+            <label className="text-xs text-admin-ink/80 flex items-center gap-2 mt-5">
+              <input type="checkbox" checked={showPaymentLink} onChange={(e) => setShowPaymentLink(e.target.checked)} />
+              Show payment link on quote
+            </label>
+          )}
         </div>
         <label className="block text-xs text-admin-ink/80 mt-3">
           Customer notes (optional, printed on the customer quote &amp; invoice)

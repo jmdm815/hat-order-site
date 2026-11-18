@@ -338,7 +338,10 @@ export async function renderQuotePdf(
     mode === "invoice"
       ? invoiceMeta?.invoiceStatus === "paid"
       : (invoiceMeta?.amountPaid ?? 0) >= quote.grandTotal - 0.005;
-  const linkForPdf = paidInFull || quote.hidePaymentLink ? undefined : invoiceMeta?.payPageUrl;
+  // A plain quote only advertises the pay page when showPaymentLink is on
+  // (off by default); invoices show it while unpaid unless hidePaymentLink.
+  const quoteLinkOff = mode !== "invoice" && !quote.showPaymentLink;
+  const linkForPdf = paidInFull || quote.hidePaymentLink || quoteLinkOff ? undefined : invoiceMeta?.payPageUrl;
   const netTerms = quote.netTermsDays ? `Net ${quote.netTermsDays}` : undefined;
 
   // Generated up front (QRCode.toBuffer is async; pdfkit's drawing calls

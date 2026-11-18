@@ -172,6 +172,10 @@ export type QuoteInput = {
   // corporate customer that pays by PO/check on net terms). The pay page
   // itself still exists; it just isn't advertised.
   hidePaymentLink?: boolean;
+  // Plain quotes (not yet invoices) leave out the "Pay online" button + QR
+  // by default; set this to show it. Invoices ignore it (they show the
+  // link while unpaid unless hidePaymentLink is set).
+  showPaymentLink?: boolean;
   // Internal notes: internal PDF + work order only, never on customer
   // quotes/invoices (email drafts put their review notes here).
   notes?: string;
@@ -310,6 +314,7 @@ export type ComputedQuote = {
   netTermsDays?: number; // see QuoteInput.netTermsDays
   termsBlank?: boolean; // see QuoteInput.termsBlank
   hidePaymentLink?: boolean; // see QuoteInput.hidePaymentLink
+  showPaymentLink?: boolean; // see QuoteInput.showPaymentLink
   notes?: string; // internal only — see QuoteInput.notes
   customerNotes?: string; // see QuoteInput.customerNotes
   lines: QuoteLineResult[];
@@ -750,6 +755,7 @@ export function computeQuote(
     dueDate: input.dueDate,
     ...(input.netTermsDays && input.netTermsDays > 0 ? { netTermsDays: Math.round(input.netTermsDays) } : {}),
     ...(input.hidePaymentLink ? { hidePaymentLink: true } : {}),
+    ...(input.showPaymentLink ? { showPaymentLink: true } : {}),
     ...(input.termsBlank && !(input.netTermsDays && input.netTermsDays > 0) ? { termsBlank: true } : {}),
     notes: input.notes,
     ...(input.customerNotes?.trim() ? { customerNotes: input.customerNotes.trim().slice(0, 4000) } : {}),
