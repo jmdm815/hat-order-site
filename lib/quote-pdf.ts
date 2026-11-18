@@ -1197,6 +1197,7 @@ export type PaymentReceiptData = {
     methodLabel: string; // already resolved to a display string — "Card", "Cash", "Check", "Other"
     createdAt: string; // ISO datetime
     note?: string;
+    transactionId?: string; // bank reference, e.g. Chase Zelle transaction number
   };
   // Cumulative total paid THROUGH this payment (i.e. including it), and the
   // balance remaining as of right after it — not necessarily today's
@@ -1265,13 +1266,19 @@ export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise
 
     doc.fillColor(CREAM);
     const boxY = doc.y;
-    doc.rect(left, boxY, pageWidth, 70).fill(CREAM);
+    const boxH = data.payment.transactionId ? 88 : 70;
+    doc.rect(left, boxY, pageWidth, boxH).fill(CREAM);
     doc.fillColor(NAVY).font("Helvetica").fontSize(10);
     let rowY = boxY + 10;
     const col2 = left + pageWidth / 2;
     doc.text("Payment method", left + 12, rowY);
     doc.font("Helvetica-Bold").text(data.payment.methodLabel, col2, rowY, { width: pageWidth / 2 - 24, align: "right" });
     rowY += 18;
+    if (data.payment.transactionId) {
+      doc.font("Helvetica").text("Transaction ID", left + 12, rowY);
+      doc.font("Helvetica-Bold").text(data.payment.transactionId, col2, rowY, { width: pageWidth / 2 - 24, align: "right" });
+      rowY += 18;
+    }
     doc.font("Helvetica").text("Paid to date", left + 12, rowY);
     doc
       .font("Helvetica-Bold")
@@ -1288,7 +1295,7 @@ export async function renderPaymentReceiptPdf(data: PaymentReceiptData): Promise
         width: pageWidth / 2 - 24,
         align: "right",
       });
-    doc.y = boxY + 70;
+    doc.y = boxY + boxH;
     doc.moveDown(1);
 
     if (data.payment.note) {

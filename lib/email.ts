@@ -141,6 +141,13 @@ export type InvoiceReceiptEmail = {
   balance: number; // remaining after this payment
   payPageUrl: string;
   pdf: { filename: string; content: Buffer };
+  // Optional extras (admin receipt route): a resolved method label
+  // ("Zelle"), the bank transaction reference, more attachments, and a
+  // subject prefix (e.g. "[Preview] ").
+  methodLabel?: string;
+  transactionId?: string;
+  extraAttachments?: { filename: string; content: Buffer }[];
+  subjectPrefix?: string;
 };
 
 // Customer-facing payment receipt — sent two ways:
@@ -168,13 +175,16 @@ export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Pro
     : receipt.quoteNumber
       ? `Quote ${receipt.quoteNumber}`
       : "your order";
-  const methodLabel = METHOD_LABEL[receipt.method] ?? receipt.method;
+  const methodLabel = receipt.methodLabel ?? METHOD_LABEL[receipt.method] ?? receipt.method;
   const paidInFull = receipt.balance <= 0.01;
   const greetingName = receipt.customerName || receipt.customerCompany || "there";
 
-  const subject = paidInFull
-    ? `Receipt — ${label} paid in full`
-    : `Receipt — payment received on ${label}`;
+  const subject =
+    (receipt.subjectPrefix ?? "") +
+    (paidInFull ? `Receipt — ${label} paid in full` : `Receipt — payment received on ${label}`);
+  const txRowHtml = receipt.transactionId
+    ? `<tr><td style="padding: 4px 0; color: #666;">Transaction ID</td><td style="padding: 4px 0; text-align: right;">${receipt.transactionId}</td></tr>`
+    : "";
 
   const html = `
     <div style="font-family: Helvetica, Arial, sans-serif; color: #1a2332; max-width: 480px;">
@@ -183,6 +193,7 @@ export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Pro
       <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
         <tr><td style="padding: 4px 0; color: #666;">Amount paid</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${money(receipt.amount)}</td></tr>
         <tr><td style="padding: 4px 0; color: #666;">Method</td><td style="padding: 4px 0; text-align: right;">${methodLabel}</td></tr>
+        ${txRowHtml}
         <tr><td style="padding: 4px 0; color: #666;">Paid to date</td><td style="padding: 4px 0; text-align: right;">${money(receipt.amountPaid)} of ${money(receipt.grandTotal)}</td></tr>
         <tr><td style="padding: 4px 0; color: #666;">Balance remaining</td><td style="padding: 4px 0; text-align: right;">${paidInFull ? "Paid in full" : money(receipt.balance)}</td></tr>
       </table>
@@ -195,6 +206,7 @@ export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Pro
     `Thank you! We received your payment on ${label}.`,
     `Amount paid: ${money(receipt.amount)}`,
     `Method: ${methodLabel}`,
+    ...(receipt.transactionId ? [`Transaction ID: ${receipt.transactionId}`] : []),
     `Paid to date: ${money(receipt.amountPaid)} of ${money(receipt.grandTotal)}`,
     `Balance remaining: ${paidInFull ? "Paid in full" : money(receipt.balance)}`,
     `View online: ${receipt.payPageUrl}`,
@@ -207,7 +219,7 @@ export async function sendInvoiceReceiptEmail(receipt: InvoiceReceiptEmail): Pro
     subject,
     html,
     text,
-    attachments: [{ filename: receipt.pdf.filename, content: receipt.pdf.content }],
+    attachments: [{ filename: receipt.pdf.filename, content: receipt.pdf.content }, ...(receipt.extraAttachments ?? [])],
   });
   if (error) {
     console.error("sendInvoiceReceiptEmail: Resend returned an error", error);

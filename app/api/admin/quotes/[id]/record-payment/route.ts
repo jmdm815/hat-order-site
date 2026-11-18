@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { getQuote, recordInvoicePayment, resetInvoicePayments, InvoicePaymentEntry } from "@/lib/quotes-store";
+import { getQuote, recordInvoicePayment, resetInvoicePayments, updatePaymentDetails, InvoicePaymentEntry } from "@/lib/quotes-store";
 
 const VALID_TENDERS: InvoicePaymentEntry["tender"][] = ["cash", "check", "card", "shopvox", "zelle", "other"];
 
@@ -37,6 +37,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ? body.checkNumber.trim().slice(0, 40)
       : undefined;
 
+  const transactionId =
+    typeof body?.transactionId === "string" && body.transactionId.trim()
+      ? body.transactionId.trim().slice(0, 60)
+      : undefined;
+
   const grandTotal = record.computed.grandTotal;
   const alreadyPaid = record.amountPaid ?? 0;
   const balance = Math.round((grandTotal - alreadyPaid) * 100) / 100;
@@ -52,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     method: "manual",
     tender,
     checkNumber,
+    transactionId,
     note,
   });
   if (!updated) {
@@ -72,4 +78,24 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }
   return NextResponse.json({ ok: true, record, persisted });
+}
+
+// PATCH { paymentId, transactionId?, note? } — edit one recorded payment's
+// reference/note (e.g. add the Zelle transaction number). Empty string clears.
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await isAdminAuthed())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { id } = await params;
+  const body = await req.json().catch(() => null);
+  const paymentId = typeof body?.paymentId === "string" ? body.paymentId : "";
+  if (!paymentId) return NextResponse.json({ error: "paymentId required" }, { status: 400 });
+  const pick = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) || null : undefined);
+  const { record, payment, persisted } = await updatePaymentDetails(id, paymentId, {
+    transactionId: pick(body?.transactionId, 60),
+    note: pick(body?.note, 500),
+  });
+  if (!record) return NextResponse.json({ error: "Quote not found" }, { status: 404 });
+  if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+  return NextResponse.json({ ok: true, record, payment, persisted });
 }
