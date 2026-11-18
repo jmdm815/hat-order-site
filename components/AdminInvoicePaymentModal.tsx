@@ -57,6 +57,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
   const [tender, setTender] = useState<InvoicePaymentEntry["tender"]>("cash");
   const [note, setNote] = useState("");
   const [checkNumber, setCheckNumber] = useState("");
+  const [transactionId, setTransactionId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,6 +82,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
           amount: payAmount,
           tender,
           checkNumber: tender === "check" ? checkNumber.trim() || undefined : undefined,
+          transactionId: tender !== "check" && tender !== "cash" ? transactionId.trim() || undefined : undefined,
           note: note.trim() || undefined,
         }),
       });
@@ -89,6 +91,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
       onUpdated(data.record);
       setNote("");
       setCheckNumber("");
+      setTransactionId("");
       const newBalance = Math.max(0, Math.round((grandTotal - (data.record.amountPaid ?? 0)) * 100) / 100);
       setAmount(newBalance > 0 ? newBalance.toFixed(2) : "0.00");
     } catch (e) {
@@ -200,6 +203,7 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                     {new Date(p.createdAt).toLocaleDateString()} —{" "}
                     {p.method === "square_card" ? "Card" : TENDER_LABEL[p.tender ?? "other"]}
                     {p.tender === "check" && p.checkNumber ? ` #${p.checkNumber}` : ""}
+                    {p.transactionId ? ` · Txn ${p.transactionId}` : ""}
                     {p.note ? ` (${p.note})` : ""}
                   </span>
                   <span className="flex items-center gap-2 shrink-0">
@@ -270,6 +274,20 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
                   onChange={(e) => setCheckNumber(e.target.value)}
                   inputMode="numeric"
                   placeholder="e.g. 1042"
+                  className="w-full bg-admin-card border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
+                />
+              </div>
+            )}
+            {tender !== "check" && tender !== "cash" && (
+              <div className="mt-2">
+                <label className="block text-xs text-admin-ink/80 mb-1" htmlFor="payment-txn">
+                  Transaction ID (optional — e.g. Chase Zelle transaction number)
+                </label>
+                <input
+                  id="payment-txn"
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                  placeholder="e.g. 31670482565"
                   className="w-full bg-admin-card border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm outline-none focus:border-admin-accent focus:ring-2 focus:ring-admin-accent/20"
                 />
               </div>

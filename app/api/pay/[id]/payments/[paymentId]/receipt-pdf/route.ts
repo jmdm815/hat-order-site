@@ -70,6 +70,7 @@ export async function GET(
         methodLabel,
         createdAt: payment.createdAt,
         note: payment.note,
+        transactionId: payment.transactionId,
       },
       paidToDate,
       grandTotal,

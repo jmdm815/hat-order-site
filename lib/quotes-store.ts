@@ -248,6 +248,10 @@ export type InvoicePaymentEntry = {
   tender?: "cash" | "check" | "card" | "shopvox" | "zelle" | "other";
   // Check number, for tender: "check" payments.
   checkNumber?: string;
+  // Bank/processor reference for the payment — e.g. the Chase Zelle
+  // "Transaction number". Printed on the payment receipt; also used to
+  // avoid recording the same Zelle alert twice.
+  transactionId?: string;
   createdAt: string;
   note?: string;
 };
@@ -975,11 +979,16 @@ export async function recordInvoicePayment(
     squarePaymentId?: string;
     tender?: InvoicePaymentEntry["tender"];
     checkNumber?: string;
+    transactionId?: string;
     note?: string;
   }
 ): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
   const existing = await readRecord(id);
   if (!existing) return { record: null, persisted: true };
+
+  if (payment.transactionId && existing.payments?.some((p) => p.transactionId === payment.transactionId)) {
+    return { record: existing, persisted: true };
+  }
 
   if (
     payment.squarePaymentId &&
@@ -996,6 +1005,7 @@ export async function recordInvoicePayment(
     squarePaymentId: payment.squarePaymentId,
     tender: payment.tender,
     ...(payment.tender === "check" && payment.checkNumber ? { checkNumber: payment.checkNumber } : {}),
+    ...(payment.transactionId ? { transactionId: payment.transactionId } : {}),
     createdAt: now,
     note: payment.note,
   };
@@ -1025,6 +1035,37 @@ export async function recordInvoicePayment(
   };
   const { persisted } = await writeRecord(updated);
   return { record: updated, persisted };
+}
+
+// Sets (or clears) the transaction ID / note on one already-recorded
+// payment — e.g. attaching the Chase Zelle transaction number to a Zelle
+// payment that was entered by hand.
+export async function updatePaymentDetails(
+  id: string,
+  paymentId: string,
+  details: { transactionId?: string | null; note?: string | null }
+): Promise<{ record: QuoteRecord | null; payment: InvoicePaymentEntry | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing) return { record: null, payment: null, persisted: true };
+  let found: InvoicePaymentEntry | null = null;
+  const payments = (existing.payments ?? []).map((p) => {
+    if (p.id !== paymentId) return p;
+    const next: InvoicePaymentEntry = { ...p };
+    if (details.transactionId !== undefined) {
+      if (details.transactionId) next.transactionId = details.transactionId;
+      else delete next.transactionId;
+    }
+    if (details.note !== undefined) {
+      if (details.note) next.note = details.note;
+      else delete next.note;
+    }
+    found = next;
+    return next;
+  });
+  if (!found) return { record: existing, payment: null, persisted: true };
+  const updated: QuoteRecord = { ...existing, payments, updatedAt: new Date().toISOString() };
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, payment: found, persisted };
 }
 
 // Clears every recorded payment and resets a record back to unpaid — the

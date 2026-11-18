@@ -17,6 +17,7 @@ type Payment = {
   amount: number;
   method: string;
   checkNumber?: string;
+  transactionId?: string;
   note?: string;
   date: string;
 };
@@ -595,6 +596,7 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
                     <td className="px-3 py-2">
                       {METHOD_LABEL[p.method] ?? p.method}
                       {p.checkNumber ? ` #${p.checkNumber}` : ""}
+                      {p.transactionId ? ` · Txn ${p.transactionId}` : ""}
                     </td>
                     <td className="px-3 py-2 text-right">{money(p.amount)}</td>
                     <td className="px-3 py-2 text-admin-ink/70">{p.note ?? ""}</td>
