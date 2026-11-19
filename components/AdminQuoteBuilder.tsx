@@ -5173,43 +5173,55 @@ function SizeGrid({
           Total: <span className="text-admin-accent">{totalQty}</span> {totalQty === 1 ? "unit" : "units"}
         </p>
       )}
-      <table className="text-xs border-collapse w-full min-w-[480px]">
+      {/* ShopVox-style grid: a label column plus one fixed-width column per
+          size, every cell centred, so Size / Quantity / Cost / Markup /
+          Price / Line total all line up vertically. */}
+      <table className="text-xs border-collapse table-fixed w-auto">
+        <colgroup>
+          <col className="w-[112px]" />
+          {sizes.map((sz) => (
+            <col key={sz.name} className="w-[88px]" />
+          ))}
+        </colgroup>
         <thead>
-          <tr>
-            <th className="text-left pr-3 py-1 text-admin-ink/72 font-medium">Size</th>
+          <tr className="bg-admin-ink/[0.04]">
+            <th className="text-right pr-3 py-1.5 text-admin-ink/72 font-medium border border-admin-ink/10">Size</th>
             {sizes.map((sz) => (
-              <th key={sz.name} className="text-center px-2 py-1 text-admin-ink font-semibold">
+              <th key={sz.name} className="text-center py-1.5 text-admin-ink font-semibold border border-admin-ink/10">
                 {sz.name}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          <tr className="border-t border-admin-ink/10">
-            <td className="pr-3 py-1.5 text-admin-ink/72">Quantity</td>
+          <tr className="bg-admin-ink/[0.02]">
+            <td className="text-right pr-3 py-1.5 text-admin-ink/72 border border-admin-ink/10">Quantity</td>
             {sizes.map((sz) => (
-              <td key={sz.name} className="px-1 py-1.5">
+              <td key={sz.name} className="text-center px-1.5 py-1.5 border border-admin-ink/10">
                 <input
                   type="number"
                   min={0}
                   value={sizeQty[sz.name] ?? 0}
+                  onFocus={(e) => e.currentTarget.select()}
                   onChange={(e) => {
                     const v = Math.max(0, Number(e.target.value) || 0);
                     setSizeQty((prev) => ({ ...prev, [sz.name]: v }));
                   }}
-                  className="w-16 border border-admin-ink/20 rounded-xl px-1.5 py-1 text-center text-sm"
+                  className={`w-[76px] border rounded-md px-1 py-1 text-center text-sm tabular-nums bg-white ${
+                    (sizeQty[sz.name] ?? 0) > 0 ? "border-admin-accent font-semibold" : "border-admin-ink/20"
+                  }`}
                 />
               </td>
             ))}
           </tr>
           {showMarkup && (
             <>
-              <tr className="border-t border-admin-ink/5">
-                <td className="pr-3 py-1 text-admin-ink/72">Item Cost</td>
+              <tr>
+                <td className="text-right pr-3 py-1.5 text-admin-ink/72 border border-admin-ink/10">Item Cost</td>
                 {sizes.map((sz) => {
                   const ef = effective(sz);
                   return (
-                    <td key={sz.name} className="px-1 py-1 text-center">
+                    <td key={sz.name} className="text-center px-1.5 py-1.5 border border-admin-ink/10">
                       <GarmentInput
                         prefix="$"
                         step="0.01"
@@ -5222,12 +5234,12 @@ function SizeGrid({
                   );
                 })}
               </tr>
-              <tr className="border-t border-admin-ink/5">
-                <td className="pr-3 py-1 text-admin-ink/72">Item Markup (%)</td>
+              <tr>
+                <td className="text-right pr-3 py-1.5 text-admin-ink/72 border border-admin-ink/10">Item Markup (%)</td>
                 {sizes.map((sz) => {
                   const ef = effective(sz);
                   return (
-                    <td key={sz.name} className="px-1 py-1 text-center">
+                    <td key={sz.name} className="text-center px-1.5 py-1.5 border border-admin-ink/10">
                       <GarmentInput
                         suffix="%"
                         step="1"
@@ -5242,12 +5254,12 @@ function SizeGrid({
               </tr>
             </>
           )}
-          <tr className="border-t border-admin-ink/5">
-            <td className="pr-3 py-1 text-admin-ink/72">Item Price</td>
+          <tr>
+            <td className="text-right pr-3 py-1.5 text-admin-ink/72 border border-admin-ink/10">Item Price</td>
             {sizes.map((sz) => {
               const ef = effective(sz);
               return (
-                <td key={sz.name} className="px-1 py-1 text-center font-medium">
+                <td key={sz.name} className="text-center px-1.5 py-1.5 border border-admin-ink/10 font-medium">
                   <GarmentInput
                     prefix="$"
                     step="0.01"
@@ -5261,12 +5273,12 @@ function SizeGrid({
               );
             })}
           </tr>
-          <tr className="border-t border-admin-ink/10">
-            <td className="pr-3 py-1 text-admin-ink/72">Line total</td>
+          <tr className="bg-admin-ink/[0.02]">
+            <td className="text-right pr-3 py-1.5 text-admin-ink/72 border border-admin-ink/10">Line total</td>
             {sizes.map((sz) => {
               const qty = sizeQty[sz.name] ?? 0;
               return (
-                <td key={sz.name} className="px-2 py-1 text-center text-admin-ink/88">
+                <td key={sz.name} className="text-center py-1.5 border border-admin-ink/10 tabular-nums text-admin-ink/88">
                   {qty > 0 ? `$${(qty * effective(sz).price).toFixed(2)}` : "—"}
                 </td>
               );
@@ -5303,9 +5315,13 @@ function GarmentInput({
   title?: string;
   resetTitle?: string;
 }) {
+  // Fixed width with the $ / % drawn inside the box and the ↺ pinned to the
+  // corner, so an override never shifts the cell and columns stay aligned.
   return (
-    <span className="inline-flex items-center gap-0.5">
-      {prefix}
+    <span className="relative inline-block w-[76px] align-middle">
+      {prefix && (
+        <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-admin-ink/45">{prefix}</span>
+      )}
       <input
         type="number"
         step={step}
@@ -5315,17 +5331,20 @@ function GarmentInput({
         onChange={(e) =>
           onChange(e.target.value === "" ? undefined : Math.max(0, Number(e.target.value) || 0))
         }
-        className={`w-16 border rounded px-1 py-0.5 ${
-          active ? "border-amber-400 bg-amber-50 text-amber-900" : "border-admin-ink/20 bg-transparent"
-        }`}
+        className={`w-full border rounded-md py-1 text-center tabular-nums ${prefix ? "pl-3.5" : "pl-1"} ${
+          suffix ? "pr-4" : "pr-1"
+        } ${active ? "border-amber-400 bg-amber-50 text-amber-900" : "border-admin-ink/20 bg-white"}`}
       />
-      {suffix}
+      {suffix && (
+        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-admin-ink/45">{suffix}</span>
+      )}
       {active && (
         <button
           type="button"
           onClick={() => onChange(undefined)}
           title={resetTitle}
-          className="text-admin-ink/50 hover:text-admin-ink shrink-0"
+          aria-label={resetTitle ?? "Revert"}
+          className="absolute -top-2 -right-2 h-4 w-4 rounded-full bg-white border border-amber-400 text-[10px] leading-none text-amber-700 hover:bg-amber-100"
         >
           ↺
         </button>
