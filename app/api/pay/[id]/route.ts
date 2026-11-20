@@ -4,6 +4,7 @@ import { getSquareClient, getSquareLocationId, isSquareConfigured } from "@/lib/
 import { sendInvoicePaymentNotification, sendInvoiceReceiptEmail } from "@/lib/email";
 import { loadLineMockups } from "@/lib/mockup-links";
 import { unconfirmedSanmarCosts, unconfirmedCostMessage } from "@/lib/price-check";
+import { cardKeyForRecord, cardLabel, chargeSavedCard, getSavedCards, saveCardFromPayment } from "@/lib/saved-cards-store";
 import { renderQuotePdf, CHECK_PAYABLE_TO, CHECK_MAIL_TO, ZELLE_EMAIL, ZELLE_PAY_URL } from "@/lib/quote-pdf";
 
 // Loose email format check — good enough to catch obvious typos before
@@ -94,7 +95,22 @@ type CustomerInvoiceSummary = {
     createdAt: string;
     note?: string;
   }>;
+  // Cards this customer saved on file (brand / last 4 / expiry only) —
+  // shown as "Pay with Visa •••• 4242". See lib/saved-cards-store.ts.
+  savedCards?: Array<{ id: string; label: string; exp: string }>;
 };
+
+async function withSavedCards(record: QuoteRecord, summary: CustomerInvoiceSummary): Promise<CustomerInvoiceSummary> {
+  try {
+    const cards = await getSavedCards(cardKeyForRecord(record));
+    return {
+      ...summary,
+      savedCards: cards.map((c) => ({ id: c.id, label: cardLabel(c), exp: `${String(c.expMonth).padStart(2, "0")}/${String(c.expYear).slice(-2)}` })),
+    };
+  } catch {
+    return summary;
+  }
+}
 
 function toCustomerSummary(record: QuoteRecord): CustomerInvoiceSummary {
   const grandTotal = record.computed.grandTotal;
@@ -190,7 +206,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       { status: 409 }
     );
   }
-  return NextResponse.json({ invoice: toCustomerSummary(record) });
+  return NextResponse.json({ invoice: await withSavedCards(record, toCustomerSummary(record)) });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -220,7 +236,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // input is just dropped rather than rejecting the whole payment over it.
   const receiptEmail: string | null =
     typeof body?.email === "string" && EMAIL_RE.test(body.email.trim()) ? body.email.trim() : null;
-  if (typeof sourceId !== "string" || !sourceId) {
+  // Pay with a card already on file (instead of a fresh card token).
+  const savedCardId: string | null = typeof body?.savedCardId === "string" && body.savedCardId ? body.savedCardId : null;
+  // "Save this card for future orders" — plain card payments only (Apple /
+  // Google Pay tokens can't be stored).
+  const saveCard = body?.saveCard === true && walletMethod === "card" && !savedCardId;
+  if (!savedCardId && (typeof sourceId !== "string" || !sourceId)) {
     return NextResponse.json({ error: "Missing payment source" }, { status: 400 });
   }
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -241,6 +262,42 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!isSquareConfigured()) {
     return NextResponse.json({ error: "Online payment isn't available right now" }, { status: 503 });
+  }
+
+  const paymentNote = record.invoiceNumber
+    ? `Invoice ${record.invoiceNumber}`
+    : record.quoteNumber
+      ? `Quote ${record.quoteNumber}${record.computed.depositPercent && record.computed.depositPercent < 100 ? " deposit" : ""}`
+      : `Payment ${id.slice(0, 8)}`;
+
+  if (savedCardId) {
+    try {
+      const { paymentId, card } = await chargeSavedCard(record, savedCardId, amount, paymentNote);
+      const { record: updated, persisted } = await recordInvoicePayment(id, {
+        amount,
+        method: "square_card",
+        squarePaymentId: paymentId,
+        note: `Saved card ${cardLabel(card)} (paid by customer)`,
+      });
+      if (!updated) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+      const summary = await withSavedCards(updated, toCustomerSummary(updated));
+      void sendInvoicePaymentNotification({
+        invoiceId: id,
+        invoiceNumber: updated.invoiceNumber,
+        customerName: updated.computed.customerName,
+        customerCompany: updated.computed.customerCompany,
+        amount,
+        method: "square_card",
+        grandTotal: summary.grandTotal,
+        amountPaid: summary.amountPaid,
+        balance: summary.balance,
+        payPageUrl: `${req.nextUrl.origin}/pay/${id}`,
+      });
+      return NextResponse.json({ ok: true, invoice: summary, persisted });
+    } catch (err) {
+      console.error(`POST /api/pay/${id} saved-card charge failed`, err);
+      return NextResponse.json({ error: err instanceof Error ? err.message : "Payment failed" }, { status: 400 });
+    }
   }
 
   try {
@@ -279,7 +336,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    const summary = toCustomerSummary(updated);
+    // Save the card on file if the customer asked to. Best-effort: the
+    // charge already went through, so a save failure is only reported.
+    let cardSaved: string | undefined;
+    let cardSaveError: string | undefined;
+    if (saveCard) {
+      try {
+        cardSaved = cardLabel(await saveCardFromPayment(updated, result.payment.id));
+      } catch (err) {
+        console.error(`POST /api/pay/${id}: saving card failed`, err);
+        cardSaveError = "Your payment went through, but we couldn't save the card. You can save it next time.";
+      }
+    }
+
+    const summary = await withSavedCards(updated, toCustomerSummary(updated));
     // Best-effort — never blocks or fails the response to the customer; the
     // charge already succeeded with Square regardless of whether this email
     // goes out.
@@ -342,7 +412,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
-    return NextResponse.json({ ok: true, invoice: summary, persisted });
+    return NextResponse.json({ ok: true, invoice: summary, persisted, cardSaved, cardSaveError });
   } catch (err) {
     console.error(`POST /api/pay/${id} failed`, err);
     return NextResponse.json(

@@ -60,6 +60,60 @@ function StatusPill({ t }: { t: RecordSummary }) {
 type ContactDraft = { id?: string; name: string; role: string; email: string; phone: string; notes: string };
 const emptyDraft: ContactDraft = { name: "", role: "", email: "", phone: "", notes: "" };
 
+// Cards the customer saved on the pay page (lib/saved-cards-store.ts). The
+// card itself lives in Square; this only lists brand / last 4 / expiry.
+function SavedCardsCard({ customerId }: { customerId: string }) {
+  const [cards, setCards] = useState<{ id: string; label: string; expMonth: number; expYear: number; savedAt: string; savedFrom?: string }[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = useCallback(() => {
+    fetch(`/api/admin/customers/${customerId}/saved-cards`)
+      .then((r) => r.json())
+      .then((d) => setCards(Array.isArray(d.cards) ? d.cards : []))
+      .catch(() => setCards([]));
+  }, [customerId]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  async function remove(id: string, label: string) {
+    if (!confirm(`Remove ${label} from this customer's cards on file? It's also removed from Square.`)) return;
+    setBusy(id);
+    await fetch(`/api/admin/customers/${customerId}/saved-cards?cardId=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+    setBusy(null);
+    load();
+  }
+  return (
+    <div className="bg-admin-card border border-admin-ink/10 rounded-2xl p-4">
+      <h2 className="font-semibold">Cards on file</h2>
+      {cards === null ? (
+        <p className="mt-1 text-sm text-admin-ink/60">Loading…</p>
+      ) : cards.length === 0 ? (
+        <p className="mt-1 text-sm text-admin-ink/60">
+          None yet. Customers can tick “Save this card for future orders” when they pay an invoice online.
+        </p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {cards.map((c) => (
+            <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span>
+                <span className="font-medium">{c.label}</span>
+                <span className="text-admin-ink/60">
+                  {" "}
+                  · exp {String(c.expMonth).padStart(2, "0")}/{String(c.expYear).slice(-2)} · saved {new Date(c.savedAt).toLocaleDateString()}
+                  {c.savedFrom ? ` from ${c.savedFrom}` : ""}
+                </span>
+              </span>
+              <button type="button" disabled={busy === c.id} onClick={() => remove(c.id, c.label)} className="text-xs text-red-700 hover:underline disabled:opacity-50">
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-admin-ink/55">To charge one, open an unpaid invoice → Payment → Charge saved card.</p>
+    </div>
+  );
+}
+
 function ContactsCard({ customer, onSaved }: { customer: Customer; onSaved: () => Promise<void> }) {
   const contacts = customer.contacts ?? [];
   const [draft, setDraft] = useState<ContactDraft | null>(null);
@@ -448,6 +502,7 @@ export default function AdminCustomerPage({ customerId }: { customerId: string }
       )}
 
       <ContactsCard customer={c} onSaved={load} />
+      <SavedCardsCard customerId={c.id} />
 
       <div className="border-b border-admin-ink/15 flex gap-6">
         {(
