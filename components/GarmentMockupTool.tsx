@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Product, ProductColor } from "@/lib/types";
 import { makeZip } from "@/lib/zip";
+import AiMockupGenerator, { type GeneratedViews } from "@/components/AiMockupGenerator";
 import type { MockupSearchResult } from "@/app/api/admin/mockup/search/route";
 import { productImageUrl, productPreviewImageUrl } from "@/lib/product-image";
 import {
@@ -76,6 +77,9 @@ export default function GarmentMockupTool() {
   const [uploadFront, setUploadFront] = useState<{ url: string; name: string } | null>(null);
   const [uploadBack, setUploadBack] = useState<{ url: string; name: string } | null>(null);
   const [uploadSide, setUploadSide] = useState<{ url: string; name: string } | null>(null);
+  // AI clean-up: turns uploaded photos (e.g. a model wearing the garment)
+  // into clean front/back/side blanks — components/AiMockupGenerator.tsx.
+  const [aiOpen, setAiOpen] = useState(false);
   const [isHat, setIsHat] = useState(false);
 
   const [supplier, setSupplier] = useState<SupplierFilter>("all");
@@ -536,6 +540,19 @@ export default function GarmentMockupTool() {
     });
   }
 
+
+  function applyAiViews(v: GeneratedViews) {
+    const pick = (...ids: string[]) => v.find((x) => ids.includes(x.id));
+    const asUpload = (x: GeneratedViews[number] | undefined) =>
+      x ? { url: URL.createObjectURL(x.blob), name: `ai-${x.id}.png` } : null;
+    const front = pick("front");
+    if (front) setUploadFront(asUpload(front));
+    const back = pick("back");
+    if (back) setUploadBack(asUpload(back));
+    const side = pick("left-side", "right-side", "side");
+    if (side) setUploadSide(asUpload(side));
+    setAiOpen(false);
+  }
   const [packing, setPacking] = useState<"zip" | "share" | null>(null);
 
   // All views in ONE .zip download — works on phones, where several
@@ -624,6 +641,20 @@ export default function GarmentMockupTool() {
                 accept="image/*"
                 onPick={setUploadSide}
               />
+              <div className="rounded-xl border border-admin-ink/15 bg-admin-ink/[0.03] p-3">
+                <p className="font-semibold">AI clean-up (optional)</p>
+                <p className="mt-0.5 text-xs text-admin-ink/65">
+                  Photo has a person, mannequin, wrinkles or a busy background? Turn it into clean front, back and side blanks first.
+                </p>
+                <button
+                  type="button"
+                  className={`${btnGhost} mt-2`}
+                  disabled={!uploadFront && !uploadBack && !uploadSide}
+                  onClick={() => setAiOpen(true)}
+                >
+                  Clean up with AI mockup generator
+                </button>
+              </div>
             </div>
           ) : (
             <div className="mt-4 flex flex-col gap-3 text-sm">
@@ -1020,6 +1051,23 @@ export default function GarmentMockupTool() {
           </>
         )}
       </section>
+      {aiOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-3 sm:p-6" onClick={() => setAiOpen(false)}>
+          <div className="mx-auto max-w-6xl rounded-2xl bg-admin-bg p-4 sm:p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-heading text-lg font-semibold">AI clean-up</h2>
+              <button type="button" className={btnGhost} onClick={() => setAiOpen(false)}>
+                Close
+              </button>
+            </div>
+            <AiMockupGenerator
+              initialImages={[uploadFront, uploadBack, uploadSide].filter((x): x is { url: string; name: string } => !!x)}
+              onUseViews={applyAiViews}
+              useLabel="Use as blank photos"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

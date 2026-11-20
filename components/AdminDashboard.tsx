@@ -8,6 +8,7 @@ import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
 import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManager";
 import GarmentMockupTool from "@/components/GarmentMockupTool";
+import AiMockupGenerator from "@/components/AiMockupGenerator";
 import AdminQuotesTab from "@/components/AdminQuotesTab";
 import AdminJobsTab from "@/components/AdminJobsTab";
 import AdminTasksTab from "@/components/AdminTasksTab";
@@ -23,7 +24,7 @@ import AdminShell, { AdminPageHeader, ADMIN_SECTION_LABELS } from "@/components/
 // via ?tab=…. Quotes is the landing section.
 const TAB_IDS = [
   "categories", "catalog", "pricing", "settings", "quick-quote", "quotes", "invoices", "jobs",
-  "tasks", "customers", "setup-charges", "garment-markup", "mockup-generator", "garment-mockup",
+  "tasks", "customers", "setup-charges", "garment-markup", "mockup-generator", "garment-mockup", "ai-mockups",
 ] as const;
 type TabId = (typeof TAB_IDS)[number];
 
@@ -42,6 +43,7 @@ const DESCRIPTIONS: Record<TabId, string> = {
   "garment-markup": "Markup added to blank garment cost, by cost range.",
   "mockup-generator": "Patch materials, shapes and settings for the custom hat mockup generator.",
   "garment-mockup": "Put a logo on a blank garment for a customer proof.",
+  "ai-mockups": "Turn any product photo (even a model wearing it) into clean front, back and side mockups with AI.",
 };
 
 // sessionStorage key used to carry Quick Quote's lines/setup charges over to
@@ -137,6 +139,7 @@ export default function AdminDashboard() {
             <GarmentMockupTool />
           </>
         )}
+        {tab === "ai-mockups" && <AiMockupGenerator />}
       </div>
     </AdminShell>
   );
