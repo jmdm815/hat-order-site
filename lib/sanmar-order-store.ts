@@ -13,6 +13,7 @@ export type SanmarOrderItem = {
   size: string;
   qty: number;
   sources: SanmarOrderSource[]; // which quotes this quantity came from (empty = added by hand)
+  sentAt?: string; // when the robot put this line in the sanmar.com shopping box (unset = still to send)
 };
 export type SanmarOrderList = {
   items: SanmarOrderItem[];
@@ -42,7 +43,14 @@ export async function getSanmarOrder(): Promise<SanmarOrderList> {
     });
     if (!res.ok) return memory ?? EMPTY;
     const data = (await res.json()) as SanmarOrderList;
-    return Array.isArray(data?.items) ? data : EMPTY;
+    if (!Array.isArray(data?.items)) return EMPTY;
+    // Lists saved before per-line tracking: everything on an "in shopping
+    // box" list was sent when the list was.
+    if (data.status === "in-shopping-box") {
+      const at = data.addedToBoxAt ?? data.updatedAt;
+      data.items = data.items.map((i) => (i.sentAt ? i : { ...i, sentAt: at }));
+    }
+    return data;
   } catch (err) {
     console.error("sanmar-order-store: read failed", err);
     return memory ?? EMPTY;
@@ -84,9 +92,11 @@ export function mergeItems(items: SanmarOrderItem[]): SanmarOrderItem[] {
       size: String(raw.size || "").trim().toUpperCase(),
       qty: Math.max(0, Math.round(Number(raw.qty) || 0)),
       sources: Array.isArray(raw.sources) ? raw.sources : [],
+      ...(typeof raw.sentAt === "string" && raw.sentAt ? { sentAt: raw.sentAt } : {}),
     };
     if (!item.style || !item.color || !item.size) continue;
-    const k = key(item);
+    // Sent and not-yet-sent quantities of the same size stay separate lines.
+    const k = `${key(item)}|${item.sentAt ? "sent" : "new"}`;
     const existing = map.get(k);
     if (!existing) {
       map.set(k, item);

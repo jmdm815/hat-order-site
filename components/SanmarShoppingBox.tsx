@@ -19,6 +19,7 @@ type Line = {
   warehouse: string;
   backorder: boolean;
 };
+export type ShoppingBoxLineView = Line;
 type Box = { lines: Line[]; count: number; subtotal: number | null; readAt: string };
 
 const money = (n: number | null) => (n == null ? "—" : `$${n.toFixed(2)}`);
@@ -30,12 +31,23 @@ const rank = (s: string) => {
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-export default function SanmarShoppingBox({ refreshKey = 0 }: { refreshKey?: number }) {
+export default function SanmarShoppingBox({
+  refreshKey = 0,
+  onBox,
+}: {
+  refreshKey?: number;
+  onBox?: (lines: Line[] | null) => void;
+}) {
   const [box, setBox] = useState<Box | null>(null);
   const [loading, setLoading] = useState<"cached" | "refresh" | "remove" | null>("cached");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+
+  // Tell the page what's in the box so the order list can sort itself.
+  useEffect(() => {
+    if (loading !== "cached") onBox?.(box?.lines ?? null);
+  }, [box, loading, onBox]);
 
   const refresh = useCallback(async () => {
     setLoading("refresh");
