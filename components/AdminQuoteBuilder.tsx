@@ -1862,6 +1862,36 @@ export default function AdminQuoteBuilder({
     setQuote(null);
   }
 
+  // "Copy line item" — duplicates every garment in a numbered line item into
+  // a NEW, separate line item (next free lineItem number for that
+  // decoration), so the two are priced on their own quantities instead of
+  // pooling for the decoration price break.
+  function copyLineItem(idxs: number[]) {
+    setLines((prev) => {
+      const sources = idxs.map((i) => prev[i]).filter(Boolean);
+      if (!sources.length) return prev;
+      const deco = sources[0].decorationId ?? "";
+      const col = sources[0].priceColumnId ?? "";
+      const used = prev
+        .filter((l) => (l.decorationId ?? "") === deco && (l.priceColumnId ?? "") === col)
+        .map((l) => l.lineItem ?? 0);
+      let n = 1;
+      while (used.includes(n)) n++;
+      const stamp = Date.now();
+      const copies: PendingLine[] = sources.map((src, k) => ({
+        ...src,
+        key: `${src.customerSupplied ? "cs" : src.styleNumber}-${src.colorName ?? ""}-li${n}-${stamp}-${k}`,
+        sizes: src.sizes.map((sz) => ({ ...sz })),
+        lineItem: n,
+      }));
+      const insertAt = Math.max(...idxs) + 1;
+      const next = [...prev];
+      next.splice(insertAt, 0, ...copies);
+      return next;
+    });
+    setQuote(null);
+  }
+
   // Inline editing of an already-added garment line's color and/or
   // size/quantity breakdown, directly in the Items list — without removing
   // and re-adding it through the "Add a garment" picker. See
@@ -3293,9 +3323,19 @@ export default function AdminQuoteBuilder({
                           </div>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-[11px] uppercase tracking-wide text-admin-ink/50">Line total</div>
-                        <div className="font-semibold text-admin-ink">{formatUSD(groupTotal)}</div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => copyLineItem(group.idxs)}
+                          title="Copy this whole line item into a new, separate line item — the two are priced on their own quantities"
+                          className="text-xs px-2.5 py-1 rounded-lg border border-admin-ink/25 bg-admin-card text-admin-ink/88 hover:bg-admin-ink/5"
+                        >
+                          Copy line item
+                        </button>
+                        <div className="text-right">
+                          <div className="text-[11px] uppercase tracking-wide text-admin-ink/50">Line total</div>
+                          <div className="font-semibold text-admin-ink">{formatUSD(groupTotal)}</div>
+                        </div>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -3496,7 +3536,7 @@ export default function AdminQuoteBuilder({
                                   className="border border-admin-ink/20 rounded-lg px-1 py-0.5 text-xs bg-admin-card"
                                 >
                                   <option value={0}>With decoration</option>
-                                  {[1, 2, 3, 4].map((n) => (
+                                  {Array.from({ length: Math.max(4, ...lines.map((l) => l.lineItem ?? 0)) }, (_, k) => k + 1).map((n) => (
                                     <option key={n} value={n}>
                                       Separate {String.fromCharCode(64 + n)}
                                     </option>
