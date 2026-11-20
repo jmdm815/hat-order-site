@@ -537,14 +537,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
             </div>
           )}
 
-          <div className="mt-5">
-            <InvoicePayForm
-              amount={amountValid ? amountNum : 0}
-              disabled={!amountValid || savedPaying}
-              onPay={handlePay}
-            />
-          </div>
-          <label className="mt-3 flex items-start gap-2 text-xs text-admin-ink/75">
+          <label className="mt-5 flex items-start gap-2 text-xs text-admin-ink/75">
             <input type="checkbox" className="mt-0.5" checked={saveCard} onChange={(e) => setSaveCard(e.target.checked)} />
             <span>
               <span className="font-semibold text-admin-ink">Save this card for future orders.</span> I authorize JM Digital Media to keep this card on file
@@ -552,6 +545,13 @@ export default function InvoicePayClient({ id }: { id: string }) {
               Apple Pay or Google Pay.)
             </span>
           </label>
+          <div className="mt-3">
+            <InvoicePayForm
+              amount={amountValid ? amountNum : 0}
+              disabled={!amountValid || savedPaying}
+              onPay={handlePay}
+            />
+          </div>
           {error && <p className="mt-2 text-sm text-red font-medium">{error}</p>}
         </div>
       )}
