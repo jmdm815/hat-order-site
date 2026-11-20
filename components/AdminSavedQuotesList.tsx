@@ -82,6 +82,11 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
   // Delete dialog (optional reason).
   const [deleteTarget, setDeleteTarget] = useState<QuoteRecord | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
+  // Multi-select for bulk archive / delete (and restore in Recently deleted).
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   function load() {
     setLoading(true);
@@ -283,6 +288,55 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
     }
   }
 
+  // Runs one action over every selected record, one request at a time, and
+  // reports any that failed instead of stopping at the first.
+  async function runBulk(action: "archive" | "unarchive" | "delete" | "restore" | "purge", ids: string[], reason?: string) {
+    if (!ids.length) return;
+    if (action === "purge" && !confirm(`Permanently delete ${ids.length} item${ids.length > 1 ? "s" : ""}? This can't be undone.`)) return;
+    setBulkBusy(true);
+    setError(null);
+    const failed: string[] = [];
+    const failedIds: string[] = [];
+    for (const id of ids) {
+      try {
+        let res: Response;
+        if (action === "archive" || action === "unarchive") {
+          res = await fetch(`/api/admin/quotes/${id}/archive`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ archived: action === "archive" }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          setRecords((prev) => prev.map((r) => (r.id === id ? data.record : r)));
+        } else if (action === "delete") {
+          res = await fetch(`/api/admin/quotes/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: reason?.trim() || undefined }),
+          });
+          if (!res.ok) throw new Error((await res.json()).error);
+          setRecords((prev) => prev.filter((r) => r.id !== id));
+        } else if (action === "restore") {
+          res = await fetch(`/api/admin/quotes/${id}/restore`, { method: "POST" });
+          if (!res.ok) throw new Error((await res.json()).error);
+          setRecords((prev) => prev.filter((r) => r.id !== id));
+        } else {
+          res = await fetch(`/api/admin/quotes/${id}/permanent-delete`, { method: "DELETE" });
+          if (!res.ok) throw new Error((await res.json()).error);
+          setRecords((prev) => prev.filter((r) => r.id !== id));
+        }
+      } catch {
+        const r = records.find((x) => x.id === id);
+        failed.push((r?.status === "invoice" ? r.invoiceNumber : r?.quoteNumber) ?? id);
+        failedIds.push(id);
+      }
+    }
+    setSelected(new Set(failedIds));
+    if (failed.length) setError(`Couldn't update: ${failed.join(", ")}`);
+    setBulkBusy(false);
+  }
+
   async function handlePermanentDelete(id: string) {
     if (!confirm("Permanently delete this? This can't be undone.")) return;
     setBusyId(id);
@@ -305,8 +359,32 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
 
   const archivedCount = view === "deleted" ? 0 : records.filter((r) => r.archivedAt).length;
   const activeCount = view === "deleted" ? records.length : records.length - archivedCount;
-  const shown =
-    view === "deleted" ? records : records.filter((r) => (archiveView === "archived" ? !!r.archivedAt : !r.archivedAt));
+  const q = query.trim().toLowerCase();
+  const shown = (
+    view === "deleted" ? records : records.filter((r) => (archiveView === "archived" ? !!r.archivedAt : !r.archivedAt))
+  ).filter(
+    (r) =>
+      !q ||
+      [r.quoteNumber, r.invoiceNumber, r.computed.customerName, r.computed.customerCompany, r.computed.customerEmail]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+  );
+  const shownSelected = shown.filter((r) => selected.has(r.id));
+  const allShownSelected = shown.length > 0 && shownSelected.length === shown.length;
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleAllShown = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allShownSelected) shown.forEach((r) => next.delete(r.id));
+      else shown.forEach((r) => next.add(r.id));
+      return next;
+    });
 
   const emptyMessage =
     view === "deleted"
@@ -336,7 +414,10 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
             <button
               key={v}
               type="button"
-              onClick={() => setArchiveView(v)}
+              onClick={() => {
+                setArchiveView(v);
+                setSelected(new Set());
+              }}
               className={`px-3 py-1 rounded-lg font-medium ${
                 archiveView === v ? "bg-admin-ink text-admin-card" : "text-admin-ink/70 hover:text-admin-ink"
               }`}
@@ -347,8 +428,58 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
         </div>
       )}
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search customer, company, email or #"
+          className="w-full sm:w-72 rounded-xl border border-admin-ink/20 bg-admin-card px-3 py-1.5 text-sm"
+        />
+        {shownSelected.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-admin-ink/20 bg-admin-ink/[0.04] px-3 py-1.5 text-sm">
+            <span className="font-semibold">{shownSelected.length} selected</span>
+            {view === "deleted" ? (
+              <>
+                <button type="button" disabled={bulkBusy} onClick={() => runBulk("restore", shownSelected.map((r) => r.id))} className="rounded-lg border border-admin-ink/25 bg-admin-card px-2.5 py-1 text-xs font-semibold hover:bg-admin-ink/5 disabled:opacity-50">
+                  Restore
+                </button>
+                <button type="button" disabled={bulkBusy} onClick={() => runBulk("purge", shownSelected.map((r) => r.id))} className="rounded-lg border border-red-300 bg-admin-card px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50">
+                  Delete forever
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => runBulk(archiveView === "archived" ? "unarchive" : "archive", shownSelected.map((r) => r.id))}
+                  className="rounded-lg border border-admin-ink/25 bg-admin-card px-2.5 py-1 text-xs font-semibold hover:bg-admin-ink/5 disabled:opacity-50"
+                >
+                  {archiveView === "archived" ? "Unarchive" : "Archive"}
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => {
+                    setDeleteReason("");
+                    setBulkDeleteOpen(true);
+                  }}
+                  className="rounded-lg border border-red-300 bg-admin-card px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                >
+                  Delete…
+                </button>
+              </>
+            )}
+            <button type="button" disabled={bulkBusy} onClick={() => setSelected(new Set())} className="text-xs text-admin-ink/60 hover:text-admin-ink">
+              Clear
+            </button>
+            {bulkBusy && <span className="text-xs text-admin-ink/60">Working…</span>}
+          </div>
+        )}
+      </div>
+
       {shown.length === 0 ? (
-        <p className="text-sm text-admin-ink/62">{emptyMessage}</p>
+        <p className="text-sm text-admin-ink/62">{q ? "Nothing matches that search." : emptyMessage}</p>
       ) : (
         <div className="border border-admin-ink/10 rounded-2xl bg-admin-card overflow-visible">
           {/* Fixed-width columns (QT#, Units, Total, Status, Date, Actions)
@@ -368,6 +499,9 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
           <table className="w-full min-w-[640px] text-sm border-collapse">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-admin-ink/50 border-b border-admin-ink/10">
+                <th className="px-3 py-2 w-8">
+                  <input type="checkbox" aria-label="Select all shown" checked={allShownSelected} onChange={toggleAllShown} />
+                </th>
                 <th className="font-medium px-3 py-2 w-24">{view === "invoices" ? "Inv #" : "QT #"}</th>
                 <th className="font-medium px-3 py-2">Customer</th>
                 <th className="font-medium px-3 py-2 w-20 text-right">Units</th>
@@ -390,8 +524,16 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     onClick={() => view !== "deleted" && onEdit(r.id)}
                     className={`border-b border-admin-ink/5 last:border-b-0 ${
                       i % 2 === 1 ? "bg-admin-ink/[0.025]" : ""
-                    } ${view !== "deleted" ? "cursor-pointer hover:bg-admin-ink/[0.07]" : ""}`}
+                    } ${view !== "deleted" ? "cursor-pointer hover:bg-admin-ink/[0.07]" : ""} ${selected.has(r.id) ? "!bg-admin-accent/10" : ""}`}
                   >
+                    <td className="px-3 py-2.5 align-middle" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${(r.status === "invoice" ? r.invoiceNumber : r.quoteNumber) ?? "record"}`}
+                        checked={selected.has(r.id)}
+                        onChange={() => toggleOne(r.id)}
+                      />
+                    </td>
                     <td className="px-3 py-2.5 align-middle whitespace-nowrap">
                       {view !== "deleted" ? (
                         <DocNumberButton id={r.id} number={(r.status === "invoice" ? r.invoiceNumber : r.quoteNumber) ?? "Open"} />
@@ -798,6 +940,47 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                 className="px-3 py-1.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setBulkDeleteOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-admin-card p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-admin-ink">
+              Delete {shownSelected.length} {view === "invoices" ? "invoice" : "quote"}
+              {shownSelected.length > 1 ? "s" : ""}?
+            </h3>
+            <p className="mt-1 text-xs text-admin-ink/70">
+              {shownSelected.map((r) => (r.status === "invoice" ? r.invoiceNumber : r.quoteNumber)).join(", ")}. They go to Recently deleted and
+              are removed for good after {DELETED_RETENTION_DAYS} days.
+            </p>
+            <label className="mt-3 block text-xs text-admin-ink/80">
+              Reason (optional, applies to all)
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                rows={3}
+                autoFocus
+                placeholder="e.g. duplicate options, customer picked another quote"
+                className="mt-1 w-full border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm"
+              />
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setBulkDeleteOpen(false)} className="px-3 py-1.5 rounded-xl text-sm border border-admin-ink/20">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkDeleteOpen(false);
+                  void runBulk("delete", shownSelected.map((r) => r.id), deleteReason);
+                }}
+                className="px-3 py-1.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete {shownSelected.length}
               </button>
             </div>
           </div>
