@@ -22,7 +22,7 @@ import type {
 type Ref = { id: string; name: string; url: string; blob: Blob };
 type ViewState = {
   view: ViewDef;
-  status: "queued" | "generating" | "done" | "error";
+  status: "idle" | "queued" | "generating" | "done" | "error";
   url?: string; // object URL of the PNG
   blob?: Blob;
   error?: string;
@@ -114,9 +114,9 @@ export default function AiMockupGenerator({
   const [quality, setQuality] = useState<MockupQuality>("high");
   const [model, setModel] = useState<MockupModel>("sunburst");
   const [preserveBranding, setPreserveBranding] = useState(true);
-  const [wantViews, setWantViews] = useState<string[]>(APPAREL.map((v) => v.id));
   const [description, setDescription] = useState<ProductDescription | null>(null);
   const [views, setViews] = useState<ViewState[]>([]);
+  const [primaryId, setPrimaryId] = useState<string | null>(null);
   const [phase, setPhase] = useState<"idle" | "analyzing" | "generating" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<ViewState | null>(null);
@@ -239,12 +239,16 @@ export default function AiMockupGenerator({
     }
   }
 
+  // Analyze, then generate ONLY the main view the photos show (usually the
+  // front). The other views are offered as buttons and generated on demand,
+  // each using the main view as its consistency reference.
   async function generateAll() {
     if (!refs.length) return setError("Add at least one product photo.");
     setError(null);
     setPhase("analyzing");
     views.forEach((v) => v.url && URL.revokeObjectURL(v.url));
     setViews([]);
+    setPrimaryId(null);
     let d: ProductDescription;
     try {
       const f = new FormData();
@@ -258,36 +262,45 @@ export default function AiMockupGenerator({
     }
     setDescription(d);
     const isApparel = d.category === "apparel_top" || d.category === "apparel_bottom";
-    const list = isApparel ? APPAREL.filter((v) => wantViews.includes(v.id)) : d.suggestedViews.slice(0, 4);
-    if (!list.length) {
-      setError("Pick at least one view.");
-      setPhase("idle");
-      return;
-    }
-    setViews(list.map((v) => ({ view: v, status: "queued", inferred: !d.visibleViews.includes(v.id) })));
+    const list = isApparel ? APPAREL : d.suggestedViews.slice(0, 5);
+    const primary = list.find((v) => d.visibleViews.includes(v.id)) ?? list[0];
+    setPrimaryId(primary.id);
+    setViews(
+      [primary, ...list.filter((v) => v.id !== primary.id)].map((v) => ({
+        view: v,
+        status: v.id === primary.id ? "queued" : "idle",
+        inferred: !d.visibleViews.includes(v.id),
+      })),
+    );
     setPhase("generating");
-    // Primary first, then the rest two at a time with the primary attached.
-    const [primary, ...rest] = list;
-    const pBlob = await genView(d, primary);
-    const queue = [...rest];
-    const worker = async () => {
-      while (queue.length) {
-        const v = queue.shift()!;
-        await genView(d, v, { primary: pBlob ?? undefined });
-      }
-    };
-    await Promise.all([worker(), worker()]);
+    await genView(d, primary);
     setPhase("done");
   }
 
+  // Generate one or more of the not-yet-made views, two at a time.
+  async function generateMore(ids: string[]) {
+    if (!description) return;
+    const d = description;
+    const primary = primaryBlob();
+    const queue = viewsRef.current.filter((v) => ids.includes(v.view.id)).map((v) => v.view);
+    queue.forEach((v) => patchView(v.id, { status: "queued" }));
+    const worker = async () => {
+      while (queue.length) {
+        const v = queue.shift()!;
+        await genView(d, v, { primary });
+      }
+    };
+    await Promise.all([worker(), worker()]);
+  }
+
   function primaryBlob(): Blob | undefined {
-    const p = viewsRef.current[0];
+    const p = viewsRef.current.find((v) => v.view.id === primaryId);
     return p?.status === "done" ? p.blob : undefined;
   }
 
   function regenerate(v: ViewState) {
     if (!description) return;
-    const isPrimary = viewsRef.current[0]?.view.id === v.view.id;
+    const isPrimary = v.view.id === primaryId;
     void genView(description, v.view, { primary: isPrimary ? undefined : primaryBlob() });
   }
 
@@ -313,8 +326,10 @@ export default function AiMockupGenerator({
     }
   }
 
-  const busy = phase === "analyzing" || views.some((v) => v.status === "generating");
-  const isApparelChoice = !description || description.category === "apparel_top" || description.category === "apparel_bottom";
+  const busy = phase === "analyzing" || views.some((v) => v.status === "generating" || v.status === "queued");
+  const shown = views.filter((v) => v.status !== "idle");
+  const notMade = views.filter((v) => v.status === "idle");
+  const primaryReady = views.some((v) => v.view.id === primaryId && v.status === "done" && !!v.blob);
 
   return (
     <div className="space-y-5">
@@ -390,24 +405,6 @@ export default function AiMockupGenerator({
               <Seg label="Background" value={background} onChange={setBackground} options={[["white", "White"], ["light-gray", "Light gray"], ["transparent", "Transparent"]]} />
               <Seg label="Quality" value={quality} onChange={setQuality} options={[["standard", "Standard"], ["high", "High"]]} />
               <Seg label="Model" value={model} onChange={setModel} options={[["sunburst", "High fidelity"], ["flare", "Faster"]]} />
-              {isApparelChoice && (
-                <div>
-                  <span className="block text-xs font-medium text-admin-ink/70 mb-1">Views (apparel)</span>
-                  <div className="flex flex-wrap gap-3">
-                    {APPAREL.map((v) => (
-                      <label key={v.id} className="flex items-center gap-1.5">
-                        <input
-                          type="checkbox"
-                          checked={wantViews.includes(v.id)}
-                          onChange={(e) => setWantViews((p) => (e.target.checked ? [...p, v.id] : p.filter((x) => x !== v.id)))}
-                        />
-                        {v.label}
-                      </label>
-                    ))}
-                  </div>
-                  <span className="block text-[11px] text-admin-ink/50 mt-1">Other products get the best views for their shape automatically.</span>
-                </div>
-              )}
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={preserveBranding} onChange={(e) => setPreserveBranding(e.target.checked)} />
                 Preserve existing branding
@@ -415,7 +412,7 @@ export default function AiMockupGenerator({
               </label>
             </div>
             <button type="button" className={`${btnPrimary} mt-4 w-full`} disabled={busy || !refs.length} onClick={generateAll}>
-              {phase === "analyzing" ? "Analyzing photos…" : busy ? "Generating…" : views.length ? "Generate again" : "Generate mockups"}
+              {phase === "analyzing" ? "Analyzing photos…" : busy ? "Generating…" : views.length ? "Start over" : "Generate mockup"}
             </button>
             {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
           </section>
@@ -462,13 +459,13 @@ export default function AiMockupGenerator({
             </details>
           )}
 
-          {!views.length ? (
+          {!shown.length ? (
             <div className="mt-4 flex min-h-64 items-center justify-center rounded-xl border border-dashed border-admin-ink/20 text-sm text-admin-ink/55">
               {phase === "analyzing" ? "Reading the product…" : "Your mockups will appear here."}
             </div>
           ) : (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              {views.map((v) => (
+              {shown.map((v) => (
                 <div key={v.view.id} className={`rounded-xl border p-3 ${v.approved ? "border-green-600 ring-1 ring-green-600" : "border-admin-ink/15"}`}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold text-sm">
@@ -543,6 +540,29 @@ export default function AiMockupGenerator({
                   {v.model && <p className="mt-1 text-[10px] text-admin-ink/40">{v.model}</p>}
                 </div>
               ))}
+            </div>
+          )}
+          {notMade.length > 0 && (
+            <div className="mt-4 rounded-xl border border-dashed border-admin-ink/25 p-3">
+              <p className="text-sm font-semibold">More views</p>
+              <p className="text-xs text-admin-ink/60">
+                {primaryReady
+                  ? "Generated from your photos and matched to the main view above."
+                  : "Available once the main view is done."}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {notMade.map((v) => (
+                  <button key={v.view.id} type="button" className={btnGhost} disabled={!primaryReady || busy} onClick={() => generateMore([v.view.id])}>
+                    + {v.view.label}
+                    {v.inferred ? " (AI-inferred)" : ""}
+                  </button>
+                ))}
+                {notMade.length > 1 && (
+                  <button type="button" className={btnPrimary} disabled={!primaryReady || busy} onClick={() => generateMore(notMade.map((v) => v.view.id))}>
+                    Generate all {notMade.length}
+                  </button>
+                )}
+              </div>
             </div>
           )}
           <p className="mt-4 text-[11px] text-admin-ink/50">
