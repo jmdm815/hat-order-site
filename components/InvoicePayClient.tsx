@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import InvoicePayForm, { InvoicePaymentMethod } from "./InvoicePayForm";
 
 type InvoiceSummary = {
+  savedCards?: Array<{ id: string; label: string; exp: string }>;
   id: string;
   status: "quote" | "invoice";
   invoiceNumber?: string;
@@ -103,6 +104,8 @@ const STATUS_LABEL: Record<string, string> = {
 // charge through Square. Works the same whether the record is still a
 // plain quote (a pre-invoice deposit) or has been converted to an invoice.
 export default function InvoicePayClient({ id }: { id: string }) {
+  const [saveCard, setSaveCard] = useState(false);
+  const [savedPaying, setSavedPaying] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -145,6 +148,35 @@ export default function InvoicePayClient({ id }: { id: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Charge a card the customer saved on file earlier.
+  async function payWithSavedCard(cardId: string, label: string) {
+    if (!invoice) return;
+    const amount = Number(amountInput);
+    if (!confirm(`Charge ${money(amount)} to your ${label}?`)) return;
+    setError(null);
+    setSavedPaying(true);
+    try {
+      const res = await fetch(`/api/pay/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ savedCardId: cardId, amount }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Payment failed");
+      setInvoice(data.invoice);
+      setAmountInput(data.invoice.balance > 0 ? data.invoice.balance.toFixed(2) : "0.00");
+      setSuccessMessage(
+        data.invoice.balance <= 0
+          ? `Paid with your ${label} — this invoice is now paid in full. Thank you!`
+          : `Payment of ${money(amount)} received on your ${label}. Remaining balance: ${money(data.invoice.balance)}.`
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Payment failed");
+    } finally {
+      setSavedPaying(false);
+    }
+  }
+
   async function handlePay(sourceId: string, method: InvoicePaymentMethod) {
     if (!invoice) return;
     setError(null);
@@ -153,7 +185,7 @@ export default function InvoicePayClient({ id }: { id: string }) {
       const res = await fetch(`/api/pay/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId, amount, method }),
+        body: JSON.stringify({ sourceId, amount, method, saveCard: saveCard && method === "card" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Payment failed");
@@ -162,10 +194,12 @@ export default function InvoicePayClient({ id }: { id: string }) {
       // No email is collected pre-payment anymore — this payment's own
       // receipt is now available right below, in "Payment history".
       setSuccessMessage(
-        data.invoice.balance <= 0
+        (data.invoice.balance <= 0
           ? "Payment received — this invoice is now paid in full. Thank you!"
-          : `Payment of ${money(amount)} received. Remaining balance: ${money(data.invoice.balance)}.`
+          : `Payment of ${money(amount)} received. Remaining balance: ${money(data.invoice.balance)}.`) +
+          (data.cardSaved ? ` Your ${data.cardSaved} is saved for future orders.` : data.cardSaveError ? ` ${data.cardSaveError}` : "")
       );
+      setSaveCard(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Payment failed");
     }
@@ -482,13 +516,42 @@ export default function InvoicePayClient({ id }: { id: string }) {
             <p className="mt-1 text-xs text-red">Enter an amount between $0.01 and {money(invoice.balance)}.</p>
           )}
 
+          {(invoice.savedCards?.length ?? 0) > 0 && (
+            <div className="mt-5 rounded-xl border border-admin-ink/15 p-3">
+              <p className="text-sm font-semibold text-admin-ink">Your saved card{invoice.savedCards!.length > 1 ? "s" : ""}</p>
+              <div className="mt-2 flex flex-col gap-2">
+                {invoice.savedCards!.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={!amountValid || savedPaying}
+                    onClick={() => payWithSavedCard(c.id, c.label)}
+                    className="w-full py-2.5 rounded-xl bg-admin-accent text-admin-accent-ink font-heading font-semibold hover:bg-admin-accent-dim transition disabled:opacity-40"
+                  >
+                    {savedPaying ? "Processing…" : `Pay ${amountValid ? money(amountNum) : ""} with ${c.label}`}
+                    <span className="ml-1 font-normal opacity-80">(exp {c.exp})</span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-admin-ink/60">Or pay with a different card below.</p>
+            </div>
+          )}
+
           <div className="mt-5">
             <InvoicePayForm
               amount={amountValid ? amountNum : 0}
-              disabled={!amountValid}
+              disabled={!amountValid || savedPaying}
               onPay={handlePay}
             />
           </div>
+          <label className="mt-3 flex items-start gap-2 text-xs text-admin-ink/75">
+            <input type="checkbox" className="mt-0.5" checked={saveCard} onChange={(e) => setSaveCard(e.target.checked)} />
+            <span>
+              <span className="font-semibold text-admin-ink">Save this card for future orders.</span> I authorize JM Digital Media to keep this card on file
+              with Square and charge it for future orders I approve. Card details are stored by Square, not by JM Digital Media. (Card payments only — not
+              Apple Pay or Google Pay.)
+            </span>
+          </label>
           {error && <p className="mt-2 text-sm text-red font-medium">{error}</p>}
         </div>
       )}

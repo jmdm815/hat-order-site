@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QuoteRecord, InvoicePaymentEntry } from "@/lib/quotes-store";
 
 type Props = {
@@ -64,6 +64,50 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
   const [linkAmount, setLinkAmount] = useState(suggestedLinkAmount > 0 ? suggestedLinkAmount.toFixed(2) : "0.00");
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkMessage, setLinkMessage] = useState<string | null>(null);
+  // Cards the customer saved on file from the pay page (lib/saved-cards-store.ts).
+  const [savedCards, setSavedCards] = useState<{ id: string; label: string; expMonth: number; expYear: number }[]>([]);
+  const [cardId, setCardId] = useState("");
+  const [cardAmount, setCardAmount] = useState(balance > 0 ? balance.toFixed(2) : "0.00");
+  const [cardBusy, setCardBusy] = useState(false);
+  const [cardMsg, setCardMsg] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/quotes/${record.id}/saved-cards`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !Array.isArray(d.cards)) return;
+        setSavedCards(d.cards);
+        if (d.cards[0]) setCardId(d.cards[0].id);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [record.id]);
+
+  async function chargeSaved() {
+    const amt = Number(cardAmount);
+    const card = savedCards.find((c) => c.id === cardId);
+    if (!card || !(amt > 0)) return;
+    if (!confirm(`Charge ${money(amt)} to ${card.label}? The customer asked you to run their saved card.`)) return;
+    setCardBusy(true);
+    setCardMsg(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${record.id}/saved-cards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId, amount: amt }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Charge failed");
+      setCardMsg(`Charged ${money(amt)} to ${card.label}.`);
+      onUpdated(data.record);
+    } catch (e) {
+      setCardMsg(e instanceof Error ? e.message : "Charge failed");
+    } finally {
+      setCardBusy(false);
+    }
+  }
 
   const amountNum = Number(amount);
   const amountValid = Number.isFinite(amountNum) && amountNum > 0 && amountNum <= balance + 0.02;
@@ -192,6 +236,34 @@ export default function AdminInvoicePaymentModal({ record, onClose, onUpdated }:
             </p>
           )}
         </div>
+
+        {savedCards.length > 0 && balance > 0 && (
+          <div className="mt-4 rounded-xl border border-admin-ink/15 p-3">
+            <p className="text-xs font-medium text-admin-ink/80 uppercase tracking-wide">Charge saved card</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select value={cardId} onChange={(e) => setCardId(e.target.value)} className="flex-1 min-w-0 border border-admin-ink/20 rounded-xl px-2 py-1.5 text-sm bg-admin-card">
+                {savedCards.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label} · exp {String(c.expMonth).padStart(2, "0")}/{String(c.expYear).slice(-2)}
+                  </option>
+                ))}
+              </select>
+              <div className="relative w-28">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-admin-ink/50 text-sm">$</span>
+                <input value={cardAmount} onChange={(e) => setCardAmount(e.target.value)} inputMode="decimal" className="w-full border border-admin-ink/20 rounded-xl pl-5 pr-2 py-1.5 text-sm" />
+              </div>
+              <button
+                type="button"
+                disabled={cardBusy || !(Number(cardAmount) > 0)}
+                onClick={chargeSaved}
+                className="px-3 py-1.5 rounded-xl text-sm font-semibold bg-admin-accent text-admin-accent-ink hover:bg-admin-accent-dim disabled:opacity-40"
+              >
+                {cardBusy ? "Charging…" : "Charge"}
+              </button>
+            </div>
+            {cardMsg && <p className="mt-1.5 text-xs text-admin-ink/80">{cardMsg}</p>}
+          </div>
+        )}
 
         {payments.length > 0 && (
           <div className="mt-4">
