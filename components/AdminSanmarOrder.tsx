@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import SanmarShoppingBox from "./SanmarShoppingBox";
+import SanmarShoppingBox, { type ShoppingBoxLineView } from "./SanmarShoppingBox";
 
 // ---------------------------------------------------------------------------
 // SanMar Order (/admin/sanmar-order): build the list of blanks to buy from
@@ -12,7 +12,8 @@ import SanmarShoppingBox from "./SanmarShoppingBox";
 // ---------------------------------------------------------------------------
 
 type Source = { quoteId: string; label: string; qty: number };
-type Item = { style: string; color: string; size: string; qty: number; sources: Source[] };
+type Item = { style: string; color: string; size: string; qty: number; sources: Source[]; sentAt?: string };
+type ListTab = "tosend" | "incart" | "ordered";
 type OrderList = { items: Item[]; status: "draft" | "in-shopping-box"; updatedAt: string; addedToBoxAt?: string };
 type Warehouse = { id: string; name: string; qty: number };
 type SizeInfo = { size: string; cost: number | null; total: number; dallas: number; warehouses: Warehouse[] };
@@ -38,6 +39,30 @@ const sizeRank = (s: string) => {
 const shortDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
 const groupKey = (i: { style: string; color: string }) => `${i.style}|${i.color}`;
 
+// sanmar.com's cart uses short color names ("HtGy/White" for "Heather
+// Grey/White"): each short part must be an in-order abbreviation of the
+// matching full part.
+const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9/]/g, "");
+function abbrevOf(short: string, full: string) {
+  if (!short || !full || short[0] !== full[0]) return false;
+  let j = 0;
+  for (const ch of full) if (ch === short[j]) j++;
+  return j === short.length;
+}
+function colorMatches(cart: string, list: string) {
+  const a = squash(cart).split("/");
+  const b = squash(list).split("/");
+  if (a.join("/") === b.join("/")) return true;
+  return a.length === b.length && a.every((p, k) => p === b[k] || abbrevOf(p, b[k]));
+}
+function inCart(i: Item, lines: ShoppingBoxLineView[]) {
+  const same = lines.filter((l) => l.style.toUpperCase() === i.style.toUpperCase() && l.size.toUpperCase() === i.size.toUpperCase());
+  if (!same.length) return false;
+  if (same.some((l) => colorMatches(l.color, i.color))) return true;
+  // Only one color of this style/size in the cart: treat it as this line.
+  return same.length === 1 && new Set(lines.filter((l) => l.style.toUpperCase() === i.style.toUpperCase()).map((l) => l.color)).size === 1;
+}
+
 function trackingUrl(carrier: string | undefined, num: string) {
   if ((carrier ?? "").toUpperCase().includes("FEDEX")) return `https://www.fedex.com/fedextrack/?trknbr=${num}`;
   if ((carrier ?? "").toUpperCase().includes("USPS")) return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${num}`;
@@ -50,6 +75,9 @@ export default function AdminSanmarOrder() {
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
   const [boxKey, setBoxKey] = useState(0);
+  // undefined = shopping box not read yet; null = couldn't read it.
+  const [boxLines, setBoxLines] = useState<ShoppingBoxLineView[] | null | undefined>(undefined);
+  const [tab, setTab] = useState<ListTab | null>(null);
   const [sendResult, setSendResult] = useState<{
     ok: boolean;
     detail?: string;
@@ -122,10 +150,24 @@ export default function AdminSanmarOrder() {
       .catch((e) => setHistoryError(e.message));
   }, [loadOrder]);
 
+  // Each line is still to send, sitting in the sanmar.com cart, or gone from
+  // the cart (ordered/checked out or removed there).
+  const statusOf = useCallback(
+    (i: Item): ListTab => (!i.sentAt ? "tosend" : !boxLines ? "incart" : inCart(i, boxLines) ? "incart" : "ordered"),
+    [boxLines]
+  );
+  const counts = useMemo(() => {
+    const c: Record<ListTab, number> = { tosend: 0, incart: 0, ordered: 0 };
+    for (const i of order?.items ?? []) c[statusOf(i)] += i.qty;
+    return c;
+  }, [order, statusOf]);
+  const activeTab: ListTab = tab ?? (counts.tosend ? "tosend" : counts.incart ? "incart" : counts.ordered ? "ordered" : "tosend");
+  const shownItems = useMemo(() => (order?.items ?? []).filter((i) => statusOf(i) === activeTab), [order, statusOf, activeTab]);
+
   // Live cost + stock for every style/color on the list.
   const groups = useMemo(() => {
     const map = new Map<string, { style: string; color: string; items: Item[] }>();
-    for (const i of order?.items ?? []) {
+    for (const i of shownItems) {
       const k = groupKey(i);
       if (!map.has(k)) map.set(k, { style: i.style, color: i.color, items: [] });
       map.get(k)!.items.push(i);
@@ -133,7 +175,7 @@ export default function AdminSanmarOrder() {
     const out = Array.from(map.values());
     out.forEach((g) => g.items.sort((a, b) => sizeRank(a.size) - sizeRank(b.size)));
     return out.sort((a, b) => a.style.localeCompare(b.style) || a.color.localeCompare(b.color));
-  }, [order]);
+  }, [shownItems]);
 
   useEffect(() => {
     for (const g of groups) {
@@ -161,7 +203,7 @@ export default function AdminSanmarOrder() {
     let pieces = 0;
     let cost = 0;
     let unpriced = 0;
-    for (const i of order?.items ?? []) {
+    for (const i of shownItems) {
       pieces += i.qty;
       const c = sizeInfo(i)?.cost;
       if (c) cost += c * i.qty;
@@ -169,7 +211,7 @@ export default function AdminSanmarOrder() {
     }
     return { pieces, cost, unpriced };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order, info]);
+  }, [shownItems, info]);
 
   async function post(body: unknown) {
     setBusy(true);
@@ -192,7 +234,7 @@ export default function AdminSanmarOrder() {
   }
 
   async function sendToBox() {
-    if (!order || !confirm(`Add ${totals.pieces} pieces to your SanMar shopping box? (It won't check out.)`)) return;
+    if (!order || !confirm(`Add ${counts.tosend} pieces to your SanMar shopping box? (It won't check out.)`)) return;
     setSending(true);
     setSendResult(null);
     setError(null);
@@ -203,6 +245,7 @@ export default function AdminSanmarOrder() {
       setSendResult(data);
       if (data.ok) {
         await loadOrder();
+        setTab("incart");
         setBoxKey((k) => k + 1);
       }
     } catch (e) {
@@ -243,7 +286,7 @@ export default function AdminSanmarOrder() {
   function setQty(target: Item, qty: number) {
     if (!order) return;
     const items = order.items.map((i) =>
-      groupKey(i) === groupKey(target) && i.size === target.size ? { ...i, qty: Math.max(0, qty) } : i
+      groupKey(i) === groupKey(target) && i.size === target.size && !!i.sentAt === !!target.sentAt ? { ...i, qty: Math.max(0, qty) } : i
     );
     setOrder({ ...order, items });
   }
@@ -299,43 +342,97 @@ export default function AdminSanmarOrder() {
     <div className="space-y-5">
       {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
 
+      {/* ---- What is actually in the sanmar.com box ---- */}
+      <SanmarShoppingBox refreshKey={boxKey} onBox={setBoxLines} />
+
       {/* ---- Order list ---- */}
       <section className={card}>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
             <h2 className="font-heading font-semibold uppercase tracking-wide">Order list</h2>
             <p className="text-xs text-admin-ink/70">
-              {order?.status === "in-shopping-box"
-                ? `In your SanMar shopping box${order.addedToBoxAt ? ` since ${shortDate(order.addedToBoxAt)}` : ""} — check out on sanmar.com.`
-                : "Draft — when it's ready, send it to your SanMar shopping box. Checkout stays on sanmar.com."}
+              {activeTab === "tosend"
+                ? "Not in the shopping box yet. Send them when ready — checkout stays on sanmar.com."
+                : activeTab === "incart"
+                  ? boxLines === undefined
+                    ? "Sent to the shopping box. Checking the cart…"
+                    : boxLines === null
+                      ? "Sent to the shopping box (couldn't read the cart to confirm)."
+                      : "Sent and still sitting in your SanMar shopping box."
+                  : "Sent earlier but no longer in the cart — ordered, or removed on sanmar.com."}
             </p>
           </div>
-          <div className="flex gap-2">
-            {order && order.items.length > 0 && (
-              <>
-                {order.status === "draft" && (
+          {order && order.items.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {activeTab === "tosend" && counts.tosend > 0 && (
+                <>
                   <button className={`${btn} bg-admin-accent text-admin-accent-ink font-semibold`} disabled={busy || sending} onClick={sendToBox}>
-                    {sending ? "Adding to SanMar… (~30s)" : "Send to SanMar shopping box"}
+                    {sending ? "Adding to SanMar… (~30s)" : `Send ${counts.tosend} pcs to SanMar shopping box`}
                   </button>
-                )}
+                  <button
+                    className={`${btn} border border-admin-ink/25`}
+                    disabled={busy || sending}
+                    title="Use if you already added these on sanmar.com yourself"
+                    onClick={() => {
+                      const now = new Date().toISOString();
+                      saveItems(order.items.map((i) => (statusOf(i) === "tosend" ? { ...i, sentAt: now } : i)));
+                    }}
+                  >
+                    Already in cart
+                  </button>
+                </>
+              )}
+              {activeTab === "incart" && counts.incart > 0 && (
                 <button
                   className={`${btn} border border-admin-ink/25`}
                   disabled={busy}
-                  onClick={() => saveItems(order.items, order.status === "in-shopping-box" ? "draft" : "in-shopping-box")}
+                  onClick={() => saveItems(order.items.map((i) => (statusOf(i) === "incart" ? { ...i, sentAt: undefined } : i)))}
                 >
-                  {order.status === "in-shopping-box" ? "Back to draft" : "Mark added to box"}
+                  Move back to To send
                 </button>
+              )}
+              {activeTab === "ordered" && counts.ordered > 0 && (
                 <button
                   className={`${btn} border border-red-300 text-red-700`}
                   disabled={busy}
-                  onClick={() => confirm("Clear the whole order list?") && post({ action: "clear" })}
+                  onClick={() =>
+                    confirm(`Remove the ${counts.ordered} ordered pieces from the list?`) &&
+                    saveItems(order.items.filter((i) => statusOf(i) !== "ordered"))
+                  }
                 >
-                  Clear
+                  Clear ordered
                 </button>
-              </>
-            )}
-          </div>
+              )}
+              <button
+                className={`${btn} border border-red-300 text-red-700`}
+                disabled={busy}
+                onClick={() => confirm("Clear the whole order list?") && post({ action: "clear" })}
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
+
+        {order && order.items.length > 0 && (
+          <div className="mb-3 inline-flex flex-wrap rounded-xl border border-admin-ink/20 p-1 text-sm">
+            {(
+              [
+                ["tosend", "To send"],
+                ["incart", "In cart"],
+                ["ordered", "Ordered"],
+              ] as [ListTab, string][]
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                className={`rounded-lg px-3 py-1 font-semibold ${activeTab === id ? "bg-admin-accent text-admin-accent-ink" : "hover:bg-admin-ink/5"}`}
+              >
+                {label} <span className="opacity-70">({counts[id]})</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {sendResult && (
           <div className={`mb-3 rounded-xl px-3 py-2 text-sm ${sendResult.ok ? "bg-green-50 text-green-900" : "bg-red-50 text-red-900"}`}>
@@ -360,6 +457,10 @@ export default function AdminSanmarOrder() {
           <p className="text-sm text-admin-ink/70">Loading…</p>
         ) : order.items.length === 0 ? (
           <p className="text-sm text-admin-ink/70">Nothing on the list yet. Add quotes or search a style below.</p>
+        ) : shownItems.length === 0 ? (
+          <p className="text-sm text-admin-ink/70">
+            {activeTab === "tosend" ? "Nothing waiting to send." : activeTab === "incart" ? "Nothing from this list is in the cart." : "Nothing ordered yet."}
+          </p>
         ) : (
           <div className="space-y-4">
             {groups.map((g) => {
@@ -442,8 +543,6 @@ export default function AdminSanmarOrder() {
         )}
       </section>
 
-      {/* ---- What is actually in the sanmar.com box ---- */}
-      <SanmarShoppingBox refreshKey={boxKey} />
 
       {/* ---- From quotes ---- */}
       <section className={card}>

@@ -17,11 +17,10 @@ export async function POST(req: NextRequest) {
   const dryRun = req.nextUrl.searchParams.get("dry") === "1";
   if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const order = await getSanmarOrder();
-  if (order.status === "in-shopping-box" && !dryRun) {
-    return NextResponse.json({ error: "This list is already in the shopping box. Switch it back to draft to send it again." }, { status: 409 });
-  }
-  const items: BoxItem[] = order.items.filter((i) => i.qty > 0).map(({ style, color, size, qty }) => ({ style, color, size, qty }));
-  if (!items.length) return NextResponse.json({ error: "The order list is empty." }, { status: 400 });
+  // Only lines that haven't been sent yet — sent lines are already in the box.
+  const toSend = order.items.filter((i) => i.qty > 0 && !i.sentAt);
+  const items: BoxItem[] = toSend.map(({ style, color, size, qty }) => ({ style, color, size, qty }));
+  if (!items.length) return NextResponse.json({ error: "Nothing new to send — everything on the list is already in the shopping box." }, { status: 400 });
 
   // Warehouse choice from live inventory.
   const stock = new Map<string, { name: string; qty: number }[]>();
@@ -40,7 +39,14 @@ export async function POST(req: NextRequest) {
 
   const result = await addToShoppingBox(items, warehouseFor, { dryRun });
   if (result.ok && !dryRun) {
-    await saveSanmarOrder({ ...order, status: "in-shopping-box", addedToBoxAt: new Date().toISOString() });
+    const now = new Date().toISOString();
+    const sent = new Set(toSend);
+    await saveSanmarOrder({
+      ...order,
+      items: order.items.map((i) => (sent.has(i) ? { ...i, sentAt: now } : i)),
+      status: "in-shopping-box",
+      addedToBoxAt: now,
+    });
   }
   return NextResponse.json(result, { status: result.ok ? 200 : 502 });
 }
