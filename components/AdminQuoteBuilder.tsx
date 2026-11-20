@@ -160,6 +160,7 @@ function CsPricedSizeRows({
   onChange,
   showPricing = true,
   markupBreakpoints = [],
+  defaultManualMarkup = false,
   itemPlaceholder = "Size (e.g. M, One Size)",
   addRowLabel = "+ Add size row",
 }: {
@@ -167,10 +168,11 @@ function CsPricedSizeRows({
   onChange: (next: CsPricedSizeRow[]) => void;
   showPricing?: boolean;
   markupBreakpoints?: GarmentMarkupBreakpoint[];
+  defaultManualMarkup?: boolean;
   itemPlaceholder?: string;
   addRowLabel?: string;
 }) {
-  const [manualMarkup, setManualMarkup] = useState(false);
+  const [manualMarkup, setManualMarkup] = useState(defaultManualMarkup);
 
   function updateRow(i: number, patch: Partial<CsPricedSizeRow>) {
     onChange(
@@ -1781,6 +1783,38 @@ export default function AdminQuoteBuilder({
             if (value !== undefined && n.priceOverride && n.priceOverride.kind !== "discountPercent") {
               n.priceOverride = undefined;
             }
+            return n;
+          }),
+        };
+      })
+    );
+  }
+
+  // Cost / markup / garment price on a shop-priced custom line (Pitbull hats,
+  // Custom catalog items): those store garmentCost + garmentMarkupPercent on
+  // each size directly, so edit them in place. Typing a garment price works
+  // the markup out from the cost.
+  function updateCustomSize(lineKey: string, size: string, field: "cost" | "markup" | "price", value: number | undefined) {
+    if (value === undefined) return;
+    setLines((prev) =>
+      prev.map((l) => {
+        if (l.key !== lineKey) return l;
+        return {
+          ...l,
+          sizes: l.sizes.map((s) => {
+            if (s.size !== size) return s;
+            const n: QuoteSizeInput = { ...s };
+            const cost = n.garmentCost ?? 0;
+            if (field === "cost") n.garmentCost = value;
+            if (field === "markup") n.garmentMarkupPercent = value;
+            if (field === "price") {
+              if (cost > 0) n.garmentMarkupPercent = Math.round((value / cost - 1) * 1000) / 10;
+              else {
+                n.garmentCost = value;
+                n.garmentMarkupPercent = 0;
+              }
+            }
+            if (n.priceOverride && n.priceOverride.kind !== "discountPercent") n.priceOverride = undefined;
             return n;
           }),
         };
@@ -3563,6 +3597,15 @@ export default function AdminQuoteBuilder({
                                                 resetTitle={`Revert to catalog cost ($${(s.catalogGarmentCost ?? s.garmentCost).toFixed(2)})`}
                                                 title="Item cost — marked up by the item markup"
                                               />
+                                            ) : line.manualSource === "custom" ? (
+                                              <GarmentInput
+                                                prefix="$"
+                                                step="0.01"
+                                                value={rawSize?.garmentCost ?? s.garmentCost ?? 0}
+                                                active={false}
+                                                onChange={(v) => updateCustomSize(line.key, s.size, "cost", v)}
+                                                title="Item cost"
+                                              />
                                             ) : (
                                               `$${(s.garmentCost ?? s.garmentUnitPrice).toFixed(2)}`
                                             )}
@@ -3579,6 +3622,15 @@ export default function AdminQuoteBuilder({
                                                 active={rawSize?.garmentMarkupPercentOverride !== undefined}
                                                 onChange={(v) => updateSizeGarment(line.key, s.size, "markup", v)}
                                                 resetTitle="Revert to the markup table"
+                                                title={`Item markup % (+$${(s.garmentMarkupAmount ?? 0).toFixed(2)})`}
+                                              />
+                                            ) : line.manualSource === "custom" ? (
+                                              <GarmentInput
+                                                suffix="%"
+                                                step="1"
+                                                value={Math.round((rawSize?.garmentMarkupPercent ?? s.garmentMarkupPercent ?? 0) * 10) / 10}
+                                                active={false}
+                                                onChange={(v) => updateCustomSize(line.key, s.size, "markup", v)}
                                                 title={`Item markup % (+$${(s.garmentMarkupAmount ?? 0).toFixed(2)})`}
                                               />
                                             ) : (s.garmentMarkupAmount ?? 0) > 0 ? (
@@ -3600,12 +3652,35 @@ export default function AdminQuoteBuilder({
                                             resetTitle={`Revert to cost × markup`}
                                             title="Item price — overrides cost and markup when set"
                                           />
+                                        ) : line.manualSource === "custom" ? (
+                                          <GarmentInput
+                                            prefix="$"
+                                            step="0.01"
+                                            value={Math.round(s.garmentUnitPrice * 100) / 100}
+                                            active={false}
+                                            onChange={(v) => updateCustomSize(line.key, s.size, "price", v)}
+                                            title="Item price — sets the markup from the cost"
+                                          />
                                         ) : (
                                           `$${s.garmentUnitPrice.toFixed(2)}`
                                         )}
                                       </td>
                                       <td className="pr-3 py-1">
-                                        {s.decorationUnitPrice > 0 ? `+$${s.decorationUnitPrice.toFixed(2)}` : "—"}
+                                        {line.decorationId ? (
+                                          <GarmentInput
+                                            prefix="$"
+                                            step="0.01"
+                                            value={line.decorationUnitPriceOverride ?? s.decorationUnitPrice}
+                                            active={line.decorationUnitPriceOverride !== undefined}
+                                            onChange={(v) => updateDecorationOverride(line.key, v)}
+                                            resetTitle="Revert to the decoration price table"
+                                            title="Decoration price per unit — applies to every size in this line"
+                                          />
+                                        ) : s.decorationUnitPrice > 0 ? (
+                                          `+$${s.decorationUnitPrice.toFixed(2)}`
+                                        ) : (
+                                          "—"
+                                        )}
                                       </td>
                                       <td className="pr-3 py-1">
                                         <span className="inline-flex items-center gap-0.5">
@@ -3812,6 +3887,7 @@ export default function AdminQuoteBuilder({
                               }
                               showPricing={line.manualSource === "custom"}
                               markupBreakpoints={garmentMarkupBreakpoints}
+                              defaultManualMarkup
                               itemPlaceholder={
                                 line.manualSource === "custom" ? "Item (e.g. S, Tumbler, Keychain)" : undefined
                               }
@@ -4589,6 +4665,8 @@ export default function AdminQuoteBuilder({
               onAdd={(added) => {
                 setLines((prev) => [...prev, ...added]);
                 setQuote(null);
+                // Close the panel so it's clear the hats were added.
+                setAddItemMode(null);
               }}
             />
           </>
