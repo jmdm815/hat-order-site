@@ -20,6 +20,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { id: "customers", label: "Customers", href: "/admin?tab=customers", icon: "users" },
       { id: "reports", label: "Reports", href: "/admin/reports", icon: "chart" },
       { id: "quick-quote", label: "Quick Quote", href: "/admin?tab=quick-quote", icon: "bolt" },
+      { id: "special-quotes", label: "Special Quotes", href: "/admin?tab=special-quotes", icon: "star" },
     ],
   },
   {
@@ -58,6 +59,7 @@ const ICONS = {
   receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6",
   users: "M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM22 19v-1a4 4 0 0 0-3-3.9M16 3.1a3.5 3.5 0 0 1 0 6.8",
   bolt: "M13 2 4 14h7l-1 8 9-12h-7z",
+  star: "M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z",
   briefcase: "M4 7h16v12H4zM9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M4 12h16",
   check: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
   truck: "M3 6h11v10H3zM14 9h4l3 3v4h-7M7.5 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17.5 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z",
