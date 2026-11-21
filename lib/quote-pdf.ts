@@ -80,7 +80,7 @@ const COMPANY_WEBSITE = "www.buyjmmedia.com";
 // wasted work.
 let cachedLogoBuffer: Promise<Buffer | null> | null = null;
 
-async function loadLogoBuffer(): Promise<Buffer | null> {
+export async function loadLogoBuffer(): Promise<Buffer | null> {
   if (cachedLogoBuffer) return cachedLogoBuffer;
   cachedLogoBuffer = (async () => {
     let raw: Buffer | null = null;
