@@ -135,3 +135,14 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ---- DTF gang sheet builder (/gang-sheet) ---- */
+.gs-input { margin-top: 0.25rem; display: block; width: 100%; border-radius: 0.6rem; border: 1px solid rgb(23 32 56 / 0.18); background: #fff; padding: 0.45rem 0.6rem; font-size: 0.9rem; color: #172038; }
+.gs-input:focus { outline: 2px solid #2d6cdf; outline-offset: 0; border-color: transparent; }
+.gs-btn-primary { border-radius: 0.7rem; background: #1c2338; color: #fff; font-weight: 700; padding: 0.5rem 0.9rem; font-size: 0.9rem; }
+.gs-btn-primary:hover:not(:disabled) { background: #2d4180; }
+.gs-btn { border-radius: 0.6rem; border: 1px solid rgb(23 32 56 / 0.18); background: #fff; font-weight: 600; padding: 0.4rem 0.75rem; font-size: 0.85rem; }
+.gs-btn:hover:not(:disabled) { background: #f3f5f9; }
+.gs-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.gs-btn:focus-visible, .gs-btn-primary:focus-visible { outline: 2px solid #2d6cdf; outline-offset: 2px; }
+.gs-checker { background-color: #fff; background-image: linear-gradient(45deg, #eceef3 25%, transparent 25%), linear-gradient(-45deg, #eceef3 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eceef3 75%), linear-gradient(-45deg, transparent 75%, #eceef3 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; }
