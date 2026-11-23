@@ -21,7 +21,8 @@ quotes/invoices.
 5. Order/quote requests: decipher garments/colors/sizes/decoration/deadline (look up
    styles via /api/admin/quote/search-products and /manual-product; decorations via
    /api/admin/decoration-types), match customer/past quotes, compute
-   (`POST /api/admin/quote`) and save (`POST /api/admin/quotes`) with notes starting
+   (`POST /api/admin/quote`) and save (`POST /api/admin/quotes` with `"potential": true`, so it
+   lands in the Potential Quotes tab with no QT number until Jhairson accepts it) with notes starting
    "DRAFT from email — review before sending." + assumptions; PATCH the task with quoteId.
    ALWAYS include `"dedupeKey": "email:<inbox>:<messageId>"` in the save body (same key
    as the task). Save ONCE: if the response has `"duplicate": true` (or a 409), that quote

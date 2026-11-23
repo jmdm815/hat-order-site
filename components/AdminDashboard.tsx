@@ -26,7 +26,7 @@ import AdminShell, { AdminPageHeader, ADMIN_SECTION_LABELS } from "@/components/
 // Dashboard sections, picked from the sidebar (components/AdminShell.tsx)
 // via ?tab=…. Quotes is the landing section.
 const TAB_IDS = [
-  "categories", "catalog", "pricing", "settings", "quick-quote", "quotes", "invoices", "jobs",
+  "categories", "catalog", "pricing", "settings", "quick-quote", "quotes", "potential-quotes", "invoices", "jobs",
   "tasks", "customers", "setup-charges", "garment-markup", "mockup-generator", "garment-mockup", "ai-mockups", "special-quotes", "special-invoices", "ad-studio",
 ] as const;
 type TabId = (typeof TAB_IDS)[number];
@@ -38,6 +38,7 @@ const DESCRIPTIONS: Record<TabId, string> = {
   settings: "Logo and site-wide design canvas settings.",
   "quick-quote": "Fast price check for a walk-in or phone call. Turn it into a real quote with one tap.",
   quotes: "Build, send and track quotes. Converting one creates a linked invoice.",
+  "potential-quotes": "Drafts started from emails and orders. Make one a real quote when it's ready.",
   invoices: "Invoices, payments and balances.",
   jobs: "Orders in production.",
   tasks: "Your to-do list.",
@@ -113,6 +114,7 @@ export default function AdminDashboard() {
             <AdminQuotesTab kind="quote" />
           </>
         )}
+        {tab === "potential-quotes" && <AdminQuotesTab kind="potential" />}
         {tab === "invoices" && (
           <>
             <AdminQuotesTab kind="invoice" />

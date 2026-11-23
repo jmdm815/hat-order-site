@@ -54,6 +54,12 @@ export type QuoteRecord = {
   // Set when an automated creator (inbox watcher) passed one, e.g.
   // "email:purchasing:<messageId>" — saving again with it returns this record.
   dedupeKey?: string;
+  // Potential quote — a draft the inbox watcher (or anyone) started that
+  // Jhairson hasn't accepted yet. Shown only in the "Potential Quotes" tab,
+  // never in the Quotes to-do list. Gets no QT number until it's promoted
+  // (setQuotePotential(id, false)).
+  potential?: boolean;
+  promotedAt?: string;
   createdAt: string;
   updatedAt: string;
   // When the quote's content (customer, lines, terms…) was last saved —
@@ -558,7 +564,8 @@ export class QuoteDuplicatePendingError extends Error {
 export async function createQuote(
   input: QuoteInput,
   computed: ComputedQuote,
-  dedupeKey?: string
+  dedupeKey?: string,
+  opts: { potential?: boolean } = {}
 ): Promise<CreateResult> {
   const id = uuid();
   const existingId = await claimDedupe(dedupeKey, id);
@@ -568,7 +575,7 @@ export async function createQuote(
   const record: QuoteRecord = {
     id,
     ...(dedupeKey ? { dedupeKey } : {}),
-    quoteNumber: await nextQuoteNumber(all),
+    ...(opts.potential ? { potential: true } : { quoteNumber: await nextQuoteNumber(all) }),
     createdAt: now,
     updatedAt: now,
     input,
@@ -690,6 +697,31 @@ export async function setQuoteArchived(
   return { record: updated, persisted };
 }
 
+// Potential quotes: move a quote into (true) or out of (false) the
+// "Potential Quotes" list. Promoting gives it a QT number if it has none.
+export async function setQuotePotential(
+  id: string,
+  potential: boolean
+): Promise<{ record: QuoteRecord | null; persisted: boolean }> {
+  const existing = await readRecord(id);
+  if (!existing || existing.status !== "quote") return { record: null, persisted: true };
+  let updated: QuoteRecord;
+  if (potential) {
+    updated = { ...existing, potential: true, updatedAt: new Date().toISOString() };
+  } else {
+    const quoteNumber = existing.quoteNumber ?? (await nextQuoteNumber(await getQuotes()));
+    updated = {
+      ...existing,
+      potential: undefined,
+      quoteNumber,
+      promotedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  const { persisted } = await writeRecord(updated);
+  return { record: updated, persisted };
+}
+
 // Actually removes the blob — the "Delete permanently" button in
 // "Recently deleted", and what purgeExpiredDeletedQuotes() calls once a
 // soft-deleted record ages out. Unlike deleteQuote(), this works whether or
@@ -793,6 +825,7 @@ export async function convertQuoteToInvoice(
     paymentLinkAmount: undefined,
     paymentLinkKind: undefined,
     // Converted quotes leave the Quotes to-do list automatically (kept, not deleted).
+    potential: undefined,
     archivedAt: now,
     archiveReason: "converted",
     updatedAt: now,

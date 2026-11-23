@@ -9,7 +9,7 @@ type Props = {
   // Quotes and invoices are separate, linkable records (see
   // lib/quotes-store.ts) shown in their own top-level admin tabs —
   // AdminDashboard renders this component twice, once per kind.
-  kind: "quote" | "invoice";
+  kind: "quote" | "invoice" | "potential";
 };
 
 // Creating or editing a quote/invoice now opens its own page
@@ -32,7 +32,7 @@ export default function AdminQuotesTab({ kind }: Props) {
     <section className="bg-admin-ink/[0.02] border border-admin-ink/10 shadow-sm rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <h3 className="text-sm font-semibold text-admin-ink">
-          {showDeleted ? "Recently deleted" : kind === "invoice" ? "Invoices" : "Quotes"}
+          {showDeleted ? "Recently deleted" : kind === "invoice" ? "Invoices" : kind === "potential" ? "Potential quotes" : "Quotes"}
         </h3>
         <div className="flex items-center gap-2">
           <button
@@ -41,7 +41,7 @@ export default function AdminQuotesTab({ kind }: Props) {
           >
             {showDeleted ? "← Back to list" : "Recently deleted"}
           </button>
-          {!showDeleted && (
+          {!showDeleted && kind !== "potential" && (
             <Link
               href={kind === "invoice" ? "/admin/quotes/new?kind=invoice" : "/admin/quotes/new"}
               className="text-sm px-3 py-1.5 rounded-xl bg-admin-accent text-admin-accent-ink hover:bg-admin-accent/90 shrink-0"
@@ -51,6 +51,12 @@ export default function AdminQuotesTab({ kind }: Props) {
           )}
         </div>
       </div>
+      {kind === "potential" && !showDeleted && (
+        <p className="mb-3 text-xs text-admin-ink/70">
+          Drafts started automatically (from emails, transfer orders, calls). Open one to review or edit it, then
+          click <b>Make it a quote</b> to move it to your Quotes list.
+        </p>
+      )}
       {showDeleted ? (
         <AdminSavedQuotesList
           view="deleted"
@@ -59,7 +65,7 @@ export default function AdminQuotesTab({ kind }: Props) {
         />
       ) : (
         <AdminSavedQuotesList
-          view={kind === "invoice" ? "invoices" : "quotes"}
+          view={kind === "invoice" ? "invoices" : kind === "potential" ? "potential" : "quotes"}
           refreshToken={0}
           onEdit={(id) => router.push(`/admin/quotes/${id}`)}
         />
