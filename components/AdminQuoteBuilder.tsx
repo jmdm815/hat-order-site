@@ -2405,12 +2405,33 @@ export default function AdminQuoteBuilder({
             Editing{" "}
             {activeRecord.status === "invoice"
               ? `invoice ${activeRecord.invoiceNumber}`
-              : activeRecord.quoteNumber
-                ? `quote ${activeRecord.quoteNumber}`
-                : "saved quote"}{" "}
+              : activeRecord.potential
+                ? "potential quote"
+                : activeRecord.quoteNumber
+                  ? `quote ${activeRecord.quoteNumber}`
+                  : "saved quote"}{" "}
             <span className="text-admin-ink/62">
               (saved {new Date(activeRecord.updatedAt).toLocaleDateString()})
             </span>
+            {activeRecord.status === "quote" && activeRecord.potential && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const res = await fetch(`/api/admin/quotes/${activeRecord.id}/potential`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ potential: false }),
+                  });
+                  const data = await res.json().catch(() => null);
+                  if (res.ok && data?.record) setActiveRecord(data.record);
+                  else alert(data?.error ?? "Couldn't move it to Quotes");
+                }}
+                className="ml-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-admin-accent text-admin-accent-ink hover:bg-admin-accent/90"
+                title="Accept this draft — moves it to Quotes with a QT number"
+              >
+                Make it a quote
+              </button>
+            )}
             {activeRecord.status === "invoice" && activeRecord.invoiceStatus && (
               <span
                 className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${

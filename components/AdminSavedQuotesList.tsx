@@ -7,7 +7,7 @@ import AdminSendDocumentModal from "./AdminSendDocumentModal";
 import AdminJobFolderModal from "./AdminJobFolderModal";
 import { CustomerNameLink, DocNumberButton } from "./AdminRowLinks";
 
-type View = "quotes" | "invoices" | "deleted";
+type View = "quotes" | "potential" | "invoices" | "deleted";
 
 type Props = {
   // Which slice of the store to show — a dedicated Quotes tab, a dedicated
@@ -98,7 +98,9 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
         setRecords(
           view === "deleted"
             ? all
-            : all.filter((r) => r.status === (view === "invoices" ? "invoice" : "quote"))
+            : view === "potential"
+              ? all.filter((r) => r.status === "quote" && r.potential)
+              : all.filter((r) => r.status === (view === "invoices" ? "invoice" : "quote") && !r.potential)
         );
         setPersistent(data.persistent);
       })
@@ -144,6 +146,31 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
   // Converts a quote into a (new, linked) invoice, or reuses the existing
   // one if this quote was already converted before — either way, jumps the
   // admin straight to that invoice's page, same as clicking Edit on it.
+  // Potential Quotes: accept a draft into the Quotes list (gets a QT number).
+  async function handlePromote(ids: string[]) {
+    setError(null);
+    setBulkBusy(true);
+    const failed: string[] = [];
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/admin/quotes/${id}/potential`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ potential: false }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        setRecords((prev) => prev.filter((r) => r.id !== id));
+        setLinkMessage(`Moved to Quotes as ${data.record.quoteNumber}.`);
+      } catch {
+        failed.push(id);
+      }
+    }
+    setSelected(new Set(failed));
+    if (failed.length) setError(`Couldn't move ${failed.length} to Quotes.`);
+    setBulkBusy(false);
+  }
+
   async function handleConvert(id: string) {
     setBusyId(id);
     setError(null);
@@ -391,6 +418,8 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
       ? "Nothing in Recently deleted."
       : archiveView === "archived"
         ? "Nothing archived yet."
+        : view === "potential"
+        ? "No potential quotes. Drafts started from emails land here until you make them real quotes."
         : view === "invoices"
         ? "No invoices yet — convert a quote, or create one directly above."
         : "No saved quotes yet — build one above and hit “Save quote.”";
@@ -449,6 +478,16 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
               </>
             ) : (
               <>
+                {view === "potential" && (
+                  <button
+                    type="button"
+                    disabled={bulkBusy}
+                    onClick={() => handlePromote(shownSelected.map((r) => r.id))}
+                    className="rounded-lg bg-admin-accent text-admin-accent-ink px-2.5 py-1 text-xs font-semibold hover:bg-admin-accent/90 disabled:opacity-50"
+                  >
+                    Make quotes
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={bulkBusy}
@@ -536,7 +575,7 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     </td>
                     <td className="px-3 py-2.5 align-middle whitespace-nowrap">
                       {view !== "deleted" ? (
-                        <DocNumberButton id={r.id} number={(r.status === "invoice" ? r.invoiceNumber : r.quoteNumber) ?? "Open"} />
+                        <DocNumberButton id={r.id} number={(r.status === "invoice" ? r.invoiceNumber : r.quoteNumber) ?? (r.potential ? "Potential" : "Open")} />
                       ) : (
                         <span className="font-medium text-admin-ink/90">
                           {r.status === "invoice" ? r.invoiceNumber : r.quoteNumber ?? "—"}
@@ -546,6 +585,19 @@ export default function AdminSavedQuotesList({ view, refreshToken, onEdit }: Pro
                     <td className="px-3 py-2.5 align-middle min-w-0">
                       <CustomerNameLink name={customer} customerId={view !== "deleted" ? owners[r.id]?.id : undefined} />
                       <div className="flex items-center gap-1.5 flex-wrap mt-1 ml-[42px] empty:hidden">
+                        {view === "potential" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePromote([r.id]);
+                            }}
+                            disabled={bulkBusy}
+                            className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-admin-accent text-admin-accent-ink hover:bg-admin-accent/90 disabled:opacity-50"
+                            title="Accept this draft — moves it to Quotes with a QT number"
+                          >
+                            Make it a quote
+                          </button>
+                        )}
                         {view !== "deleted" && r.status === "quote" && r.linkedInvoiceId && (
                           <button
                             onClick={(e) => {

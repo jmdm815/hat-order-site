@@ -50,7 +50,14 @@ export async function POST(req: NextRequest) {
     const rawKey = (body as { dedupeKey?: unknown }).dedupeKey;
     const dedupeKey = typeof rawKey === "string" && rawKey.trim() ? rawKey.trim().slice(0, 300) : undefined;
     const { record, persisted, duplicateOf } =
-      kind === "invoice" ? await createInvoice(body, computed, dedupeKey) : await createQuote(body, computed, dedupeKey);
+      kind === "invoice"
+        ? await createInvoice(body, computed, dedupeKey)
+        : await createQuote(body, computed, dedupeKey, {
+            // Optional "potential": true (outside QuoteInput) — save as a
+            // Potential Quote (no QT number, not in the Quotes list) for
+            // Jhairson to accept later. The inbox watcher always sends it.
+            potential: (body as { potential?: unknown }).potential === true,
+          });
     return NextResponse.json({ ok: true, record, persisted, ...(duplicateOf ? { duplicate: true } : {}) });
   } catch (err) {
     if (err instanceof QuoteDuplicatePendingError) {
