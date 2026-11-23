@@ -38,6 +38,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { id: "social", label: "Social Studio", href: "/admin/social", icon: "spark" },
       { id: "garment-mockup", label: "Garment Mockups", href: "/admin?tab=garment-mockup", icon: "shirt" },
       { id: "ai-mockups", label: "AI Product Mockups", href: "/admin?tab=ai-mockups", icon: "spark" },
+      { id: "ad-studio", label: "Ad Studio", href: "/admin?tab=ad-studio", icon: "spark" },
       { id: "mockup-generator", label: "Mockup Generator", href: "/admin?tab=mockup-generator", icon: "image" },
     ],
   },
