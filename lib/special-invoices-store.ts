@@ -23,6 +23,9 @@ export type SpecialInvoice = {
   commissionPercent: number; // taken off decoration only
   showCommissionNote: boolean; // print the commission summary on the PDF
   status: "unpaid" | "paid";
+  // "due-on-receipt" = 100% due on receipt, no deposit (default for new
+  // ones); "source" = keep the original invoice's terms (deposit/net terms).
+  terms?: "due-on-receipt" | "source";
   notes?: string; // printed on the PDF
   source: ComputedQuote;
   createdAt: string;
@@ -187,6 +190,9 @@ export function specialInvoicePdfQuote(si: SpecialInvoice): ComputedQuote {
     ...computed,
     quoteDate: si.date,
     hidePaymentLink: true,
+    ...(si.terms === "source"
+      ? {}
+      : { depositPercent: undefined, netTermsDays: undefined, termsBlank: undefined }),
     customerNotes: parts.join("\n\n") || undefined,
   };
 }

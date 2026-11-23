@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     commissionPercent: pct,
     showCommissionNote: b.showCommissionNote !== false,
     status: "unpaid",
+    terms: b.terms === "source" ? "source" : "due-on-receipt",
     notes: typeof b.notes === "string" && b.notes.trim() ? b.notes.trim() : undefined,
     source: record.computed,
   });
