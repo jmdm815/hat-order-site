@@ -21,6 +21,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { id: "reports", label: "Reports", href: "/admin/reports", icon: "chart" },
       { id: "quick-quote", label: "Quick Quote", href: "/admin?tab=quick-quote", icon: "bolt" },
       { id: "special-quotes", label: "Special Quotes", href: "/admin?tab=special-quotes", icon: "star" },
+      { id: "special-invoices", label: "Special Invoices", href: "/admin?tab=special-invoices", icon: "receipt" },
     ],
   },
   {
