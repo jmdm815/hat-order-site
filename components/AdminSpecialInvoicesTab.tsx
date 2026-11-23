@@ -19,6 +19,7 @@ type SpecialInvoice = {
   commissionPercent: number;
   showCommissionNote: boolean;
   status: "unpaid" | "paid";
+  terms?: "due-on-receipt" | "source";
   notes?: string;
   source: Computed;
   summary: Summary;
@@ -300,6 +301,12 @@ export default function AdminSpecialInvoicesTab() {
               <input className={inputCls} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </label>
           </div>
+          <label className="block text-xs text-admin-ink/80 max-w-xs">Payment terms
+            <select className={inputCls} value={inv.terms ?? "source"} onChange={(e) => update({ terms: e.target.value }, "Terms updated.")}>
+              <option value="due-on-receipt">Due on receipt (100%, no deposit)</option>
+              <option value="source">Same as {inv.sourceNumber ?? "the original"}</option>
+            </select>
+          </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={inv.showCommissionNote} onChange={(e) => update({ showCommissionNote: e.target.checked })} />
             Print the commission summary on the PDF

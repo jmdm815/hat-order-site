@@ -35,6 +35,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   }
   if (typeof b.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.date)) patch.date = b.date;
   if (b.status === "paid" || b.status === "unpaid") patch.status = b.status;
+  if (b.terms === "source" || b.terms === "due-on-receipt") patch.terms = b.terms;
   if (typeof b.notes === "string") patch.notes = b.notes.trim() || undefined;
   if (typeof b.showCommissionNote === "boolean") patch.showCommissionNote = b.showCommissionNote;
   if (b.refreshFromSource === true) {
