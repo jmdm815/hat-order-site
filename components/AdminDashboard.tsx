@@ -19,6 +19,7 @@ import AdminCustomersManager from "@/components/AdminCustomersManager";
 import AdminLogoManager from "@/components/AdminLogoManager";
 import AdminSpecialQuotesTab from "@/components/AdminSpecialQuotesTab";
 import AdminSpecialInvoicesTab from "@/components/AdminSpecialInvoicesTab";
+import MockupStudio from "@/components/MockupStudio";
 import AdminAdStudio from "@/components/AdminAdStudio";
 
 import AdminShell, { AdminPageHeader, ADMIN_SECTION_LABELS } from "@/components/AdminShell";
@@ -27,7 +28,7 @@ import AdminShell, { AdminPageHeader, ADMIN_SECTION_LABELS } from "@/components/
 // via ?tab=…. Quotes is the landing section.
 const TAB_IDS = [
   "categories", "catalog", "pricing", "settings", "quick-quote", "quotes", "potential-quotes", "invoices", "jobs",
-  "tasks", "customers", "setup-charges", "garment-markup", "mockup-generator", "garment-mockup", "ai-mockups", "special-quotes", "special-invoices", "ad-studio",
+  "tasks", "customers", "setup-charges", "garment-markup", "mockup-generator", "garment-mockup", "mockup-studio", "ai-mockups", "special-quotes", "special-invoices", "ad-studio",
 ] as const;
 type TabId = (typeof TAB_IDS)[number];
 
@@ -47,6 +48,7 @@ const DESCRIPTIONS: Record<TabId, string> = {
   "garment-markup": "Markup added to blank garment cost, by cost range.",
   "mockup-generator": "Patch materials, shapes and settings for the custom hat mockup generator.",
   "garment-mockup": "Put a logo on a blank garment for a customer proof.",
+  "mockup-studio": "Logo on several garment colors at once — Claude adjusts it so it reads on each color. Public version: /mockup-studio",
   "special-quotes": "One-off PDF quotes with your own price tiers, outside the normal pricing.",
   "special-invoices": "Reseller copies of an invoice with their commission taken off the decoration price.",
   "ad-studio": "Voiceovers, music, sound effects and AI video shots for promo videos, powered by ElevenLabs.",
@@ -142,6 +144,7 @@ export default function AdminDashboard() {
             <AdminMockupGeneratorManager />
           </>
         )}
+        {tab === "mockup-studio" && <MockupStudio mode="admin" />}
         {tab === "garment-mockup" && (
           <>
             <GarmentMockupTool />
