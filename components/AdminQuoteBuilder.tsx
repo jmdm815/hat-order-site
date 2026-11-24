@@ -778,6 +778,49 @@ export default function AdminQuoteBuilder({
   const [addItemMode, setAddItemMode] = useState<"setup" | "misc" | "garment" | null>(null);
   const [addItemMenuOpen, setAddItemMenuOpen] = useState(false);
   const addItemMenuRef = useRef<HTMLDivElement | null>(null);
+  // "+ Add Style" on a line item box: the Add a garment panel opens preset
+  // to that line item's decoration/stitch count, and garments added while
+  // it's set go INTO that line item (same lineItem number, inserted right
+  // after its last style) so they share its quantity price break — like
+  // ShopVox's multiple styles per line item. Cleared when the panel closes.
+  const [addStyleTarget, setAddStyleTarget] = useState<{
+    decorationId?: string;
+    priceColumnId?: string;
+    lineItem?: number;
+    itemNumber: number;
+  } | null>(null);
+  const garmentPanelRef = useRef<HTMLElement | null>(null);
+
+  // Every "add garment(s)" path goes through here so "+ Add Style" can
+  // place new styles inside the targeted line item.
+  function insertNewLines(newLines: PendingLine[]) {
+    const t = addStyleTarget;
+    setLines((prev) => {
+      if (!t) return [...prev, ...newLines];
+      const sameDeco = (l: PendingLine) =>
+        (l.decorationId ?? "") === (t.decorationId ?? "") && (l.priceColumnId ?? "") === (t.priceColumnId ?? "");
+      const into = newLines.filter(sameDeco).map((l) => ({ ...l, lineItem: t.lineItem }));
+      const rest = newLines.filter((l) => !sameDeco(l));
+      let last = -1;
+      prev.forEach((l, i) => {
+        if (sameDeco(l) && (l.lineItem ?? 0) === (t.lineItem ?? 0)) last = i;
+      });
+      if (last === -1) return [...prev, ...into, ...rest];
+      const next = [...prev];
+      next.splice(last + 1, 0, ...into);
+      return [...next, ...rest];
+    });
+  }
+
+  function startAddStyle(group: { decorationId?: string; priceColumnId?: string; idxs: number[] }, itemNumber: number) {
+    const first = lines[group.idxs[0]];
+    setSelectedDecorationId(group.decorationId ?? "");
+    setSelectedColumnId(group.priceColumnId ?? "");
+    if (first) setLineTaxable(first.taxable !== false);
+    setAddStyleTarget({ decorationId: group.decorationId, priceColumnId: group.priceColumnId, lineItem: first?.lineItem, itemNumber });
+    setAddItemMode("garment");
+    setTimeout(() => garmentPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }
 
   const [quote, setQuote] = useState<ComputedQuote | null>(() => initialRecord?.computed ?? null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -1619,7 +1662,7 @@ export default function AdminQuoteBuilder({
       imageFallbackUrl: colorRow?.imageFallbackUrl,
       catalogSource,
     };
-    setLines((prev) => [...prev, line]);
+    insertNewLines([line]);
     // Reset the product picker for the next garment, but keep the chosen
     // decoration/catalog/locations — a real order is usually several
     // styles/colors under the same decoration and location count.
@@ -1692,7 +1735,7 @@ export default function AdminQuoteBuilder({
         };
       });
 
-      setLines((prev) => [...prev, ...newLines]);
+      insertNewLines(newLines);
       resetCustomerSuppliedForm(csItemType);
       setQuote(null);
       return;
@@ -1738,7 +1781,7 @@ export default function AdminQuoteBuilder({
       productName: description,
       taxable: lineTaxable,
     };
-    setLines((prev) => [...prev, line]);
+    insertNewLines([line]);
     resetCustomerSuppliedForm(csItemType);
     setQuote(null);
   }
@@ -3291,6 +3334,7 @@ export default function AdminQuoteBuilder({
                       key={key}
                       type="button"
                       onClick={() => {
+                        setAddStyleTarget(null);
                         setAddItemMode(key);
                         setAddItemMenuOpen(false);
                       }}
@@ -4025,6 +4069,19 @@ export default function AdminQuoteBuilder({
                 );
               })}
                     </div>
+                    <div className="mt-2.5 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => startAddStyle(group, gi + 1)}
+                        title="Add another garment style to this line item — it shares this line item's decoration and quantity price break"
+                        className="text-xs px-2.5 py-1 rounded-lg border border-admin-accent/40 bg-admin-card text-admin-accent font-semibold hover:bg-admin-accent/5"
+                      >
+                        + Add Style
+                      </button>
+                      <span className="text-[11px] text-admin-ink/50">
+                        Copy Style on a garment duplicates it here (e.g. same garment, new color).
+                      </span>
+                    </div>
                   </div>
                 );
               })}
@@ -4501,9 +4558,11 @@ export default function AdminQuoteBuilder({
           auto-closing) since a real order is usually several
           styles/colors added back-to-back under the same decoration. */}
       {addItemMode === "garment" && (
-      <section className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4">
+      <section ref={garmentPanelRef} className="bg-admin-card border border-admin-ink/10 shadow-sm rounded-2xl p-4 scroll-mt-4">
         <div className="flex items-start justify-between gap-3 mb-3">
-          <h3 className="text-sm font-semibold text-admin-ink">Add a garment</h3>
+          <h3 className="text-sm font-semibold text-admin-ink">
+            {addStyleTarget ? `Add a style to line item ${addStyleTarget.itemNumber}` : "Add a garment"}
+          </h3>
           <button
             type="button"
             onClick={() => setAddItemMode(null)}
@@ -4513,6 +4572,17 @@ export default function AdminQuoteBuilder({
           </button>
         </div>
 
+        {addStyleTarget && (
+          <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-admin-accent/30 bg-admin-accent/5 px-3 py-2 text-xs text-admin-ink/88">
+            <span>
+              Garments you add go into <b>line item {addStyleTarget.itemNumber}</b> and share its quantity pricing. Keep the
+              same decoration and stitch count (changing them adds a separate line item instead).
+            </span>
+            <button type="button" onClick={() => setAddStyleTarget(null)} className="shrink-0 text-admin-ink/62 hover:text-admin-ink">
+              Add as new line item instead
+            </button>
+          </div>
+        )}
         <label className="flex items-center gap-1.5 text-xs text-admin-ink/80 mb-3">
           <input
             type="checkbox"
@@ -4724,7 +4794,7 @@ export default function AdminQuoteBuilder({
               priceColumnId={selectedColumnId}
               taxable={lineTaxable}
               onAdd={(added) => {
-                setLines((prev) => [...prev, ...added]);
+                insertNewLines(added);
                 setQuote(null);
                 // Close the panel so it's clear the hats were added.
                 setAddItemMode(null);
