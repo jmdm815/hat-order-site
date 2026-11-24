@@ -23,9 +23,9 @@ export class AiMockupError extends Error {
   }
 }
 
-const API = "https://api.openai.com/v1";
+export const API = "https://api.openai.com/v1";
 
-function key(): string {
+export function key(): string {
   const k = process.env.OPENAI_API_KEY;
   if (!k) throw new AiMockupError("OPENAI_API_KEY isn't set in Vercel for this site yet.", 503);
   return k;
@@ -278,7 +278,7 @@ const MODEL_CHAINS: Record<MockupModel, string[]> = {
   flare: ["gpt-image-2.6-flare", "gpt-image-2.5-flare", "gpt-image-2"],
 };
 
-async function apiError(res: Response, what: string): Promise<AiMockupError> {
+export async function apiError(res: Response, what: string): Promise<AiMockupError> {
   let msg = `${res.status}`;
   try {
     const j = await res.json();
