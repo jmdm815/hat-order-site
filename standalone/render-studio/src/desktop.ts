@@ -34,9 +34,9 @@ export async function root(sub = ""): Promise<string> {
   return p;
 }
 
-export async function sh(cmd: string, timeout = 120000): Promise<{ stdout: string; stderr: string; code: number | null }> {
+export async function sh(cmd: string, timeout = 120000, extra: { input?: string; env?: Record<string, string> } = {}): Promise<{ stdout: string; stderr: string; code: number | null }> {
   const hm = await home();
-  return D.childProcess.exec(cmd, { env: { PATH, HOME: hm }, cwd: hm, timeout });
+  return D.childProcess.exec(cmd, { env: { PATH, HOME: hm, ...(extra.env ?? {}) }, cwd: hm, timeout, ...(extra.input != null ? { input: extra.input } : {}) });
 }
 
 /** Write bytes in pieces (big files cross the bridge in ~8 MB parts). */

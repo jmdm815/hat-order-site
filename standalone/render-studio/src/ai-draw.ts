@@ -70,7 +70,7 @@ export async function aiDrawGarment(a: GarmentDrawArgs): Promise<{ img: HTMLImag
   px.drawImage(a.photo, (W - w0 * s) / 2, (H - h0 * s) / 2, w0 * s, h0 * s);
 
   const work = await root(`.work/ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
-  await writeBig(`${work}/garment.png`, await canvasBytes(pad));
+  const key = /Bearer\s+(\S+)/.exec(await D.fs.readFile(hdr, "utf8"))?.[1] ?? "";
 
   let b64 = "";
   let lastErr = "OpenAI didn't return an image.";
@@ -79,17 +79,20 @@ export async function aiDrawGarment(a: GarmentDrawArgs): Promise<{ img: HTMLImag
   try {
     outer: for (const model of MODELS) {
       for (const fidelity of [true, false]) {
-        // HTTP/1.1 + inline prompt: macOS's built-in curl can fail multipart
-        // uploads over HTTP/2 with "(26) read function returned funny value".
-        const cmd = `cd ${q(work)} && curl -sS --http1.1 --max-time 300 -o resp.json -w '%{http_code}' https://api.openai.com/v1/images/edits -H @${q(hdr)} ` +
-          `-F model=${model} --form-string ${q("prompt=" + prompt)} -F size=${W}x${H} -F quality=${a.quality} ${fidelity ? "-F input_fidelity=high " : ""}` +
-          `-F output_format=png -F n=1 -F 'image[]=@garment.png;type=image/png'`;
-        const r = await sh(cmd, 320000);
+        const fields: Record<string, string> = { model, prompt, size: `${W}x${H}`, quality: a.quality, output_format: "png", n: "1" };
+        if (fidelity) fields.input_fidelity = "high";
+        const { body, boundary } = multipart(fields, pngBytes);
+        // The request body goes in through curl's stdin (base64), so curl never
+        // has to open files the app wrote; the key comes in as an environment
+        // variable, never as a file or in the page.
+        const cmd = `cd ${q(work)} && base64 --decode | curl -sS --http1.1 --max-time 300 -o resp.json -w '%{http_code}' ` +
+          `-H "Authorization: Bearer $JM_OAI_KEY" -H 'Content-Type: multipart/form-data; boundary=${boundary}' --data-binary @- https://api.openai.com/v1/images/edits`;
+        const r = await sh(cmd, 320000, { input: toB64(body), env: { JM_OAI_KEY: key } });
         let status = +r.stdout.trim() || 0;
         let j: any = null;
         if (r.code !== 0 && !status) {
           // curl itself failed: send the same request from the app instead.
-          const res = await directRequest(hdr, { model, prompt, size: `${W}x${H}`, quality: a.quality, fidelity }, pngBytes).catch((e) => ({ status: 0, json: { error: { message: `${r.stderr.trim()} / ${e?.message ?? e}` } } }));
+          const res = await directRequest(key, fields, pngBytes).catch((e) => ({ status: 0, json: { error: { message: `curl: ${r.stderr.trim() || r.code} · app: ${e?.message ?? e}` } } }));
           status = res.status; j = res.json;
         } else {
           try { j = JSON.parse(await D.fs.readFile(`${work}/resp.json`, "utf8")); } catch { /* not JSON */ }
@@ -105,7 +108,7 @@ export async function aiDrawGarment(a: GarmentDrawArgs): Promise<{ img: HTMLImag
       }
     }
   } finally {
-    await sh(`rm -rf ${q(work)}`).catch(() => {});
+    await D.fs.rm(work, { recursive: true, force: true }).catch(() => {});
   }
   if (!b64) throw new Error(lastErr);
   const png = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -113,17 +116,30 @@ export async function aiDrawGarment(a: GarmentDrawArgs): Promise<{ img: HTMLImag
   return { img, png };
 }
 
+function multipart(fields: Record<string, string>, png: Uint8Array) {
+  const boundary = `----jmrender${Math.random().toString(36).slice(2)}${Date.now()}`;
+  const enc = new TextEncoder();
+  const parts: Uint8Array[] = [];
+  for (const [k, v] of Object.entries(fields)) parts.push(enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
+  parts.push(enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="image[]"; filename="garment.png"\r\nContent-Type: image/png\r\n\r\n`));
+  parts.push(png);
+  parts.push(enc.encode(`\r\n--${boundary}--\r\n`));
+  const body = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) { body.set(p, o); o += p.length; }
+  return { body, boundary };
+}
+
+function toB64(u8: Uint8Array) {
+  let s = "";
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000) as unknown as number[]);
+  return btoa(s);
+}
+
 /** Same request via the app's own networking (fallback when curl fails). */
-async function directRequest(hdr: string, o: { model: string; prompt: string; size: string; quality: string; fidelity: boolean }, png: Uint8Array) {
-  const key = /Bearer\s+(\S+)/.exec(await D.fs.readFile(hdr, "utf8"))?.[1] ?? "";
+async function directRequest(key: string, fields: Record<string, string>, png: Uint8Array) {
   const form = new FormData();
-  form.append("model", o.model);
-  form.append("prompt", o.prompt);
-  form.append("size", o.size);
-  form.append("quality", o.quality);
-  if (o.fidelity) form.append("input_fidelity", "high");
-  form.append("output_format", "png");
-  form.append("n", "1");
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
   form.append("image[]", new Blob([png as BlobPart], { type: "image/png" }), "garment.png");
   const res = await fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form });
   return { status: res.status, json: await res.json().catch(() => null) };
