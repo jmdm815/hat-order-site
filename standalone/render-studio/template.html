@@ -142,6 +142,18 @@ input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--s
 .swap-main{flex:1;display:flex;align-items:center;gap:6px;background:none;border:0;color:var(--ink);font:inherit;font-size:12.5px;cursor:pointer;padding:4px}
 .suggest summary{cursor:pointer;font-weight:600;font-size:13px}
 .suggest[open]{display:flex;flex-direction:column;gap:8px}
+.logo-editor{display:flex;flex-direction:column;gap:8px}
+.le-stage{position:relative;border:1px solid var(--line);border-radius:var(--radius);padding:8px;display:flex;justify-content:center;touch-action:none;cursor:pointer}
+.le-canvas{max-width:100%;max-height:300px;width:auto;height:auto;display:block}
+.le-cursor{position:absolute;border:1.5px solid var(--accent);border-radius:50%;pointer-events:none;box-shadow:0 0 0 1px rgba(255,255,255,.7)}
+.le-tools{display:flex;flex-direction:column;gap:8px}
+.le-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.le-row .range{width:120px}
+.check.small{font-size:12px}
+.le-modal{position:fixed;inset:0;background:rgba(10,14,26,.6);z-index:20;display:flex;align-items:center;justify-content:center;padding:24px}
+.le-modal-box{background:var(--panel);border-radius:14px;padding:16px;width:min(1100px,96vw);max-height:94vh;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.le-modal-head{display:flex;justify-content:space-between;align-items:center}
+.le-modal .le-canvas{max-height:70vh}
 .lbl-row{display:flex;justify-content:space-between;align-items:center}
 .reset{border:0;background:none;color:var(--accent);font:600 11.5px Inter,sans-serif;cursor:pointer;padding:0}
 .reset:hover{text-decoration:underline}

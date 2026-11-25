@@ -6,6 +6,7 @@ import {
   trimTransparent, type PlacementPreset, type LogoLayout,
 } from "../../../lib/garment-mockup";
 import { AI_DRAW_STYLE_VERSION } from "../../../lib/ai-draw-prompt";
+import { LogoEditor } from "./logo-editor";
 import { aiDrawGarment, forgetKey, saveKey, savedKeyHint } from "./ai-draw";
 import { analyzeImg, applyEditsImg, sanitizeOps, type EditOp, type Img } from "../../../lib/logo-edit-core";
 import { API, D, download, getJson, notify, openFolder, readBytes, root, safeName, stamp, writeBig } from "./desktop";
@@ -449,17 +450,29 @@ export function mockupsTab(): HTMLElement {
     h("p", { class: "hint" }, "Scroll or pinch on a preview to zoom; drag the background to move around; drag the logo to move it."));
   window.addEventListener("resize", () => applyView());
 
+  // Background editor: automatic removal, then click / brush to fix it.
+  const editorLogo = new LogoEditor((c) => {
+    S.logo = c;
+    renderSwatches(false);
+    schedule();
+  });
+  editorLogo.auto = S.cutout; editorLogo.holes = S.holes; editorLogo.tol = S.tol;
+  const editorWrap = h("div", { hidden: true }, editorLogo.el);
   function rebuildLogo() {
-    if (!S.logoSrc) return;
-    S.logo = S.cutout ? cutout(S.logoSrc, S.tol, S.holes) : trimTransparent(S.logoSrc);
-    cutNote.textContent = S.cutout ? lastCutInfo : "";
+    // Settings changed: redo the automatic removal (Undo brings back the old one).
+    if (!editorLogo.loaded) return;
+    editorLogo.auto = S.cutout; editorLogo.holes = S.holes; editorLogo.tol = S.tol;
+    editorLogo.push();
+    editorLogo.autoCut();
+    editorLogo.commit();
+  }
+  function loadLogo(img: HTMLImageElement) {
     swaps = []; S.edits = {}; sel = null;
     editNote.textContent = "";
-    renderSwatches();
-    const c = S.logo.cloneNode() as HTMLCanvasElement;
-    c.getContext("2d")!.drawImage(S.logo, 0, 0);
-    logoBox.replaceChildren(c);
-    schedule();
+    editorWrap.hidden = false;
+    logoBox.hidden = true;
+    editorLogo.auto = S.cutout; editorLogo.holes = S.holes; editorLogo.tol = S.tol;
+    editorLogo.load(img);
   }
 
   async function rasterSvg(img: HTMLImageElement): Promise<HTMLImageElement> {
@@ -480,10 +493,9 @@ export function mockupsTab(): HTMLElement {
     S.logoSrc = svg ? await rasterSvg(img) : img;
     if (svg) { S.cutout = false; (cutChk as HTMLInputElement).checked = false; }
     if (!S.job) { S.job = f.name.replace(/\.[^.]+$/, ""); jobInput.value = S.job; }
-    rebuildLogo();
+    loadLogo(S.logoSrc);
   } });
 
-  const cutNote = h("p", { class: "hint" });
   const tolR = range(5, 80, S.tol, 1, (v) => { S.tol = v; rebuildLogo(); });
   const cutChk = h("input", { type: "checkbox", checked: S.cutout, onchange: (e: Event) => { S.cutout = (e.target as HTMLInputElement).checked; rebuildLogo(); } });
   const holeChk = h("input", { type: "checkbox", checked: S.holes, onchange: (e: Event) => { S.holes = (e.target as HTMLInputElement).checked; rebuildLogo(); } });
@@ -713,7 +725,7 @@ export function mockupsTab(): HTMLElement {
   let swapTimer = 0;
   const applySwaps = () => { S.edits = swapsToEdits(swaps); clearTimeout(swapTimer); swapTimer = window.setTimeout(refresh, 120); renderSwapList(); };
 
-  function renderSwatches() {
+  function renderSwatches(_reset = true) {
     palette = S.logo ? analyzeImg(toImg(S.logo)).palette.map((p) => ({ hex: p.hex, coverage: p.coverage })) : [];
     swatchBox.replaceChildren(...(palette.length ? palette.map((p) =>
       h("button", { class: "swatch", title: `${p.hex} · ${Math.round(p.coverage * 100)}% of the logo`, onclick: () => startSwap(p.hex) },
@@ -816,12 +828,11 @@ export function mockupsTab(): HTMLElement {
     h("aside", { class: "panel" },
       h("h3", {}, "1 · Logo"),
       h("div", { class: "row" }, h("button", { class: "btn", onclick: () => logoInput.click() }, "Choose logo"), logoInput),
-      logoBox,
-      h("label", { class: "check" }, cutChk, "Remove the background"),
-      cutNote,
+      logoBox, editorWrap,
+      h("label", { class: "check" }, cutChk, "Remove the background automatically"),
       field("Background match", tolR.wrap),
-      h("label", { class: "check" }, holeChk, "Also clear it inside letters / enclosed areas"),
-      h("p", { class: "hint" }, "Remove the background clears the plain colour around the outside of the logo. Turn on the second option only when that colour also shows through inside the design (like the holes in an O or between letters); it clears that colour everywhere, so leave it off if the logo has white parts that should stay."),
+      h("label", { class: "check" }, holeChk, "Also clear that colour inside the design"),
+      h("p", { class: "hint" }, "Automatic removal clears the plain colour around the outside. The second option also clears it inside letters and shapes — and anywhere else it appears — so fix anything that should stay by clicking it in the logo above."),
       h("h3", {}, "2 · Garments"),
       field("Source", srcSel),
       searchRow, uploadRow, resultsBox, colorsBox,
