@@ -7,7 +7,10 @@ import AdminCategoriesManager from "@/components/AdminCategoriesManager";
 import AdminPricingManager from "@/components/AdminPricingManager";
 import AdminDecorationTypesManager from "@/components/AdminDecorationTypesManager";
 import AdminMockupGeneratorManager from "@/components/AdminMockupGeneratorManager";
-import GarmentMockupTool from "@/components/GarmentMockupTool";
+import dynamic from "next/dynamic";
+
+// Same Mockups tool as the JM Render Studio Mac app (browser-only code).
+const AdminMockupStudio = dynamic(() => import("@/components/AdminMockupStudio"), { ssr: false });
 import AiMockupGenerator from "@/components/AiMockupGenerator";
 import AdminQuotesTab from "@/components/AdminQuotesTab";
 import AdminJobsTab from "@/components/AdminJobsTab";
@@ -147,7 +150,7 @@ export default function AdminDashboard() {
         {tab === "mockup-studio" && <MockupStudio mode="admin" />}
         {tab === "garment-mockup" && (
           <>
-            <GarmentMockupTool />
+            <AdminMockupStudio />
           </>
         )}
         {tab === "ai-mockups" && <AiMockupGenerator />}

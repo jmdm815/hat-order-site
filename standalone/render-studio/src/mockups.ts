@@ -7,9 +7,11 @@ import {
 } from "../../../lib/garment-mockup";
 import { AI_DRAW_STYLE_VERSION } from "../../../lib/ai-draw-prompt";
 import { LogoEditor } from "./logo-editor";
-import { aiDrawGarment, forgetKey, saveKey, savedKeyHint } from "./ai-draw";
+import type { MockupPlatform } from "./platform";
 import { analyzeImg, applyEditsImg, sanitizeOps, type EditOp, type Img } from "../../../lib/logo-edit-core";
-import { API, D, download, getJson, notify, openFolder, readBytes, root, safeName, stamp, writeBig } from "./desktop";
+let P: MockupPlatform;
+const stamp = () => { const d = new Date(), p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+const safeName = (s: string) => s.replace(/[^A-Za-z0-9 _-]+/g, "").trim().replace(/\s+/g, "-").slice(0, 60) || "job";
 import { busy, canvasBlob, canvasBytes, errMsg, field, fileToImage, h, range, toast } from "./ui";
 
 type Color = { name: string; hexes: string[]; photo: string; back?: string; local?: HTMLImageElement; localBack?: HTMLImageElement };
@@ -143,10 +145,7 @@ const hash = (t: string) => { let n = 0; for (const ch of t) n = (n * 31 + ch.ch
 async function photo(url: string): Promise<HTMLImageElement> {
   const hit = S.photos.get(url);
   if (hit) return hit;
-  const cache = await root(".cache");
-  const path = `${cache}/${hash(url)}.jpg`;
-  if (!(await D.fs.exists(path))) await download(url.startsWith("http") ? url : API + url, path);
-  const img = await fileToImage(new Blob([(await readBytes(path)) as BlobPart]));
+  const img = await P.loadPhoto(url);
   S.photos.set(url, img);
   return img;
 }
@@ -178,25 +177,19 @@ function drawnKey(c: Color) {
   return hash(`${src}|${isBack() ? "back" : "front"}|${S.drawQuality}|${S.drawNotes}|${AI_DRAW_STYLE_VERSION}`);
 }
 
-/** Drawn blank from memory or the disk cache (never calls OpenAI). */
+/** Drawn blank from memory or the saved drawings (never calls OpenAI). */
 async function cachedDrawn(c: Color): Promise<HTMLImageElement | null> {
   const k = drawnKey(c);
   const hit = S.drawn.get(k);
   if (hit) return hit;
-  const path = `${await root(".cache/drawn")}/${k}.png`;
-  if (!(await D.fs.exists(path))) return null;
-  const img = await fileToImage(new Blob([(await readBytes(path)) as BlobPart], { type: "image/png" }));
-  S.drawn.set(k, img);
+  const img = await P.cachedDrawing(k);
+  if (img) S.drawn.set(k, img);
   return img;
 }
 
 async function drawGarment(c: Color) {
-  const { img, png } = await aiDrawGarment({
-    photo: await photoFor(c), garment: garmentName(c), view: isBack() ? "back" : "front",
-    notes: S.drawNotes, quality: S.drawQuality,
-  });
   const k = drawnKey(c);
-  await writeBig(`${await root(".cache/drawn")}/${k}.png`, png);
+  const img = await P.drawGarment({ key: k, photo: await photoFor(c), garment: garmentName(c), view: isBack() ? "back" : "front", notes: S.drawNotes, quality: S.drawQuality });
   S.drawn.set(k, img);
 }
 
@@ -233,26 +226,19 @@ function swapsToEdits(swaps: Swap[]): Record<string, EditOp[]> {
 /** Claude only suggests colour swaps (from a logo colour to a new colour); the
  *  user reviews them like manual swaps. No outlines or patches. */
 async function claudeSuggest(instructions: string, colors: Color[], palette: { hex: string; coverage: number }[]): Promise<{ swaps: Swap[]; note: string }> {
-  const sample = await (window as any).claude?.use?.("sample");
-  if (!sample) throw new Error("Claude isn't available in this view.");
-  const prompt = `You help a decorator choose logo colours for garment mockups. The logo is attached (transparent background).
-Logo colours (hex, % of the logo): ${JSON.stringify(palette.map((p) => ({ hex: p.hex, pct: Math.round(p.coverage * 1000) / 10 })))}
-Garment colours: ${JSON.stringify(colors.map((c) => ({ name: c.name, hex: c.hexes[0] ?? "" })))}
-Instructions: ${instructions || "Make the logo read clearly on every garment colour. On dark garments, swap black or very dark parts to white. Leave colours that already read well."}
-You may only swap one of the logo colours above to a new solid colour, for one garment or for all.
-Answer ONLY JSON: {"swaps":[{"from":"#hex from the logo colours","to":"#hex","target":"* or a garment colour name"}],"note":"one short sentence"}. Use an empty list if nothing needs changing.`;
-  const res: any = await sample.json(prompt, { images: [await canvasBlob(S.logo!)], modelTier: "default" });
+  const r = await P.suggest({ logo: await canvasBlob(S.logo!), palette: palette.map((p) => p.hex), garments: colors.map((c) => ({ name: c.name, hex: c.hexes[0] })), instructions });
   const hexOk = (x: unknown) => typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x);
   const names = new Set(["*", ...colors.map((c) => c.name)]);
-  const swaps: Swap[] = (Array.isArray(res?.swaps) ? res.swaps : [])
-    .filter((w: any) => hexOk(w?.from) && hexOk(w?.to) && names.has(w?.target ?? "*"))
+  const swaps: Swap[] = (r.swaps ?? [])
+    .filter((w) => hexOk(w?.from) && hexOk(w?.to) && names.has(w?.target ?? "*"))
     .slice(0, 12)
-    .map((w: any) => ({ id: crypto.randomUUID(), from: w.from.toLowerCase(), to: w.to.toLowerCase(), tolerance: 70, target: w.target ?? "*" }));
-  return { swaps, note: String(res?.note ?? "") };
+    .map((w) => ({ id: crypto.randomUUID(), from: w.from.toLowerCase(), to: w.to.toLowerCase(), tolerance: 70, target: w.target ?? "*" }));
+  return { swaps, note: r.note ?? "" };
 }
 
 // ------------------------------------------------------------ UI
-export function mockupsTab(): HTMLElement {
+export function mockupsTab(platform: MockupPlatform): HTMLElement {
+  P = platform;
   const preview = h("div", { class: "grid previews" }, h("p", { class: "empty" }, "Add a logo and pick garments to see mockups here."));
   const logoBox = h("div", { class: "logo-box checker" }, h("span", { class: "empty" }, "No logo yet"));
   const resultsBox = h("div", { class: "results" });
@@ -527,7 +513,7 @@ export function mockupsTab(): HTMLElement {
     if (!q.value.trim()) return;
     resultsBox.replaceChildren(h("p", { class: "hint" }, "Searching…"));
     try {
-      const r = await getJson(`${API}/api/mockup-studio/search?q=${encodeURIComponent(q.value.trim())}&source=${S.source}`);
+      const r = await P.getJson(`/api/mockup-studio/search?q=${encodeURIComponent(q.value.trim())}&source=${S.source}`);
       const list = (r.results ?? []).filter((x: any) => x.source === S.source || !x.source).slice(0, 12);
       if (!list.length) { resultsBox.replaceChildren(h("p", { class: "hint" }, "No styles found.")); return; }
       resultsBox.replaceChildren(...list.map((x: any) => h("button", { class: "result", onclick: () => pick(x.styleNumber) },
@@ -538,7 +524,7 @@ export function mockupsTab(): HTMLElement {
   async function pick(style: string) {
     resultsBox.replaceChildren(h("p", { class: "hint" }, `Loading ${style} colours…`));
     try {
-      const r = await getJson(`${API}/api/mockup-studio/product?style=${encodeURIComponent(style)}&source=${S.source}`);
+      const r = await P.getJson(`/api/mockup-studio/product?style=${encodeURIComponent(style)}&source=${S.source}`);
       S.product = r.product;
       S.picked.clear();
       resultsBox.replaceChildren(h("p", { class: "picked" }, h("b", {}, S.product!.styleNumber), " ", S.product!.name));
@@ -576,13 +562,14 @@ export function mockupsTab(): HTMLElement {
   const keyStatus = h("span", { class: "hint" });
   const keyIn = h("input", { type: "password", placeholder: "Paste your OpenAI API key (sk-…)", autocomplete: "off" }) as HTMLInputElement;
   const keyRow = h("div", { class: "row" }, keyIn, h("button", { class: "btn", onclick: async () => {
-    try { await saveKey(keyIn.value); keyIn.value = ""; await showKey(); toast("Key saved on this Mac", "ok"); }
+    try { await P.key!.save(keyIn.value); keyIn.value = ""; await showKey(); toast("Key saved on this Mac", "ok"); }
     catch (e) { toast(errMsg(e), "err"); }
   } }, "Save key"));
-  const removeKey = h("button", { class: "btn ghost small", onclick: async () => { await forgetKey(); await showKey(); } }, "Remove key");
+  const removeKey = h("button", { class: "btn ghost small", onclick: async () => { await P.key!.forget(); await showKey(); } }, "Remove key");
   async function showKey() {
+    if (!P.key) { keyStatus.textContent = ""; keyRow.hidden = true; removeKey.hidden = true; return; }
     try {
-      const hint = await savedKeyHint();
+      const hint = await P.key.hint();
       keyStatus.textContent = hint ? `OpenAI key saved on this Mac (…${hint})` : "Needs your OpenAI API key once. It stays on this Mac.";
       keyRow.hidden = !!hint; removeKey.hidden = !hint;
     } catch { keyStatus.textContent = "Couldn't read the key file — allow the app full access and try again."; }
@@ -596,7 +583,7 @@ export function mockupsTab(): HTMLElement {
   const drawProg = h("div", { class: "draw-prog", hidden: true }, drawBar, drawEta);
   const redrawBtn = h("button", { class: "btn ghost small", onclick: () => drawMissing(true) }, "Redraw all") as HTMLButtonElement;
   const drawBox = h("div", { class: "ai-box", hidden: true },
-    h("p", { class: "hint" }, "AI redraws each blank garment as a clean illustration (graphic / tech-flat look). Your logo is then placed on it exactly, and you can drag it like normal. Each garment drawn is one image on your OpenAI account; drawings are kept, so you only pay once per colour."),
+    h("p", { class: "hint" }, `AI redraws each blank garment as a clean flat drawing. Your logo is then placed on it exactly, and you can drag it like normal. ${P.aiCostNote}`),
     keyStatus, keyRow, removeKey,
     field("Quality", qualitySel),
     drawNotes,
@@ -616,7 +603,7 @@ export function mockupsTab(): HTMLElement {
   async function drawMissing(all = false) {
     const colors = chosenColors();
     if (!colors.length) return toast("Pick at least one garment colour first.", "err");
-    if (!(await savedKeyHint())) { await showKey(); return toast("Add your OpenAI API key first.", "err"); }
+    if (P.key && !(await P.key.hint())) { await showKey(); return toast("Add your OpenAI API key first.", "err"); }
     const todo: Color[] = [];
     for (const c of colors) if (all || !(await cachedDrawn(c))) todo.push(c);
     if (all) for (const c of todo) S.drawn.delete(drawnKey(c));
@@ -797,8 +784,8 @@ export function mockupsTab(): HTMLElement {
     if (!S.logo || !colors.length) return toast("Add a logo and at least one garment.", "err");
     busy(saveBtn, true, "Rendering…");
     try {
-      const dir = `${await root("Mockups")}/${safeName(S.job || "Mockups")}_${stamp()}`;
-      await D.fs.mkdir(dir, { recursive: true });
+      const folder = `${safeName(S.job || "Mockups")}_${stamp()}`;
+      const files: { name: string; data: Uint8Array }[] = [];
       const shots: HTMLCanvasElement[] = [];
       const style = S.source === "upload" ? "" : `${S.product?.styleNumber ?? ""}_`;
       const tag = S.look === "drawn" ? "_drawn" : "";
@@ -808,7 +795,7 @@ export function mockupsTab(): HTMLElement {
         try {
           const cv = (await renderOne(c)).canvas;
           shots.push(cv);
-          await writeBig(`${dir}/${safeName(style + c.name + "_" + preset().label + tag)}.jpg`, await canvasBytes(cv, "image/jpeg", 0.92));
+          files.push({ name: `${safeName(style + c.name + "_" + preset().label + tag)}.jpg`, data: await canvasBytes(cv, "image/jpeg", 0.92) });
         } catch (e) { if (e instanceof NotDrawn) skipped++; else throw e; }
       }
       if (!shots.length) throw new Error("Nothing to save yet — draw the garments first.");
@@ -816,11 +803,10 @@ export function mockupsTab(): HTMLElement {
         const rows: HTMLCanvasElement[][] = [];
         const per = shots.length <= 4 ? shots.length : Math.ceil(shots.length / Math.ceil(shots.length / 4));
         for (let i = 0; i < shots.length; i += per) rows.push(shots.slice(i, i + per).map((s) => shrink(s, 1600)));
-        await writeBig(`${dir}/_all-colors.jpg`, await canvasBytes(combineGrid(rows), "image/jpeg", 0.9));
+        files.push({ name: "_all-colors.jpg", data: await canvasBytes(combineGrid(rows), "image/jpeg", 0.9) });
       }
-      await openFolder(dir);
-      notify(`Saved ${shots.length} mockup${shots.length > 1 ? "s" : ""} to JM Renders/Mockups`);
-      toast(`Saved ${shots.length} mockups${skipped ? ` (${skipped} not drawn yet, skipped)` : ""}`, "ok");
+      const msg = await P.save(files, folder);
+      toast(`${msg}${skipped ? ` (${skipped} not drawn yet, skipped)` : ""}`, "ok");
     } catch (e) { toast(errMsg(e), "err"); } finally { busy(saveBtn, false); }
   } }, "Save mockups") as HTMLButtonElement;
 

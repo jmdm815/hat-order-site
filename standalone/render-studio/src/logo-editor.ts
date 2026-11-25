@@ -245,7 +245,7 @@ export class LogoEditor {
     const stage = this.home.firstElementChild!;
     const box = h("div", { class: "le-modal-box" }, h("div", { class: "le-modal-head" }, h("b", {}, "Logo background"), h("button", { class: "btn primary small", onclick: () => this.closeBig() }, "Done")), stage, this.toolbar);
     this.modal = h("div", { class: "le-modal", onclick: (e: Event) => { if (e.target === this.modal) this.closeBig(); } }, box);
-    document.body.append(this.modal);
+    (this.el.closest(".rs-app") ?? document.body).append(this.modal);
     this.toolbar.querySelector(".le-expand")!.textContent = "Smaller view";
   }
   private closeBig() {
