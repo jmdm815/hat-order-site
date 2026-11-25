@@ -10,14 +10,14 @@ export const API = "https://hat-order-site.vercel.app";
 
 const PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
 
-export async function initDesktop(): Promise<"ready" | "install" | "browser"> {
+export type DesktopMode = "ready" | "install" | "installed" | "unavailable" | "off";
+export async function initDesktop(): Promise<DesktopMode> {
   const c = (window as any).claude;
   D = c?.use ? await c.use("desktop").catch(() => null) : null;
-  if (!D?.fs) {
-    const st = await D?.install?.state?.().catch(() => "unavailable");
-    return st === "available" ? "install" : "browser";
-  }
-  return "ready";
+  if (D?.fs) return "ready";
+  if (!D?.install) return "off";
+  const st = await D.install.state().catch(() => "unavailable");
+  return st === "available" ? "install" : st === "installed" ? "installed" : "unavailable";
 }
 
 /** Single-quote a value for /bin/sh. */

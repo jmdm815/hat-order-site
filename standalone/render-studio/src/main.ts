@@ -37,7 +37,12 @@ async function boot() {
             try { await D.install.request(); b.textContent = "Installed — open it from your Dock or Applications"; }
             catch { b.disabled = false; b.textContent = "Install as app"; }
           } }, "Install as app")
-        : h("p", { class: "hint" }, "Open this page in the Claude desktop app on your Mac and choose Install as app. It needs your Mac to render."),
+        : h("p", { class: "hint" }, {
+            installed: "JM Render Studio is already installed on this Mac. Open it from your Dock or the Applications folder.",
+            unavailable: "Installing works only in the Claude desktop app's main window on your Mac (not a web browser, the phone app or a pop-out window). Open this page there, or use Install as app in the page's ⋯ menu.",
+            off: "Desktop apps aren't available for this account right now (signed out, turned off, or not allowed by your organization). Check you're signed in to the Claude desktop app.",
+          }[mode as "installed" | "unavailable" | "off"] ?? ""),
+      h("p", { class: "hint", style: { fontSize: "11px", opacity: ".7" } }, `Status: ${mode}`),
     );
     app.replaceChildren(card);
     return;
