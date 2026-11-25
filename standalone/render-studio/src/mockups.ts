@@ -5,6 +5,7 @@ import {
   detectGarmentBounds, layoutForPreset, renderMockup, combineGrid, presetsFor,
   trimTransparent, type PlacementPreset, type LogoLayout,
 } from "../../../lib/garment-mockup";
+import { AI_DRAW_STYLE_VERSION } from "../../../lib/ai-draw-prompt";
 import { aiDrawGarment, forgetKey, saveKey, savedKeyHint } from "./ai-draw";
 import { analyzeImg, applyEditsImg, sanitizeOps, type EditOp, type Img } from "../../../lib/logo-edit-core";
 import { API, D, download, getJson, notify, openFolder, readBytes, root, safeName, stamp, writeBig } from "./desktop";
@@ -162,7 +163,7 @@ function garmentName(c: Color) {
 // ------------------------------------------------------------ AI drawn garments
 function drawnKey(c: Color) {
   const src = c.local ? `local:${c.name}:${c.local.naturalWidth}x${c.local.naturalHeight}` : `${S.source}:${S.product?.styleNumber}:${c.name}`;
-  return hash(`${src}|${isBack() ? "back" : "front"}|${S.drawQuality}|${S.drawNotes}`);
+  return hash(`${src}|${isBack() ? "back" : "front"}|${S.drawQuality}|${S.drawNotes}|${AI_DRAW_STYLE_VERSION}`);
 }
 
 /** Drawn blank from memory or the disk cache (never calls OpenAI). */
