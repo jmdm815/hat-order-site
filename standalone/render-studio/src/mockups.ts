@@ -3,8 +3,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   detectGarmentBounds, onModelGarmentBounds, layoutForPreset, renderMockup, combineGrid, presetsFor,
-  trimTransparent, type PlacementPreset,
+  trimTransparent, type PlacementPreset, type LogoLayout,
 } from "../../../lib/garment-mockup";
+import { aiDraw, forgetKey, saveKey, savedKeyHint } from "./ai-draw";
 import { analyzeImg, applyEditsImg, sanitizeOps, type EditOp, type Img } from "../../../lib/logo-edit-core";
 import { API, D, download, getJson, notify, openFolder, readBytes, root, safeName, stamp, writeBig } from "./desktop";
 import { busy, canvasBlob, canvasBytes, errMsg, field, fileToImage, h, range, toast } from "./ui";
@@ -21,7 +22,10 @@ const S = {
   picked: new Set<string>(),
   uploads: [] as Color[],
   placement: "full-front",
-  sizePct: 100, offsetY: 0, blend: 35, raised: false, onModel: false,
+  // Fabric show-through and raised look are hidden for now (kept off).
+  sizePct: 100, offsetX: 0, offsetY: 0, blend: 0, raised: false, onModel: false,
+  view: "exact" as "exact" | "ai",
+  ai: new Map<string, HTMLCanvasElement>(), // AI drawn version, by colour name
   edits: {} as Record<string, EditOp[]>, // by color name ("*" = all)
   photos: new Map<string, HTMLImageElement>(),
   job: "",
@@ -143,7 +147,9 @@ function preset(): PlacementPreset {
   return list.find((p) => p.id === S.placement) ?? list[0];
 }
 
-async function renderOne(c: Color): Promise<HTMLCanvasElement> {
+type Shot = { canvas: HTMLCanvasElement; L: LogoLayout; k: number; gw: number; gh: number; logo: HTMLCanvasElement };
+
+async function renderOne(c: Color): Promise<Shot> {
   const p = preset();
   const back = p.view === "back";
   const base = c.local ? (back && c.localBack ? c.localBack : c.local) : await photo(back && c.back ? c.back : c.photo);
@@ -151,8 +157,14 @@ async function renderOne(c: Color): Promise<HTMLCanvasElement> {
   if (S.onModel) g = onModelGarmentBounds(g);
   const logo = logoFor(c.name);
   const L = layoutForPreset(p, g, logo.width, logo.height, S.sizePct);
+  L.x += (g.width * S.offsetX) / 100;
   L.y += (g.height * S.offsetY) / 100;
-  return renderMockup(base, logo, L, { fabricBlend: S.blend, raised: S.raised });
+  const canvas = renderMockup(base, logo, L, { fabricBlend: S.blend, raised: S.raised });
+  return { canvas, L, k: canvas.width / base.naturalWidth, gw: g.width, gh: g.height, logo };
+}
+
+function garmentName(c: Color) {
+  return S.source === "upload" ? `garment in ${c.name}` : `${S.product?.name ?? S.product?.styleNumber ?? "garment"} in ${c.name}`;
 }
 
 // ------------------------------------------------------------ Claude auto-fix
@@ -194,13 +206,25 @@ export function mockupsTab(): HTMLElement {
     const colors = chosenColors();
     if (!S.logo || !colors.length) return;
     const seq = ++renderSeq;
+    viewBar.hidden = S.ai.size === 0;
+    if (S.view === "ai") {
+      preview.replaceChildren(...colors.map((c) => {
+        const ai = S.ai.get(c.name);
+        if (ai) ai.className = "shot";
+        return h("figure", { class: "card", "data-c": c.name }, ai ?? h("p", { class: "empty" }, "No AI drawing yet"), h("figcaption", {}, `${c.name} · AI drawn`));
+      }));
+      return;
+    }
     preview.replaceChildren(...colors.map((c) => h("figure", { class: "card loading", "data-c": c.name }, h("div", { class: "ph" }), h("figcaption", {}, c.name))));
     for (const c of colors) {
       try {
-        const cv = await renderOne(c);
+        const shot = await renderOne(c);
         if (seq !== renderSeq) return;
         const fig = [...preview.children].find((f) => (f as HTMLElement).dataset.c === c.name) as HTMLElement;
-        cv.className = "shot";
+        const cv = shot.canvas;
+        cv.className = "shot draggable";
+        cv.title = "Drag the logo to move it";
+        cv.addEventListener("pointerdown", (e) => startDrag(e, fig, shot));
         fig?.classList.remove("loading");
         fig?.firstElementChild?.replaceWith(cv);
       } catch (e) {
@@ -210,10 +234,46 @@ export function mockupsTab(): HTMLElement {
     }
   }
 
+  // Drag the logo on any preview; the move applies to every colour.
+  function startDrag(e: PointerEvent, fig: HTMLElement, shot: Shot) {
+    const cv = shot.canvas;
+    const disp = cv.clientWidth / cv.width; // canvas px -> screen px
+    const L = shot.L;
+    const ghost = h("canvas", { class: "drag-logo" }) as HTMLCanvasElement;
+    ghost.width = shot.logo.width; ghost.height = shot.logo.height;
+    ghost.getContext("2d")!.drawImage(shot.logo, 0, 0);
+    Object.assign(ghost.style, {
+      left: `${cv.offsetLeft + L.x * shot.k * disp}px`, top: `${cv.offsetTop + L.y * shot.k * disp}px`,
+      width: `${L.width * shot.k * disp}px`, height: `${L.height * shot.k * disp}px`,
+    });
+    fig.append(ghost);
+    fig.classList.add("dragging");
+    const x0 = e.clientX, y0 = e.clientY;
+    cv.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => { ghost.style.transform = `translate(${ev.clientX - x0}px, ${ev.clientY - y0}px)`; };
+    const up = (ev: PointerEvent) => {
+      cv.removeEventListener("pointermove", move);
+      cv.removeEventListener("pointerup", up);
+      cv.removeEventListener("pointercancel", up);
+      ghost.remove();
+      fig.classList.remove("dragging");
+      const dx = (ev.clientX - x0) / disp / shot.k, dy = (ev.clientY - y0) / disp / shot.k; // base-photo px
+      if (Math.abs(dx) + Math.abs(dy) < 1) return;
+      S.offsetX = Math.round((S.offsetX + (dx / shot.gw) * 100) * 10) / 10;
+      S.offsetY = Math.round((S.offsetY + (dy / shot.gh) * 100) * 10) / 10;
+      offXR.set(S.offsetX); offR.set(S.offsetY);
+      refresh();
+    };
+    cv.addEventListener("pointermove", move);
+    cv.addEventListener("pointerup", up);
+    cv.addEventListener("pointercancel", up);
+  }
+
   function rebuildLogo() {
     if (!S.logoSrc) return;
     S.logo = S.cutout ? cutout(S.logoSrc, S.tol, S.holes) : trimTransparent(S.logoSrc);
     S.edits = {};
+    S.ai.clear(); S.view = "exact";
     editNote.textContent = "";
     const c = S.logo.cloneNode() as HTMLCanvasElement;
     c.getContext("2d")!.drawImage(S.logo, 0, 0);
@@ -296,12 +356,85 @@ export function mockupsTab(): HTMLElement {
       h("button", { class: "x", title: "Remove", onclick: () => { S.uploads.splice(i, 1); renderUploads(); schedule(); } }, "×"))));
   }
 
-  const placementSel = h("select", { onchange: () => { S.placement = placementSel.value; schedule(); } },
+  const placementSel = h("select", { onchange: () => {
+    S.placement = placementSel.value;
+    S.offsetX = 0; S.offsetY = 0; offXR.set(0); offR.set(0);
+    schedule();
+  } },
     ...presetsFor("shirt").map((p) => h("option", { value: p.id, selected: p.id === S.placement }, p.label))) as HTMLSelectElement;
   const sizeR = range(30, 200, S.sizePct, 1, (v) => { S.sizePct = v; schedule(); }, (v) => `${v}%`);
-  const offR = range(-20, 20, S.offsetY, 0.5, (v) => { S.offsetY = v; schedule(); }, (v) => `${v > 0 ? "+" : ""}${v}`);
-  const blendR = range(0, 100, S.blend, 1, (v) => { S.blend = v; schedule(); }, (v) => `${v}%`);
-  const raisedChk = h("input", { type: "checkbox", onchange: (e: Event) => { S.raised = (e.target as HTMLInputElement).checked; schedule(); } });
+  const signed = (v: number) => `${v > 0 ? "+" : ""}${v}`;
+  const offR = range(-30, 30, S.offsetY, 0.5, (v) => { S.offsetY = v; schedule(); }, signed);
+  const offXR = range(-30, 30, S.offsetX, 0.5, (v) => { S.offsetX = v; schedule(); }, signed);
+
+  // View switch (exact vs AI drawn) above the previews.
+  const viewBtns = (["exact", "ai"] as const).map((v) => h("button", { class: `seg ${S.view === v ? "on" : ""}`, onclick: () => {
+    S.view = v;
+    viewBtns.forEach((b, i) => b.classList.toggle("on", ["exact", "ai"][i] === v));
+    refresh();
+  } }, v === "exact" ? "Exact mockups" : "AI drawn"));
+  const viewBar = h("div", { class: "segbar", hidden: true }, ...viewBtns);
+  const setView = (v: "exact" | "ai") => { S.view = v; viewBtns.forEach((b, i) => b.classList.toggle("on", ["exact", "ai"][i] === v)); };
+
+  // AI drawn version (OpenAI, the user's own key, stored on this Mac).
+  const keyStatus = h("span", { class: "hint" }, "Checking key…");
+  const keyIn = h("input", { type: "password", placeholder: "Paste your OpenAI API key (sk-…)", autocomplete: "off" }) as HTMLInputElement;
+  const keyRow = h("div", { class: "row" }, keyIn, h("button", { class: "btn", onclick: async () => {
+    try { await saveKey(keyIn.value); keyIn.value = ""; await showKey(); toast("Key saved on this Mac", "ok"); }
+    catch (e) { toast(errMsg(e), "err"); }
+  } }, "Save key"));
+  const changeKey = h("button", { class: "btn ghost small", onclick: async () => { await forgetKey(); await showKey(); } }, "Remove key");
+  async function showKey() {
+    try {
+      const hint = await savedKeyHint();
+      keyStatus.textContent = hint ? `OpenAI key saved on this Mac (…${hint})` : "No OpenAI key yet — it stays on this Mac only.";
+      keyRow.hidden = !!hint; changeKey.hidden = !hint;
+    } catch { keyStatus.textContent = "Click any button once to give the app access, then reopen this tab."; }
+  }
+  let keyChecked = false;
+  const qualitySel = h("select", {}, h("option", { value: "high" }, "High quality"), h("option", { value: "medium" }, "Medium (faster, cheaper)")) as HTMLSelectElement;
+  const exactChk = h("input", { type: "checkbox", checked: true }) as HTMLInputElement;
+  const aiNotes = h("textarea", { rows: 2, placeholder: "Optional, e.g. thicker outlines, softer shading, show the hood up" }) as HTMLTextAreaElement;
+  const aiBtn = h("button", { class: "btn", onclick: async () => {
+    const colors = chosenColors();
+    if (!S.logo || !colors.length) return toast("Add a logo and pick at least one garment.", "err");
+    if (!(await savedKeyHint())) { await showKey(); return toast("Add your OpenAI API key first.", "err"); }
+    busy(aiBtn, true, "Drawing…");
+    let done = 0, failed = 0;
+    const todo = [...colors];
+    const worker = async () => {
+      for (let c = todo.shift(); c; c = todo.shift()) {
+        try {
+          const shot = await renderOne(c);
+          const L = shot.L;
+          const img = await aiDraw({
+            mockup: shot.canvas,
+            logoRect: { x: L.x * shot.k, y: L.y * shot.k, w: L.width * shot.k, h: L.height * shot.k },
+            logo: shot.logo, garment: garmentName(c), notes: aiNotes.value.trim(),
+            quality: qualitySel.value as "high" | "medium", exactLogo: exactChk.checked,
+          });
+          S.ai.set(c.name, img);
+        } catch (e) { failed++; toast(`${c.name}: ${errMsg(e)}`, "err"); }
+        done++;
+        aiBtn.textContent = `Drawing ${done}/${colors.length}…`;
+        if (S.view === "ai") refresh();
+      }
+    };
+    setView("ai");
+    refresh();
+    await Promise.all([worker(), worker()]);
+    busy(aiBtn, false);
+    refresh();
+    if (done - failed) toast(`${done - failed} AI drawing${done - failed > 1 ? "s" : ""} ready — Save keeps the view you're on`, "ok");
+  } }, "Make AI drawings") as HTMLButtonElement;
+  const aiSection = h("details", { class: "ai-box", ontoggle: () => { if (!keyChecked) { keyChecked = true; showKey(); } } },
+    h("summary", {}, "AI drawn version (illustrated look)"),
+    h("p", { class: "hint" }, "Turns each mockup into a clean drawn garment, like a graphic or tech flat. Uses your OpenAI account; each colour is one image."),
+    keyStatus, keyRow, changeKey,
+    field("Quality", qualitySel),
+    h("label", { class: "check" }, exactChk, "Keep my exact logo on top (recommended)"),
+    aiNotes, aiBtn,
+  );
   const modelChk = h("input", { type: "checkbox", onchange: (e: Event) => { S.onModel = (e.target as HTMLInputElement).checked; schedule(); } });
 
   const instr = h("textarea", { rows: 3, placeholder: "e.g. On Black and Navy, make the black text white. Add a navy outline around the gold on the Gold shirt." }) as HTMLTextAreaElement;
@@ -331,11 +464,14 @@ export function mockupsTab(): HTMLElement {
       await D.fs.mkdir(dir, { recursive: true });
       const shots: HTMLCanvasElement[] = [];
       const style = S.source === "upload" ? "" : `${S.product?.styleNumber ?? ""}_`;
+      const ai = S.view === "ai";
+      if (ai && !colors.some((c) => S.ai.has(c.name))) throw new Error("No AI drawings yet — press Make AI drawings first.");
       for (const [i, c] of colors.entries()) {
-        saveBtn.textContent = `Rendering ${i + 1}/${colors.length}…`;
-        const cv = await renderOne(c);
+        saveBtn.textContent = `Saving ${i + 1}/${colors.length}…`;
+        const cv = ai ? S.ai.get(c.name) : (await renderOne(c)).canvas;
+        if (!cv) continue;
         shots.push(cv);
-        await writeBig(`${dir}/${safeName(style + c.name + "_" + preset().label)}.jpg`, await canvasBytes(cv, "image/jpeg", 0.92));
+        await writeBig(`${dir}/${safeName(style + c.name + "_" + preset().label + (ai ? "_drawn" : ""))}.jpg`, await canvasBytes(cv, "image/jpeg", 0.92));
       }
       if (shots.length > 1) {
         const rows: HTMLCanvasElement[][] = [];
@@ -364,15 +500,18 @@ export function mockupsTab(): HTMLElement {
       h("h3", {}, "3 · Placement"),
       field("Placement", placementSel),
       field("Size", sizeR.wrap),
+      h("p", { class: "hint" }, "Tip: drag the logo on any preview to move it."),
+      field("Move left / right", offXR.wrap, "% of the garment width"),
       field("Move up / down", offR.wrap, "% of the garment height"),
-      field("Fabric show-through", blendR.wrap),
-      h("label", { class: "check" }, raisedChk, "Raised look (embroidery / patch)"),
       h("h3", {}, "4 · Colour fixes (optional)"),
       instr, h("div", { class: "row" }, fixBtn, resetBtn), editNote,
-      h("h3", {}, "5 · Save"),
+      h("h3", {}, "5 · AI drawn version (optional)"),
+      aiSection,
+      h("h3", {}, "6 · Save"),
       jobInput, saveBtn,
+      h("p", { class: "hint" }, "Saves the view showing above the previews: exact mockups or AI drawings."),
     ),
-    h("main", { class: "stage" }, preview),
+    h("main", { class: "stage" }, viewBar, preview),
   );
 }
 

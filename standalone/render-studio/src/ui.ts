@@ -29,7 +29,7 @@ export function range(min: number, max: number, value: number, step = 1, onInput
   const inp = h("input", { type: "range", min, max, step, value: String(value) }) as HTMLInputElement;
   inp.addEventListener("input", () => { out.textContent = fmt(+inp.value); onInput?.(+inp.value); });
   const wrap = h("div", { class: "range" }, inp, out);
-  return { wrap, input: inp, get value() { return +inp.value; } };
+  return { wrap, input: inp, get value() { return +inp.value; }, set(v: number) { inp.value = String(v); out.textContent = fmt(v); } };
 }
 
 export function fileToImage(f: Blob): Promise<HTMLImageElement> {
