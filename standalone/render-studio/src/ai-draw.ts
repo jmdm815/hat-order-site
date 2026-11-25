@@ -71,32 +71,60 @@ export async function aiDrawGarment(a: GarmentDrawArgs): Promise<{ img: HTMLImag
 
   const work = await root(`.work/ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
   await writeBig(`${work}/garment.png`, await canvasBytes(pad));
-  await D.fs.writeFile(`${work}/prompt.txt`, garmentPrompt(a), "utf8");
 
   let b64 = "";
   let lastErr = "OpenAI didn't return an image.";
-  outer: for (const model of MODELS) {
-    for (const fidelity of [true, false]) {
-      const cmd = `cd ${q(work)} && curl -sS --max-time 300 -o resp.json -w '%{http_code}' https://api.openai.com/v1/images/edits -H @${q(hdr)} ` +
-        `-F model=${model} -F 'prompt=<prompt.txt' -F size=${W}x${H} -F quality=${a.quality} ${fidelity ? "-F input_fidelity=high " : ""}` +
-        `-F output_format=png -F n=1 -F 'image[]=@garment.png;type=image/png'`;
-      const r = await sh(cmd, 320000);
-      const status = +r.stdout.trim() || 0;
-      let j: any = null;
-      try { j = JSON.parse(await D.fs.readFile(`${work}/resp.json`, "utf8")); } catch { /* not JSON */ }
-      if (status === 200 && j?.data?.[0]?.b64_json) { b64 = j.data[0].b64_json; break outer; }
-      lastErr = j?.error?.message || r.stderr.trim() || `OpenAI error ${status}`;
-      if (status === 401) throw new Error("OpenAI rejected the API key. Check it under Garment look.");
-      if (status === 429) throw new Error(`OpenAI rate limit or billing: ${lastErr}`);
-      if (/safety|moderation|content policy/i.test(lastErr)) throw new Error(lastErr);
-      if (fidelity && /input_fidelity/i.test(lastErr)) continue;
-      if (status === 400 || status === 403 || status === 404) continue outer;
-      throw new Error(lastErr);
+  const prompt = garmentPrompt(a);
+  const pngBytes = await canvasBytes(pad);
+  try {
+    outer: for (const model of MODELS) {
+      for (const fidelity of [true, false]) {
+        // HTTP/1.1 + inline prompt: macOS's built-in curl can fail multipart
+        // uploads over HTTP/2 with "(26) read function returned funny value".
+        const cmd = `cd ${q(work)} && curl -sS --http1.1 --max-time 300 -o resp.json -w '%{http_code}' https://api.openai.com/v1/images/edits -H @${q(hdr)} ` +
+          `-F model=${model} --form-string ${q("prompt=" + prompt)} -F size=${W}x${H} -F quality=${a.quality} ${fidelity ? "-F input_fidelity=high " : ""}` +
+          `-F output_format=png -F n=1 -F 'image[]=@garment.png;type=image/png'`;
+        const r = await sh(cmd, 320000);
+        let status = +r.stdout.trim() || 0;
+        let j: any = null;
+        if (r.code !== 0 && !status) {
+          // curl itself failed: send the same request from the app instead.
+          const res = await directRequest(hdr, { model, prompt, size: `${W}x${H}`, quality: a.quality, fidelity }, pngBytes).catch((e) => ({ status: 0, json: { error: { message: `${r.stderr.trim()} / ${e?.message ?? e}` } } }));
+          status = res.status; j = res.json;
+        } else {
+          try { j = JSON.parse(await D.fs.readFile(`${work}/resp.json`, "utf8")); } catch { /* not JSON */ }
+        }
+        if (status === 200 && j?.data?.[0]?.b64_json) { b64 = j.data[0].b64_json; break outer; }
+        lastErr = j?.error?.message || r.stderr.trim() || `OpenAI error ${status}`;
+        if (status === 401) throw new Error("OpenAI rejected the API key. Check it under Garment look.");
+        if (status === 429) throw new Error(`OpenAI rate limit or billing: ${lastErr}`);
+        if (/safety|moderation|content policy/i.test(lastErr)) throw new Error(lastErr);
+        if (fidelity && /input_fidelity/i.test(lastErr)) continue;
+        if (status === 400 || status === 403 || status === 404) continue outer;
+        throw new Error(lastErr);
+      }
     }
+  } finally {
+    await sh(`rm -rf ${q(work)}`).catch(() => {});
   }
-  await sh(`rm -rf ${q(work)}`);
   if (!b64) throw new Error(lastErr);
   const png = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const img = await fileToImage(new Blob([png as BlobPart], { type: "image/png" }));
   return { img, png };
+}
+
+/** Same request via the app's own networking (fallback when curl fails). */
+async function directRequest(hdr: string, o: { model: string; prompt: string; size: string; quality: string; fidelity: boolean }, png: Uint8Array) {
+  const key = /Bearer\s+(\S+)/.exec(await D.fs.readFile(hdr, "utf8"))?.[1] ?? "";
+  const form = new FormData();
+  form.append("model", o.model);
+  form.append("prompt", o.prompt);
+  form.append("size", o.size);
+  form.append("quality", o.quality);
+  if (o.fidelity) form.append("input_fidelity", "high");
+  form.append("output_format", "png");
+  form.append("n", "1");
+  form.append("image[]", new Blob([png as BlobPart], { type: "image/png" }), "garment.png");
+  const res = await fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form });
+  return { status: res.status, json: await res.json().catch(() => null) };
 }
