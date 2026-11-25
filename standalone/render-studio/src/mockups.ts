@@ -44,23 +44,34 @@ function imgData(src: CanvasImageSource, w: number, h: number): ImageData {
 
 /** Remove a flat background: flood from the edges (and, optionally, every
  *  matching pixel inside letters/enclosed areas). */
+export let lastCutInfo = "";
 export function cutout(img: HTMLImageElement, tol: number, holes: boolean): HTMLCanvasElement {
-  const W = img.naturalWidth, H = img.naturalHeight;
-  const id = imgData(img, W, H);
+  // Trim see-through padding first: some files are a white box sitting on a
+  // transparent canvas, and the white box is the background to remove.
+  const full = document.createElement("canvas");
+  full.width = img.naturalWidth; full.height = img.naturalHeight;
+  full.getContext("2d")!.drawImage(img, 0, 0);
+  const src = trimCanvas(full);
+  const W = src.width, H = src.height;
+  const id = src.getContext("2d", { willReadFrequently: true })!.getImageData(0, 0, W, H);
   const d = id.data;
   // Background = most common colour on the border.
   const counts = new Map<number, number>();
+  let edge = 0, opaqueEdge = 0;
   const border = (x: number, y: number) => {
     const i = (y * W + x) * 4;
-    if (d[i + 3] < 30) return;
+    edge++;
+    if (d[i + 3] < 200) return;
+    opaqueEdge++;
     const k = ((d[i] >> 3) << 10) | ((d[i + 1] >> 3) << 5) | (d[i + 2] >> 3);
     counts.set(k, (counts.get(k) ?? 0) + 1);
   };
   for (let x = 0; x < W; x++) { border(x, 0); border(x, H - 1); }
   for (let y = 0; y < H; y++) { border(0, y); border(W - 1, y); }
-  if (!counts.size) return trimTransparent(img); // already transparent
+  if (opaqueEdge < edge * 0.3 || !counts.size) { lastCutInfo = "This logo already has a see-through background."; return src; }
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
   const bg = [((top >> 10) & 31) * 8 + 4, ((top >> 5) & 31) * 8 + 4, (top & 31) * 8 + 4];
+  lastCutInfo = `Removed the background colour (${"#" + bg.map((v) => Math.min(255, v).toString(16).padStart(2, "0")).join("").toUpperCase()}).`;
   const dist = (i: number) => Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]);
   const T = tol * 3, soft = T * 1.7;
   const mark = new Uint8Array(W * H);
@@ -441,6 +452,7 @@ export function mockupsTab(): HTMLElement {
   function rebuildLogo() {
     if (!S.logoSrc) return;
     S.logo = S.cutout ? cutout(S.logoSrc, S.tol, S.holes) : trimTransparent(S.logoSrc);
+    cutNote.textContent = S.cutout ? lastCutInfo : "";
     swaps = []; S.edits = {}; sel = null;
     editNote.textContent = "";
     renderSwatches();
@@ -471,6 +483,7 @@ export function mockupsTab(): HTMLElement {
     rebuildLogo();
   } });
 
+  const cutNote = h("p", { class: "hint" });
   const tolR = range(5, 80, S.tol, 1, (v) => { S.tol = v; rebuildLogo(); });
   const cutChk = h("input", { type: "checkbox", checked: S.cutout, onchange: (e: Event) => { S.cutout = (e.target as HTMLInputElement).checked; rebuildLogo(); } });
   const holeChk = h("input", { type: "checkbox", checked: S.holes, onchange: (e: Event) => { S.holes = (e.target as HTMLInputElement).checked; rebuildLogo(); } });
@@ -566,6 +579,9 @@ export function mockupsTab(): HTMLElement {
     h("option", { value: "high" }, "High quality"), h("option", { value: "medium" }, "Medium (faster, cheaper)")) as HTMLSelectElement;
   const drawNotes = h("textarea", { rows: 2, placeholder: "Optional style notes, e.g. thicker outlines, softer shading, hood up", onchange: () => { S.drawNotes = drawNotes.value.trim(); schedule(); } }) as HTMLTextAreaElement;
   const drawBtn = h("button", { class: "btn primary", onclick: () => drawMissing() }, "Draw garments") as HTMLButtonElement;
+  const drawBar = h("progress", { max: 1, value: 0 }) as HTMLProgressElement;
+  const drawEta = h("p", { class: "hint" });
+  const drawProg = h("div", { class: "draw-prog", hidden: true }, drawBar, drawEta);
   const redrawBtn = h("button", { class: "btn ghost small", onclick: () => drawMissing(true) }, "Redraw all") as HTMLButtonElement;
   const drawBox = h("div", { class: "ai-box", hidden: true },
     h("p", { class: "hint" }, "AI redraws each blank garment as a clean illustration (graphic / tech-flat look). Your logo is then placed on it exactly, and you can drag it like normal. Each garment drawn is one image on your OpenAI account; drawings are kept, so you only pay once per colour."),
@@ -573,6 +589,7 @@ export function mockupsTab(): HTMLElement {
     field("Quality", qualitySel),
     drawNotes,
     h("div", { class: "row" }, drawBtn, redrawBtn),
+    drawProg,
   );
   let drawing = false;
   async function updateDrawBtn() {
@@ -595,14 +612,52 @@ export function mockupsTab(): HTMLElement {
     busy(drawBtn, true, "Drawing…");
     let done = 0;
     const total = todo.length;
-    const worker = async () => {
-      for (let c = todo.shift(); c; c = todo.shift()) {
-        try { await drawGarment(c); } catch (e) { toast(`${c.name}: ${errMsg(e)}`, "err"); }
-        done++;
-        drawBtn.textContent = `Drawing ${done}/${total}…`;
+    // OpenAI gives no progress while it draws, so the bar is an estimate from
+    // how long recent drawings took on this Mac (kept per quality setting).
+    const avgKey = `jm-draw-secs-${S.drawQuality}`;
+    let avg = S.drawQuality === "high" ? 75 : 45;
+    try { avg = Number(localStorage.getItem(avgKey)) || avg; } catch { /* private */ }
+    const active = new Map<string, number>(); // colour -> start time
+    const t0 = Date.now();
+    drawProg.hidden = false;
+    const tick = () => {
+      const now = Date.now();
+      let part = 0;
+      for (const st of active.values()) part += Math.min(0.95, (now - st) / 1000 / avg);
+      const frac = Math.min(0.99, (done + part) / total);
+      const left = Math.max(0, Math.ceil((total - done - part) / Math.min(2, total - done || 1) * avg));
+      drawBar.value = frac;
+      drawEta.textContent = `Drawing ${Math.min(total, done + active.size)} of ${total} · ${Math.round(frac * 100)}% · about ${left >= 60 ? `${Math.floor(left / 60)}m ${left % 60}s` : `${left}s`} left · ${Math.round((now - t0) / 1000)}s so far`;
+      for (const [name, st] of active) {
+        const box = preview.querySelector<HTMLElement>(`figure[data-c="${CSS.escape(name)}"] .not-drawn`);
+        if (box) {
+          box.querySelector("b")!.textContent = "Drawing…";
+          box.querySelector("span")!.textContent = `${Math.round(Math.min(0.95, (now - st) / 1000 / avg) * 100)}% · about ${Math.max(1, Math.round(avg - (now - st) / 1000))}s`;
+        }
       }
     };
+    const timer = window.setInterval(tick, 500);
+    const worker = async () => {
+      for (let c = todo.shift(); c; c = todo.shift()) {
+        const st = Date.now();
+        active.set(c.name, st);
+        try {
+          await drawGarment(c);
+          const secs = (Date.now() - st) / 1000;
+          avg = avg * 0.6 + secs * 0.4;
+          try { localStorage.setItem(avgKey, String(Math.round(avg))); } catch { /* private */ }
+        } catch (e) { toast(`${c.name}: ${errMsg(e)}`, "err"); }
+        active.delete(c.name);
+        done++;
+        drawBtn.textContent = `Drawing ${done}/${total}…`;
+        await refresh(); // show each finished drawing right away
+        tick();
+      }
+    };
+    tick();
     await Promise.all([worker(), worker()]);
+    clearInterval(timer);
+    drawProg.hidden = true;
     drawing = false;
     busy(drawBtn, false);
     refresh();
@@ -763,8 +818,10 @@ export function mockupsTab(): HTMLElement {
       h("div", { class: "row" }, h("button", { class: "btn", onclick: () => logoInput.click() }, "Choose logo"), logoInput),
       logoBox,
       h("label", { class: "check" }, cutChk, "Remove the background"),
+      cutNote,
       field("Background match", tolR.wrap),
       h("label", { class: "check" }, holeChk, "Also clear it inside letters / enclosed areas"),
+      h("p", { class: "hint" }, "Remove the background clears the plain colour around the outside of the logo. Turn on the second option only when that colour also shows through inside the design (like the holes in an O or between letters); it clears that colour everywhere, so leave it off if the logo has white parts that should stay."),
       h("h3", {}, "2 · Garments"),
       field("Source", srcSel),
       searchRow, uploadRow, resultsBox, colorsBox,
