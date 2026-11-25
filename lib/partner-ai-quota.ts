@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { list, put } from "@vercel/blob";
 
 // Weekly AI allowance for white-label partners (AI drawn garments and colour
-// suggestions). Counted per partner API key, weeks start Monday 00:00 UTC.
+// suggestions). Counted per partner API key; weeks start Monday (Houston time).
 // PARTNER_AI_WEEKLY_LIMIT overrides the default of 20. Cached drawings don't
 // count. Blob: partner-ai-usage.json → { [partnerId]: { week, used } }.
 const PATH = "partner-ai-usage.json";
@@ -11,13 +11,22 @@ type Usage = Record<string, { week: string; used: number }>;
 
 export const weeklyLimit = () => Math.max(0, Number(process.env.PARTNER_AI_WEEKLY_LIMIT ?? 20) || 20);
 
-function weekStart(d = new Date()): Date {
-  const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+const TZ = "America/Chicago";
+/** Monday of the current week, as a calendar date in Houston time. */
+function weekStart(now = new Date()): Date {
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(now).split("-").map(Number);
+  const x = new Date(Date.UTC(y, m - 1, d));
   x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7));
   return x;
 }
 const weekKey = () => weekStart().toISOString().slice(0, 10);
-export const resetsAt = () => new Date(weekStart().getTime() + 7 * 86400000).toISOString();
+/** Next Monday 00:00 in Houston (≈06:00 UTC; 05:00 during daylight time). */
+export const resetsAt = () => {
+  const next = new Date(weekStart().getTime() + 7 * 86400000);
+  const probe = new Date(next.getTime() + 12 * 3600000);
+  const offH = Number(new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(probe)) - 12; // -6 or -5
+  return new Date(next.getTime() - offH * 3600000).toISOString();
+};
 
 export async function partnerId(): Promise<string> {
   const token = ((await headers()).get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
@@ -53,7 +62,7 @@ export class QuotaError extends Error { status = 429; }
 export async function reserve(id: string) {
   const all = await read();
   const cur = all[id]?.week === weekKey() ? all[id].used : 0;
-  if (cur >= weeklyLimit()) throw new QuotaError(`You've used all ${weeklyLimit()} AI uses for this week. They reset ${new Date(resetsAt()).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}.`);
+  if (cur >= weeklyLimit()) throw new QuotaError(`You've used all ${weeklyLimit()} AI uses for this week. They reset ${new Date(resetsAt()).toLocaleDateString("en-US", { timeZone: TZ, weekday: "long", month: "short", day: "numeric" })}.`);
   all[id] = { week: weekKey(), used: cur + 1 };
   await write(all);
 }
