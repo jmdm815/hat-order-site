@@ -209,26 +209,33 @@ async function renderOne(c: Color): Promise<Shot> {
 }
 
 // ------------------------------------------------------------ Claude auto-fix
-async function claudeFix(instructions: string, colors: Color[]) {
+type Swap = { id: string; from: string; to: string; tolerance: number; target: string }; // target: "*" or a garment colour name
+
+function swapsToEdits(swaps: Swap[]): Record<string, EditOp[]> {
+  const out: Record<string, EditOp[]> = {};
+  for (const w of swaps) (out[w.target] ??= []).push({ op: "recolor", from: w.from, to: w.to, tolerance: w.tolerance });
+  return out;
+}
+
+/** Claude only suggests colour swaps (from a logo colour to a new colour); the
+ *  user reviews them like manual swaps. No outlines or patches. */
+async function claudeSuggest(instructions: string, colors: Color[], palette: { hex: string; coverage: number }[]): Promise<{ swaps: Swap[]; note: string }> {
   const sample = await (window as any).claude?.use?.("sample");
   if (!sample) throw new Error("Claude isn't available in this view.");
-  const a = analyzeImg(toImg(S.logo!));
-  const palette = a.palette.slice(0, 10).map((p) => ({ hex: p.hex, coverage: Math.round(p.coverage * 1000) / 10, box: p.box }));
-  const prompt = `You prepare a customer logo for garment mockups. The logo image (${a.w}x${a.h}px, transparent background) is attached.
-Its colour palette (coverage %, bounding box in px): ${JSON.stringify(palette)}
-Garment colours to mock up: ${JSON.stringify(colors.map((c) => ({ name: c.name, hex: c.hexes[0] ?? "" })))}
-Instructions from the decorator: ${instructions || "Make the logo read clearly on every garment colour. On dark garments, change black/dark navy parts to white. On light garments, keep it as is. Add a thin outline only where a colour nearly matches the garment."}
-
-Edit operations you can use (all colours are hex; boxes are pixel boxes {x0,y0,x1,y1} on the logo):
-- {"op":"recolor","from":"#hex from the palette","to":"#hex","tolerance":0-120 (default 40),"region":box optional - only shapes fully inside it}
-- {"op":"outline","color":"#hex","width":px (1-40),"around":"logo" or a palette "#hex" to outline just that colour,"region":box optional}
-- {"op":"backing","color":"#hex"}  (solid patch behind the whole logo - use rarely)
-Answer ONLY JSON: {"byColor": {"<garment colour name>": [ops...]}, "note": "one short sentence on what you changed"}. Use "*" as a key for edits that apply to every colour. Use an empty list where no change is needed.`;
-  const blob = await canvasBlob(S.logo!);
-  const res: any = await sample.json(prompt, { images: [blob], modelTier: "default" });
-  const out: Record<string, EditOp[]> = {};
-  for (const [k, v] of Object.entries(res?.byColor ?? {})) out[k] = sanitizeOps(v);
-  return { edits: out, note: String(res?.note ?? "") };
+  const prompt = `You help a decorator choose logo colours for garment mockups. The logo is attached (transparent background).
+Logo colours (hex, % of the logo): ${JSON.stringify(palette.map((p) => ({ hex: p.hex, pct: Math.round(p.coverage * 1000) / 10 })))}
+Garment colours: ${JSON.stringify(colors.map((c) => ({ name: c.name, hex: c.hexes[0] ?? "" })))}
+Instructions: ${instructions || "Make the logo read clearly on every garment colour. On dark garments, swap black or very dark parts to white. Leave colours that already read well."}
+You may only swap one of the logo colours above to a new solid colour, for one garment or for all.
+Answer ONLY JSON: {"swaps":[{"from":"#hex from the logo colours","to":"#hex","target":"* or a garment colour name"}],"note":"one short sentence"}. Use an empty list if nothing needs changing.`;
+  const res: any = await sample.json(prompt, { images: [await canvasBlob(S.logo!)], modelTier: "default" });
+  const hexOk = (x: unknown) => typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x);
+  const names = new Set(["*", ...colors.map((c) => c.name)]);
+  const swaps: Swap[] = (Array.isArray(res?.swaps) ? res.swaps : [])
+    .filter((w: any) => hexOk(w?.from) && hexOk(w?.to) && names.has(w?.target ?? "*"))
+    .slice(0, 12)
+    .map((w: any) => ({ id: crypto.randomUUID(), from: w.from.toLowerCase(), to: w.to.toLowerCase(), tolerance: 70, target: w.target ?? "*" }));
+  return { swaps, note: String(res?.note ?? "") };
 }
 
 // ------------------------------------------------------------ UI
@@ -238,6 +245,7 @@ export function mockupsTab(): HTMLElement {
   const resultsBox = h("div", { class: "results" });
   const colorsBox = h("div", { class: "chips" });
   const editNote = h("p", { class: "hint" });
+  let swaps: Swap[] = [];
   let timer = 0;
   let renderSeq = 0;
 
@@ -432,18 +440,32 @@ export function mockupsTab(): HTMLElement {
   function rebuildLogo() {
     if (!S.logoSrc) return;
     S.logo = S.cutout ? cutout(S.logoSrc, S.tol, S.holes) : trimTransparent(S.logoSrc);
-    S.edits = {};
+    swaps = []; S.edits = {}; sel = null;
     editNote.textContent = "";
+    renderSwatches();
     const c = S.logo.cloneNode() as HTMLCanvasElement;
     c.getContext("2d")!.drawImage(S.logo, 0, 0);
     logoBox.replaceChildren(c);
     schedule();
   }
 
-  const logoInput = h("input", { type: "file", accept: "image/*", hidden: true, onchange: async (e: Event) => {
+  async function rasterSvg(img: HTMLImageElement): Promise<HTMLImageElement> {
+    // Vector logos are drawn big (2400 px), so colours stay perfectly flat and sharp.
+    const w0 = img.naturalWidth || 1000, h0 = img.naturalHeight || 1000;
+    const k = 2400 / Math.max(w0, h0);
+    const c = document.createElement("canvas");
+    c.width = Math.round(w0 * k); c.height = Math.round(h0 * k);
+    c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+    return fileToImage(await canvasBlob(c));
+  }
+
+  const logoInput = h("input", { type: "file", accept: "image/*,.svg", hidden: true, onchange: async (e: Event) => {
     const f = (e.target as HTMLInputElement).files?.[0];
     if (!f) return;
-    S.logoSrc = await fileToImage(f);
+    const img = await fileToImage(f);
+    const svg = f.type === "image/svg+xml" || /\.svg$/i.test(f.name);
+    S.logoSrc = svg ? await rasterSvg(img) : img;
+    if (svg) { S.cutout = false; (cutChk as HTMLInputElement).checked = false; }
     if (!S.job) { S.job = f.name.replace(/\.[^.]+$/, ""); jobInput.value = S.job; }
     rebuildLogo();
   } });
@@ -626,23 +648,79 @@ export function mockupsTab(): HTMLElement {
     arrow("←", -1, 0, "Move left"), h("button", { class: "arrow center", title: "Reset position", onclick: () => setOffsets(0, 0) }, "⟲"), arrow("→", 1, 0, "Move right"),
     h("span", {}), arrow("↓", 0, 1, "Move down"), h("span", {}));
 
-  // ---------------- Colour fixes
-  const instr = h("textarea", { rows: 3, placeholder: "e.g. On Black and Navy, make the black text white. Add a navy outline around the gold on the Gold shirt." }) as HTMLTextAreaElement;
-  const fixBtn = h("button", { class: "btn", onclick: async () => {
+  // ---------------- Logo colours: pick a logo colour, choose a new one.
+  let sel: Swap | null = null;
+  const swatchBox = h("div", { class: "swatches" });
+  const swapList = h("div", { class: "swaps" });
+  const editor = h("div", { class: "swap-editor", hidden: true });
+  let palette: { hex: string; coverage: number }[] = [];
+  let swapTimer = 0;
+  const applySwaps = () => { S.edits = swapsToEdits(swaps); clearTimeout(swapTimer); swapTimer = window.setTimeout(refresh, 120); renderSwapList(); };
+
+  function renderSwatches() {
+    palette = S.logo ? analyzeImg(toImg(S.logo)).palette.map((p) => ({ hex: p.hex, coverage: p.coverage })) : [];
+    swatchBox.replaceChildren(...(palette.length ? palette.map((p) =>
+      h("button", { class: "swatch", title: `${p.hex} · ${Math.round(p.coverage * 100)}% of the logo`, onclick: () => startSwap(p.hex) },
+        h("i", { style: { background: p.hex } }), h("span", {}, p.hex.toUpperCase()))) : [h("span", { class: "hint" }, "Add a logo to see its colours.")]));
+    editor.hidden = true;
+    renderSwapList();
+  }
+  function targetOptions(cur: string) {
+    return [h("option", { value: "*", selected: cur === "*" }, "All garments"),
+      ...chosenColors().map((c) => h("option", { value: c.name, selected: cur === c.name }, `Only on ${c.name}`))];
+  }
+  function startSwap(hex: string) {
+    sel = { id: crypto.randomUUID(), from: hex, to: hex, tolerance: 70, target: "*" };
+    swaps.push(sel);
+    openEditor(sel);
+  }
+  function openEditor(w: Swap) {
+    sel = w;
+    const picker = h("input", { type: "color", value: w.to, oninput: () => { w.to = picker.value; hexIn.value = w.to.toUpperCase(); applySwaps(); } }) as HTMLInputElement;
+    const hexIn = h("input", { type: "text", value: w.to.toUpperCase(), class: "hex", maxlength: 7, onchange: () => {
+      const v = hexIn.value.trim().replace(/^([^#])/, "#$1");
+      if (/^#[0-9a-f]{6}$/i.test(v)) { w.to = v.toLowerCase(); picker.value = w.to; applySwaps(); } else hexIn.value = w.to.toUpperCase();
+    } }) as HTMLInputElement;
+    const quick = ["#ffffff", "#000000", "#141a2e", "#ed1c24", "#f7941d", "#ffc72c", "#1f4fbf", "#2e7d32", "#9e9e9e"].map((c) =>
+      h("button", { class: "qc", title: c.toUpperCase(), style: { background: c }, onclick: () => { w.to = c; picker.value = c; hexIn.value = c.toUpperCase(); applySwaps(); } }));
+    const tolR = range(10, 160, w.tolerance, 5, (v) => { w.tolerance = v; applySwaps(); });
+    const tgt = h("select", { onchange: () => { w.target = tgt.value; applySwaps(); } }, ...targetOptions(w.target)) as HTMLSelectElement;
+    editor.replaceChildren(
+      h("div", { class: "swap-head" }, h("i", { class: "sw", style: { background: w.from } }), h("span", {}, "→"), picker, hexIn),
+      h("div", { class: "quick" }, ...quick),
+      field("Apply to", tgt),
+      field("How close a shade counts", tolR.wrap, "Raise it if edges or shading of that colour are left behind; lower it if nearby colours change too."),
+      h("div", { class: "row" },
+        h("button", { class: "btn small", onclick: () => { editor.hidden = true; sel = null; renderSwapList(); } }, "Done"),
+        h("button", { class: "btn ghost small", onclick: () => { swaps = swaps.filter((x) => x !== w); editor.hidden = true; sel = null; applySwaps(); } }, "Remove")),
+    );
+    editor.hidden = false;
+    applySwaps();
+  }
+  function renderSwapList() {
+    swapList.replaceChildren(...swaps.map((w) => h("div", { class: `swap-row ${w === sel ? "on" : ""}` },
+      h("button", { class: "swap-main", onclick: () => openEditor(w) },
+        h("i", { class: "sw", style: { background: w.from } }), "→", h("i", { class: "sw", style: { background: w.to } }),
+        h("span", {}, w.target === "*" ? "All garments" : w.target)),
+      h("button", { class: "x", title: "Remove", onclick: () => { swaps = swaps.filter((x) => x !== w); if (sel === w) { sel = null; editor.hidden = true; } applySwaps(); } }, "×"))));
+    undoBtn.hidden = !swaps.length;
+  }
+  const undoBtn = h("button", { class: "btn ghost small", hidden: true, onclick: () => { swaps = []; sel = null; editor.hidden = true; editNote.textContent = ""; applySwaps(); } }, "Undo all colour changes");
+  const instr = h("textarea", { rows: 2, placeholder: "Optional, e.g. make it read on the dark shirts" }) as HTMLTextAreaElement;
+  const fixBtn = h("button", { class: "btn small", onclick: async () => {
     if (!S.logo) return toast("Add a logo first.", "err");
     const colors = chosenColors();
     if (!colors.length) return toast("Pick at least one garment colour.", "err");
-    busy(fixBtn, true, "Claude is adjusting…");
+    busy(fixBtn, true, "Claude is thinking…");
     try {
-      const r = await claudeFix(instr.value.trim(), colors);
-      S.edits = r.edits;
-      editNote.textContent = r.note || "Adjusted.";
-      refresh();
+      const r = await claudeSuggest(instr.value.trim(), colors, palette);
+      swaps.push(...r.swaps);
+      editNote.textContent = r.swaps.length ? `${r.note} Review the swaps below; click one to tweak it.` : (r.note || "Claude didn't suggest any changes.");
+      applySwaps();
     } catch (e: any) {
       toast(e?.code === "not_granted" ? "Claude wasn't allowed for this app." : errMsg(e), "err");
     } finally { busy(fixBtn, false); }
-  } }, "Adjust colours with Claude") as HTMLButtonElement;
-  const resetBtn = h("button", { class: "btn ghost", onclick: () => { S.edits = {}; editNote.textContent = ""; refresh(); } }, "Undo adjustments");
+  } }, "Suggest swaps with Claude") as HTMLButtonElement;
 
   // ---------------- Save
   const jobInput = h("input", { type: "text", placeholder: "Job name (folder name)", oninput: () => (S.job = jobInput.value) }) as HTMLInputElement;
@@ -701,8 +779,11 @@ export function mockupsTab(): HTMLElement {
       h("div", { class: "row" },
         h("button", { class: "btn", onclick: () => setOffsets(0, 0) }, "Reset position"),
         h("button", { class: "btn ghost", onclick: () => { S.sizePct = 100; sizeR.set(100); setOffsets(0, 0); } }, "Reset all")),
-      h("h3", {}, "4 · Colour fixes (optional)"),
-      instr, h("div", { class: "row" }, fixBtn, resetBtn), editNote,
+      h("h3", {}, "4 · Logo colours (optional)"),
+      h("p", { class: "hint" }, "Click a logo colour, then pick its new colour. Changes show live and can apply to every garment or just one."),
+      swatchBox, editor, swapList, undoBtn,
+      h("details", { class: "suggest" }, h("summary", {}, "Let Claude suggest swaps"), instr, fixBtn),
+      editNote,
       h("h3", {}, "5 · Save"),
       jobInput, saveBtn,
     ),
