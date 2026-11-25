@@ -6,6 +6,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { D, home, q, root, sh, writeBig } from "./desktop";
 import { canvasBytes, fileToImage } from "./ui";
+import { aiDrawPrompt } from "../../../lib/ai-draw-prompt";
+import { STYLE_REF_PNG_B64 } from "./style-ref";
 
 const CFG = ".config/jm-render-studio";
 const MODELS = ["gpt-image-2", "gpt-image-1.5", "gpt-image-1"];
@@ -45,13 +47,7 @@ export type GarmentDrawArgs = {
 };
 
 function garmentPrompt(a: GarmentDrawArgs) {
-  return [
-    `Image 1 is a product photo of a blank garment: ${a.garment}, ${a.view} view.`,
-    "Redraw it as a clean ILLUSTRATED apparel mockup: a flat, vector-style drawing of the garment, like a graphic designer's tech-pack flat or a polished product illustration. Smooth solid fill in the garment's exact colour, crisp dark outlines, simple soft shading and a few fold lines; seams, stitching, ribbing, cuffs, pockets, drawstrings and zippers drawn as clean lines. No photographic fabric texture.",
-    `Show only the garment by itself, ${a.view === "back" ? "from the back" : "from the front"}, straight on, centred and filling most of the frame, on a plain pure white background. If the photo shows a person, mannequin or hanger, leave them out and draw just the garment laid flat.`,
-    "Keep the garment's exact style, cut, collar or hood, sleeves, details and colour. Keep it completely blank: no logos, graphics, text, labels or tags anywhere on it.",
-    a.notes ? `Extra instructions: ${a.notes.slice(0, 600)}` : "",
-  ].filter(Boolean).join("\n\n");
+  return aiDrawPrompt({ garment: a.garment, view: a.view, notes: a.notes });
 }
 
 /** Redraw a blank garment photo as an illustrated (drawn) blank. */
@@ -81,7 +77,7 @@ export async function aiDrawGarment(a: GarmentDrawArgs): Promise<{ img: HTMLImag
       for (const fidelity of [true, false]) {
         const fields: Record<string, string> = { model, prompt, size: `${W}x${H}`, quality: a.quality, output_format: "png", n: "1" };
         if (fidelity) fields.input_fidelity = "high";
-        const { body, boundary } = multipart(fields, pngBytes);
+        const { body, boundary } = multipart(fields, pngBytes, styleRef());
         // The request body goes in through curl's stdin (base64), so curl never
         // has to open files the app wrote; the key comes in as an environment
         // variable, never as a file or in the page.
@@ -92,7 +88,7 @@ export async function aiDrawGarment(a: GarmentDrawArgs): Promise<{ img: HTMLImag
         let j: any = null;
         if (r.code !== 0 && !status) {
           // curl itself failed: send the same request from the app instead.
-          const res = await directRequest(key, fields, pngBytes).catch((e) => ({ status: 0, json: { error: { message: `curl: ${r.stderr.trim() || r.code} · app: ${e?.message ?? e}` } } }));
+          const res = await directRequest(key, fields, pngBytes, styleRef()).catch((e) => ({ status: 0, json: { error: { message: `curl: ${r.stderr.trim() || r.code} · app: ${e?.message ?? e}` } } }));
           status = res.status; j = res.json;
         } else {
           try { j = JSON.parse(await D.fs.readFile(`${work}/resp.json`, "utf8")); } catch { /* not JSON */ }
@@ -116,13 +112,18 @@ export async function aiDrawGarment(a: GarmentDrawArgs): Promise<{ img: HTMLImag
   return { img, png };
 }
 
-function multipart(fields: Record<string, string>, png: Uint8Array) {
+let _ref: Uint8Array | null = null;
+const styleRef = () => (_ref ??= Uint8Array.from(atob(STYLE_REF_PNG_B64), (c) => c.charCodeAt(0)));
+
+function multipart(fields: Record<string, string>, png: Uint8Array, ref: Uint8Array) {
   const boundary = `----jmrender${Math.random().toString(36).slice(2)}${Date.now()}`;
   const enc = new TextEncoder();
   const parts: Uint8Array[] = [];
   for (const [k, v] of Object.entries(fields)) parts.push(enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
   parts.push(enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="image[]"; filename="garment.png"\r\nContent-Type: image/png\r\n\r\n`));
   parts.push(png);
+  parts.push(enc.encode(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="image[]"; filename="style.png"\r\nContent-Type: image/png\r\n\r\n`));
+  parts.push(ref);
   parts.push(enc.encode(`\r\n--${boundary}--\r\n`));
   const body = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let o = 0;
@@ -137,10 +138,11 @@ function toB64(u8: Uint8Array) {
 }
 
 /** Same request via the app's own networking (fallback when curl fails). */
-async function directRequest(key: string, fields: Record<string, string>, png: Uint8Array) {
+async function directRequest(key: string, fields: Record<string, string>, png: Uint8Array, ref: Uint8Array) {
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   form.append("image[]", new Blob([png as BlobPart], { type: "image/png" }), "garment.png");
+  form.append("image[]", new Blob([ref as BlobPart], { type: "image/png" }), "style.png");
   const res = await fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form });
   return { status: res.status, json: await res.json().catch(() => null) };
 }
