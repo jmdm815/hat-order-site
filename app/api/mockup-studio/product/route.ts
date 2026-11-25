@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadProduct } from "@/lib/auto-mockup";
 import { corsHeaders, preflight } from "@/lib/mockup-studio";
-import { productPreviewImageUrl } from "@/lib/product-image";
+import { productImageUrl, productPreviewImageUrl } from "@/lib/product-image";
 
 export const runtime = "nodejs";
 export const OPTIONS = preflight;
@@ -20,7 +20,14 @@ export async function GET(req: NextRequest) {
         styleNumber: p.styleNumber,
         name: `${p.brandName} ${p.productName}`.trim(),
         hat: p.productType === "hat",
-        colors: p.colors.map((c) => ({ name: c.colorName, hexes: c.colorHexes, image: productPreviewImageUrl(c.imageUrl, c.imageFallbackUrl) })),
+        colors: p.colors.map((c) => ({
+          name: c.colorName,
+          hexes: c.colorHexes,
+          image: productPreviewImageUrl(c.imageUrl, c.imageFallbackUrl),
+          // Flat (no-model) photos first, on-model as fallback — for placing logos.
+          photo: productImageUrl(c.imageUrl, c.imageFallbackUrl),
+          back: c.backImageUrl ? productImageUrl(c.backImageUrl, c.backImageFallbackUrl) : undefined,
+        })),
       },
     },
     { headers: { ...headers, "Cache-Control": "public, max-age=600" } }
