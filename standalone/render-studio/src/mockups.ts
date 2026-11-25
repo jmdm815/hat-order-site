@@ -241,27 +241,88 @@ export function mockupsTab(): HTMLElement {
   let timer = 0;
   let renderSeq = 0;
 
-  const schedule = () => { clearTimeout(timer); timer = window.setTimeout(refresh, 350); };
-  const figFor = (name: string) => [...preview.children].find((f) => (f as HTMLElement).dataset.c === name) as HTMLElement | undefined;
+  const schedule = () => { clearTimeout(timer); timer = window.setTimeout(refresh, 300); };
+
+  // Live preview: each card is the garment photo with the logo as its own
+  // layer, so moving / resizing / zooming is instant. Saving still renders
+  // the exact full-resolution composite (renderOne).
+  type Card = { c: Color; base: HTMLImageElement; g: ReturnType<typeof detectGarmentBounds>; logo: HTMLCanvasElement; vp: HTMLElement; stage: HTMLElement; logoEl: HTMLCanvasElement };
+  let cards: Card[] = [];
+  const V = { z: 1, cx: 0.5, cy: 0.5 }; // shared zoom: scale + centre (0-1 of the photo)
+  let areaMode = false;
+
+  function layoutOf(cd: Card): LogoLayout {
+    const L = layoutForPreset(preset(), cd.g, cd.logo.width, cd.logo.height, S.sizePct);
+    L.x += (cd.g.width * S.offsetX) / 100;
+    L.y += (cd.g.height * S.offsetY) / 100;
+    return L;
+  }
+  function placeLogos() {
+    for (const cd of cards) {
+      const L = layoutOf(cd), bw = cd.base.naturalWidth, bh = cd.base.naturalHeight;
+      Object.assign(cd.logoEl.style, { left: `${(L.x / bw) * 100}%`, top: `${(L.y / bh) * 100}%`, width: `${(L.width / bw) * 100}%`, height: `${(L.height / bh) * 100}%` });
+    }
+  }
+  function clampView() {
+    V.z = Math.max(1, Math.min(8, V.z));
+    const m = 0.5 / V.z;
+    V.cx = Math.max(m, Math.min(1 - m, V.cx));
+    V.cy = Math.max(m, Math.min(1 - m, V.cy));
+  }
+  function applyView() {
+    clampView();
+    for (const cd of cards) {
+      const w = cd.vp.clientWidth, hh = cd.vp.clientHeight;
+      const tx = w / 2 - V.cx * w * V.z, ty = hh / 2 - V.cy * hh * V.z;
+      cd.stage.style.transform = `translate(${tx}px, ${ty}px) scale(${V.z})`;
+    }
+    zoomR.set(Math.round(V.z * 100));
+    for (const f of preview.querySelectorAll<HTMLElement>(".vp")) f.classList.toggle("zoomed", V.z > 1.001);
+  }
+  function zoomTo(x0: number, y0: number, x1: number, y1: number, pad = 1.1) {
+    const w = Math.max(0.02, Math.abs(x1 - x0)), hh = Math.max(0.02, Math.abs(y1 - y0));
+    V.z = Math.min(1 / (w * pad), 1 / (hh * pad));
+    V.cx = (x0 + x1) / 2; V.cy = (y0 + y1) / 2;
+    applyView();
+  }
+  function zoomToLogo() {
+    const cd = cards[0];
+    if (!cd) return;
+    const L = layoutOf(cd), bw = cd.base.naturalWidth, bh = cd.base.naturalHeight;
+    zoomTo(L.x / bw, L.y / bh, (L.x + L.width) / bw, (L.y + L.height) / bh, 1.7);
+  }
 
   async function refresh() {
     const colors = chosenColors();
     updateDrawBtn();
-    if (!S.logo || !colors.length) return;
+    if (!S.logo || !colors.length) { cards = []; return; }
     const seq = ++renderSeq;
+    const next: Card[] = [];
     preview.replaceChildren(...colors.map((c) => h("figure", { class: "card loading", "data-c": c.name }, h("div", { class: "ph" }),
       h("figcaption", {}, c.name, S.look === "drawn" ? h("span", { class: "tag" }, "AI drawn") : null))));
     for (const c of colors) {
-      const fig = figFor(c.name);
+      const fig = [...preview.children].find((f) => (f as HTMLElement).dataset.c === c.name) as HTMLElement | undefined;
       try {
-        const shot = await renderOne(c);
+        let base: HTMLImageElement;
+        if (S.look === "drawn") {
+          const d = await cachedDrawn(c);
+          if (!d) throw new NotDrawn("Not drawn yet");
+          base = d;
+        } else base = await photoFor(c);
         if (seq !== renderSeq) return;
-        const cv = shot.canvas;
-        cv.className = "shot draggable";
-        cv.title = "Drag the logo to move it";
-        cv.addEventListener("pointerdown", (e) => startDrag(e, fig!, shot));
+        const logo = logoFor(c.name);
+        const logoEl = h("canvas", { class: "logo-layer", title: "Drag to move the logo" }) as HTMLCanvasElement;
+        logoEl.width = logo.width; logoEl.height = logo.height;
+        logoEl.getContext("2d")!.drawImage(logo, 0, 0);
+        const img = h("img", { class: "base", src: base.src, draggable: false, alt: "" });
+        const stage = h("div", { class: "vstage" }, img, logoEl);
+        const vp = h("div", { class: "vp", style: { aspectRatio: `${base.naturalWidth} / ${base.naturalHeight}` } }, stage);
+        const cd: Card = { c, base, g: detectGarmentBounds(base), logo, vp, stage, logoEl };
+        vp.addEventListener("pointerdown", (e) => onPointer(e, cd));
+        vp.addEventListener("wheel", (e) => onWheel(e, cd), { passive: false });
+        next.push(cd);
         fig?.classList.remove("loading");
-        fig?.firstElementChild?.replaceWith(cv);
+        fig?.firstElementChild?.replaceWith(vp);
       } catch (e) {
         if (seq !== renderSeq) return;
         fig?.classList.remove("loading");
@@ -269,40 +330,104 @@ export function mockupsTab(): HTMLElement {
           ? h("div", { class: "not-drawn" }, h("b", {}, "Not drawn yet"), h("span", {}, "Press Draw garments in step 2."))
           : h("p", { class: "err" }, errMsg(e)));
       }
+      cards = next;
+      placeLogos();
+      applyView();
     }
   }
 
-  // Drag the logo on any preview; the move applies to every colour.
-  function startDrag(e: PointerEvent, fig: HTMLElement, shot: Shot) {
-    const cv = shot.canvas;
-    const disp = cv.clientWidth / cv.width;
-    const L = shot.L;
-    const ghost = h("canvas", { class: "drag-logo" }) as HTMLCanvasElement;
-    ghost.width = shot.logo.width; ghost.height = shot.logo.height;
-    ghost.getContext("2d")!.drawImage(shot.logo, 0, 0);
-    Object.assign(ghost.style, {
-      left: `${cv.offsetLeft + L.x * shot.k * disp}px`, top: `${cv.offsetTop + L.y * shot.k * disp}px`,
-      width: `${L.width * shot.k * disp}px`, height: `${L.height * shot.k * disp}px`,
-    });
-    fig.append(ghost);
-    fig.classList.add("dragging");
-    const x0 = e.clientX, y0 = e.clientY;
-    cv.setPointerCapture(e.pointerId);
-    const move = (ev: PointerEvent) => { ghost.style.transform = `translate(${ev.clientX - x0}px, ${ev.clientY - y0}px)`; };
-    const up = (ev: PointerEvent) => {
-      cv.removeEventListener("pointermove", move);
-      cv.removeEventListener("pointerup", up);
-      cv.removeEventListener("pointercancel", up);
-      ghost.remove();
-      fig.classList.remove("dragging");
-      const dx = (ev.clientX - x0) / disp / shot.k, dy = (ev.clientY - y0) / disp / shot.k;
-      if (Math.abs(dx) + Math.abs(dy) < 1) return;
-      setOffsets(S.offsetX + (dx / shot.gw) * 100, S.offsetY + (dy / shot.gh) * 100);
-    };
-    cv.addEventListener("pointermove", move);
-    cv.addEventListener("pointerup", up);
-    cv.addEventListener("pointercancel", up);
+  // Pointer on a preview: drag the logo, pan when zoomed in, or draw a zoom box.
+  function toNorm(e: PointerEvent | WheelEvent, cd: Card) {
+    const r = cd.vp.getBoundingClientRect();
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    const tx = r.width / 2 - V.cx * r.width * V.z, ty = r.height / 2 - V.cy * r.height * V.z;
+    return { nx: (sx - tx) / V.z / r.width, ny: (sy - ty) / V.z / r.height, sx, sy, w: r.width, h: r.height };
   }
+  function onPointer(e: PointerEvent, cd: Card) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const p0 = toNorm(e, cd);
+    const vp = cd.vp;
+    vp.setPointerCapture(e.pointerId);
+    let move: (ev: PointerEvent) => void;
+    let end: (ev: PointerEvent) => void = () => {};
+    const L = layoutOf(cd), bw = cd.base.naturalWidth, bh = cd.base.naturalHeight;
+    const onLogo = p0.nx >= L.x / bw && p0.nx <= (L.x + L.width) / bw && p0.ny >= L.y / bh && p0.ny <= (L.y + L.height) / bh;
+    if (areaMode) {
+      const band = h("div", { class: "zoom-band" });
+      vp.append(band);
+      move = (ev) => {
+        const p = toNorm(ev, cd);
+        Object.assign(band.style, { left: `${Math.min(p.sx, p0.sx)}px`, top: `${Math.min(p.sy, p0.sy)}px`, width: `${Math.abs(p.sx - p0.sx)}px`, height: `${Math.abs(p.sy - p0.sy)}px` });
+      };
+      end = (ev) => {
+        band.remove();
+        const p = toNorm(ev, cd);
+        if (Math.abs(p.sx - p0.sx) > 8 && Math.abs(p.sy - p0.sy) > 8) zoomTo(p0.nx, p0.ny, p.nx, p.ny, 1);
+        setArea(false);
+      };
+    } else if (onLogo) {
+      const ox = S.offsetX, oy = S.offsetY;
+      vp.classList.add("dragging");
+      move = (ev) => {
+        const p = toNorm(ev, cd);
+        setOffsets(ox + (((p.nx - p0.nx) * bw) / cd.g.width) * 100, oy + (((p.ny - p0.ny) * bh) / cd.g.height) * 100);
+      };
+      end = () => vp.classList.remove("dragging");
+    } else if (V.z > 1.001) {
+      const cx = V.cx, cy = V.cy;
+      vp.classList.add("panning");
+      move = (ev) => {
+        V.cx = cx - (ev.clientX - e.clientX) / (p0.w * V.z);
+        V.cy = cy - (ev.clientY - e.clientY) / (p0.h * V.z);
+        applyView();
+      };
+      end = () => vp.classList.remove("panning");
+    } else return;
+    const up = (ev: PointerEvent) => {
+      vp.removeEventListener("pointermove", move);
+      vp.removeEventListener("pointerup", up);
+      vp.removeEventListener("pointercancel", up);
+      end(ev);
+    };
+    vp.addEventListener("pointermove", move);
+    vp.addEventListener("pointerup", up);
+    vp.addEventListener("pointercancel", up);
+  }
+  function onWheel(e: WheelEvent, cd: Card) {
+    e.preventDefault();
+    const p = toNorm(e, cd);
+    const z0 = V.z;
+    V.z = Math.max(1, Math.min(8, V.z * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0025))));
+    if (V.z === z0) return;
+    V.cx = p.nx - (p.sx - p.w / 2) / (p.w * V.z);
+    V.cy = p.ny - (p.sy - p.h / 2) / (p.h * V.z);
+    applyView();
+  }
+  function setArea(on: boolean) {
+    areaMode = on;
+    areaBtn.classList.toggle("on", on);
+    preview.classList.toggle("area-mode", on);
+  }
+
+  // Zoom toolbar
+  const zoomR = range(100, 800, 100, 10, (v) => { V.z = v / 100; applyView(); }, (v) => `${v}%`);
+  const zbtn = (label: string, title: string, fn: () => void) => h("button", { class: "btn small", title, onclick: fn }, label);
+  const areaBtn = h("button", { class: "btn small toggle", title: "Drag a box on any preview to zoom into it", onclick: () => setArea(!areaMode) }, "Zoom to area") as HTMLButtonElement;
+  const cardR = range(240, 1400, 420, 20, (v) => { preview.style.setProperty("--card", `${v}px`); requestAnimationFrame(applyView); }, (v) => `${v}px`);
+  preview.style.setProperty("--card", "420px");
+  const zoomBar = h("div", { class: "zoombar" },
+    h("div", { class: "zgroup" },
+      h("span", { class: "lbl" }, "Zoom"),
+      zbtn("−", "Zoom out", () => { V.z /= 1.25; applyView(); }),
+      zoomR.wrap,
+      zbtn("+", "Zoom in", () => { V.z *= 1.25; applyView(); }),
+      zbtn("Fit", "Reset zoom", () => { V.z = 1; V.cx = 0.5; V.cy = 0.5; applyView(); }),
+      zbtn("Zoom to logo", "Zoom in on the logo", zoomToLogo),
+      areaBtn),
+    h("div", { class: "zgroup" }, h("span", { class: "lbl" }, "Preview size"), cardR.wrap),
+    h("p", { class: "hint" }, "Scroll or pinch on a preview to zoom; drag the background to move around; drag the logo to move it."));
+  window.addEventListener("resize", () => applyView());
 
   function rebuildLogo() {
     if (!S.logoSrc) return;
@@ -467,17 +592,17 @@ export function mockupsTab(): HTMLElement {
     schedule();
   } }, ...presetsFor("shirt").map((p) => h("option", { value: p.id, selected: p.id === S.placement }, p.label))) as HTMLSelectElement;
   const signed = (v: number) => `${v > 0 ? "+" : ""}${v}`;
-  const sizeR = range(30, 200, S.sizePct, 1, (v) => { S.sizePct = v; schedule(); }, (v) => `${v}%`);
-  const offXR = range(-30, 30, S.offsetX, 0.5, (v) => { S.offsetX = v; schedule(); }, signed);
-  const offR = range(-30, 30, S.offsetY, 0.5, (v) => { S.offsetY = v; schedule(); }, signed);
+  const sizeR = range(30, 200, S.sizePct, 1, (v) => { S.sizePct = v; placeLogos(); }, (v) => `${v}%`);
+  const offXR = range(-30, 30, S.offsetX, 0.5, (v) => { S.offsetX = v; placeLogos(); }, signed);
+  const offR = range(-30, 30, S.offsetY, 0.5, (v) => { S.offsetY = v; placeLogos(); }, signed);
 
   function setOffsets(x: number, y: number, render = true) {
     const clampO = (v: number) => Math.max(-30, Math.min(30, Math.round(v * 10) / 10));
     S.offsetX = clampO(x); S.offsetY = clampO(y);
     offXR.set(S.offsetX); offR.set(S.offsetY);
-    if (render) schedule();
+    if (render) placeLogos();
   }
-  const setSize = (v: number) => { S.sizePct = v; sizeR.set(v); schedule(); };
+  const setSize = (v: number) => { S.sizePct = v; sizeR.set(v); placeLogos(); };
 
   const resetLink = (fn: () => void) => h("button", { class: "reset", onclick: fn, title: "Reset" }, "Reset");
   const ctl = (label: string, r: { wrap: HTMLElement }, onReset: () => void, hint?: string) =>
@@ -488,9 +613,12 @@ export function mockupsTab(): HTMLElement {
   const arrow = (label: string, dx: number, dy: number, title: string) => {
     let t = 0;
     const nudge = () => setOffsets(S.offsetX + dx * STEP, S.offsetY + dy * STEP);
-    const stop = () => { clearInterval(t); t = 0; };
+    const stop = () => { clearTimeout(t); clearInterval(t); t = 0; };
     return h("button", { class: "arrow", title, "aria-label": title,
-      onpointerdown: (e: PointerEvent) => { e.preventDefault(); nudge(); stop(); t = window.setInterval(nudge, 120); },
+      onpointerdown: (e: PointerEvent) => {
+        e.preventDefault(); stop(); nudge();
+        t = window.setTimeout(() => { t = window.setInterval(nudge, 40); }, 280); // hold: keep moving
+      },
       onpointerup: stop, onpointerleave: stop, onpointercancel: stop }, label);
   };
   const pad = h("div", { class: "arrow-pad" },
@@ -578,7 +706,7 @@ export function mockupsTab(): HTMLElement {
       h("h3", {}, "5 · Save"),
       jobInput, saveBtn,
     ),
-    h("main", { class: "stage" }, preview),
+    h("main", { class: "stage" }, zoomBar, preview),
   );
 }
 
