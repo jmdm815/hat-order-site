@@ -567,7 +567,11 @@ export function mockupsTab(platform: MockupPlatform): HTMLElement {
   } }, "Save key"));
   const removeKey = h("button", { class: "btn ghost small", onclick: async () => { await P.key!.forget(); await showKey(); } }, "Remove key");
   async function showKey() {
-    if (!P.key) { keyStatus.textContent = ""; keyRow.hidden = true; removeKey.hidden = true; return; }
+    if (!P.key) {
+      keyRow.hidden = true; removeKey.hidden = true;
+      keyStatus.textContent = P.aiStatus ? await P.aiStatus().catch(() => "") : "";
+      return;
+    }
     try {
       const hint = await P.key.hint();
       keyStatus.textContent = hint ? `OpenAI key saved on this Mac (…${hint})` : "Needs your OpenAI API key once. It stays on this Mac.";
@@ -585,8 +589,8 @@ export function mockupsTab(platform: MockupPlatform): HTMLElement {
   const drawBox = h("div", { class: "ai-box", hidden: true },
     h("p", { class: "hint" }, `AI redraws each blank garment as a clean flat drawing. Your logo is then placed on it exactly, and you can drag it like normal. ${P.aiCostNote}`),
     keyStatus, keyRow, removeKey,
-    field("Quality", qualitySel),
-    drawNotes,
+    P.showAiOptions === false ? null : field("Quality", qualitySel),
+    P.showAiOptions === false ? null : drawNotes,
     h("div", { class: "row" }, drawBtn, redrawBtn),
     drawProg,
   );
@@ -658,6 +662,7 @@ export function mockupsTab(platform: MockupPlatform): HTMLElement {
     clearInterval(timer);
     drawProg.hidden = true;
     drawing = false;
+    showKey();
     busy(drawBtn, false);
     refresh();
   }

@@ -16,4 +16,8 @@ export type MockupPlatform = {
   /** Desktop only: the user's own OpenAI key kept on the Mac. */
   key?: { hint(): Promise<string | null>; save(k: string): Promise<void>; forget(): Promise<void> };
   aiCostNote: string;
+  /** Web/partner: a line like "15 of 20 AI uses left this week". */
+  aiStatus?(): Promise<string>;
+  /** false hides the AI quality and style-notes fields (partner: fixed settings). */
+  showAiOptions?: boolean;
 };
