@@ -53,7 +53,7 @@ export async function canvasBytes(c: HTMLCanvasElement, type = "image/png", q?: 
 let toastTimer = 0;
 export function toast(msg: string, kind: "ok" | "err" | "info" = "info") {
   let t = document.getElementById("toast");
-  if (!t) { t = h("div", { id: "toast" }); document.body.append(t); }
+  if (!t) { t = h("div", { id: "toast" }); (document.querySelector(".rs-app") ?? document.body).append(t); }
   t.textContent = msg;
   t.className = `show ${kind}`;
   clearTimeout(toastTimer);

@@ -2,6 +2,7 @@
 import { D, initDesktop, openFolder, root } from "./desktop";
 import { gangTab } from "./gangsheet";
 import { mockupsTab } from "./mockups";
+import { desktopPlatform } from "./desktop-platform";
 import { promoTab } from "./promo";
 import { h } from "./ui";
 
@@ -53,7 +54,7 @@ async function boot() {
 
   const tabs = [
     { id: "promo", label: "Promo video", el: promoTab() },
-    { id: "mockups", label: "Mockups", el: mockupsTab() },
+    { id: "mockups", label: "Mockups", el: mockupsTab(desktopPlatform) },
     { id: "gang", label: "Gang sheets", el: gangTab() },
   ];
   let saved = "promo";
