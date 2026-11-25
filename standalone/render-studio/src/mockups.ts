@@ -2,10 +2,10 @@
 // -> full-resolution mockup JPGs saved to ~/Documents/JM Renders/Mockups.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-  detectGarmentBounds, onModelGarmentBounds, layoutForPreset, renderMockup, combineGrid, presetsFor,
+  detectGarmentBounds, layoutForPreset, renderMockup, combineGrid, presetsFor,
   trimTransparent, type PlacementPreset, type LogoLayout,
 } from "../../../lib/garment-mockup";
-import { aiDraw, forgetKey, saveKey, savedKeyHint } from "./ai-draw";
+import { aiDrawGarment, forgetKey, saveKey, savedKeyHint } from "./ai-draw";
 import { analyzeImg, applyEditsImg, sanitizeOps, type EditOp, type Img } from "../../../lib/logo-edit-core";
 import { API, D, download, getJson, notify, openFolder, readBytes, root, safeName, stamp, writeBig } from "./desktop";
 import { busy, canvasBlob, canvasBytes, errMsg, field, fileToImage, h, range, toast } from "./ui";
@@ -23,9 +23,10 @@ const S = {
   uploads: [] as Color[],
   placement: "full-front",
   // Fabric show-through and raised look are hidden for now (kept off).
-  sizePct: 100, offsetX: 0, offsetY: 0, blend: 0, raised: false, onModel: false,
-  view: "exact" as "exact" | "ai",
-  ai: new Map<string, HTMLCanvasElement>(), // AI drawn version, by colour name
+  sizePct: 100, offsetX: 0, offsetY: 0, blend: 0, raised: false,
+  look: "photo" as "photo" | "drawn",          // garment: real photo or AI drawn
+  drawQuality: "high" as "high" | "medium", drawNotes: "",
+  drawn: new Map<string, HTMLImageElement>(),   // AI drawn blanks, by cache key
   edits: {} as Record<string, EditOp[]>, // by color name ("*" = all)
   photos: new Map<string, HTMLImageElement>(),
   job: "",
@@ -124,13 +125,13 @@ function logoFor(color: string): HTMLCanvasElement {
 }
 
 // ------------------------------------------------------------ garment photos
+const hash = (t: string) => { let n = 0; for (const ch of t) n = (n * 31 + ch.charCodeAt(0)) >>> 0; return n.toString(36); };
+
 async function photo(url: string): Promise<HTMLImageElement> {
   const hit = S.photos.get(url);
   if (hit) return hit;
   const cache = await root(".cache");
-  let n = 0;
-  for (const ch of url) n = (n * 31 + ch.charCodeAt(0)) >>> 0;
-  const path = `${cache}/${n.toString(36)}.jpg`;
+  const path = `${cache}/${hash(url)}.jpg`;
   if (!(await D.fs.exists(path))) await download(url.startsWith("http") ? url : API + url, path);
   const img = await fileToImage(new Blob([(await readBytes(path)) as BlobPart]));
   S.photos.set(url, img);
@@ -147,24 +148,64 @@ function preset(): PlacementPreset {
   return list.find((p) => p.id === S.placement) ?? list[0];
 }
 
+const isBack = () => preset().view === "back";
+
+async function photoFor(c: Color): Promise<HTMLImageElement> {
+  const back = isBack();
+  return c.local ? (back && c.localBack ? c.localBack : c.local) : photo(back && c.back ? c.back : c.photo);
+}
+
+function garmentName(c: Color) {
+  return S.source === "upload" ? `garment in ${c.name}` : `${S.product?.name ?? S.product?.styleNumber ?? "garment"} in ${c.name}`;
+}
+
+// ------------------------------------------------------------ AI drawn garments
+function drawnKey(c: Color) {
+  const src = c.local ? `local:${c.name}:${c.local.naturalWidth}x${c.local.naturalHeight}` : `${S.source}:${S.product?.styleNumber}:${c.name}`;
+  return hash(`${src}|${isBack() ? "back" : "front"}|${S.drawQuality}|${S.drawNotes}`);
+}
+
+/** Drawn blank from memory or the disk cache (never calls OpenAI). */
+async function cachedDrawn(c: Color): Promise<HTMLImageElement | null> {
+  const k = drawnKey(c);
+  const hit = S.drawn.get(k);
+  if (hit) return hit;
+  const path = `${await root(".cache/drawn")}/${k}.png`;
+  if (!(await D.fs.exists(path))) return null;
+  const img = await fileToImage(new Blob([(await readBytes(path)) as BlobPart], { type: "image/png" }));
+  S.drawn.set(k, img);
+  return img;
+}
+
+async function drawGarment(c: Color) {
+  const { img, png } = await aiDrawGarment({
+    photo: await photoFor(c), garment: garmentName(c), view: isBack() ? "back" : "front",
+    notes: S.drawNotes, quality: S.drawQuality,
+  });
+  const k = drawnKey(c);
+  await writeBig(`${await root(".cache/drawn")}/${k}.png`, png);
+  S.drawn.set(k, img);
+}
+
+class NotDrawn extends Error {}
+
 type Shot = { canvas: HTMLCanvasElement; L: LogoLayout; k: number; gw: number; gh: number; logo: HTMLCanvasElement };
 
 async function renderOne(c: Color): Promise<Shot> {
   const p = preset();
-  const back = p.view === "back";
-  const base = c.local ? (back && c.localBack ? c.localBack : c.local) : await photo(back && c.back ? c.back : c.photo);
-  let g = detectGarmentBounds(base);
-  if (S.onModel) g = onModelGarmentBounds(g);
+  let base: HTMLImageElement;
+  if (S.look === "drawn") {
+    const d = await cachedDrawn(c);
+    if (!d) throw new NotDrawn("Not drawn yet");
+    base = d;
+  } else base = await photoFor(c);
+  const g = detectGarmentBounds(base);
   const logo = logoFor(c.name);
   const L = layoutForPreset(p, g, logo.width, logo.height, S.sizePct);
   L.x += (g.width * S.offsetX) / 100;
   L.y += (g.height * S.offsetY) / 100;
   const canvas = renderMockup(base, logo, L, { fabricBlend: S.blend, raised: S.raised });
   return { canvas, L, k: canvas.width / base.naturalWidth, gw: g.width, gh: g.height, logo };
-}
-
-function garmentName(c: Color) {
-  return S.source === "upload" ? `garment in ${c.name}` : `${S.product?.name ?? S.product?.styleNumber ?? "garment"} in ${c.name}`;
 }
 
 // ------------------------------------------------------------ Claude auto-fix
@@ -201,35 +242,32 @@ export function mockupsTab(): HTMLElement {
   let renderSeq = 0;
 
   const schedule = () => { clearTimeout(timer); timer = window.setTimeout(refresh, 350); };
+  const figFor = (name: string) => [...preview.children].find((f) => (f as HTMLElement).dataset.c === name) as HTMLElement | undefined;
 
   async function refresh() {
     const colors = chosenColors();
+    updateDrawBtn();
     if (!S.logo || !colors.length) return;
     const seq = ++renderSeq;
-    viewBar.hidden = S.ai.size === 0;
-    if (S.view === "ai") {
-      preview.replaceChildren(...colors.map((c) => {
-        const ai = S.ai.get(c.name);
-        if (ai) ai.className = "shot";
-        return h("figure", { class: "card", "data-c": c.name }, ai ?? h("p", { class: "empty" }, "No AI drawing yet"), h("figcaption", {}, `${c.name} · AI drawn`));
-      }));
-      return;
-    }
-    preview.replaceChildren(...colors.map((c) => h("figure", { class: "card loading", "data-c": c.name }, h("div", { class: "ph" }), h("figcaption", {}, c.name))));
+    preview.replaceChildren(...colors.map((c) => h("figure", { class: "card loading", "data-c": c.name }, h("div", { class: "ph" }),
+      h("figcaption", {}, c.name, S.look === "drawn" ? h("span", { class: "tag" }, "AI drawn") : null))));
     for (const c of colors) {
+      const fig = figFor(c.name);
       try {
         const shot = await renderOne(c);
         if (seq !== renderSeq) return;
-        const fig = [...preview.children].find((f) => (f as HTMLElement).dataset.c === c.name) as HTMLElement;
         const cv = shot.canvas;
         cv.className = "shot draggable";
         cv.title = "Drag the logo to move it";
-        cv.addEventListener("pointerdown", (e) => startDrag(e, fig, shot));
+        cv.addEventListener("pointerdown", (e) => startDrag(e, fig!, shot));
         fig?.classList.remove("loading");
         fig?.firstElementChild?.replaceWith(cv);
       } catch (e) {
-        const fig = [...preview.children].find((f) => (f as HTMLElement).dataset.c === c.name);
-        fig?.firstElementChild?.replaceWith(h("p", { class: "err" }, errMsg(e)));
+        if (seq !== renderSeq) return;
+        fig?.classList.remove("loading");
+        fig?.firstElementChild?.replaceWith(e instanceof NotDrawn
+          ? h("div", { class: "not-drawn" }, h("b", {}, "Not drawn yet"), h("span", {}, "Press Draw garments in step 2."))
+          : h("p", { class: "err" }, errMsg(e)));
       }
     }
   }
@@ -237,7 +275,7 @@ export function mockupsTab(): HTMLElement {
   // Drag the logo on any preview; the move applies to every colour.
   function startDrag(e: PointerEvent, fig: HTMLElement, shot: Shot) {
     const cv = shot.canvas;
-    const disp = cv.clientWidth / cv.width; // canvas px -> screen px
+    const disp = cv.clientWidth / cv.width;
     const L = shot.L;
     const ghost = h("canvas", { class: "drag-logo" }) as HTMLCanvasElement;
     ghost.width = shot.logo.width; ghost.height = shot.logo.height;
@@ -257,12 +295,9 @@ export function mockupsTab(): HTMLElement {
       cv.removeEventListener("pointercancel", up);
       ghost.remove();
       fig.classList.remove("dragging");
-      const dx = (ev.clientX - x0) / disp / shot.k, dy = (ev.clientY - y0) / disp / shot.k; // base-photo px
+      const dx = (ev.clientX - x0) / disp / shot.k, dy = (ev.clientY - y0) / disp / shot.k;
       if (Math.abs(dx) + Math.abs(dy) < 1) return;
-      S.offsetX = Math.round((S.offsetX + (dx / shot.gw) * 100) * 10) / 10;
-      S.offsetY = Math.round((S.offsetY + (dy / shot.gh) * 100) * 10) / 10;
-      offXR.set(S.offsetX); offR.set(S.offsetY);
-      refresh();
+      setOffsets(S.offsetX + (dx / shot.gw) * 100, S.offsetY + (dy / shot.gh) * 100);
     };
     cv.addEventListener("pointermove", move);
     cv.addEventListener("pointerup", up);
@@ -273,7 +308,6 @@ export function mockupsTab(): HTMLElement {
     if (!S.logoSrc) return;
     S.logo = S.cutout ? cutout(S.logoSrc, S.tol, S.holes) : trimTransparent(S.logoSrc);
     S.edits = {};
-    S.ai.clear(); S.view = "exact";
     editNote.textContent = "";
     const c = S.logo.cloneNode() as HTMLCanvasElement;
     c.getContext("2d")!.drawImage(S.logo, 0, 0);
@@ -293,12 +327,13 @@ export function mockupsTab(): HTMLElement {
   const cutChk = h("input", { type: "checkbox", checked: S.cutout, onchange: (e: Event) => { S.cutout = (e.target as HTMLInputElement).checked; rebuildLogo(); } });
   const holeChk = h("input", { type: "checkbox", checked: S.holes, onchange: (e: Event) => { S.holes = (e.target as HTMLInputElement).checked; rebuildLogo(); } });
 
-  // Catalog
+  // ---------------- Garments
   const q = h("input", { type: "search", placeholder: "Style # or name, e.g. 8000, PC54, 112" }) as HTMLInputElement;
   const srcSel = h("select", {}, h("option", { value: "sanmar" }, "SanMar"), h("option", { value: "ss" }, "S&S Activewear"), h("option", { value: "upload" }, "My own photos")) as HTMLSelectElement;
   const uploadInput = h("input", { type: "file", accept: "image/*", multiple: true, hidden: true, onchange: async (e: Event) => {
     const files = [...((e.target as HTMLInputElement).files ?? [])];
     for (const f of files) S.uploads.push({ name: f.name.replace(/\.[^.]+$/, ""), hexes: [], photo: "", local: await fileToImage(f) });
+    (e.target as HTMLInputElement).value = "";
     renderUploads();
     schedule();
   } }) as HTMLInputElement;
@@ -337,6 +372,7 @@ export function mockupsTab(): HTMLElement {
       placementSel.replaceChildren(...presetsFor(S.product!.hat ? "hat" : "shirt").map((p) => h("option", { value: p.id, selected: p.id === S.placement }, p.label)));
       S.placement = placementSel.value;
       renderColors();
+      updateDrawBtn();
     } catch (e) { resultsBox.replaceChildren(h("p", { class: "err" }, errMsg(e))); }
   }
 
@@ -356,87 +392,113 @@ export function mockupsTab(): HTMLElement {
       h("button", { class: "x", title: "Remove", onclick: () => { S.uploads.splice(i, 1); renderUploads(); schedule(); } }, "×"))));
   }
 
-  const placementSel = h("select", { onchange: () => {
-    S.placement = placementSel.value;
-    S.offsetX = 0; S.offsetY = 0; offXR.set(0); offR.set(0);
+  // Garment look: real photo, or an AI drawn (illustrated) blank.
+  const lookBtns = (["photo", "drawn"] as const).map((v) => h("button", { class: `seg ${S.look === v ? "on" : ""}`, onclick: () => {
+    S.look = v;
+    lookBtns.forEach((b, i) => b.classList.toggle("on", ["photo", "drawn"][i] === v));
+    drawBox.hidden = v !== "drawn";
+    if (v === "drawn") showKey();
     schedule();
-  } },
-    ...presetsFor("shirt").map((p) => h("option", { value: p.id, selected: p.id === S.placement }, p.label))) as HTMLSelectElement;
-  const sizeR = range(30, 200, S.sizePct, 1, (v) => { S.sizePct = v; schedule(); }, (v) => `${v}%`);
-  const signed = (v: number) => `${v > 0 ? "+" : ""}${v}`;
-  const offR = range(-30, 30, S.offsetY, 0.5, (v) => { S.offsetY = v; schedule(); }, signed);
-  const offXR = range(-30, 30, S.offsetX, 0.5, (v) => { S.offsetX = v; schedule(); }, signed);
-
-  // View switch (exact vs AI drawn) above the previews.
-  const viewBtns = (["exact", "ai"] as const).map((v) => h("button", { class: `seg ${S.view === v ? "on" : ""}`, onclick: () => {
-    S.view = v;
-    viewBtns.forEach((b, i) => b.classList.toggle("on", ["exact", "ai"][i] === v));
-    refresh();
-  } }, v === "exact" ? "Exact mockups" : "AI drawn"));
-  const viewBar = h("div", { class: "segbar", hidden: true }, ...viewBtns);
-  const setView = (v: "exact" | "ai") => { S.view = v; viewBtns.forEach((b, i) => b.classList.toggle("on", ["exact", "ai"][i] === v)); };
-
-  // AI drawn version (OpenAI, the user's own key, stored on this Mac).
-  const keyStatus = h("span", { class: "hint" }, "Checking key…");
+  } }, v === "photo" ? "Photo" : "AI drawn"));
+  const keyStatus = h("span", { class: "hint" });
   const keyIn = h("input", { type: "password", placeholder: "Paste your OpenAI API key (sk-…)", autocomplete: "off" }) as HTMLInputElement;
   const keyRow = h("div", { class: "row" }, keyIn, h("button", { class: "btn", onclick: async () => {
     try { await saveKey(keyIn.value); keyIn.value = ""; await showKey(); toast("Key saved on this Mac", "ok"); }
     catch (e) { toast(errMsg(e), "err"); }
   } }, "Save key"));
-  const changeKey = h("button", { class: "btn ghost small", onclick: async () => { await forgetKey(); await showKey(); } }, "Remove key");
+  const removeKey = h("button", { class: "btn ghost small", onclick: async () => { await forgetKey(); await showKey(); } }, "Remove key");
   async function showKey() {
     try {
       const hint = await savedKeyHint();
-      keyStatus.textContent = hint ? `OpenAI key saved on this Mac (…${hint})` : "No OpenAI key yet — it stays on this Mac only.";
-      keyRow.hidden = !!hint; changeKey.hidden = !hint;
-    } catch { keyStatus.textContent = "Click any button once to give the app access, then reopen this tab."; }
+      keyStatus.textContent = hint ? `OpenAI key saved on this Mac (…${hint})` : "Needs your OpenAI API key once. It stays on this Mac.";
+      keyRow.hidden = !!hint; removeKey.hidden = !hint;
+    } catch { keyStatus.textContent = "Couldn't read the key file — allow the app full access and try again."; }
   }
-  let keyChecked = false;
-  const qualitySel = h("select", {}, h("option", { value: "high" }, "High quality"), h("option", { value: "medium" }, "Medium (faster, cheaper)")) as HTMLSelectElement;
-  const exactChk = h("input", { type: "checkbox", checked: true }) as HTMLInputElement;
-  const aiNotes = h("textarea", { rows: 2, placeholder: "Optional, e.g. thicker outlines, softer shading, show the hood up" }) as HTMLTextAreaElement;
-  const aiBtn = h("button", { class: "btn", onclick: async () => {
+  const qualitySel = h("select", { onchange: () => { S.drawQuality = qualitySel.value as any; schedule(); } },
+    h("option", { value: "high" }, "High quality"), h("option", { value: "medium" }, "Medium (faster, cheaper)")) as HTMLSelectElement;
+  const drawNotes = h("textarea", { rows: 2, placeholder: "Optional style notes, e.g. thicker outlines, softer shading, hood up", onchange: () => { S.drawNotes = drawNotes.value.trim(); schedule(); } }) as HTMLTextAreaElement;
+  const drawBtn = h("button", { class: "btn primary", onclick: () => drawMissing() }, "Draw garments") as HTMLButtonElement;
+  const redrawBtn = h("button", { class: "btn ghost small", onclick: () => drawMissing(true) }, "Redraw all") as HTMLButtonElement;
+  const drawBox = h("div", { class: "ai-box", hidden: true },
+    h("p", { class: "hint" }, "AI redraws each blank garment as a clean illustration (graphic / tech-flat look). Your logo is then placed on it exactly, and you can drag it like normal. Each garment drawn is one image on your OpenAI account; drawings are kept, so you only pay once per colour."),
+    keyStatus, keyRow, removeKey,
+    field("Quality", qualitySel),
+    drawNotes,
+    h("div", { class: "row" }, drawBtn, redrawBtn),
+  );
+  let drawing = false;
+  async function updateDrawBtn() {
+    if (drawing || S.look !== "drawn") return;
     const colors = chosenColors();
-    if (!S.logo || !colors.length) return toast("Add a logo and pick at least one garment.", "err");
+    let missing = 0;
+    for (const c of colors) if (!(await cachedDrawn(c).catch(() => null))) missing++;
+    drawBtn.textContent = !colors.length ? "Draw garments" : missing ? `Draw ${missing} garment${missing > 1 ? "s" : ""}` : "All drawn ✓";
+    drawBtn.disabled = !missing;
+    redrawBtn.hidden = !colors.length || missing === colors.length;
+  }
+  async function drawMissing(all = false) {
+    const colors = chosenColors();
+    if (!colors.length) return toast("Pick at least one garment colour first.", "err");
     if (!(await savedKeyHint())) { await showKey(); return toast("Add your OpenAI API key first.", "err"); }
-    busy(aiBtn, true, "Drawing…");
-    let done = 0, failed = 0;
-    const todo = [...colors];
+    const todo: Color[] = [];
+    for (const c of colors) if (all || !(await cachedDrawn(c))) todo.push(c);
+    if (all) for (const c of todo) S.drawn.delete(drawnKey(c));
+    drawing = true;
+    busy(drawBtn, true, "Drawing…");
+    let done = 0;
+    const total = todo.length;
     const worker = async () => {
       for (let c = todo.shift(); c; c = todo.shift()) {
-        try {
-          const shot = await renderOne(c);
-          const L = shot.L;
-          const img = await aiDraw({
-            mockup: shot.canvas,
-            logoRect: { x: L.x * shot.k, y: L.y * shot.k, w: L.width * shot.k, h: L.height * shot.k },
-            logo: shot.logo, garment: garmentName(c), notes: aiNotes.value.trim(),
-            quality: qualitySel.value as "high" | "medium", exactLogo: exactChk.checked,
-          });
-          S.ai.set(c.name, img);
-        } catch (e) { failed++; toast(`${c.name}: ${errMsg(e)}`, "err"); }
+        try { await drawGarment(c); } catch (e) { toast(`${c.name}: ${errMsg(e)}`, "err"); }
         done++;
-        aiBtn.textContent = `Drawing ${done}/${colors.length}…`;
-        if (S.view === "ai") refresh();
+        drawBtn.textContent = `Drawing ${done}/${total}…`;
       }
     };
-    setView("ai");
-    refresh();
     await Promise.all([worker(), worker()]);
-    busy(aiBtn, false);
+    drawing = false;
+    busy(drawBtn, false);
     refresh();
-    if (done - failed) toast(`${done - failed} AI drawing${done - failed > 1 ? "s" : ""} ready — Save keeps the view you're on`, "ok");
-  } }, "Make AI drawings") as HTMLButtonElement;
-  const aiSection = h("details", { class: "ai-box", ontoggle: () => { if (!keyChecked) { keyChecked = true; showKey(); } } },
-    h("summary", {}, "AI drawn version (illustrated look)"),
-    h("p", { class: "hint" }, "Turns each mockup into a clean drawn garment, like a graphic or tech flat. Uses your OpenAI account; each colour is one image."),
-    keyStatus, keyRow, changeKey,
-    field("Quality", qualitySel),
-    h("label", { class: "check" }, exactChk, "Keep my exact logo on top (recommended)"),
-    aiNotes, aiBtn,
-  );
-  const modelChk = h("input", { type: "checkbox", onchange: (e: Event) => { S.onModel = (e.target as HTMLInputElement).checked; schedule(); } });
+  }
 
+  // ---------------- Placement
+  const placementSel = h("select", { onchange: () => {
+    S.placement = placementSel.value;
+    setOffsets(0, 0, false);
+    schedule();
+  } }, ...presetsFor("shirt").map((p) => h("option", { value: p.id, selected: p.id === S.placement }, p.label))) as HTMLSelectElement;
+  const signed = (v: number) => `${v > 0 ? "+" : ""}${v}`;
+  const sizeR = range(30, 200, S.sizePct, 1, (v) => { S.sizePct = v; schedule(); }, (v) => `${v}%`);
+  const offXR = range(-30, 30, S.offsetX, 0.5, (v) => { S.offsetX = v; schedule(); }, signed);
+  const offR = range(-30, 30, S.offsetY, 0.5, (v) => { S.offsetY = v; schedule(); }, signed);
+
+  function setOffsets(x: number, y: number, render = true) {
+    const clampO = (v: number) => Math.max(-30, Math.min(30, Math.round(v * 10) / 10));
+    S.offsetX = clampO(x); S.offsetY = clampO(y);
+    offXR.set(S.offsetX); offR.set(S.offsetY);
+    if (render) schedule();
+  }
+  const setSize = (v: number) => { S.sizePct = v; sizeR.set(v); schedule(); };
+
+  const resetLink = (fn: () => void) => h("button", { class: "reset", onclick: fn, title: "Reset" }, "Reset");
+  const ctl = (label: string, r: { wrap: HTMLElement }, onReset: () => void, hint?: string) =>
+    h("div", { class: "field" }, h("div", { class: "lbl-row" }, h("span", { class: "lbl" }, label), resetLink(onReset)), r.wrap, hint ? h("span", { class: "hint" }, hint) : null);
+
+  // Arrow pad: each press nudges 0.5% of the garment; hold to keep moving.
+  const STEP = 0.5;
+  const arrow = (label: string, dx: number, dy: number, title: string) => {
+    let t = 0;
+    const nudge = () => setOffsets(S.offsetX + dx * STEP, S.offsetY + dy * STEP);
+    const stop = () => { clearInterval(t); t = 0; };
+    return h("button", { class: "arrow", title, "aria-label": title,
+      onpointerdown: (e: PointerEvent) => { e.preventDefault(); nudge(); stop(); t = window.setInterval(nudge, 120); },
+      onpointerup: stop, onpointerleave: stop, onpointercancel: stop }, label);
+  };
+  const pad = h("div", { class: "arrow-pad" },
+    h("span", {}), arrow("↑", 0, -1, "Move up"), h("span", {}),
+    arrow("←", -1, 0, "Move left"), h("button", { class: "arrow center", title: "Reset position", onclick: () => setOffsets(0, 0) }, "⟲"), arrow("→", 1, 0, "Move right"),
+    h("span", {}), arrow("↓", 0, 1, "Move down"), h("span", {}));
+
+  // ---------------- Colour fixes
   const instr = h("textarea", { rows: 3, placeholder: "e.g. On Black and Navy, make the black text white. Add a navy outline around the gold on the Gold shirt." }) as HTMLTextAreaElement;
   const fixBtn = h("button", { class: "btn", onclick: async () => {
     if (!S.logo) return toast("Add a logo first.", "err");
@@ -454,6 +516,7 @@ export function mockupsTab(): HTMLElement {
   } }, "Adjust colours with Claude") as HTMLButtonElement;
   const resetBtn = h("button", { class: "btn ghost", onclick: () => { S.edits = {}; editNote.textContent = ""; refresh(); } }, "Undo adjustments");
 
+  // ---------------- Save
   const jobInput = h("input", { type: "text", placeholder: "Job name (folder name)", oninput: () => (S.job = jobInput.value) }) as HTMLInputElement;
   const saveBtn = h("button", { class: "btn primary", onclick: async () => {
     const colors = chosenColors();
@@ -464,15 +527,17 @@ export function mockupsTab(): HTMLElement {
       await D.fs.mkdir(dir, { recursive: true });
       const shots: HTMLCanvasElement[] = [];
       const style = S.source === "upload" ? "" : `${S.product?.styleNumber ?? ""}_`;
-      const ai = S.view === "ai";
-      if (ai && !colors.some((c) => S.ai.has(c.name))) throw new Error("No AI drawings yet — press Make AI drawings first.");
+      const tag = S.look === "drawn" ? "_drawn" : "";
+      let skipped = 0;
       for (const [i, c] of colors.entries()) {
         saveBtn.textContent = `Saving ${i + 1}/${colors.length}…`;
-        const cv = ai ? S.ai.get(c.name) : (await renderOne(c)).canvas;
-        if (!cv) continue;
-        shots.push(cv);
-        await writeBig(`${dir}/${safeName(style + c.name + "_" + preset().label + (ai ? "_drawn" : ""))}.jpg`, await canvasBytes(cv, "image/jpeg", 0.92));
+        try {
+          const cv = (await renderOne(c)).canvas;
+          shots.push(cv);
+          await writeBig(`${dir}/${safeName(style + c.name + "_" + preset().label + tag)}.jpg`, await canvasBytes(cv, "image/jpeg", 0.92));
+        } catch (e) { if (e instanceof NotDrawn) skipped++; else throw e; }
       }
+      if (!shots.length) throw new Error("Nothing to save yet — draw the garments first.");
       if (shots.length > 1) {
         const rows: HTMLCanvasElement[][] = [];
         const per = shots.length <= 4 ? shots.length : Math.ceil(shots.length / Math.ceil(shots.length / 4));
@@ -481,7 +546,7 @@ export function mockupsTab(): HTMLElement {
       }
       await openFolder(dir);
       notify(`Saved ${shots.length} mockup${shots.length > 1 ? "s" : ""} to JM Renders/Mockups`);
-      toast(`Saved ${shots.length} mockups`, "ok");
+      toast(`Saved ${shots.length} mockups${skipped ? ` (${skipped} not drawn yet, skipped)` : ""}`, "ok");
     } catch (e) { toast(errMsg(e), "err"); } finally { busy(saveBtn, false); }
   } }, "Save mockups") as HTMLButtonElement;
 
@@ -496,22 +561,24 @@ export function mockupsTab(): HTMLElement {
       h("h3", {}, "2 · Garments"),
       field("Source", srcSel),
       searchRow, uploadRow, resultsBox, colorsBox,
-      h("label", { class: "check" }, modelChk, "Photos are on a model (not flat)"),
+      field("Garment look", h("div", { class: "segbar" }, ...lookBtns)),
+      drawBox,
       h("h3", {}, "3 · Placement"),
       field("Placement", placementSel),
-      field("Size", sizeR.wrap),
-      h("p", { class: "hint" }, "Tip: drag the logo on any preview to move it."),
-      field("Move left / right", offXR.wrap, "% of the garment width"),
-      field("Move up / down", offR.wrap, "% of the garment height"),
+      ctl("Size", sizeR, () => setSize(100)),
+      h("div", { class: "field" }, h("div", { class: "lbl-row" }, h("span", { class: "lbl" }, "Move"), resetLink(() => setOffsets(0, 0))), pad),
+      ctl("Move left / right", offXR, () => setOffsets(0, S.offsetY)),
+      ctl("Move up / down", offR, () => setOffsets(S.offsetX, 0)),
+      h("p", { class: "hint" }, "You can also drag the logo on any preview. If it ends up somewhere you didn't mean, press Reset position."),
+      h("div", { class: "row" },
+        h("button", { class: "btn", onclick: () => setOffsets(0, 0) }, "Reset position"),
+        h("button", { class: "btn ghost", onclick: () => { S.sizePct = 100; sizeR.set(100); setOffsets(0, 0); } }, "Reset all")),
       h("h3", {}, "4 · Colour fixes (optional)"),
       instr, h("div", { class: "row" }, fixBtn, resetBtn), editNote,
-      h("h3", {}, "5 · AI drawn version (optional)"),
-      aiSection,
-      h("h3", {}, "6 · Save"),
+      h("h3", {}, "5 · Save"),
       jobInput, saveBtn,
-      h("p", { class: "hint" }, "Saves the view showing above the previews: exact mockups or AI drawings."),
     ),
-    h("main", { class: "stage" }, viewBar, preview),
+    h("main", { class: "stage" }, preview),
   );
 }
 

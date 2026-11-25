@@ -1,5 +1,6 @@
-// "AI drawn" mockups: OpenAI's image model redraws an exact mockup as a flat,
-// illustrated garment (graphic / tech-flat look). The call goes straight from
+// "AI drawn" garments: OpenAI's image model redraws a blank garment photo as a
+// flat, illustrated garment (graphic / tech-flat look); the exact logo is then
+// placed on it like on a photo. The call goes straight from
 // this Mac to OpenAI with the user's own key, which is kept in a private file
 // on the Mac (never in the page, never sent anywhere else).
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -35,51 +36,42 @@ export async function forgetKey() {
   if (await D.fs.exists(p)) await D.fs.writeFile(p, "", "utf8");
 }
 
-export type DrawArgs = {
-  mockup: HTMLCanvasElement;                       // the exact mockup
-  logoRect: { x: number; y: number; w: number; h: number }; // logo box in mockup pixels
-  logo: HTMLCanvasElement;                         // logo exactly as placed (colour fixes applied)
-  garment: string;                                 // e.g. "Gildan 8000 DryBlend T-shirt in Royal"
+export type GarmentDrawArgs = {
+  photo: HTMLImageElement;  // blank garment photo (flat or on a model)
+  garment: string;          // e.g. "Gildan 8000 DryBlend T-shirt in Royal"
+  view: "front" | "back";
   notes: string;
   quality: "medium" | "high";
-  exactLogo: boolean;                              // paste the real logo back on top
 };
 
-function promptFor(a: DrawArgs) {
+function garmentPrompt(a: GarmentDrawArgs) {
   return [
-    "Image 1 is a mockup of a garment with a logo on it. Image 2 is that same logo by itself on a transparent background.",
-    "Redraw Image 1 as a clean ILLUSTRATED apparel mockup: a flat, vector-style drawing of the garment, like a graphic designer's tech-pack flat or a polished product illustration. Smooth solid fill in the garment's exact colour, crisp dark outlines, simple soft shading and a few fold lines; seams, stitching, ribbing, cuffs, pockets, drawstrings and zippers drawn as clean lines. No photographic fabric texture, no person, mannequin or hanger, and a plain pure white background.",
-    `The garment is: ${a.garment}. Keep its exact style, cut, collar or hood, sleeves, details and colour, facing the same way, at the same size and position in the frame. Do not crop or zoom.`,
-    "The logo stays exactly where it is in Image 1, at the same size and position, printed flat on the drawn garment. It must be an exact copy of Image 2: same shapes, proportions, colours and spelling. Do not redraw, simplify or recolour it, and add no box, patch or outline behind it.",
+    `Image 1 is a product photo of a blank garment: ${a.garment}, ${a.view} view.`,
+    "Redraw it as a clean ILLUSTRATED apparel mockup: a flat, vector-style drawing of the garment, like a graphic designer's tech-pack flat or a polished product illustration. Smooth solid fill in the garment's exact colour, crisp dark outlines, simple soft shading and a few fold lines; seams, stitching, ribbing, cuffs, pockets, drawstrings and zippers drawn as clean lines. No photographic fabric texture.",
+    `Show only the garment by itself, ${a.view === "back" ? "from the back" : "from the front"}, straight on, centred and filling most of the frame, on a plain pure white background. If the photo shows a person, mannequin or hanger, leave them out and draw just the garment laid flat.`,
+    "Keep the garment's exact style, cut, collar or hood, sleeves, details and colour. Keep it completely blank: no logos, graphics, text, labels or tags anywhere on it.",
     a.notes ? `Extra instructions: ${a.notes.slice(0, 600)}` : "",
   ].filter(Boolean).join("\n\n");
 }
 
-export async function aiDraw(a: DrawArgs): Promise<HTMLCanvasElement> {
+/** Redraw a blank garment photo as an illustrated (drawn) blank. */
+export async function aiDrawGarment(a: GarmentDrawArgs): Promise<{ img: HTMLImageElement; png: Uint8Array }> {
   const hdr = await hdrPath();
   if (!(await savedKeyHint())) throw new Error("Add your OpenAI API key first.");
-  const portrait = a.mockup.height > a.mockup.width * 1.15;
+  const w0 = a.photo.naturalWidth, h0 = a.photo.naturalHeight;
+  const portrait = h0 > w0 * 1.15;
   const [W, H] = portrait ? [1024, 1536] : [1024, 1024];
-
-  // Pad the mockup onto the output's shape so positions map 1:1 back.
   const pad = document.createElement("canvas");
   pad.width = W; pad.height = H;
   const px = pad.getContext("2d")!;
   px.fillStyle = "#fff"; px.fillRect(0, 0, W, H);
-  const s = Math.min(W / a.mockup.width, H / a.mockup.height);
-  const ox = (W - a.mockup.width * s) / 2, oy = (H - a.mockup.height * s) / 2;
+  const s = Math.min(W / w0, H / h0);
   px.imageSmoothingQuality = "high";
-  px.drawImage(a.mockup, ox, oy, a.mockup.width * s, a.mockup.height * s);
-
-  const lg = document.createElement("canvas");
-  const lk = Math.min(1, 1400 / Math.max(a.logo.width, a.logo.height));
-  lg.width = Math.max(1, Math.round(a.logo.width * lk)); lg.height = Math.max(1, Math.round(a.logo.height * lk));
-  const lx = lg.getContext("2d")!; lx.imageSmoothingQuality = "high"; lx.drawImage(a.logo, 0, 0, lg.width, lg.height);
+  px.drawImage(a.photo, (W - w0 * s) / 2, (H - h0 * s) / 2, w0 * s, h0 * s);
 
   const work = await root(`.work/ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
-  await writeBig(`${work}/mockup.png`, await canvasBytes(pad));
-  await writeBig(`${work}/logo.png`, await canvasBytes(lg));
-  await D.fs.writeFile(`${work}/prompt.txt`, promptFor(a), "utf8");
+  await writeBig(`${work}/garment.png`, await canvasBytes(pad));
+  await D.fs.writeFile(`${work}/prompt.txt`, garmentPrompt(a), "utf8");
 
   let b64 = "";
   let lastErr = "OpenAI didn't return an image.";
@@ -87,34 +79,24 @@ export async function aiDraw(a: DrawArgs): Promise<HTMLCanvasElement> {
     for (const fidelity of [true, false]) {
       const cmd = `cd ${q(work)} && curl -sS --max-time 300 -o resp.json -w '%{http_code}' https://api.openai.com/v1/images/edits -H @${q(hdr)} ` +
         `-F model=${model} -F 'prompt=<prompt.txt' -F size=${W}x${H} -F quality=${a.quality} ${fidelity ? "-F input_fidelity=high " : ""}` +
-        `-F output_format=png -F n=1 -F 'image[]=@mockup.png;type=image/png' -F 'image[]=@logo.png;type=image/png'`;
+        `-F output_format=png -F n=1 -F 'image[]=@garment.png;type=image/png'`;
       const r = await sh(cmd, 320000);
       const status = +r.stdout.trim() || 0;
       let j: any = null;
       try { j = JSON.parse(await D.fs.readFile(`${work}/resp.json`, "utf8")); } catch { /* not JSON */ }
       if (status === 200 && j?.data?.[0]?.b64_json) { b64 = j.data[0].b64_json; break outer; }
       lastErr = j?.error?.message || r.stderr.trim() || `OpenAI error ${status}`;
-      if (status === 401) throw new Error("OpenAI rejected the API key. Check it under AI drawn version.");
+      if (status === 401) throw new Error("OpenAI rejected the API key. Check it under Garment look.");
       if (status === 429) throw new Error(`OpenAI rate limit or billing: ${lastErr}`);
       if (/safety|moderation|content policy/i.test(lastErr)) throw new Error(lastErr);
-      if (fidelity && /input_fidelity/i.test(lastErr)) continue; // retry this model without it
-      if (status === 400 || status === 403 || status === 404) continue outer; // try the next model
+      if (fidelity && /input_fidelity/i.test(lastErr)) continue;
+      if (status === 400 || status === 403 || status === 404) continue outer;
       throw new Error(lastErr);
     }
   }
   await sh(`rm -rf ${q(work)}`);
   if (!b64) throw new Error(lastErr);
-
-  const img = await fileToImage(new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: "image/png" }));
-  // Final at 2x so a pasted-back logo stays crisp.
-  const out = document.createElement("canvas");
-  out.width = W * 2; out.height = H * 2;
-  const ctx = out.getContext("2d")!;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, 0, 0, out.width, out.height);
-  if (a.exactLogo) {
-    const r = a.logoRect;
-    ctx.drawImage(a.logo, (ox + r.x * s) * 2, (oy + r.y * s) * 2, r.w * s * 2, r.h * s * 2);
-  }
-  return out;
+  const png = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const img = await fileToImage(new Blob([png as BlobPart], { type: "image/png" }));
+  return { img, png };
 }
