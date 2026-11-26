@@ -43,7 +43,8 @@ fi
 if [ "$NODE_OK" -ne 1 ]; then
   echo "Installing a private copy of Node.js 22 (no admin password needed)…"
   ARCH=$(uname -m); [ "$ARCH" = "arm64" ] || ARCH="x64"
-  FILE=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt | awk '{print $2}' | grep "darwin-$ARCH.tar.gz$" | head -1)
+  SUMS=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt)
+  FILE=$(printf '%s\n' "$SUMS" | awk -v want="darwin-$ARCH.tar.gz" 'index($2, want) && substr($2, length($2)-length(want)+1) == want && !f {print $2; f=1}')
   mkdir -p "$DEST/runtime"
   curl -fsSL "https://nodejs.org/dist/latest-v22.x/$FILE" -o "$DEST/runtime/node.tgz"
   rm -rf "$DEST/runtime/node" && mkdir -p "$DEST/runtime/node"
@@ -102,7 +103,13 @@ ask OPENAI_API_KEY "OpenAI API key (Enter to skip)" 1 1
 [ -n "$(getv EXTRA_DIRS)" ] || setv EXTRA_DIRS "$HOME/Documents/JM Renders"
 setv INSTALLER_DIR "$SRC"
 CODE="$(getv PAIRING_CODE)"
-if [ -z "$CODE" ]; then CODE=$(LC_ALL=C tr -dc '0-9' </dev/urandom | head -c 6); setv PAIRING_CODE "$CODE"; fi
+if [ -z "$CODE" ]; then
+  # od reads exactly 4 bytes, so nothing in this pipeline gets cut off early
+  # (tr </dev/urandom | head exits with SIGPIPE, which pipefail treats as failure)
+  N=$(od -An -N4 -tu4 /dev/urandom | tr -d ' \n')
+  CODE=$(printf '%06d' $(( N % 1000000 )))
+  setv PAIRING_CODE "$CODE"
+fi
 
 # ---------------------------------------------------------------- launchd
 say "Setting it to run all the time"
@@ -134,7 +141,8 @@ launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 launchctl kickstart -k "gui/$(id -u)/$LABEL" 2>/dev/null || true
 sleep 4
-if launchctl print "gui/$(id -u)/$LABEL" 2>/dev/null | grep -q "state = running"; then
+LSTATE=$(launchctl print "gui/$(id -u)/$LABEL" 2>/dev/null || true)
+if [[ "$LSTATE" == *"state = running"* ]]; then
   bold "✅ JM Agent is running."
 else
   echo "It didn't start yet. Last log lines:"; tail -n 20 "$DEST/logs/agent.log" || true
