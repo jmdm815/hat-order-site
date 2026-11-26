@@ -37,8 +37,8 @@ const SERVICES = [
     name: "Screen Printing",
     text: "The best price per shirt on larger orders with simpler artwork. Bold, durable ink for crew tees, giveaways and team shirts.",
     for: ["Crew Tees", "Giveaways", "Bulk Orders"],
-    img: { src: "/img/screen-print.webp", alt: "Squeegee pulling red ink through a screen onto a navy t-shirt on a screen printing press", pos: "40% 50%" },
-    caption: "Red ink pulled through the screen, one shirt at a time.",
+    img: { src: "/img/screen-print-press.webp", alt: "Printer pulling white ink through a screen lowered onto a navy t-shirt on a carousel screen printing press", pos: "58% 50%" },
+    caption: "White ink pulled through the screen onto a shirt on the press.",
   },
   {
     name: "UV Printed Patches & Hats",
