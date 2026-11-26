@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { CartButton } from "./shop/Cart";
 
 const LINKS = [
-  ["#services", "Services"],
-  ["#who", "Who we work with"],
-  ["#process", "How it works"],
-  ["#catalogs", "Catalogs"],
-  ["#visit", "Visit"],
+  ["/#services", "Services"],
+  ["/#who", "Who we work with"],
+  ["/#process", "How it works"],
+  ["/shop", "Shop"],
+  ["/#visit", "Visit"],
 ] as const;
 
 export default function Header() {
@@ -15,7 +16,7 @@ export default function Header() {
   return (
     <header className="top">
       <div className="wrap">
-        <a className="brand" href="#top" aria-label="JM Digital Media home">
+        <a className="brand" href="/" aria-label="JM Digital Media home">
           <img src="/img/jm-logo.png" alt="" width={46} height={46} />
           <span>JM Digital Media</span>
         </a>
@@ -26,9 +27,10 @@ export default function Header() {
             </a>
           ))}
         </nav>
-        <a className="btn btn-red" href="#quote">
+        <a className="btn btn-red" href="/#quote">
           Get a quote
         </a>
+        <CartButton />
         <button
           className="menu-btn"
           aria-label={open ? "Close menu" : "Open menu"}

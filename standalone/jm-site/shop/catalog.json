@@ -1,0 +1,34 @@
+{
+  "_readme": "Ready-made products for the shop. The checkout endpoint (hat-order-site app/api/shop/checkout) reads prices from THIS file, so a price shown on the site is always the price charged. Edit, commit, push: both sites redeploy.",
+  "currency": "USD",
+  "taxRatePercent": 8.25,
+  "shipping": {
+    "label": "Shipping (USPS)",
+    "firstItem": 9.95,
+    "eachAdditional": 3.0,
+    "note": "Ships in 2-4 business days from Rosenberg, TX."
+  },
+  "pickup": {
+    "label": "Pickup in Rosenberg, TX",
+    "note": "Pickup is by appointment. We'll text you when your order is ready."
+  },
+  "maxPerItem": 20,
+  "products": [
+    {
+      "slug": "mom-life-tumbler",
+      "name": "Mom Life 20 oz Tumbler",
+      "price": 30.0,
+      "active": true,
+      "color": "Hot Pink",
+      "images": ["/img/shop/mom-life-tumbler.webp"],
+      "imageAlt": "Hot pink stainless tumbler printed in white with a bow, the words Mom Life, and a checklist: coffee, chaos, cuddles, carpool, love.",
+      "summary": "Hot pink insulated tumbler printed with our Mom Life design: coffee, chaos, cuddles, carpool, love.",
+      "details": [
+        "20 oz double-wall stainless steel",
+        "Clear slide lid",
+        "Design UV printed in white in our Rosenberg shop",
+        "Hand wash recommended"
+      ]
+    }
+  ]
+}
