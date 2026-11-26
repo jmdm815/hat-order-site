@@ -1,0 +1,11 @@
+node_modules
+.env
+state.json
+logs
+runtime
+mcp.json
+workspace/inbox/*
+!workspace/inbox/.keep
+workspace/out/*
+!workspace/out/.keep
+workspace/repos

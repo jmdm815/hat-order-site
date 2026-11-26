@@ -1,0 +1,15 @@
+#!/bin/bash
+# Small control script for JM Agent.  Usage: jm-agent status|logs|restart|stop|start
+LABEL="com.jmmedia.agent"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+DIR="$HOME/jm-agent"
+case "${1:-status}" in
+  status)
+    if launchctl print "gui/$(id -u)/$LABEL" 2>/dev/null | grep -q "state = running"; then echo "JM Agent is running."; else echo "JM Agent is NOT running."; fi
+    tail -n 5 "$DIR/logs/agent.log" 2>/dev/null ;;
+  logs) tail -n 80 -f "$DIR/logs/agent.log" ;;
+  restart) launchctl kickstart -k "gui/$(id -u)/$LABEL" && echo "Restarted." ;;
+  stop) launchctl bootout "gui/$(id -u)/$LABEL" && echo "Stopped (it will start again at login; run 'jm-agent start' to start now)." ;;
+  start) launchctl bootstrap "gui/$(id -u)" "$PLIST" 2>/dev/null; launchctl kickstart "gui/$(id -u)/$LABEL" && echo "Started." ;;
+  *) echo "Usage: jm-agent status|logs|restart|stop|start" ;;
+esac
