@@ -9,6 +9,7 @@ import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk"
 import { z } from "zod";
 import { config, getState, HOME, log, saveState, WORKSPACE } from "./config.mjs";
 import { describeCall, needsApproval } from "./approvals.mjs";
+import { secretNames } from "./secrets.mjs";
 
 /**
  * @typedef {Object} Channel
@@ -32,7 +33,8 @@ How to work:
 - Sending email or messages, pushing code, deploying, publishing, deleting data or spending money pauses for his approval in the chat automatically. Prepare everything first so he can approve in one tap. If he denies, don't retry the same thing; ask what to change.
 - Follow the JM Media playbook (the jm-media-operator skill) for all JM work: standing rules, repos and deploy steps.
 - Memory: memory/MEMORY.md is loaded into every session. When he tells you something durable (a preference, a rule, a fact about the business, a project's status), update that file right away so every other session knows it. Keep it tidy and under ~300 lines; never store passwords, API keys or card numbers.
-- Repos live in ${path.join(WORKSPACE, "repos")} (clone with gh if missing). Never print secrets or .env contents.
+- Repos live in ${path.join(WORKSPACE, "repos")} (clone with gh if missing).
+- Keys and passwords: Jhairson saves them with "/key NAME value" in Telegram (or "key NAME value" in a Slack DM). They're stored on the Mac and available to your commands and scripts as environment variables, for example $OPENAI_API_KEY in Bash or process.env.OPENAI_API_KEY in Node. Use them by name only: never print, echo, log or write a value into files, code, memory or messages, and never read .env. If a job needs a key that isn't saved, tell him the exact command to send, e.g. /key SHOPIFY_TOKEN your-token. Never ask him to paste a key in a normal message.
 `;
 
 class Semaphore {
@@ -110,8 +112,10 @@ export class Agent {
   async #turn(key, text, channel, files, abort, isRetry) {
     const st = getState();
     const thread = st.threads[key] || {};
+    const keys = secretNames();
     const prompt =
       text +
+      (keys.length ? `\n\n[Saved keys available as environment variables: ${keys.join(", ")}]` : "") +
       (files.length ? `\n\n[Attached files saved on the Mac:]\n${files.map((f) => `- ${f}`).join("\n")}` : "") +
       `\n\n[Sent via ${channel.name} at ${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} Central]`;
 
@@ -171,6 +175,7 @@ export class Agent {
         canUseTool: async (toolName, input, opts) => {
           const reason = needsApproval(toolName, input);
           if (!reason) return { behavior: "allow", updatedInput: input };
+          if (reason.startsWith("DENY:")) return { behavior: "deny", message: reason.slice(5) };
           log("approval?", key, toolName, reason);
           const ok = await channel.approve(reason, describeCall(toolName, input));
           if (opts.signal.aborted) return { behavior: "deny", message: "Stopped." };

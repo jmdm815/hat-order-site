@@ -100,6 +100,7 @@ ask OPENAI_API_KEY "OpenAI API key (Enter to skip)" 1 1
 [ -n "$(getv AGENT_MODEL)" ] || setv AGENT_MODEL "claude-opus-5-5"
 [ -n "$(getv MAX_PARALLEL)" ] || setv MAX_PARALLEL "4"
 [ -n "$(getv EXTRA_DIRS)" ] || setv EXTRA_DIRS "$HOME/Documents/JM Renders"
+setv INSTALLER_DIR "$SRC"
 CODE="$(getv PAIRING_CODE)"
 if [ -z "$CODE" ]; then CODE=$(LC_ALL=C tr -dc '0-9' </dev/urandom | head -c 6); setv PAIRING_CODE "$CODE"; fi
 
@@ -159,6 +160,7 @@ if ! command -v gh >/dev/null 2>&1; then
   echo "  brew install gh && gh auth login"
 fi
 echo
+echo "Later, add more keys and passwords from your phone with:  /key NAME value"
 bold "Manage it any time with:  ~/jm-agent/bin/jm-agent status | logs | restart | stop"
 echo
 read -r -p "Press Enter to close."

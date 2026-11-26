@@ -10,6 +10,8 @@ import { Bot, InlineKeyboard, InputFile } from "grammy";
 import { config, getState, INBOX, log, saveState } from "./config.mjs";
 import { split, toTelegramHtml } from "./format.mjs";
 import { transcribe } from "./voice.mjs";
+import { deleteSecret, NEEDS_RESTART, redact, secretNames, setSecret, validName } from "./secrets.mjs";
+import { restartSoon, selfUpdate } from "./update.mjs";
 
 const HELP = `JM Agent is on. Just message me what you need.
 
@@ -18,6 +20,9 @@ const HELP = `JM Agent is on. Just message me what you need.
 • /status: what's running
 • /stop: stop the job in this thread
 • Send photos, PDFs, logos or voice notes any time
+• /key NAME value: save a key or password (your message is deleted right away)
+• /keys: list saved key names · /delkey NAME: remove one
+• /update: install the latest version · /restart
 
 Emails, pushes, deploys and anything public wait for your Approve tap.`;
 
@@ -56,7 +61,8 @@ export function startTelegram(agent) {
   const makeChannel = (chatId, key, topic) => {
     let statusId = null;
     const opts = topic ? { message_thread_id: topic } : {};
-    const send = async (text) => {
+    const send = async (raw) => {
+      const text = redact(raw);
       for (const part of split(text, 3800)) {
         let m;
         try {
@@ -77,10 +83,11 @@ export function startTelegram(agent) {
         await send(text);
       },
       sendFile: async (file, caption) => {
-        const m = await bot.api.sendDocument(chatId, new InputFile(fs.createReadStream(file), path.basename(file)), { ...opts, caption: caption?.slice(0, 1000) });
+        const m = await bot.api.sendDocument(chatId, new InputFile(fs.createReadStream(file), path.basename(file)), { ...opts, caption: redact(caption)?.slice(0, 1000) });
         remember(m.message_id, chatId, key);
       },
-      status: async (text) => {
+      status: async (raw) => {
+        const text = redact(raw);
         bot.api.sendChatAction(chatId, "typing", opts).catch(() => {});
         if (statusId) await bot.api.editMessageText(chatId, statusId, text.slice(0, 300)).catch(() => {});
         else {
@@ -97,6 +104,7 @@ export function startTelegram(agent) {
         new Promise((resolve) => {
           const id = Math.random().toString(36).slice(2, 10);
           const kb = new InlineKeyboard().text("✅ Approve", `ap:${id}:y`).text("✋ Deny", `ap:${id}:n`);
+          details = redact(details);
           const text = `<b>Needs your OK:</b> ${toTelegramHtml(reason)}\n\n${toTelegramHtml(details)}`;
           bot.api
             .sendMessage(chatId, text.slice(0, 4000), { ...opts, parse_mode: "HTML", reply_markup: kb })
@@ -141,6 +149,46 @@ export function startTelegram(agent) {
   bot.command("status", async (ctx) => {
     const r = agent.list();
     await ctx.reply(r.length ? r.map((x) => `• ${x.title} (${x.channel}, ${x.minutes} min)`).join("\n") : "Nothing running right now.");
+  });
+
+  // ---- keys and passwords: handled here, never sent to the AI model
+  bot.command("key", async (ctx) => {
+    const raw = (ctx.match || "").trim();
+    await ctx.deleteMessage().catch(() => {});
+    const m = /^([A-Za-z][A-Za-z0-9_]*)\s+(\S[\s\S]*)$/.exec(raw);
+    if (!m) return ctx.reply("Send it as: /key NAME value\nExample: /key OPENAI_API_KEY sk-...\n(I deleted your message.)");
+    const name = m[1].toUpperCase();
+    try {
+      setSecret(name, m[2]);
+      log("secret saved", name);
+      const restart = NEEDS_RESTART.has(name) ? " This one takes effect after /restart." : "";
+      await ctx.reply(`🔐 Saved ${name} on the Mac and deleted your message.${restart} Jobs can now use it by name; I won't show the value.`);
+    } catch (e) {
+      await ctx.reply(`Not saved: ${e.message} (I deleted your message.)`);
+    }
+  });
+  bot.command("keys", async (ctx) => {
+    const names = secretNames();
+    await ctx.reply(names.length ? "Saved keys:\n" + names.map((n) => `• ${n}`).join("\n") : "No keys saved yet.");
+  });
+  bot.command("delkey", async (ctx) => {
+    const name = (ctx.match || "").trim().toUpperCase();
+    if (!validName(name)) return ctx.reply("Send it as: /delkey NAME");
+    await ctx.reply(deleteSecret(name) ? `Removed ${name}.` : `${name} isn't saved.`);
+  });
+  bot.command("update", async (ctx) => {
+    await ctx.reply("Updating…");
+    try {
+      const r = await selfUpdate();
+      await ctx.reply(`Updated${r.version ? ` to v${r.version}` : ""}. Restarting; back in a few seconds.`);
+      restartSoon();
+    } catch (e) {
+      await ctx.reply(`Update failed: ${e.message}`);
+    }
+  });
+  bot.command("restart", async (ctx) => {
+    await ctx.reply("Restarting; back in a few seconds.");
+    restartSoon();
   });
 
   bot.on("callback_query:data", async (ctx) => {

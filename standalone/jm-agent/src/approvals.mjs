@@ -38,12 +38,14 @@ export function needsApproval(toolName, input) {
     const cmd = String(input.command || "");
     for (const [re, why] of RISKY_BASH) if (re.test(cmd)) return why;
     for (const d of SECRET_DIRS) if (cmd.includes(d) || cmd.includes(d.replace(HOME, "~"))) return "Touch a credentials folder";
+    if (/(^|[\s;&|])(printenv|env|export|set)(\s*$|\s*[;&|])/.test(cmd) || /(^|[\s"'\/=<])\.env(\.[\w-]+)?(\s|$|["'])/.test(cmd)) return "Show environment or secrets (.env)";
+    if (/\$\{?[A-Z][A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASS)\b/.test(cmd) && /\b(echo|printf|cat|tee|>\s*\S)/.test(cmd)) return "Print or write a saved key";
     return null;
   }
   if (toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit" || toolName === "Read") {
     const p = String(input.file_path || input.path || "");
     for (const d of SECRET_DIRS) if (p.startsWith(d)) return "Touch a credentials folder";
-    if (/\.env(\.|$)/.test(path.basename(p)) && toolName !== "Read") return "Change a secrets (.env) file";
+    if (/^\.env(\.|$)/.test(path.basename(p))) return toolName === "Read" ? "DENY:Reading the .env file is blocked so saved keys stay private. Use keys by environment variable name instead." : "Change a secrets (.env) file";
     return null;
   }
   if (toolName.startsWith("mcp__")) {

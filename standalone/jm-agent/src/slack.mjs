@@ -6,6 +6,8 @@ import path from "node:path";
 import bolt from "@slack/bolt";
 import { config, getState, INBOX, log, saveState } from "./config.mjs";
 import { split, toSlackMrkdwn } from "./format.mjs";
+import { deleteSecret, NEEDS_RESTART, redact, secretNames, setSecret, validName } from "./secrets.mjs";
+import { restartSoon, selfUpdate } from "./update.mjs";
 
 const { App } = bolt;
 
@@ -19,7 +21,7 @@ export function startSlack(agent) {
   const makeChannel = (client, channel, threadTs) => {
     let statusTs = null;
     const post = async (text) => {
-      for (const part of split(toSlackMrkdwn(text), 3500)) await client.chat.postMessage({ channel, thread_ts: threadTs, text: part, unfurl_links: false });
+      for (const part of split(toSlackMrkdwn(redact(text)), 3500)) await client.chat.postMessage({ channel, thread_ts: threadTs, text: part, unfurl_links: false });
     };
     return {
       name: "slack",
@@ -31,9 +33,10 @@ export function startSlack(agent) {
         await post(text);
       },
       sendFile: async (file, caption) => {
-        await client.files.uploadV2({ channel_id: channel, thread_ts: threadTs, file: fs.createReadStream(file), filename: path.basename(file), initial_comment: caption });
+        await client.files.uploadV2({ channel_id: channel, thread_ts: threadTs, file: fs.createReadStream(file), filename: path.basename(file), initial_comment: redact(caption) });
       },
-      status: async (text) => {
+      status: async (raw) => {
+        const text = redact(raw);
         if (statusTs) await client.chat.update({ channel, ts: statusTs, text }).catch(() => {});
         else statusTs = (await client.chat.postMessage({ channel, thread_ts: threadTs, text })).ts;
       },
@@ -49,8 +52,9 @@ export function startSlack(agent) {
               channel,
               thread_ts: threadTs,
               text: `Needs your OK: ${reason}`,
+              // details are scrubbed of saved key values below
               blocks: [
-                { type: "section", text: { type: "mrkdwn", text: `*Needs your OK:* ${reason}\n${toSlackMrkdwn(details)}`.slice(0, 2900) } },
+                { type: "section", text: { type: "mrkdwn", text: `*Needs your OK:* ${reason}\n${toSlackMrkdwn(redact(details))}`.slice(0, 2900) } },
                 {
                   type: "actions",
                   elements: [
@@ -89,6 +93,39 @@ export function startSlack(agent) {
 
     const threadTs = event.thread_ts || event.ts;
     const key = `slack:${event.channel}:${threadTs}`;
+    const say = (t) => client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: t });
+    // keys and passwords: handled here, never sent to the AI model
+    const km = /^key\s+([A-Za-z][A-Za-z0-9_]*)\s+(\S[\s\S]*)$/i.exec(text);
+    if (km) {
+      if (event.channel_type !== "im") return say("For safety, only send keys in a direct message to me. Please delete that message.");
+      try {
+        setSecret(km[1].toUpperCase(), km[2]);
+        log("secret saved", km[1].toUpperCase());
+        return say(`🔐 Saved ${km[1].toUpperCase()} on the Mac.${NEEDS_RESTART.has(km[1].toUpperCase()) ? " Send restart to apply it." : ""} Slack doesn't let me delete your message, so please delete it yourself.`);
+      } catch (e) {
+        return say(`Not saved: ${e.message}`);
+      }
+    }
+    if (/^keys$/i.test(text)) {
+      const names = secretNames();
+      return say(names.length ? "Saved keys:\n" + names.map((n) => `• ${n}`).join("\n") : "No keys saved yet.");
+    }
+    const dm = /^delkey\s+([A-Za-z][A-Za-z0-9_]*)$/i.exec(text);
+    if (dm) return say(validName(dm[1].toUpperCase()) && deleteSecret(dm[1].toUpperCase()) ? `Removed ${dm[1].toUpperCase()}.` : "That key isn't saved.");
+    if (/^update$/i.test(text)) {
+      try {
+        const r = await selfUpdate();
+        await say(`Updated${r.version ? ` to v${r.version}` : ""}. Restarting; back in a few seconds.`);
+        restartSoon();
+      } catch (e) {
+        await say(`Update failed: ${e.message}`);
+      }
+      return;
+    }
+    if (/^restart$/i.test(text)) {
+      await say("Restarting; back in a few seconds.");
+      return restartSoon();
+    }
     if (/^stop$/i.test(text)) return client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: agent.stop(key) ? "Stopping…" : "Nothing is running in this thread." });
     if (/^status$/i.test(text)) {
       const r = agent.list();
