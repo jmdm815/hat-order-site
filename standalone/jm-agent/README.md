@@ -3,7 +3,7 @@
 JM Media's always-on assistant. It runs on the Mac mini, you talk to it from Telegram or Slack, and it can do the same kinds of work as Claude in chat: build and fix the websites, work in the repos, research, write, make files and graphics, and prepare emails and quotes. It runs on the Claude Agent SDK (the engine behind Claude Code).
 
 - **Several jobs at once:** every Telegram thread (`/new`, or reply to one of its messages) and every Slack thread is its own session. Up to 4 run in parallel by default (`MAX_PARALLEL` in `.env`).
-- **Remembers:** each thread keeps its full history. Durable facts go into `workspace/memory/MEMORY.md`, which every session loads. The JM playbook is in `workspace/.claude/skills/jm-media-operator/`.
+- **Remembers:** each thread keeps its full history. Durable facts go into `workspace/memory/MEMORY.md`, which every session loads. The JM playbook (`workspace/playbook/SKILL.md`) is installed as a skill every session loads.
 - **Asks first:** sending email or messages, `git push`, deploys, publishing, deleting data and anything involving money pause until you tap **Approve**. See `src/approvals.mjs`.
 - **Private:** only the accounts you pair with the one-time code can use it.
 

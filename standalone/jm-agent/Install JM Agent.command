@@ -23,11 +23,14 @@ mkdir -p "$DEST"
 rsync -a --delete \
   --exclude ".env" --exclude "state.json" --exclude "node_modules" --exclude "runtime" --exclude "logs" \
   --exclude "workspace/memory/" --exclude "workspace/inbox/" --exclude "workspace/out/" --exclude "workspace/repos/" \
-  --exclude "mcp.json" --exclude "Install JM Agent.command" \
+  --exclude "mcp.json" --exclude "Install JM Agent.command" --exclude "workspace/.claude/" \
   "$SRC/" "$DEST/"
 mkdir -p "$DEST/workspace/memory" "$DEST/workspace/inbox" "$DEST/workspace/out" "$DEST/workspace/repos" "$DEST/logs"
 [ -f "$DEST/workspace/memory/MEMORY.md" ] || cp "$SRC/workspace/memory/MEMORY.md" "$DEST/workspace/memory/MEMORY.md"
 chmod +x "$DEST/bin/jm-agent" 2>/dev/null || true
+# the JM playbook becomes a skill every session loads
+mkdir -p "$DEST/workspace/.claude/skills/jm-media-operator"
+cp "$SRC/workspace/playbook/SKILL.md" "$DEST/workspace/.claude/skills/jm-media-operator/SKILL.md"
 
 # ---------------------------------------------------------------- node
 say "Checking Node.js"
