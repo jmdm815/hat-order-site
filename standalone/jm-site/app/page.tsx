@@ -37,21 +37,22 @@ const SERVICES = [
     name: "Screen Printing",
     text: "The best price per shirt on larger orders with simpler artwork. Bold, durable ink for crew tees, giveaways and team shirts.",
     for: ["Crew Tees", "Giveaways", "Bulk Orders"],
-    img: { src: "/img/roofer-tee.webp", alt: "Roofer in a printed company long-sleeve shirt", pos: "50% 40%" },
-    caption: "Bold printed crew shirts that hold up on the roof.",
+    img: { src: "/img/screen-print.webp", alt: "Squeegee pulling red ink through a screen onto a navy t-shirt on a screen printing press", pos: "40% 50%" },
+    caption: "Red ink pulled through the screen, one shirt at a time.",
   },
   {
     name: "UV Printed Patches & Hats",
     text: "Sharp, full-color patches applied to trucker and structured caps. A clean, premium look for logos that are too detailed to stitch.",
     for: ["Patch Hats", "Detailed Logos"],
-    img: { src: "/img/crew-back.webp", alt: "Black cap with a detailed company logo", pos: "55% 18%" },
-    caption: "Detailed logos stay sharp on caps.",
+    img: { src: "/img/uv-patch-hats.webp", alt: "Trucker caps with full-color UV printed hexagon patches, with loose patches on the bench", pos: "55% 50%" },
+    caption: "Full-color UV printed patches on trucker caps.",
   },
   {
     name: "UV Printed Tumblers & Cups",
     text: "Your logo printed directly on tumblers and drinkware, for client gifts, sales teams and company events.",
     for: ["Client Gifts", "Events"],
-    caption: "Logo tumblers for client gifts and company events.",
+    img: { src: "/img/uv-tumblers.webp", alt: "Navy, white and black tumblers UV printed with a full-color logo, with a UV printer behind them", pos: "35% 50%" },
+    caption: "Tumblers UV printed with a full-color logo.",
   },
 ] as const;
 
