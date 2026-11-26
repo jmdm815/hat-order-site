@@ -1,5 +1,8 @@
 import Header from "@/components/Header";
 import QuoteForm from "@/components/QuoteForm";
+import HeroSlider from "@/components/HeroSlider";
+import ServicePicker from "@/components/ServicePicker";
+import Motion from "@/components/Motion";
 
 const CATALOG_A = "https://www.companycasuals.com/jmdm/start.jsp";
 const CATALOG_B = "https://www.sportswearcollection.com/categories?site=FCWQLFFVDR";
@@ -19,27 +22,36 @@ const SERVICES = [
     name: "Embroidery",
     text: "Your logo stitched onto polos, button-downs, jackets, beanies and caps. It holds up to daily wear and washing, and it's the look most businesses want on staff uniforms.",
     for: ["Staff polos", "Jackets", "Caps & beanies"],
+    img: { src: "/img/doorstep-polo.webp", alt: "Technician in an embroidered polo greeting a customer at the door", pos: "60% 40%" },
+    caption: "An embroidered polo makes your tech recognizable at the customer's door.",
   },
   {
     name: "DTF printing",
     text: "Full-color prints with fine detail and gradients, on cotton, polyester and blends. Good for short runs, multi-color logos and event shirts on a deadline.",
     for: ["Event shirts", "Full-color logos", "Small runs"],
     link: { href: DTF_PAGE, label: "Order transfers" },
+    img: { src: "/img/dtf-printer.webp", alt: "DTF printer printing full-color transfers", pos: "70% 50%" },
+    caption: "Full-color DTF transfers, printed and ready to press.",
   },
   {
     name: "Screen printing",
     text: "The best price per shirt on larger orders with simpler artwork. Bold, durable ink for crew tees, giveaways and team shirts.",
     for: ["Crew tees", "Giveaways", "Bulk orders"],
+    img: { src: "/img/roofer-tee.webp", alt: "Roofer in a printed company long-sleeve shirt", pos: "50% 40%" },
+    caption: "Bold printed crew shirts that hold up on the roof.",
   },
   {
     name: "UV printed patches & hats",
     text: "Sharp, full-color patches applied to trucker and structured caps. A clean, premium look for logos that are too detailed to stitch.",
     for: ["Patch hats", "Detailed logos"],
+    img: { src: "/img/crew-back.webp", alt: "Black cap with a detailed company logo", pos: "55% 18%" },
+    caption: "Detailed logos stay sharp on caps.",
   },
   {
     name: "UV printed tumblers & cups",
     text: "Your logo printed directly on tumblers and drinkware, for client gifts, sales teams and company events.",
     for: ["Client gifts", "Events"],
+    caption: "Logo tumblers for client gifts and company events.",
   },
 ] as const;
 
@@ -94,15 +106,17 @@ const STEPS = [
 export default function Home() {
   return (
     <>
+      <Motion />
       <Header />
       <main id="top">
         {/* Hero */}
         <section className="hero">
           <div className="wrap hero-grid">
             <div className="hero-copy">
-              <h1 className="display">
-                Branded gear that works as hard as your crew.
+              <h1 className="display hero-h1" aria-label="Branded gear that works as hard as your crew.">
+                <span aria-hidden="true"><span className="w" style={{ ["--i" as string]: 0 }}>Branded</span>{" "}<span className="w" style={{ ["--i" as string]: 1 }}>gear</span>{" "}<span className="w" style={{ ["--i" as string]: 2 }}>that</span>{" "}<span className="w" style={{ ["--i" as string]: 3 }}>works</span>{" "}<span className="w" style={{ ["--i" as string]: 4 }}>as</span>{" "}<span className="w" style={{ ["--i" as string]: 5 }}>hard</span>{" "}<span className="w" style={{ ["--i" as string]: 6 }}>as</span>{" "}<span className="w" style={{ ["--i" as string]: 7 }}>your</span>{" "}<span className="w" style={{ ["--i" as string]: 8 }}>crew.</span>{" "}</span>
               </h1>
+              <svg className="sew" viewBox="0 0 600 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 7 C 150 1, 300 13, 598 6" /></svg>
               <p className="lede">
                 Embroidered polos, hats and jackets, printed shirts and logo drinkware for contractors, local businesses,
                 schools and teams. Made in-house in Rosenberg, Texas.
@@ -127,66 +141,41 @@ export default function Home() {
                 </li>
               </ul>
             </div>
-            <div className="hero-photo">
-              <div className="main">
-                <img src="/img/crew-back.webp" alt="Crew member in a hi-vis shirt and cap with an embroidered company logo" width={1193} height={895} fetchPriority="high" />
-              </div>
-              <p className="tag">Embroidery, DTF, screen &amp; UV printing under one roof</p>
-            </div>
+            <HeroSlider />
           </div>
         </section>
+
+        <div className="marquee" aria-label="Services: Embroidery, DTF printing, Screen printing, UV printed patches, Patch hats, Logo tumblers, Digitizing, Mockups">
+          <div className="marquee-track" aria-hidden="true">
+            <div><span>Embroidery</span><i aria-hidden="true">✚</i><span>DTF printing</span><i aria-hidden="true">✚</i><span>Screen printing</span><i aria-hidden="true">✚</i><span>UV printed patches</span><i aria-hidden="true">✚</i><span>Patch hats</span><i aria-hidden="true">✚</i><span>Logo tumblers</span><i aria-hidden="true">✚</i><span>Digitizing</span><i aria-hidden="true">✚</i><span>Mockups</span><i aria-hidden="true">✚</i></div>
+            <div><span>Embroidery</span><i aria-hidden="true">✚</i><span>DTF printing</span><i aria-hidden="true">✚</i><span>Screen printing</span><i aria-hidden="true">✚</i><span>UV printed patches</span><i aria-hidden="true">✚</i><span>Patch hats</span><i aria-hidden="true">✚</i><span>Logo tumblers</span><i aria-hidden="true">✚</i><span>Digitizing</span><i aria-hidden="true">✚</i><span>Mockups</span><i aria-hidden="true">✚</i></div>
+          </div>
+        </div>
 
         {/* Services */}
         <section className="section services" id="services">
           <div className="wrap">
-            <div className="section-head">
+            <div className="section-head" data-reveal>
               <h2 className="display">What we put your logo on</h2>
               <p className="lede">
                 Pick the method that fits the garment, the artwork and the budget. Not sure which one? Tell us what it&apos;s
                 for and we&apos;ll recommend one.
               </p>
             </div>
-            <div className="svc-layout">
-              <ul className="svc-list">
-                {SERVICES.map((s) => (
-                  <li className="svc" key={s.name}>
-                    <h3>{s.name}</h3>
-                    {"link" in s ? (
-                      <a className="more" href={s.link.href}>
-                        {s.link.label}
-                      </a>
-                    ) : (
-                      <span />
-                    )}
-                    <p>{s.text}</p>
-                    <div className="for">
-                      {s.for.map((f) => (
-                        <span key={f}>{f}</span>
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <div className="svc-side">
-                <figure>
-                  <img src="/img/doorstep-polo.webp" alt="Technician in an embroidered polo greeting a customer at the door" width={1400} height={933} loading="lazy" />
-                  <figcaption>An embroidered polo makes your tech recognizable at the customer&apos;s door.</figcaption>
-                </figure>
-              </div>
-            </div>
+            <ServicePicker services={SERVICES} />
           </div>
         </section>
 
         {/* Who */}
         <section className="section who" id="who">
           <div className="wrap">
-            <div className="section-head">
+            <div className="section-head" data-reveal>
               <h2 className="display">Built for businesses that show up in person</h2>
               <p className="lede">If your people meet customers, work job sites or represent you at events, they should look the part.</p>
             </div>
             <div className="who-grid">
               {WHO.map((w) => (
-                <article className="who-item" key={w.title}>
+                <article className="who-item" key={w.title} data-reveal style={{ ["--d" as string]: `${WHO.indexOf(w) * 110}ms` }}>
                   <figure>
                     <img src={w.img} alt={w.alt} width={718} height={724} loading="lazy" />
                   </figure>
@@ -201,12 +190,12 @@ export default function Home() {
         {/* Why */}
         <section className="section why">
           <div className="wrap">
-            <div className="section-head">
+            <div className="section-head" data-reveal>
               <h2 className="display">Why businesses order from JM</h2>
             </div>
             <div className="why-grid">
               {WHY.map((w) => (
-                <div className="why-item" key={w.title}>
+                <div className="why-item" key={w.title} data-reveal style={{ ["--d" as string]: `${WHY.indexOf(w) * 90}ms` }}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M5 12.5l4.5 4.5L19 7.5" />
                   </svg>
@@ -221,13 +210,13 @@ export default function Home() {
         {/* Process */}
         <section className="section process" id="process">
           <div className="wrap">
-            <div className="section-head">
+            <div className="section-head" data-reveal>
               <h2 className="display">How an order works</h2>
               <p className="lede">From your logo to finished gear in five steps.</p>
             </div>
-            <ol className="steps">
+            <ol className="steps" data-reveal>
               {STEPS.map((s) => (
-                <li className="step" key={s.title}>
+                <li className="step" key={s.title} style={{ ["--d" as string]: `${300 + STEPS.indexOf(s) * 260}ms` }}>
                   <h3>{s.title}</h3>
                   <p>{s.text}</p>
                 </li>
@@ -239,7 +228,7 @@ export default function Home() {
         {/* Catalogs */}
         <section className="section catalogs" id="catalogs">
           <div className="wrap">
-            <div className="section-head">
+            <div className="section-head" data-reveal>
               <h2 className="display">Pick your garments</h2>
               <p className="lede">
                 Browse thousands of styles in our two catalogs. Note the style numbers and colors you like, then send them with
@@ -247,7 +236,7 @@ export default function Home() {
               </p>
             </div>
             <div className="cat-grid">
-              <article className="cat">
+              <article className="cat" data-reveal>
                 <figure>
                   <img src="/img/catalog-a.webp" alt="Polos, tees and jackets from catalog A" width={1200} height={800} loading="lazy" />
                 </figure>
@@ -264,7 +253,7 @@ export default function Home() {
                   </a>
                 </div>
               </article>
-              <article className="cat">
+              <article className="cat" data-reveal>
                 <figure>
                   <img src="/img/catalog-b.webp" alt="Performance shirts and hats from catalog B" width={1200} height={800} loading="lazy" />
                 </figure>
@@ -287,7 +276,7 @@ export default function Home() {
 
         {/* Visit */}
         <section className="section visit" id="visit">
-          <div className="wrap visit-grid">
+          <div className="wrap visit-grid" data-reveal>
             <figure>
               <img src="/img/shop-front.webp" alt="The JM Digital Media shop on 2nd Street in downtown Rosenberg" width={1400} height={933} loading="lazy" />
             </figure>
