@@ -50,7 +50,10 @@ p { margin: 0; }
 .on-light .btn-line:hover { background: rgba(29,43,79,.06); }
 
 /* Header */
-.top { position: sticky; top: 0; z-index: 30; background: var(--navy); color: var(--thread); }
+.top { position: sticky; top: 0; z-index: 30; background: var(--navy); color: var(--thread); transition: box-shadow .3s, background-color .3s; }
+.top.scrolled { background: rgba(21,32,56,.94); backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgba(8,14,30,.25); }
+.top .wrap { transition: min-height .3s; }
+.top.scrolled .wrap { min-height: 62px; }
 .top .wrap { display: flex; align-items: center; gap: 24px; min-height: 72px; }
 .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; margin-right: auto; }
 .brand img { width: 46px; height: 46px; }
@@ -72,25 +75,40 @@ p { margin: 0; }
 /* Hero */
 .hero { background: var(--navy); color: var(--thread); padding: clamp(40px, 6vw, 80px) 0 0; overflow: hidden; }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(28px, 4vw, 56px); align-items: end; }
-.hero h1 { font-size: clamp(50px, 6.9vw, 100px); }
+.hero h1 { font-size: clamp(50px, 6.2vw, 90px); }
 .hero h1 .line { display: block; }
 .hero .lede { color: rgba(255,255,255,.82); margin-top: 26px; }
 .hero-cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
-.hero-copy { padding-bottom: clamp(40px, 6vw, 84px); }
+.hero-copy { padding-bottom: clamp(36px, 4.5vw, 60px); }
 .hero-facts { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 38px; padding: 0; list-style: none; color: rgba(255,255,255,.78); font-size: 15px; font-weight: 600; }
 .hero-facts li { display: flex; align-items: center; gap: 8px; }
 .hero-facts svg { color: #ff6b70; flex: none; }
-.hero-photo { position: relative; align-self: stretch; min-height: 420px; }
-.hero-photo .main { position: absolute; inset: 0 0 0 0; border-radius: 18px 18px 0 0; overflow: hidden; }
-.hero-photo .main img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.hero-photo { position: relative; align-self: stretch; min-height: 460px; }
+.hero-photo .main { position: absolute; inset: 0; border-radius: 18px 18px 0 0; overflow: hidden; background: var(--navy-deep); }
+.hero-photo .slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.08); transition: opacity 1.1s ease, transform 6.5s ease-out; }
+.hero-photo .slide.on { opacity: 1; transform: scale(1); }
 /* Stitched frame inset inside the photo, like a patch border. */
-.hero-photo .main::after { content: ""; position: absolute; inset: 14px 14px -4px 14px; border: 3px dashed rgba(255,255,255,.75); border-bottom: 0; border-radius: 10px 10px 0 0; pointer-events: none; }
-.hero-photo .tag { position: absolute; left: -22px; bottom: 32px; background: var(--red); color: var(--thread); padding: 14px 18px; border-radius: 12px; max-width: 240px; font-weight: 700; line-height: 1.3; box-shadow: 0 12px 30px rgba(10,16,32,.35); }
+.hero-photo .main::after { content: ""; position: absolute; inset: 14px 14px -4px 14px; border: 3px dashed rgba(255,255,255,.75); border-bottom: 0; border-radius: 10px 10px 0 0; pointer-events: none; z-index: 2; }
+.hero-photo .main::before { content: ""; position: absolute; inset: 55% 0 0 0; background: linear-gradient(to top, rgba(14,22,40,.72), transparent); z-index: 1; pointer-events: none; }
+.slide-ui { position: absolute; left: 32px; right: 32px; bottom: 28px; z-index: 3; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.hero-photo .tag { margin: 0; background: var(--red); color: var(--thread); padding: 12px 16px; border-radius: 12px; max-width: 300px; font-weight: 700; line-height: 1.3; box-shadow: 0 12px 30px rgba(10,16,32,.35); animation: tagIn .55s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes tagIn { from { opacity: 0; transform: translateY(12px); } }
+.dots { display: flex; gap: 6px; padding-bottom: 6px; }
+.dot { width: 30px; height: 26px; padding: 11px 0; background: none; border: 0; cursor: pointer; }
+.dot span { display: block; height: 4px; border-radius: 2px; background: rgba(255,255,255,.4); position: relative; overflow: hidden; }
+.dot.on span::after { content: ""; position: absolute; inset: 0; background: #fff; transform-origin: left; animation: fill linear both; animation-duration: inherit; animation-play-state: inherit; }
+@keyframes fill { from { transform: scaleX(0); } }
+.badge { position: absolute; width: 132px; height: 132px; top: -34px; right: -26px; z-index: 4; filter: drop-shadow(0 10px 22px rgba(8,14,30,.4)); animation: badgeIn .9s .9s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes badgeIn { from { opacity: 0; transform: scale(.4) rotate(-40deg); } }
+.badge-ring { transform-origin: 100px 100px; animation: spin 26s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 860px) {
   .hero-grid { grid-template-columns: 1fr; }
   .hero-copy { padding-bottom: 0; }
-  .hero-photo { min-height: 320px; }
-  .hero-photo .tag { left: 14px; right: 14px; bottom: 14px; max-width: none; font-size: 15px; padding: 10px 14px; }
+  .hero-photo { min-height: 380px; margin-top: 30px; }
+  .slide-ui { left: 22px; right: 22px; bottom: 20px; flex-direction: column; align-items: flex-start; }
+  .hero-photo .tag { font-size: 15px; padding: 10px 14px; }
+  .badge { width: 104px; height: 104px; top: -40px; right: -6px; }
 }
 
 /* Generic section spacing */
@@ -110,7 +128,7 @@ p { margin: 0; }
 .svc-side { position: sticky; top: 100px; display: grid; gap: 16px; }
 .svc-side figure { margin: 0; border-radius: 16px; overflow: hidden; background: var(--heather); }
 .svc-side figcaption { font-size: 14px; color: var(--muted); padding: 10px 14px 12px; }
-@media (max-width: 900px) { .svc-layout { grid-template-columns: 1fr; } .svc-side { position: static; } }
+@media (max-width: 900px) { .svc-layout { grid-template-columns: 1fr; } .svc-side { position: sticky; top: 70px; z-index: 2; order: -1; } .svc-stage { aspect-ratio: 16 / 9; } }
 
 /* Who we work with: three photos */
 .who { background: var(--heather); }
@@ -203,3 +221,95 @@ p { margin: 0; }
 .social a { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,.08); color: var(--thread); }
 .social a:hover { background: rgba(255,255,255,.16); }
 .foot small { display: block; margin-top: 26px; color: rgba(255,255,255,.6); }
+
+/* ------------------------------------------------------------- motion */
+
+/* Hero headline: words rise in once on load, then a stitch line sews in. */
+.hero-h1 .w { display: inline-block; animation: wordUp .8s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 70ms + 80ms); }
+@keyframes wordUp { from { opacity: 0; transform: translateY(0.45em) rotate(2deg); } }
+.sew { display: block; width: min(420px, 80%); height: 14px; margin-top: 18px; overflow: visible; }
+.sew path { fill: none; stroke: var(--red); stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 12 9; animation: sew 1.2s .75s ease-out both; }
+@keyframes sew { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.hero .lede, .hero-cta, .hero-facts { animation: fadeUp .7s cubic-bezier(.2,.8,.2,1) both; }
+.hero .lede { animation-delay: .55s; }
+.hero-cta { animation-delay: .7s; }
+.hero-facts { animation-delay: .85s; }
+.hero-photo { animation: photoIn 1s .2s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } }
+@keyframes photoIn { from { opacity: 0; transform: translateY(40px); } }
+
+/* Buttons */
+.btn { transition: background-color .15s, color .15s, border-color .15s, transform .2s, box-shadow .2s; }
+.btn-red:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(212,42,50,.35); }
+.btn-line:hover { transform: translateY(-2px); }
+
+/* Marquee band */
+.marquee { background: var(--red); color: var(--thread); overflow: hidden; position: relative; padding: 18px 0; }
+.marquee::before, .marquee::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; background: var(--stitch); color: rgba(255,255,255,.6); }
+.marquee::before { top: 6px; }
+.marquee::after { bottom: 6px; }
+.marquee-track { display: flex; width: max-content; animation: marquee 38s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+.marquee-track > div { display: flex; align-items: center; flex: none; }
+.marquee span { font-stretch: 70%; font-weight: 800; font-size: clamp(26px, 3.4vw, 40px); line-height: 1; white-space: nowrap; padding: 0 22px; }
+.marquee i { font-style: normal; font-size: 20px; opacity: .7; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+/* Services: picking a row swaps the picture */
+.svc { position: relative; cursor: pointer; transition: padding-left .3s cubic-bezier(.2,.8,.2,1); }
+.svc::before { content: ""; position: absolute; left: 0; top: 24px; bottom: 24px; width: 4px; border-radius: 2px; background: var(--red); transform: scaleY(0); transform-origin: top; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+.svc.on { padding-left: 22px; }
+.svc.on::before { transform: scaleY(1); }
+.svc h3 { color: var(--muted); transition: color .25s; }
+.svc.on h3 { color: var(--ink); }
+.svc-btn { all: unset; cursor: pointer; }
+.svc-btn:focus-visible { outline: 3px solid var(--red); outline-offset: 4px; border-radius: 4px; }
+.svc-stage { position: relative; aspect-ratio: 4 / 3; background: var(--navy); overflow: hidden; }
+.svc-frame { position: absolute; inset: 0; opacity: 0; transform: scale(1.06); transition: opacity .6s ease, transform 1.2s cubic-bezier(.2,.8,.2,1); }
+.svc-frame.on { opacity: 1; transform: scale(1); }
+.svc-frame img, .svc-frame svg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.svc-side figcaption { animation: fadeUp .45s ease both; }
+
+@media (max-width: 900px) { .svc-side { top: 66px; } .svc-stage { aspect-ratio: 16 / 9; } .svc-side figure { border-radius: 12px; box-shadow: 0 10px 24px rgba(24,33,58,.18); } .svc-side figcaption { display: none; } }
+
+/* Who: photo zoom on hover; swipe slider on phones */
+.who-item figure img { transition: transform .8s cubic-bezier(.2,.8,.2,1); }
+.who-item:hover figure img { transform: scale(1.06); }
+@media (max-width: 860px) {
+  .who-grid { display: flex; grid-template-columns: none; overflow-x: auto; scroll-snap-type: x mandatory; gap: 16px; margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) 8px; scrollbar-width: none; }
+  .who-grid::-webkit-scrollbar { display: none; }
+  .who-item { flex: 0 0 82%; scroll-snap-align: start; }
+}
+
+/* Catalog cards */
+.cat { transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s; }
+.cat:hover { transform: translateY(-6px); box-shadow: 0 22px 40px rgba(24,33,58,.12); }
+.cat figure { overflow: hidden; }
+.cat figure img { transition: transform .9s cubic-bezier(.2,.8,.2,1); }
+.cat:hover figure img { transform: scale(1.05); }
+.visit figure img { transition: transform 1.2s cubic-bezier(.2,.8,.2,1); }
+.visit figure:hover img { transform: scale(1.04); }
+
+/* Scroll reveal (only when JS is running) */
+.js [data-reveal] { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.2,.8,.2,1), transform .8s cubic-bezier(.2,.8,.2,1); transition-delay: var(--d, 0ms); }
+.js [data-reveal].in { opacity: 1; transform: none; }
+
+/* Process: the stitch line sews across, then each step pops in */
+.js .steps[data-reveal] { opacity: 1; transform: none; }
+.js .steps::before { clip-path: inset(0 100% 0 0); transition: clip-path 1.6s .2s ease-out; }
+.js .steps.in::before { clip-path: inset(0 0 0 0); }
+.js .step { opacity: 0; transform: translateY(18px); transition: opacity .6s, transform .6s cubic-bezier(.2,.8,.2,1); transition-delay: var(--d); }
+.js .step::before { transform: scale(.3); transition: transform .5s cubic-bezier(.2,1.6,.4,1); transition-delay: var(--d); }
+.js .steps.in .step { opacity: 1; transform: none; }
+.js .steps.in .step::before { transform: scale(1); }
+@media (max-width: 960px) {
+  .js .steps::before { clip-path: inset(0 0 100% 0); }
+  .js .steps.in::before { clip-path: inset(0 0 0 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-reveal], .js .step { opacity: 1 !important; transform: none !important; }
+  .js .steps::before { clip-path: none !important; }
+  .js .step::before { transform: none !important; }
+  .hero-photo .slide { transform: none !important; }
+}
