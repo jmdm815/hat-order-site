@@ -4,8 +4,8 @@ import Footer from "@/components/Footer";
 import { activeProducts, money, shop, toCents } from "@/shop/pricing";
 
 export const metadata: Metadata = {
-  title: "Shop — Ready-made tumblers and gear | JM Digital Media",
-  description: "Printed tumblers and ready-made gear from our Rosenberg, TX shop. Ship anywhere in the US or pick up in Rosenberg.",
+  title: "Products | JM Digital Media",
+  description: "Printed tumblers and gear from our Rosenberg, TX shop. Orders ship or are ready to pick up in 3 to 5 business days.",
 };
 
 export default function ShopPage() {
@@ -16,9 +16,9 @@ export default function ShopPage() {
       <main id="top">
         <section className="shop-hero">
           <div className="wrap">
-            <h1 className="display">Ready to ship</h1>
+            <h1 className="display">Products</h1>
             <p className="lede">
-              Made in our Rosenberg shop and ready to go. Order online, then we ship it to you or you pick it up.
+              Made in our Rosenberg shop. Orders ship or are ready to pick up in 3 to 5 business days.
             </p>
           </div>
         </section>

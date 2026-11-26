@@ -6,11 +6,11 @@
     "label": "Shipping (USPS)",
     "firstItem": 9.95,
     "eachAdditional": 3.0,
-    "note": "Ships in 2-4 business days from Rosenberg, TX."
+    "note": "Ships from Rosenberg, TX in 3 to 5 business days."
   },
   "pickup": {
     "label": "Pickup in Rosenberg, TX",
-    "note": "Pickup is by appointment. We'll text you when your order is ready."
+    "note": "Ready in 3 to 5 business days. Pickup is by appointment; we'll text you when it's ready."
   },
   "maxPerItem": 20,
   "products": [

@@ -13,7 +13,7 @@ export default function Footer() {
             <a href="/#services">Services</a>
             <a href="/#process">How it works</a>
             <a href="/#catalogs">Catalogs</a>
-            <a href="/shop">Shop</a>
+            <a href="/shop">Products</a>
             <a href={DTF_PAGE}>DTF transfers</a>
             <a href="/#quote">Get a quote</a>
           </nav>

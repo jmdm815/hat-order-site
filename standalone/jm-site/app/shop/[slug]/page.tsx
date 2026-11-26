@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const p = findProduct((await params).slug);
   if (!p) return {};
   return {
-    title: `${p.name} | JM Digital Media Shop`,
+    title: `${p.name} | JM Digital Media`,
     description: p.summary,
     openGraph: { title: p.name, description: p.summary, images: [p.images[0]] },
   };
@@ -30,7 +30,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <main id="top" className="pdp">
         <div className="wrap">
           <nav className="crumbs" aria-label="Breadcrumb">
-            <a href="/shop">Shop</a> <span aria-hidden="true">/</span> <span>{p.name}</span>
+            <a href="/shop">Products</a> <span aria-hidden="true">/</span> <span>{p.name}</span>
           </nav>
           <div className="pdp-grid">
             <div className="pdp-photo">

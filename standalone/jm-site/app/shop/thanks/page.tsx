@@ -32,7 +32,7 @@ export default async function ThanksPage({ searchParams }: { searchParams: Promi
             Questions? Text <a href="sms:+12813441772">281-344-1772</a> or email <a href="mailto:purchasing@buyjmmedia.com">purchasing@buyjmmedia.com</a>.
           </p>
           <a className="btn btn-red" href="/shop">
-            Back to the shop
+            Back to products
           </a>
         </div>
       </main>

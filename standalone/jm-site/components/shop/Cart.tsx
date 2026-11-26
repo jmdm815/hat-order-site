@@ -160,7 +160,7 @@ function CartDrawer() {
           <div className="drawer-empty">
             <p>Your cart is empty.</p>
             <a className="btn btn-red" href="/shop" onClick={() => setOpen(false)}>
-              Browse the shop
+              Browse products
             </a>
           </div>
         ) : (
