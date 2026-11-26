@@ -12,10 +12,10 @@ import { priceCart, shop, type Fulfillment } from "@/standalone/jm-site/shop/pri
 // prices from the browser), then create a Square-hosted payment link, the same
 // Checkout API the invoices use, and return its URL for the browser to open.
 //
-// Shipping: a "Shipping" line item (flat rate from the catalog) and Square asks
-// for the address. Pickup: no shipping line and no address. Sales tax: one
-// order-scoped tax at catalog.taxRatePercent, applied by Square to every line
-// (Texas taxes shipping on taxable goods). The order shows up in the Square
+// Shipping: the catalog's flat rate is passed as Square's shippingFee, so it
+// shows as the order's one shipping method, and Square asks for the address.
+// Pickup: no fee and no address. Sales tax: one order-scoped tax at
+// catalog.taxRatePercent on the items (Square doesn't tax the shipping fee). The order shows up in the Square
 // Dashboard like any online order, and Square emails the buyer a receipt.
 //
 // Without SQUARE_ACCESS_TOKEN / SQUARE_LOCATION_ID (preview deployments) this
@@ -100,13 +100,6 @@ export async function POST(req: NextRequest) {
     basePriceMoney: { amount: BigInt(l.unitCents), currency: "USD" },
     note: l.product.slug,
   }));
-  if (priced.shippingCents > 0) {
-    lineItems.push({
-      name: shop.shipping.label,
-      quantity: "1",
-      basePriceMoney: { amount: BigInt(priced.shippingCents), currency: "USD" },
-    });
-  }
 
   const ref = `WEB-${randomUUID().slice(0, 8).toUpperCase()}`;
   try {
@@ -126,6 +119,11 @@ export async function POST(req: NextRequest) {
       },
       checkoutOptions: {
         askForShippingAddress: fulfillment === "ship",
+        // Square shows this as the order's one shipping method.
+        shippingFee:
+          priced.shippingCents > 0
+            ? { name: shop.shipping.label, charge: { amount: BigInt(priced.shippingCents), currency: "USD" } }
+            : undefined,
         redirectUrl: thanks.toString(),
         merchantSupportEmail: "purchasing@buyjmmedia.com",
         allowTipping: false,

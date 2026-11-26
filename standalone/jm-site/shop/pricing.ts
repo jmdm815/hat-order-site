@@ -46,7 +46,7 @@ export function shippingCents(itemCount: number, fulfillment: Fulfillment): numb
   return toCents(catalog.shipping.firstItem) + toCents(catalog.shipping.eachAdditional) * (itemCount - 1);
 }
 
-/** Texas taxes shipping on taxable goods, so tax is on items + shipping. */
+/** Tax is on the items only, matching Square, which doesn't tax the shipping fee. */
 export function priceCart(items: CartItem[], fulfillment: Fulfillment): PricedCart {
   const lines = cleanCart(items).map(({ slug, qty }) => {
     const product = findProduct(slug)!;
@@ -56,6 +56,6 @@ export function priceCart(items: CartItem[], fulfillment: Fulfillment): PricedCa
   const itemCount = lines.reduce((n, l) => n + l.qty, 0);
   const subtotalCents = lines.reduce((n, l) => n + l.lineCents, 0);
   const ship = shippingCents(itemCount, fulfillment);
-  const taxCents = Math.round(((subtotalCents + ship) * catalog.taxRatePercent) / 100);
+  const taxCents = Math.round((subtotalCents * catalog.taxRatePercent) / 100);
   return { lines, itemCount, subtotalCents, shippingCents: ship, taxCents, totalCents: subtotalCents + ship + taxCents };
 }
