@@ -21,36 +21,36 @@ const SERVICES = [
   {
     name: "Embroidery",
     text: "Your logo stitched onto polos, button-downs, jackets, beanies and caps. It holds up to daily wear and washing, and it's the look most businesses want on staff uniforms.",
-    for: ["Staff polos", "Jackets", "Caps & beanies"],
+    for: ["Staff Polos", "Jackets", "Caps & Beanies"],
     img: { src: "/img/doorstep-polo.webp", alt: "Technician in an embroidered polo greeting a customer at the door", pos: "60% 40%" },
     caption: "An embroidered polo makes your tech recognizable at the customer's door.",
   },
   {
-    name: "DTF printing",
+    name: "DTF Printing",
     text: "Full-color prints with fine detail and gradients, on cotton, polyester and blends. Good for short runs, multi-color logos and event shirts on a deadline.",
-    for: ["Event shirts", "Full-color logos", "Small runs"],
-    link: { href: DTF_PAGE, label: "Order transfers" },
-    img: { src: "/img/dtf-printer.webp", alt: "DTF printer printing full-color transfers", pos: "70% 50%" },
-    caption: "Full-color DTF transfers, printed and ready to press.",
+    for: ["Event Shirts", "Full-Color Logos", "Small Runs"],
+    link: { href: DTF_PAGE, label: "Order Transfers" },
+    img: { src: "/img/dtf-press.webp", alt: "Peeling the film off a full-color DTF transfer on a gray t-shirt at the heat press", pos: "50% 50%" },
+    caption: "A full-color DTF transfer, fresh off the heat press.",
   },
   {
-    name: "Screen printing",
+    name: "Screen Printing",
     text: "The best price per shirt on larger orders with simpler artwork. Bold, durable ink for crew tees, giveaways and team shirts.",
-    for: ["Crew tees", "Giveaways", "Bulk orders"],
+    for: ["Crew Tees", "Giveaways", "Bulk Orders"],
     img: { src: "/img/roofer-tee.webp", alt: "Roofer in a printed company long-sleeve shirt", pos: "50% 40%" },
     caption: "Bold printed crew shirts that hold up on the roof.",
   },
   {
-    name: "UV printed patches & hats",
+    name: "UV Printed Patches & Hats",
     text: "Sharp, full-color patches applied to trucker and structured caps. A clean, premium look for logos that are too detailed to stitch.",
-    for: ["Patch hats", "Detailed logos"],
+    for: ["Patch Hats", "Detailed Logos"],
     img: { src: "/img/crew-back.webp", alt: "Black cap with a detailed company logo", pos: "55% 18%" },
     caption: "Detailed logos stay sharp on caps.",
   },
   {
-    name: "UV printed tumblers & cups",
+    name: "UV Printed Tumblers & Cups",
     text: "Your logo printed directly on tumblers and drinkware, for client gifts, sales teams and company events.",
-    for: ["Client gifts", "Events"],
+    for: ["Client Gifts", "Events"],
     caption: "Logo tumblers for client gifts and company events.",
   },
 ] as const;
@@ -145,10 +145,10 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="marquee" aria-label="Services: Embroidery, DTF printing, Screen printing, UV printed patches, Patch hats, Logo tumblers, Digitizing, Mockups">
+        <div className="marquee" aria-label="Services: Embroidery, DTF Printing, Screen Printing, UV Printed Patches, UV Printed Tumblers and Cups, Digitizing, Vectorizing, Mockups">
           <div className="marquee-track" aria-hidden="true">
-            <div><span>Embroidery</span><i aria-hidden="true">✚</i><span>DTF printing</span><i aria-hidden="true">✚</i><span>Screen printing</span><i aria-hidden="true">✚</i><span>UV printed patches</span><i aria-hidden="true">✚</i><span>Patch hats</span><i aria-hidden="true">✚</i><span>Logo tumblers</span><i aria-hidden="true">✚</i><span>Digitizing</span><i aria-hidden="true">✚</i><span>Mockups</span><i aria-hidden="true">✚</i></div>
-            <div><span>Embroidery</span><i aria-hidden="true">✚</i><span>DTF printing</span><i aria-hidden="true">✚</i><span>Screen printing</span><i aria-hidden="true">✚</i><span>UV printed patches</span><i aria-hidden="true">✚</i><span>Patch hats</span><i aria-hidden="true">✚</i><span>Logo tumblers</span><i aria-hidden="true">✚</i><span>Digitizing</span><i aria-hidden="true">✚</i><span>Mockups</span><i aria-hidden="true">✚</i></div>
+            <div><span>Embroidery</span><i aria-hidden="true">✚</i><span>DTF Printing</span><i aria-hidden="true">✚</i><span>Screen Printing</span><i aria-hidden="true">✚</i><span>UV Printed Patches</span><i aria-hidden="true">✚</i><span>UV Printed Tumblers &amp; Cups</span><i aria-hidden="true">✚</i><span>Digitizing</span><i aria-hidden="true">✚</i><span>Vectorizing</span><i aria-hidden="true">✚</i><span>Mockups</span><i aria-hidden="true">✚</i></div>
+            <div><span>Embroidery</span><i aria-hidden="true">✚</i><span>DTF Printing</span><i aria-hidden="true">✚</i><span>Screen Printing</span><i aria-hidden="true">✚</i><span>UV Printed Patches</span><i aria-hidden="true">✚</i><span>UV Printed Tumblers &amp; Cups</span><i aria-hidden="true">✚</i><span>Digitizing</span><i aria-hidden="true">✚</i><span>Vectorizing</span><i aria-hidden="true">✚</i><span>Mockups</span><i aria-hidden="true">✚</i></div>
           </div>
         </div>
 
@@ -156,7 +156,7 @@ export default function Home() {
         <section className="section services" id="services">
           <div className="wrap">
             <div className="section-head" data-reveal>
-              <h2 className="display">What we put your logo on</h2>
+              <h2 className="display">How we put your logo on</h2>
               <p className="lede">
                 Pick the method that fits the garment, the artwork and the budget. Not sure which one? Tell us what it&apos;s
                 for and we&apos;ll recommend one.
