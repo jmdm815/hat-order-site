@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "example-remote": {
+      "type": "http",
+      "url": "https://example.com/mcp",
+      "headers": { "Authorization": "Bearer ${EXAMPLE_TOKEN}" }
+    }
+  }
+}
