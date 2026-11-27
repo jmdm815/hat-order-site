@@ -54,6 +54,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { id: "setup-charges", label: "Setup Charges", href: "/admin?tab=setup-charges", icon: "list" },
       { id: "garment-markup", label: "Garment Markup", href: "/admin?tab=garment-markup", icon: "trend" },
       { id: "settings", label: "Settings", href: "/admin?tab=settings", icon: "gear" },
+      { id: "connector", label: "Claude Connector", href: "/admin/connector", icon: "external" },
     ],
   },
 ];
