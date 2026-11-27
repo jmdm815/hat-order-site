@@ -29,6 +29,22 @@
         "Design UV printed in white in our Rosenberg shop",
         "Hand wash recommended"
       ]
+    },
+    {
+      "slug": "express-electric-tumbler",
+      "name": "Express Electric 20 oz Tumbler",
+      "price": 30.0,
+      "active": true,
+      "color": "Olive Green",
+      "images": ["/img/shop/express-electric-tumbler.webp"],
+      "imageAlt": "Olive green stainless tumbler printed in white with the Express Electric logo, a rounded box with a plug cord.",
+      "summary": "Olive green insulated tumbler printed with the Express Electric logo.",
+      "details": [
+        "20 oz double-wall stainless steel",
+        "Clear slide lid",
+        "Logo UV printed in white in our Rosenberg shop",
+        "Hand wash recommended"
+      ]
     }
   ]
 }
