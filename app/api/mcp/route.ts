@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyConnectorKey } from "@/lib/connector-key-store";
+import { signPdfLink, type PdfMode } from "@/lib/pdf-link";
 
 // ---------------------------------------------------------------------------
 // JM Admin connector (MCP over Streamable HTTP, stateless JSON responses)
@@ -276,6 +277,37 @@ const TOOLS: Tool[] = [
     inputSchema: { type: "object", properties: { id: { type: "string", description: "Record id or number." } }, required: ["id"] },
     annotations: { readOnlyHint: true },
     run: async (a, ctx) => summarizeRecord(await findRecord(ctx, str(a.id)), ctx, true),
+  },
+  {
+    name: "get_quote_pdf",
+    title: "Get a quote or invoice PDF",
+    description:
+      'A private download link (valid 15 minutes) to the PDF of a quote or invoice, by id or number. mode: "customer" (default, what the customer gets), "invoice" (converted records), "internal" (with costs and internal notes; never send it to a customer) or "work-order" (production copy). Download it and show it to Jhairson; do not share the link with customers.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Record id or number." },
+        mode: { type: "string", enum: ["customer", "invoice", "internal", "work-order"] },
+      },
+      required: ["id"],
+    },
+    annotations: { readOnlyHint: true },
+    run: async (a, ctx) => {
+      const rec = await findRecord(ctx, str(a.id));
+      const asked = str(a.mode);
+      const mode: PdfMode =
+        asked === "internal" || asked === "work-order"
+          ? asked
+          : asked === "invoice" || (!asked && rec.status === "invoice")
+            ? rec.status === "invoice"
+              ? "invoice"
+              : "customer"
+            : "customer";
+      const link = signPdfLink(ctx.origin, String(rec.id), mode);
+      if (!link) throw new ToolError("AGENT_API_KEY isn't set, so PDF links can't be made.");
+      const number = rec.invoiceNumber ?? rec.quoteNumber ?? "quote";
+      return { number, mode, url: link.url, expiresAt: link.expiresAt, filename: `${number}${mode === "customer" || mode === "invoice" ? "" : `-${mode}`}.pdf` };
+    },
   },
   {
     name: "preview_quote",
